@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius-small: 8px;
+  --radius-medium: 10px;
+  --radius-large: 12px;
+  --theme-background: #f8fafc;
+  --theme-surface: #ffffff;
+  --theme-primary: #6366f1;
+  --theme-secondary: #8b5cf6;
+  --theme-text: #1e293b;
+  --theme-muted: #64748b;
+  --theme-border: #e2e8f0;
+  --theme-danger: #ef4444;
+  --theme-success: #22c55e;
+  --currency-color: text;
+  --positive-color: #16a34a;
+  --negative-color: #dc2626;
+  --glass-blur: 0px;
+  --glass-opacity: 0;
+}
+
+[data-theme="glass"] {
+  --glass-blur: 12px;
+  --glass-opacity: 0.08;
+}
+
+.dark {
+  --theme-background: #09090b;
+  --theme-surface: #18181b;
+  --theme-primary: #a1a1aa;
+  --theme-secondary: #71717a;
+  --theme-text: #fafafa;
+  --theme-muted: #52525b;
+  --theme-border: #27272a;
+  --theme-danger: #f87171;
+  --theme-success: #4ade80;
+}
+
+.bg-theme-background { background-color: var(--theme-background); }
+.bg-theme-surface { background-color: var(--theme-surface); }
+.bg-theme-primary { background-color: var(--theme-primary); }
+.bg-theme-secondary { background-color: var(--theme-secondary); }
+.text-theme-text { color: var(--theme-text); }
+.text-theme-muted { color: var(--theme-muted); }
+.border-theme-border { border-color: var(--theme-border); }
+.bg-theme-danger { background-color: var(--theme-danger); }
+.bg-theme-success { background-color: var(--theme-success); }
+.text-theme-danger { color: var(--theme-danger); }
+.text-theme-success { color: var(--theme-success); }
+
+.rounded-theme-small { border-radius: var(--radius-small); }
+.rounded-theme-medium { border-radius: var(--radius-medium); }
+.rounded-theme-large { border-radius: var(--radius-large); }
+
+.btn-theme {
+  border-radius: var(--radius-medium);
+  transition: all 0.15s ease;
+}
+.btn-theme:hover {
+  filter: brightness(0.95);
+}
+
+.card-theme {
+  border-radius: var(--radius-large);
+  border: 1px solid var(--theme-border);
+  background-color: var(--theme-surface);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, var(--glass-opacity));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark body {
+  background-color: var(--theme-background);
+}
+
+.positive-number {
+  color: var(--positive-color);
+}
+.negative-number {
+  color: var(--negative-number);
+}
+
+[data-theme="glass"] .glass-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-large);
+}
+
+[data-theme="glass"] .glass-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-medium);
+  color: var(--theme-text);
+}
+
+[data-theme="glass"] .glass-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-medium);
+  color: var(--theme-text);
+}
+[data-theme="glass"] .glass-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
