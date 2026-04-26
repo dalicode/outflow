@@ -171,6 +171,31 @@ export async function pullFromSupabase(userId) {
   }
 }
 
+// ── Theme profile sync ────────────────────────────────────────────────────────
+export async function syncThemeToProfile(userId, themeId) {
+  if (!supabase || !userId) return
+  try {
+    await supabase.from('profiles').upsert(
+      { id: userId, selected_theme: themeId, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    )
+  } catch (err) {
+    console.warn('Profile theme sync error:', err)
+  }
+}
+
+export async function fetchThemeFromProfile(userId) {
+  if (!supabase || !userId) return null
+  try {
+    const { data, error } = await supabase.from('profiles').select('selected_theme').eq('id', userId).single()
+    if (error) return null
+    return data?.selected_theme ?? null
+  } catch (err) {
+    console.warn('Profile theme fetch error:', err)
+    return null
+  }
+}
+
 // ── Initial migration: push all local data to Supabase once ──────────────────
 export async function migrateLocalToSupabase(userId) {
   if (!supabase || !userId) return

@@ -1,32 +1,65 @@
-import React from 'react'
+import React from "react";
+import { useSettings } from "./SettingsContext";
 
-function Card({ label, value, color = 'text-gray-800' }) {
+function Card({ label, value, colorClass = "text-theme-text" }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm px-4 py-3 flex flex-col gap-0.5">
-      <span className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">{label}</span>
-      <span className={`text-xl font-semibold ${color}`}>{value}</span>
+    <div className="bg-theme-surface rounded-xl shadow-sm px-4 py-3 flex flex-col gap-0.5 border border-theme-border">
+      <span className="text-xs text-theme-muted uppercase tracking-widest mb-2">
+        {label}
+      </span>
+      <span className={`text-xl font-semibold ${colorClass}`}>{value}</span>
     </div>
-  )
+  );
 }
 
-const fmt = (n) => `$${n.toFixed(2)}`
-
-export default function SummarySection({ monthlyIncome, totalFixed, variableExpenses, savingsRate }) {
-  const available = monthlyIncome - totalFixed
-  const savings = available * (savingsRate / 100)
-  const remaining = available - savings - variableExpenses
+export default function SummarySection({
+  monthlyIncome,
+  totalFixed,
+  variableExpenses,
+  savingsRate,
+}) {
+  const { formatAmount, getNumberColorClass } = useSettings();
+  const available = monthlyIncome - totalFixed;
+  const savings = available * (savingsRate / 100);
+  const remaining = available - savings - variableExpenses;
 
   return (
     <div className="space-y-2">
-      <h3 className="font-semibold text-gray-700 dark:text-gray-200">Financial Summary</h3>
+      <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
+        Financial Summary
+      </h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Card label="Monthly Income" value={fmt(monthlyIncome)} color="text-indigo-600" />
-        <Card label="Fixed Expenses" value={fmt(totalFixed)} color="text-orange-500" />
-        <Card label="Variable Expenses" value={fmt(variableExpenses)} color="text-yellow-600" />
-        <Card label="Available Income" value={fmt(Math.max(0, available))} color="text-blue-600" />
-        <Card label="Savings" value={fmt(Math.max(0, savings))} color="text-green-600" />
-        <Card label="Remaining Budget" value={fmt(remaining)} color={remaining >= 0 ? 'text-emerald-600' : 'text-red-500'} />
+        <Card
+          label="Monthly Income"
+          value={formatAmount(monthlyIncome)}
+          colorClass="text-theme-primary"
+        />
+        <Card
+          label="Fixed Expenses"
+          value={formatAmount(totalFixed)}
+          colorClass="text-orange-500"
+        />
+        <Card
+          label="Variable Expenses"
+          value={formatAmount(variableExpenses)}
+          colorClass="text-yellow-600"
+        />
+        <Card
+          label="Available Income"
+          value={formatAmount(Math.max(0, available))}
+          colorClass="text-blue-600"
+        />
+        <Card
+          label="Savings"
+          value={formatAmount(Math.max(0, savings))}
+          colorClass="positive-number"
+        />
+        <Card
+          label="Remaining Budget"
+          value={formatAmount(remaining)}
+          colorClass={remaining >= 0 ? "positive-number" : "negative-number"}
+        />
       </div>
     </div>
-  )
+  );
 }

@@ -12,7 +12,7 @@ export default function AnalyticsPage({ expenses, categories }) {
   const [monthlyIncome, setMonthlyIncome] = useState(0)
   const [fixedExpenses, setFixedExpenses] = useState([])
   const [snapshots, setSnapshots] = useState([])
-  const { formatAmount } = useSettings()
+  const { formatAmount, getNumberColorClass } = useSettings()
   const fmt = (n) => (n != null && n !== 0) ? formatAmount(n) : '—'
 
   useEffect(() => {
@@ -62,41 +62,32 @@ export default function AnalyticsPage({ expenses, categories }) {
     [variableRows, grid])
 
   // ── Fixed expense snapshot grid ───────────────────────────
-  // Group snapshots by fixedExpenseId, collect unique items
   const fixedSnapshotGrid = useMemo(() => {
-    // map: fixedExpenseId → { name, amounts[12] }
     const map = {}
     snapshots.forEach((s) => {
-      const m = s.month - 1 // 0-indexed
+      const m = s.month - 1
       if (!map[s.fixedExpenseId]) {
         map[s.fixedExpenseId] = { name: s.nameSnapshot, amounts: Array(12).fill(0) }
       }
       map[s.fixedExpenseId].amounts[m] = s.amountSnapshot
-      // Use the most recent name snapshot for display
       map[s.fixedExpenseId].name = s.nameSnapshot
     })
     return map
   }, [snapshots])
 
-  // For the current year, fill in months with no snapshot using current active fixed expenses
   const fixedRows = useMemo(() => {
     const isCurrentYear = year === now.getFullYear()
-    const currentMonth = now.getMonth() // 0-indexed
-
-    // Start from snapshot data
+    const currentMonth = now.getMonth()
     const rows = { ...fixedSnapshotGrid }
-
     if (isCurrentYear) {
       fixedExpenses.forEach((f) => {
         const key = f.id
         if (!rows[key]) rows[key] = { name: f.name, amounts: Array(12).fill(0) }
-        // Fill current and future months with current amount (not yet snapshotted)
         for (let m = 0; m <= currentMonth; m++) {
           if (rows[key].amounts[m] === 0) rows[key].amounts[m] = f.amount
         }
       })
     }
-
     return Object.entries(rows).map(([id, { name, amounts }]) => ({ id, name, amounts }))
   }, [fixedSnapshotGrid, fixedExpenses, year])
 
@@ -137,77 +128,77 @@ export default function AnalyticsPage({ expenses, categories }) {
   const navigate = useNavigate()
   const goToMonth = (m) => navigate(`/?month=${m}&year=${year}`)
 
-  const th = 'px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap'
+  const th = 'px-3 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap'
   const td = 'px-3 py-2 text-sm text-right whitespace-nowrap'
-  const stickyLabel = (bg = 'bg-white dark:bg-gray-800') => `sticky left-0 ${bg} px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap`
+  const stickyLabel = () => `sticky left-0 bg-theme-surface px-3 py-2 text-sm font-medium text-theme-text whitespace-nowrap`
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-4">
       <div className="flex items-center gap-4">
-        <button onClick={() => setYear((y) => y - 1)} className="p-2 rounded-theme-small hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">&#8592;</button>
-        <span className="text-xl font-bold text-gray-800 dark:text-gray-100">{year}</span>
-        <button onClick={() => setYear((y) => y + 1)} className="p-2 rounded-theme-small hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">&#8594;</button>
+        <button onClick={() => setYear((y) => y - 1)} className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors">&#8592;</button>
+        <span className="text-lg font-semibold text-theme-text">{year}</span>
+        <button onClick={() => setYear((y) => y + 1)} className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors">&#8594;</button>
       </div>
 
-      <div className="overflow-x-auto rounded-theme-large shadow-sm">
-        <table className="min-w-full text-sm border-collapse bg-white dark:bg-gray-800">
+      <div className="overflow-x-auto rounded-theme-large shadow-sm border border-theme-border">
+        <table className="min-w-full text-sm border-collapse bg-theme-surface">
           <thead>
-            <tr className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
-              <th className={`${th} sticky left-0 bg-gray-50 dark:bg-gray-700 text-left min-w-[150px]`}>Category</th>
+            <tr className="border-b border-theme-border">
+              <th className={`${th} sticky left-0 bg-theme-surface text-left min-w-[150px]`}>Category</th>
               {MONTHS.map((m, i) => (
-                <th key={m} className={`${th} cursor-pointer hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-colors`}
+                <th key={m} className={`${th} cursor-pointer hover:text-theme-primary hover:bg-theme-primary/5 transition-colors`}
                   onClick={() => goToMonth(i)}>{m}</th>
               ))}
-              <th className={`${th} bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400`}>Year Total</th>
+              <th className={`${th} bg-theme-primary/10 text-theme-primary`}>Year Total</th>
             </tr>
           </thead>
 
           <tbody>
             {/* ── Section 1: Fixed Expenses ── */}
-            <tr className="bg-orange-50 dark:bg-orange-900/20 border-t border-orange-200 dark:border-orange-800">
-              <td colSpan={14} className="sticky left-0 bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 text-xs font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wide">
+            <tr className="bg-orange-500/10 border-t border-orange-500/20">
+              <td colSpan={14} className="sticky left-0 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-600 uppercase tracking-wide">
                 Fixed Expenses
               </td>
             </tr>
 
             {fixedRows.length === 0 && (
-              <tr className="border-b dark:border-gray-700">
-                <td colSpan={14} className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500 italic">No fixed expenses for {year}.</td>
+              <tr className="border-b border-theme-border">
+                <td colSpan={14} className="px-3 py-2 text-sm text-theme-muted italic">No fixed expenses for {year}.</td>
               </tr>
             )}
 
             {fixedRows.map((row) => {
               const rowTotal = row.amounts.reduce((s, v) => s + v, 0)
               return (
-                <tr key={row.id} className="border-b dark:border-gray-700 hover:bg-orange-50/40 dark:hover:bg-orange-900/10 transition-colors">
+                <tr key={row.id} className="border-b border-theme-border hover:bg-orange-500/5 transition-colors">
                   <td className={stickyLabel()}>{row.name}</td>
                   {row.amounts.map((v, m) => (
-                    <td key={m} className={`${td} text-orange-700 dark:text-orange-400`}>{fmt(v)}</td>
+                    <td key={m} className={`${td} text-orange-600`}>{fmt(v)}</td>
                   ))}
-                  <td className={`${td} bg-indigo-50 dark:bg-indigo-900/40 font-semibold text-indigo-700 dark:text-indigo-400`}>{fmt(rowTotal)}</td>
+                  <td className={`${td} bg-theme-primary/10 font-semibold text-theme-primary`}>{fmt(rowTotal)}</td>
                 </tr>
               )
             })}
 
             {/* Fixed subtotal */}
-            <tr className="bg-orange-100 dark:bg-orange-900/30 border-t border-orange-300 dark:border-orange-700">
-              <td className="sticky left-0 bg-orange-100 dark:bg-orange-900/30 px-3 py-2 text-sm font-semibold text-orange-800 dark:text-orange-300">Total Fixed</td>
+            <tr className="bg-orange-500/15 border-t border-orange-500/30">
+              <td className="sticky left-0 bg-orange-500/15 px-3 py-2 text-sm font-semibold text-orange-700">Total Fixed</td>
               {monthlyFixedTotals.map((v, m) => (
-                <td key={m} className={`${td} font-semibold text-orange-800 dark:text-orange-300`}>{fmt(v)}</td>
+                <td key={m} className={`${td} font-semibold text-orange-700`}>{fmt(v)}</td>
               ))}
-              <td className={`${td} bg-indigo-100 dark:bg-indigo-900/50 font-bold text-indigo-800 dark:text-indigo-300`}>{fmt(yearFixedTotal)}</td>
+              <td className={`${td} bg-theme-primary/15 font-semibold text-theme-primary`}>{fmt(yearFixedTotal)}</td>
             </tr>
 
             {/* ── Section 2: Variable Expenses ── */}
-            <tr className="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-800">
-              <td colSpan={14} className="sticky left-0 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+            <tr className="bg-blue-500/10 border-t-2 border-blue-500/20">
+              <td colSpan={14} className="sticky left-0 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-600 uppercase tracking-wide">
                 Variable Expenses
               </td>
             </tr>
 
             {variableRows.length === 0 && (
-              <tr className="border-b dark:border-gray-700">
-                <td colSpan={14} className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500 italic">No variable expenses for {year}.</td>
+              <tr className="border-b border-theme-border">
+                <td colSpan={14} className="px-3 py-2 text-sm text-theme-muted italic">No variable expenses for {year}.</td>
               </tr>
             )}
 
@@ -215,17 +206,17 @@ export default function AnalyticsPage({ expenses, categories }) {
               const vals = grid[row.key] ?? Array(12).fill(0)
               const rowTotal = vals.reduce((s, v) => s + v, 0)
               return (
-                <tr key={row.key} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <tr key={row.key} className="border-b border-theme-border hover:bg-theme-primary/[0.03] transition-colors">
                   <td className={stickyLabel()}>{row.name}</td>
                   {vals.map((v, m) => {
                     const isMax = v > 0 && v === maxPerMonth[m]
                     return (
-                      <td key={m} className={`${td} ${isMax ? 'text-orange-600 dark:text-orange-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <td key={m} className={`${td} ${isMax ? 'text-orange-600 font-semibold' : 'text-theme-text'}`}>
                         {fmt(v)}
                       </td>
                     )
                   })}
-                  <td className={`${td} bg-indigo-50 dark:bg-indigo-900/40 font-semibold text-indigo-700 dark:text-indigo-400`}>{fmt(rowTotal)}</td>
+                  <td className={`${td} bg-theme-primary/10 font-semibold text-theme-primary`}>{fmt(rowTotal)}</td>
                 </tr>
               )
             })}
@@ -233,28 +224,28 @@ export default function AnalyticsPage({ expenses, categories }) {
 
           {/* ── Summary rows ── */}
           <tfoot>
-            <tr className="bg-gray-100 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-600">
-              <td className="sticky left-0 bg-gray-100 dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Total Expenses</td>
-              {monthlyTotals.map((v, m) => <td key={m} className={`${td} font-semibold text-gray-800 dark:text-gray-200`}>{fmt(v)}</td>)}
-              <td className={`${td} bg-indigo-100 dark:bg-indigo-900/50 font-bold text-indigo-800 dark:text-indigo-300`}>{fmt(yearTotal)}</td>
+            <tr className="bg-theme-background border-t-2 border-theme-border">
+              <td className="sticky left-0 bg-theme-background px-3 py-2 text-sm font-semibold text-theme-text">Total Expenses</td>
+              {monthlyTotals.map((v, m) => <td key={m} className={`${td} font-semibold text-theme-text`}>{fmt(v)}</td>)}
+              <td className={`${td} bg-theme-primary/15 font-semibold text-theme-primary`}>{fmt(yearTotal)}</td>
             </tr>
-            <tr className="bg-green-50 dark:bg-green-900/20 border-t dark:border-gray-700">
-              <td className="sticky left-0 bg-green-50 dark:bg-green-900/20 px-3 py-2 text-sm font-semibold text-green-700 dark:text-green-400">Total Savings</td>
+            <tr className="bg-green-500/10 border-t border-theme-border">
+              <td className="sticky left-0 bg-green-500/10 px-3 py-2 text-sm font-semibold text-green-700">Total Savings</td>
               {monthlySavings.map((v, m) => (
-                <td key={m} className={`${td} font-semibold ${v == null ? 'text-gray-300 dark:text-gray-600' : v >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-500'}`}>
+                <td key={m} className={`${td} font-semibold ${v == null ? 'text-theme-muted/50' : getNumberColorClass(v)}`}>
                   {v == null ? '—' : fmt(v)}
                 </td>
               ))}
-              <td className={`${td} bg-indigo-100 dark:bg-indigo-900/50 font-bold ${yearSavings >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-500'}`}>{fmt(yearSavings)}</td>
+              <td className={`${td} bg-theme-primary/15 font-semibold ${getNumberColorClass(yearSavings)}`}>{fmt(yearSavings)}</td>
             </tr>
-            <tr className="bg-green-50 dark:bg-green-900/20 border-t dark:border-gray-700">
-              <td className="sticky left-0 bg-green-50 dark:bg-green-900/20 px-3 py-2 text-sm font-semibold text-green-700 dark:text-green-400">Savings %</td>
+            <tr className="bg-green-500/10 border-t border-theme-border">
+              <td className="sticky left-0 bg-green-500/10 px-3 py-2 text-sm font-semibold text-green-700">Savings %</td>
               {monthlySavingsPct.map((v, m) => (
-                <td key={m} className={`${td} ${v == null ? 'text-gray-300 dark:text-gray-600' : v >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-500'}`}>
+                <td key={m} className={`${td} ${v == null ? 'text-theme-muted/50' : getNumberColorClass(v)}`}>
                   {v == null ? '—' : pct(v)}
                 </td>
               ))}
-              <td className={`${td} bg-indigo-100 dark:bg-indigo-900/50 font-bold ${avgSavingsPct >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-500'}`}>{pct(avgSavingsPct)}</td>
+              <td className={`${td} bg-theme-primary/15 font-semibold ${getNumberColorClass(avgSavingsPct)}`}>{pct(avgSavingsPct)}</td>
             </tr>
           </tfoot>
         </table>

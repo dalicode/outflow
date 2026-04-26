@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from 'react'
+import { useSettings } from './SettingsContext'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const EMPTY_FORM = { date: today(), categoryId: '', description: '', amount: '' }
-
-const inputCls = 'border dark:border-gray-600 rounded-theme-medium px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-700 dark:text-gray-100 w-full'
 
 function CategoryModal({ categories, onCategoriesChange, onClose }) {
   const [newName, setNewName] = useState('')
@@ -33,32 +32,32 @@ function CategoryModal({ categories, onCategoriesChange, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-20">
-      <div className="bg-white dark:bg-gray-800 rounded-theme-large shadow-xl p-5 w-full max-w-sm space-y-4">
+      <div className="modal-theme p-5 w-full max-w-sm space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">Manage Categories</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          <h2 className="text-base font-semibold text-theme-text">Manage Categories</h2>
+          <button onClick={onClose} className="text-theme-muted hover:text-theme-text text-xl leading-none">&times;</button>
         </div>
         <form onSubmit={addCat} className="flex gap-2">
           <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category…" autoFocus
-            className="border dark:border-gray-600 rounded-theme-small px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
-          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-3 py-2 rounded-theme-small transition-colors">Add</button>
+            className="input-theme text-sm flex-1 px-3 py-2" />
+          <button type="submit" className="bg-theme-primary hover:opacity-90 text-white text-sm px-3 py-2 rounded-theme-small transition-opacity">Add</button>
         </form>
-        {newError && <p className="text-red-500 text-xs -mt-2">{newError}</p>}
+        {newError && <p className="text-theme-danger text-xs -mt-2">{newError}</p>}
         <ul className="space-y-1 max-h-64 overflow-y-auto">
           {active.map((cat) => (
             <li key={cat.id} className="flex items-center gap-2 text-sm">
               {editId === cat.id ? (
                 <form onSubmit={saveEdit} className="flex gap-2 flex-1">
                   <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
-                    className="border dark:border-gray-600 rounded-theme-small px-2 py-1 flex-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
-                  <button type="submit" className="text-green-600 hover:text-green-800 font-medium">Save</button>
-                  <button type="button" onClick={() => setEditId(null)} className="text-gray-400 hover:text-gray-600">Cancel</button>
+                    className="input-theme text-sm flex-1 px-2 py-1" />
+                  <button type="submit" className="text-theme-success hover:opacity-80 font-medium">Save</button>
+                  <button type="button" onClick={() => setEditId(null)} className="text-theme-muted hover:text-theme-text">Cancel</button>
                 </form>
               ) : (
                 <>
-                  <span className="flex-1 text-gray-700 dark:text-gray-200">{cat.name}</span>
-                  <button type="button" onClick={() => { setEditId(cat.id); setEditName(cat.name) }} className="text-indigo-500 hover:text-indigo-700">Edit</button>
-                  <button type="button" onClick={() => onCategoriesChange('delete', { id: cat.id })} className="text-red-400 hover:text-red-600">Delete</button>
+                  <span className="flex-1 text-theme-text">{cat.name}</span>
+                  <button type="button" onClick={() => { setEditId(cat.id); setEditName(cat.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
+                  <button type="button" onClick={() => onCategoriesChange('delete', { id: cat.id })} className="text-theme-danger hover:opacity-80">Delete</button>
                 </>
               )}
             </li>
@@ -86,26 +85,28 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
     setForm(EMPTY_FORM); setError('')
   }
 
+  const inputCls = 'input-theme px-3 py-2 w-full'
+
   return (
     <>
       <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-10">
         <form onSubmit={submit}
-          className="bg-white dark:bg-gray-800 rounded-t-theme-large sm:rounded-theme-large shadow-xl p-5 w-full sm:max-w-md space-y-4">
+          className="modal-theme w-full sm:max-w-md space-y-4 p-5">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Add Expense</h2>
-            <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            <h2 className="text-lg font-semibold text-theme-text">Add Expense</h2>
+            <button type="button" onClick={onClose} className="text-theme-muted hover:text-theme-text text-xl leading-none">&times;</button>
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-theme-danger text-sm">{error}</p>}
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-300">
+            <label className="flex flex-col gap-1 text-sm text-theme-muted">
               Date
               <input type="date" value={form.date} onChange={set('date')} required className={inputCls} />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-300">
+            <label className="flex flex-col gap-1 text-sm text-theme-muted">
               <span className="flex items-center justify-between">
                 Category
                 <button type="button" onClick={() => setShowCatModal(true)}
-                  className="text-xs text-indigo-500 hover:text-indigo-700 font-medium">+ Manage</button>
+                  className="text-xs text-theme-primary hover:opacity-80 font-medium">+ Manage</button>
               </span>
               <select value={form.categoryId} onChange={set('categoryId')} required className={inputCls}>
                 <option value="">Select…</option>
@@ -113,17 +114,17 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
               </select>
             </label>
           </div>
-          <label className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-300">
+          <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Description
             <input type="text" value={form.description} onChange={set('description')} placeholder="Optional" className={inputCls} />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-300">
+          <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Amount ($)
             <input type="number" value={form.amount} onChange={set('amount')} placeholder="0.00"
               min="0.01" step="0.01" required inputMode="decimal" className={inputCls} />
           </label>
           <button type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-theme-medium transition-colors">
+            className="w-full bg-theme-primary hover:opacity-90 text-white font-medium py-3 rounded-theme-medium transition-opacity">
             Save Expense
           </button>
         </form>

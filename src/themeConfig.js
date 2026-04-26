@@ -18,8 +18,13 @@ export const THEMES = {
       medium: '10px',
       large: '12px',
     },
+    spacing: {
+      tight: '0.5rem',
+      normal: '1rem',
+      loose: '1.5rem',
+    },
     numberStyle: {
-      currencyColor: 'text',
+      currencyColor: 'var(--theme-text)',
       positiveColor: '#16a34a',
       negativeColor: '#dc2626',
     },
@@ -43,8 +48,13 @@ export const THEMES = {
       medium: '20px',
       large: '24px',
     },
+    spacing: {
+      tight: '0.75rem',
+      normal: '1.25rem',
+      loose: '2rem',
+    },
     numberStyle: {
-      currencyColor: 'text',
+      currencyColor: 'var(--theme-text)',
       positiveColor: '#10b981',
       negativeColor: '#ef4444',
     },
@@ -68,15 +78,52 @@ export const THEMES = {
       medium: '4px',
       large: '6px',
     },
+    spacing: {
+      tight: '0.25rem',
+      normal: '0.75rem',
+      loose: '1rem',
+    },
     numberStyle: {
-      currencyColor: 'text',
+      currencyColor: 'var(--theme-text)',
       positiveColor: '#15803d',
       negativeColor: '#b91c1c',
+    },
+  },
+  sharpProfessionalDark: {
+    name: 'Sharp Professional Dark',
+    id: 'sharpProfessionalDark',
+    isDark: true,
+    colors: {
+      background: '#0f172a',
+      surface: '#1e293b',
+      primary: '#94a3b8',
+      secondary: '#64748b',
+      text: '#f1f5f9',
+      muted: '#64748b',
+      border: '#334155',
+      danger: '#f87171',
+      success: '#4ade80',
+    },
+    borderRadius: {
+      small: '2px',
+      medium: '4px',
+      large: '6px',
+    },
+    spacing: {
+      tight: '0.25rem',
+      normal: '0.75rem',
+      loose: '1rem',
+    },
+    numberStyle: {
+      currencyColor: 'var(--theme-text)',
+      positiveColor: '#4ade80',
+      negativeColor: '#f87171',
     },
   },
   darkMinimal: {
     name: 'Dark Minimal',
     id: 'darkMinimal',
+    isDark: true,
     colors: {
       background: '#09090b',
       surface: '#18181b',
@@ -93,37 +140,16 @@ export const THEMES = {
       medium: '8px',
       large: '10px',
     },
+    spacing: {
+      tight: '0.5rem',
+      normal: '1rem',
+      loose: '1.5rem',
+    },
     numberStyle: {
-      currencyColor: 'text',
+      currencyColor: 'var(--theme-text)',
       positiveColor: '#4ade80',
       negativeColor: '#f87171',
     },
-  },
-  financeGlass: {
-    name: 'Finance Glass',
-    id: 'financeGlass',
-    colors: {
-      background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-      surface: 'rgba(255, 255, 255, 0.08)',
-      primary: '#818cf8',
-      secondary: '#c084fc',
-      text: '#ffffff',
-      muted: '#a5b4fc',
-      border: 'rgba(255, 255, 255, 0.15)',
-      danger: '#f87171',
-      success: '#4ade80',
-    },
-    borderRadius: {
-      small: '14px',
-      medium: '16px',
-      large: '18px',
-    },
-    numberStyle: {
-      currencyColor: 'text',
-      positiveColor: '#34d399',
-      negativeColor: '#fb7185',
-    },
-    glassEffect: true,
   },
 }
 
@@ -154,12 +180,22 @@ export function getCSSVariables(theme) {
     ['--radius-small', theme.borderRadius.small],
     ['--radius-medium', theme.borderRadius.medium],
     ['--radius-large', theme.borderRadius.large],
+    ['--spacing-tight', theme.spacing.tight],
+    ['--spacing-normal', theme.spacing.normal],
+    ['--spacing-loose', theme.spacing.loose],
     ['--currency-color', theme.numberStyle.currencyColor],
     ['--positive-color', theme.numberStyle.positiveColor],
     ['--negative-color', theme.numberStyle.negativeColor],
   ]
   for (const [key, value] of entries) {
     vars[key] = value
+  }
+  if (theme.glassEffect) {
+    vars['--glass-blur'] = '12px'
+    vars['--glass-opacity'] = '0.08'
+  } else {
+    vars['--glass-blur'] = '0px'
+    vars['--glass-opacity'] = '0'
   }
   return vars
 }

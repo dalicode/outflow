@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { StorageService } from './StorageService'
 import { THEMES, getTheme, getCSSVariables } from './themeConfig'
+import { supabase } from './supabase'
+import { syncThemeToProfile, fetchThemeFromProfile } from './SyncEngine'
 
 const DEFAULTS = {
-  theme: 'system',
   visualTheme: 'default',
   font: 'system',
   fontSize: '1',
@@ -26,32 +27,55 @@ export const useSettings = () => useContext(SettingsContext)
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULTS)
   const [loaded, setLoaded] = useState(false)
+  const cssVarsRef = useRef(null)
 
+  // Load settings on mount
   useEffect(() => {
-    StorageService.getSetting('uiSettings', null).then((saved) => {
-      if (saved) setSettings((s) => ({ ...s, ...saved }))
+    let cancelled = false
+    StorageService.getSetting('uiSettings', null).then(async (saved) => {
+      if (cancelled) return
+      const next = saved ? { ...DEFAULTS, ...saved } : { ...DEFAULTS }
+      // If logged in, try to fetch theme from profile for cross-device sync
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          const profileTheme = await fetchThemeFromProfile(session.user.id)
+          if (profileTheme && THEMES[profileTheme]) {
+            next.visualTheme = profileTheme
+          }
+        }
+      }
+      setSettings(next)
       setLoaded(true)
     })
+    return () => { cancelled = true }
   }, [])
 
+  // Apply dark mode class based on selected visual theme
   useEffect(() => {
     if (!loaded) return
+    const theme = getTheme(settings.visualTheme)
     const root = document.documentElement
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const isDark = settings.theme === 'dark' || (settings.theme === 'system' && prefersDark)
-    root.classList.toggle('dark', isDark)
-  }, [settings.theme, loaded])
+    root.classList.toggle('dark', !!theme.isDark)
+  }, [settings.visualTheme, loaded])
 
+  // Apply font settings
   useEffect(() => {
     if (!loaded) return
     document.documentElement.style.fontFamily = FONT_MAP[settings.font] ?? 'inherit'
     document.documentElement.style.fontSize = `${settings.fontSize}rem`
   }, [settings.font, settings.fontSize, loaded])
 
+  // Apply theme CSS variables with memoization
   useEffect(() => {
     if (!loaded) return
     const theme = getTheme(settings.visualTheme)
     const cssVars = getCSSVariables(theme)
+    // Only update if variables actually changed
+    const prev = cssVarsRef.current
+    const changed = !prev || Object.entries(cssVars).some(([k, v]) => prev[k] !== v)
+    if (!changed) return
+    cssVarsRef.current = cssVars
     const root = document.documentElement
     for (const [key, value] of Object.entries(cssVars)) {
       root.style.setProperty(key, value)
@@ -69,10 +93,17 @@ export function SettingsProvider({ children }) {
     await StorageService.setSetting('uiSettings', next)
     if (patch.visualTheme) {
       await StorageService.setSetting('selectedTheme', patch.visualTheme)
+      // Sync theme to Supabase profile for cross-device consistency
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          await syncThemeToProfile(session.user.id, patch.visualTheme)
+        }
+      }
     }
   }, [settings])
 
-  const formatAmount = useCallback((n, options = {}) => {
+  const formatAmount = useCallback((n) => {
     if (n == null) return '—'
     const dec = parseInt(settings.decimalPlaces, 10)
     const sep = settings.thousandSep
@@ -80,17 +111,15 @@ export function SettingsProvider({ children }) {
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,
       sep === ',' ? ',' : sep === '.' ? '.' : '\u00A0')
     const formatted = dec > 0 ? parts.join(sep === '.' ? ',' : '.') : parts[0]
-    let result = `${n < 0 ? '-' : ''}${settings.currencySymbol}${formatted}`
-    if (options.color !== false) {
-      const theme = getTheme(settings.visualTheme)
-      if (n > 0 && theme.numberStyle.positiveColor) {
-        result = `<span style="color:${theme.numberStyle.positiveColor}">${result}</span>`
-      } else if (n < 0 && theme.numberStyle.negativeColor) {
-        result = `<span style="color:${theme.numberStyle.negativeColor}">${result}</span>`
-      }
-    }
-    return result
-  }, [settings.currencySymbol, settings.decimalPlaces, settings.thousandSep, settings.visualTheme])
+    return `${n < 0 ? '-' : ''}${settings.currencySymbol}${formatted}`
+  }, [settings.currencySymbol, settings.decimalPlaces, settings.thousandSep])
+
+  const getNumberColorClass = useCallback((n) => {
+    if (n == null) return 'currency-number'
+    if (n > 0) return 'positive-number'
+    if (n < 0) return 'negative-number'
+    return 'currency-number'
+  }, [])
 
   const formatAmountPlain = useCallback((n) => {
     if (n == null) return '—'
@@ -113,25 +142,26 @@ export function SettingsProvider({ children }) {
     }
   }, [settings.dateFormat])
 
-  const getThemeColors = useCallback(() => {
-    return getTheme(settings.visualTheme)
-  }, [settings.visualTheme])
-
   const currentTheme = useMemo(() => {
     return getTheme(settings.visualTheme)
   }, [settings.visualTheme])
+
+  const cssVariables = useMemo(() => {
+    return getCSSVariables(currentTheme)
+  }, [currentTheme])
 
   const value = useMemo(() => ({
     settings,
     save,
     formatAmount,
+    getNumberColorClass,
     formatAmountPlain,
     formatDate,
     loaded,
-    getThemeColors,
     currentTheme,
+    cssVariables,
     availableThemes: THEMES,
-  }), [settings, save, formatAmount, formatAmountPlain, formatDate, loaded, getThemeColors, currentTheme])
+  }), [settings, save, formatAmount, getNumberColorClass, formatAmountPlain, formatDate, loaded, currentTheme, cssVariables])
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
 }

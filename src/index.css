@@ -15,46 +15,40 @@
   --theme-border: #e2e8f0;
   --theme-danger: #ef4444;
   --theme-success: #22c55e;
-  --currency-color: text;
+  --currency-color: var(--theme-text);
   --positive-color: #16a34a;
   --negative-color: #dc2626;
-  --glass-blur: 0px;
-  --glass-opacity: 0;
+  --spacing-tight: 0.5rem;
+  --spacing-normal: 1rem;
+  --spacing-loose: 1.5rem;
 }
 
-[data-theme="glass"] {
-  --glass-blur: 12px;
-  --glass-opacity: 0.08;
-}
-
-.dark {
-  --theme-background: #09090b;
-  --theme-surface: #18181b;
-  --theme-primary: #a1a1aa;
-  --theme-secondary: #71717a;
-  --theme-text: #fafafa;
-  --theme-muted: #52525b;
-  --theme-border: #27272a;
-  --theme-danger: #f87171;
-  --theme-success: #4ade80;
-}
-
+/* Theme-aware utility classes */
 .bg-theme-background { background-color: var(--theme-background); }
 .bg-theme-surface { background-color: var(--theme-surface); }
 .bg-theme-primary { background-color: var(--theme-primary); }
 .bg-theme-secondary { background-color: var(--theme-secondary); }
-.text-theme-text { color: var(--theme-text); }
-.text-theme-muted { color: var(--theme-muted); }
-.border-theme-border { border-color: var(--theme-border); }
 .bg-theme-danger { background-color: var(--theme-danger); }
 .bg-theme-success { background-color: var(--theme-success); }
+
+.text-theme-text { color: var(--theme-text); }
+.text-theme-muted { color: var(--theme-muted); }
+.text-theme-primary { color: var(--theme-primary); }
+.text-theme-secondary { color: var(--theme-secondary); }
 .text-theme-danger { color: var(--theme-danger); }
 .text-theme-success { color: var(--theme-success); }
+
+.border-theme-border { border-color: var(--theme-border); }
 
 .rounded-theme-small { border-radius: var(--radius-small); }
 .rounded-theme-medium { border-radius: var(--radius-medium); }
 .rounded-theme-large { border-radius: var(--radius-large); }
 
+/* Hover states */
+.hover\:bg-theme-primary-hover:hover { filter: brightness(0.92); }
+.hover\:text-theme-primary:hover { color: var(--theme-primary); }
+
+/* Button theme */
 .btn-theme {
   border-radius: var(--radius-medium);
   transition: all 0.15s ease;
@@ -63,51 +57,94 @@
   filter: brightness(0.95);
 }
 
+/* Card theme */
 .card-theme {
   border-radius: var(--radius-large);
   border: 1px solid var(--theme-border);
   background-color: var(--theme-surface);
 }
 
-.glass-panel {
-  background: rgba(255, 255, 255, var(--glass-opacity));
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* Input theme */
+.input-theme {
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-medium);
+  background-color: var(--theme-surface);
+  color: var(--theme-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input-theme:focus {
+  outline: none;
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 20%, transparent);
 }
 
-.dark body {
-  background-color: var(--theme-background);
+/* Table theme */
+.table-theme th {
+  background-color: color-mix(in srgb, var(--theme-background) 80%, var(--theme-border));
+  color: var(--theme-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.table-theme td {
+  color: var(--theme-text);
+}
+.table-theme tr {
+  border-bottom: 1px solid var(--theme-border);
+}
+.table-theme tbody tr:hover {
+  background-color: color-mix(in srgb, var(--theme-primary) 4%, var(--theme-surface));
 }
 
+/* Modal / overlay */
+.modal-theme {
+  background-color: var(--theme-surface);
+  border-radius: var(--radius-large);
+  border: 1px solid var(--theme-border);
+}
+
+/* Number styling */
+.currency-number {
+  color: var(--currency-color);
+}
 .positive-number {
   color: var(--positive-color);
 }
 .negative-number {
-  color: var(--negative-number);
+  color: var(--negative-color);
 }
 
-[data-theme="glass"] .glass-card {
-  background: rgba(255, 255, 255, 0.08);
+/* App background */
+body {
+  background-color: var(--theme-background);
+}
+
+/* Navbar — modern, seamless, no strong color block */
+.navbar-theme {
+  background-color: color-mix(in srgb, var(--theme-surface) 85%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-large);
+  border-bottom: 1px solid var(--theme-border);
 }
 
-[data-theme="glass"] .glass-input {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-medium);
-  color: var(--theme-text);
+/* Scrollbar theming for webkit */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--theme-background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: var(--radius-small);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-muted);
 }
 
-[data-theme="glass"] .glass-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-medium);
+/* Selection theming */
+::selection {
+  background-color: color-mix(in srgb, var(--theme-primary) 30%, transparent);
   color: var(--theme-text);
-}
-[data-theme="glass"] .glass-button:hover {
-  background: rgba(255, 255, 255, 0.15);
 }

@@ -6,14 +6,14 @@ function EditableCell({ editing, value, onChange, type = 'text', children }) {
   if (type === 'select') return children
   return (
     <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-      className="border dark:border-gray-600 rounded-theme-small px-1 py-0.5 text-sm w-full bg-white dark:bg-gray-700 dark:text-gray-100" />
+      className="border border-theme-border rounded-theme-small px-1 py-0.5 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-1 focus:ring-theme-primary/40" />
   )
 }
 
 export default function ExpenseTable({ expenses, onUpdate, onDelete, categories = [] }) {
   const [editId, setEditId] = useState(null)
   const [draft, setDraft] = useState({})
-  const { formatAmount, formatDate } = useSettings()
+  const { formatAmount, getNumberColorClass, formatDate } = useSettings()
 
   const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
   const activeCategories = useMemo(() => categories.filter((c) => !c.isDeleted), [categories])
@@ -37,19 +37,19 @@ export default function ExpenseTable({ expenses, onUpdate, onDelete, categories 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0)
 
   if (expenses.length === 0) {
-    return <p className="text-center text-gray-400 dark:text-gray-500 py-10">No expenses yet. Hit <strong>+</strong> to add one.</p>
+    return <p className="text-center text-sm text-theme-muted py-10">No expenses yet. Hit <strong>+</strong> to add one.</p>
   }
 
   return (
     <div className="overflow-x-auto">
       <div className="flex justify-between items-center mb-3 px-1">
-        <span className="text-sm text-gray-500 dark:text-gray-400">{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</span>
-        <span className="text-lg font-semibold text-indigo-700 dark:text-indigo-400">Total: {formatAmount(total)}</span>
+        <span className="text-sm text-theme-muted">{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</span>
+        <span className={`text-sm font-semibold text-theme-primary`}>Total: <span className={getNumberColorClass(total)}>{formatAmount(total)}</span></span>
       </div>
 
-      <table className="w-full text-sm border-collapse">
+      <table className="w-full text-sm border-collapse table-theme">
         <thead>
-          <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wide">
+          <tr>
             <th className="px-3 py-2 text-left">Date</th>
             <th className="px-3 py-2 text-left">Category</th>
             <th className="px-3 py-2 text-left">Description</th>
@@ -61,8 +61,8 @@ export default function ExpenseTable({ expenses, onUpdate, onDelete, categories 
           {expenses.map((exp) => {
             const editing = editId === exp.id
             return (
-              <tr key={exp.id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td className="px-3 py-2 dark:text-gray-200">
+              <tr key={exp.id} className="hover:bg-theme-primary/[0.04] transition-colors">
+                <td className="px-3 py-2 text-theme-text">
                   <EditableCell editing={editing} type="date" value={draft.date} onChange={setField('date')}>
                     {formatDate(exp.date)}
                   </EditableCell>
@@ -70,21 +70,21 @@ export default function ExpenseTable({ expenses, onUpdate, onDelete, categories 
                 <td className="px-3 py-2">
                   {editing ? (
                     <select value={draft.categoryId ?? ''} onChange={(e) => setField('categoryId')(Number(e.target.value))}
-                      className="border dark:border-gray-600 rounded-theme-small px-1 py-0.5 text-sm w-full bg-white dark:bg-gray-700 dark:text-gray-100">
+                      className="border border-theme-border rounded-theme-small px-1 py-0.5 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-1 focus:ring-theme-primary/40">
                       {activeCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   ) : (
-                    <span className={catMap[exp.categoryId]?.isDeleted ? 'text-gray-400 italic' : 'dark:text-gray-200'}>
+                    <span className={catMap[exp.categoryId]?.isDeleted ? 'text-theme-muted italic' : 'text-theme-text'}>
                       {resolveName(exp)}
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 dark:text-gray-200">
+                <td className="px-3 py-2 text-theme-text">
                   <EditableCell editing={editing} value={draft.description} onChange={setField('description')}>
-                    {exp.description || <span className="text-gray-300 dark:text-gray-600">—</span>}
+                    {exp.description || <span className="text-theme-muted/50">—</span>}
                   </EditableCell>
                 </td>
-                <td className="px-3 py-2 text-right dark:text-gray-200">
+                <td className={`px-3 py-2 text-right ${getNumberColorClass(exp.amount)}`}>
                   <EditableCell editing={editing} type="number" value={draft.amount} onChange={setField('amount')}>
                     {formatAmount(exp.amount)}
                   </EditableCell>
@@ -92,13 +92,13 @@ export default function ExpenseTable({ expenses, onUpdate, onDelete, categories 
                 <td className="px-3 py-2 text-center whitespace-nowrap">
                   {editing ? (
                     <>
-                      <button onClick={saveEdit} className="text-green-600 hover:text-green-800 font-medium mr-2">Save</button>
-                      <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600">Cancel</button>
+                      <button onClick={saveEdit} className="text-theme-success hover:opacity-80 font-medium mr-2">Save</button>
+                      <button onClick={cancelEdit} className="text-theme-muted hover:text-theme-text">Cancel</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => startEdit(exp)} className="text-indigo-500 hover:text-indigo-700 mr-2">Edit</button>
-                      <button onClick={() => onDelete(exp.id)} className="text-red-400 hover:text-red-600">Delete</button>
+                      <button onClick={() => startEdit(exp)} className="text-theme-primary hover:opacity-80 mr-2">Edit</button>
+                      <button onClick={() => onDelete(exp.id)} className="text-theme-danger hover:opacity-80">Delete</button>
                     </>
                   )}
                 </td>
