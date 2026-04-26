@@ -141,15 +141,15 @@ export default function AnalyticsPage({ expenses, categories }) {
       </div>
 
       <div className="overflow-x-auto rounded-theme-large shadow-sm border border-theme-border">
-        <table className="min-w-full text-sm border-collapse bg-theme-surface">
+        <table className="min-w-full text-sm table-fixed bg-theme-surface">
           <thead>
             <tr className="border-b border-theme-border">
-              <th className={`${th} sticky left-0 bg-theme-surface text-left min-w-[150px]`}>Category</th>
+              <th className={`${th} sticky left-0 bg-theme-surface text-left w-[calc(100%/14)]`}>Category</th>
               {MONTHS.map((m, i) => (
-                <th key={m} className={`${th} cursor-pointer hover:text-theme-primary hover:bg-theme-primary/5 transition-colors`}
+                <th key={m} className={`${th} cursor-pointer hover:text-theme-primary hover:bg-theme-primary/5 transition-colors w-[calc(100%/14)]`}
                   onClick={() => goToMonth(i)}>{m}</th>
               ))}
-              <th className={`${th} bg-theme-primary/10 text-theme-primary`}>Year Total</th>
+              <th className={`${th} bg-theme-primary/10 text-theme-primary w-[calc(100%/14)]`}>Year Total</th>
             </tr>
           </thead>
 
