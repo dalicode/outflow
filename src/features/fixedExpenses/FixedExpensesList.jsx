@@ -148,9 +148,7 @@ export default function FixedExpensesList({
         {items.map((item) => (
           <li key={item.id} className="flex items-center gap-2 text-sm">
             <span className="flex-1 text-theme-text">{item.name}</span>
-            <span
-              className={`text-theme-muted font-medium ${getNumberColorClass(item.amount)}`}
-            >
+            <span className={`text-theme-muted font-medium text-theme-primary`}>
               {formatAmount(item.amount)}
             </span>
             {manageMode && (

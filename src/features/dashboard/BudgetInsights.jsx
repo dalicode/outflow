@@ -21,15 +21,20 @@ export default function BudgetInsights({
       </h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { label: "Monthly Spending", value: monthTotal, tone: "warning" },
-          { label: "Auto Savings", value: savings, tone: "savings" },
+          { label: "Monthly Spending", value: monthTotal, tone: "primary" },
+          { label: "Auto Savings", value: savings, tone: "primary" },
           { label: "Remaining Budget", value: remaining, tone: "remaining" },
-          { label: "Total Savings", value: totalSavings, tone: "totalSavings" },
+          { label: "Total Savings", value: totalSavings, tone: "primary" },
         ].map(({ label, value, tone }) => {
           const toneClasses = {
             warning: "text-yellow-600",
             savings: getNumberColorClass(value),
-            remaining: getNumberColorClass(value),
+            remaining:
+              value > 0
+                ? "text-theme-success"
+                : value < 0
+                  ? "text-theme-danger"
+                  : "text-theme-text",
             totalSavings: getNumberColorClass(value),
             primary: "text-theme-primary",
           };
@@ -55,7 +60,7 @@ export default function BudgetInsights({
           <p className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
             Fixed Expenses
           </p>
-          <p className="text-lg font-semibold text-orange-600">
+          <p className="text-lg font-semibold text-theme-primary">
             {formatAmount(totalFixed)}
           </p>
         </div>
@@ -69,7 +74,7 @@ export default function BudgetInsights({
               <li key={f.id} className="flex justify-between py-1 text-sm">
                 <span className="text-theme-text">{f.name}</span>
                 <span
-                  className={`text-theme-text font-medium ${getNumberColorClass(f.amount)}`}
+                  className={`text-theme-text font-medium text-theme-primary`}
                 >
                   {formatAmount(f.amount)}
                 </span>

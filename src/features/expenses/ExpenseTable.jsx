@@ -171,9 +171,13 @@ export default function ExpenseTable({
                   </EditableCell>
                 </td>
                 <td
-                  className={`px-3 py-2 text-right ${getNumberColorClass(
-                    exp.amount,
-                  )}`}
+                  className="px-3 py-2 text-right"
+                  style={{
+                    color:
+                      exp.amount < 0
+                        ? "var(--theme-success)"
+                        : "var(--theme-primary)",
+                  }}
                 >
                   <EditableCell
                     editing={editing}

@@ -67,14 +67,10 @@ export default function SavingsForm({ savingsRate, onSave }) {
           <PencilIcon />
         </button>
       </div>
-      <p
-        className={`text-xl font-semibold ${getNumberColorClass(Number(rate) || 0)}`}
-      >
+      <p className={`text-xl font-semibold text-theme-primary`}>
         {Number(rate).toFixed(1)}%
       </p>
-      <p className="text-sm text-theme-muted">
-        of monthly income
-      </p>
+      <p className="text-sm text-theme-muted">of monthly income</p>
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-10">

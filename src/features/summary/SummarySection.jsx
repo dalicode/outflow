@@ -37,27 +37,33 @@ export default function SummarySection({
         <Card
           label="Fixed Expenses"
           value={formatAmount(totalFixed)}
-          colorClass="text-orange-500"
+          colorClass="text-theme-primary"
         />
         <Card
           label="Variable Expenses"
           value={formatAmount(variableExpenses)}
-          colorClass="text-yellow-600"
+          colorClass="text-theme-primary"
         />
         <Card
           label="Available Income"
           value={formatAmount(Math.max(0, available))}
-          colorClass="text-blue-600"
+          colorClass="text-theme-primary"
         />
         <Card
           label="Auto Savings"
           value={formatAmount(Math.max(0, savings))}
-          colorClass={getNumberColorClass(Math.max(0, savings))}
+          colorClass="text-theme-primary"
         />
         <Card
           label="Remaining Budget"
           value={formatAmount(remaining)}
-          colorClass={getNumberColorClass(remaining)}
+          colorClass={
+            remaining > 0
+              ? "text-theme-success"
+              : remaining < 0
+                ? "text-theme-danger"
+                : "text-theme-text"
+          }
         />
       </div>
     </div>

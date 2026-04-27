@@ -367,190 +367,195 @@ export default function AnalyticsPage({ expenses, categories }) {
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-4">
-      {/* Year nav */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setYear((y) => y - 1)}
-          className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
-        >
-          &#8592;
-        </button>
-        <span className="text-lg font-semibold text-theme-text">{year}</span>
-        <button
-          onClick={() => setYear((y) => y + 1)}
-          className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
-        >
-          &#8594;
-        </button>
-      </div>
+      <div className="rounded-theme-large shadow-sm border border-theme-border bg-theme-surface overflow-hidden">
+        {/* Year nav */}
+        <div className="flex items-center justify-center gap-4 px-4 py-3 border-b border-theme-border">
+          <button
+            onClick={() => setYear((y) => y - 1)}
+            className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
+          >
+            &#8592;
+          </button>
+          <span className="text-lg font-semibold text-theme-text">{year}</span>
+          <button
+            onClick={() => setYear((y) => y + 1)}
+            className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
+          >
+            &#8594;
+          </button>
+        </div>
 
-      {/* Grid */}
-      <div className="overflow-x-auto rounded-theme-large shadow-sm border border-theme-border">
-        <table className="min-w-full text-sm table-fixed border-collapse bg-theme-surface">
-          <thead>
-            {headerGroups.map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-theme-border">
-                {headerGroup.headers.map((header) => {
-                  const meta = header.column.columnDef.meta;
-                  const isSticky = meta?.isSticky;
-                  const isYearTotal = meta?.isYearTotal;
-                  const baseTh =
-                    "px-3 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap";
-                  return (
-                    <th
-                      key={header.id}
-                      className={`${baseTh} ${isSticky ? "sticky left-0 bg-theme-surface text-left z-10" : "text-center"} ${isYearTotal ? "bg-theme-primary/10 text-theme-primary" : ""} ${meta?.monthIndex != null ? "cursor-pointer hover:text-theme-primary hover:bg-theme-primary/5 transition-colors" : ""}`}
-                      onClick={
-                        meta?.monthIndex != null
-                          ? () => goToMonth(meta.monthIndex)
-                          : undefined
-                      }
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                    </th>
-                  );
-                })}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {rowModel.rows.map((row) => {
-              const kind = row.original.kind;
-              const baseTr = `border-b border-theme-border ${kindStyles[kind] || ""}`;
-
-              if (kind === "section") {
-                const secBg =
-                  sectionBg[row.original.section] || "bg-theme-primary/5";
-                return (
-                  <tr key={row.id} className={`${baseTr} ${secBg}`}>
-                    {row.getVisibleCells().map((cell, cellIndex) => {
-                      const colMeta = cell.column.columnDef.meta;
-                      const isSticky = colMeta?.isSticky;
-                      return (
-                        <td
-                          key={cell.id}
-                          className={`px-3 py-1.5 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap ${isSticky ? "sticky left-0 bg-theme-surface z-10" : ""}`}
-                        >
-                          {cellIndex === 0 ? row.original.label : ""}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              }
-
-              if (kind === "empty") {
-                return (
-                  <tr key={row.id} className={baseTr}>
-                    {row.getVisibleCells().map((cell, cellIndex) => {
-                      const colMeta = cell.column.columnDef.meta;
-                      const isSticky = colMeta?.isSticky;
-                      return (
-                        <td
-                          key={cell.id}
-                          className={`px-3 py-2 text-sm text-theme-muted italic whitespace-nowrap ${isSticky ? "sticky left-0 bg-theme-surface z-10" : ""}`}
-                        >
-                          {cellIndex === 0 ? row.original.label : ""}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              }
-
-              const rowBg =
-                kind === "subtotal" && row.original.section === "fixed"
-                  ? "bg-orange-500/15"
-                  : kind === "summary"
-                    ? "bg-theme-background"
-                    : "";
-
-              return (
+        {/* Grid */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs table-fixed border-collapse">
+            <thead>
+              {headerGroups.map((headerGroup) => (
                 <tr
-                  key={row.id}
-                  className={`${baseTr} ${rowBg} transition-colors`}
+                  key={headerGroup.id}
+                  className="border-b border-theme-border"
                 >
-                  {row.getVisibleCells().map((cell) => {
-                    const colMeta = cell.column.columnDef.meta;
-                    const isSticky = colMeta?.isSticky;
-                    const isYearTotal = colMeta?.isYearTotal;
-                    const monthIndex = colMeta?.monthIndex;
-
-                    let cellContent = flexRender(
-                      cell.column.columnDef.cell,
-                      cell.getContext(),
-                    );
-
-                    // Custom rendering for month / year-total cells
-                    if (monthIndex != null) {
-                      const val = row.original.amounts?.[monthIndex];
-                      let cls =
-                        val == null
-                          ? "text-theme-muted/50"
-                          : getNumberColorClass(val);
-                      if (kind === "fixed")
-                        cls =
-                          val == null
-                            ? "text-theme-muted/50"
-                            : getNumberColorClass(val);
-                      if (kind === "variable") {
-                        cls =
-                          val == null
-                            ? "text-theme-muted/50"
-                            : getNumberColorClass(val);
-                      }
-                      if (kind === "summary") {
-                        cls = "text-theme-primary font-semibold";
-                      }
-                      if (kind === "subtotal")
-                        cls = "text-theme-primary font-semibold";
-                      cellContent = (
-                        <span className={cls}>
-                          {val == null
-                            ? "—"
-                            : row.original.isPct
-                              ? pct(val)
-                              : fmt(val)}
-                        </span>
-                      );
-                    }
-
-                    if (isYearTotal) {
-                      let cls = "font-semibold text-theme-primary";
-                      cellContent = (
-                        <span className={cls}>
-                          {row.original.isPct
-                            ? pct(row.original.yearTotal)
-                            : fmt(row.original.yearTotal)}
-                        </span>
-                      );
-                    }
-
-                    if (isSticky) {
-                      cellContent = (
-                        <span className="text-sm font-medium text-theme-text">
-                          {row.original.label}
-                        </span>
-                      );
-                    }
-
+                  {headerGroup.headers.map((header) => {
+                    const meta = header.column.columnDef.meta;
+                    const isSticky = meta?.isSticky;
+                    const isYearTotal = meta?.isYearTotal;
+                    const baseTh =
+                      "px-3 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap";
                     return (
-                      <td
-                        key={cell.id}
-                        className={`px-3 py-2 text-sm whitespace-nowrap ${isSticky ? "sticky left-0 bg-theme-surface z-10" : "text-right"} ${isYearTotal ? "bg-theme-primary/10" : ""}`}
+                      <th
+                        key={header.id}
+                        className={`${baseTh} ${isSticky ? "sticky left-0 bg-theme-surface text-left z-10" : "text-center"} ${isYearTotal ? "bg-theme-primary/10 text-theme-primary" : ""} ${meta?.monthIndex != null ? "cursor-pointer hover:text-theme-primary hover:bg-theme-primary/5 transition-colors" : ""}`}
+                        onClick={
+                          meta?.monthIndex != null
+                            ? () => goToMonth(meta.monthIndex)
+                            : undefined
+                        }
                       >
-                        {cellContent}
-                      </td>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                      </th>
                     );
                   })}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </thead>
+            <tbody>
+              {rowModel.rows.map((row) => {
+                const kind = row.original.kind;
+                const baseTr = `border-b border-theme-border ${kindStyles[kind] || ""}`;
+
+                if (kind === "section") {
+                  const secBg =
+                    sectionBg[row.original.section] || "bg-theme-primary/5";
+                  return (
+                    <tr key={row.id} className={`${baseTr} ${secBg}`}>
+                      {row.getVisibleCells().map((cell, cellIndex) => {
+                        const colMeta = cell.column.columnDef.meta;
+                        const isSticky = colMeta?.isSticky;
+                        return (
+                          <td
+                            key={cell.id}
+                            className={`px-3 py-1.5 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap ${isSticky ? "sticky left-0 bg-theme-surface z-10" : ""}`}
+                          >
+                            {cellIndex === 0 ? row.original.label : ""}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                }
+
+                if (kind === "empty") {
+                  return (
+                    <tr key={row.id} className={baseTr}>
+                      {row.getVisibleCells().map((cell, cellIndex) => {
+                        const colMeta = cell.column.columnDef.meta;
+                        const isSticky = colMeta?.isSticky;
+                        return (
+                          <td
+                            key={cell.id}
+                            className={`px-3 py-2 text-xs text-theme-muted italic whitespace-nowrap ${isSticky ? "sticky left-0 bg-theme-surface z-10" : ""}`}
+                          >
+                            {cellIndex === 0 ? row.original.label : ""}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                }
+
+                const rowBg =
+                  kind === "subtotal" && row.original.section === "fixed"
+                    ? "bg-orange-500/15"
+                    : kind === "summary"
+                      ? "bg-theme-background"
+                      : "";
+
+                return (
+                  <tr
+                    key={row.id}
+                    className={`${baseTr} ${rowBg} transition-colors`}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const colMeta = cell.column.columnDef.meta;
+                      const isSticky = colMeta?.isSticky;
+                      const isYearTotal = colMeta?.isYearTotal;
+                      const monthIndex = colMeta?.monthIndex;
+
+                      let cellContent = flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      );
+
+                      // Custom rendering for month / year-total cells
+                      if (monthIndex != null) {
+                        const val = row.original.amounts?.[monthIndex];
+                        let cls =
+                          val == null
+                            ? "text-theme-muted/50"
+                            : getNumberColorClass(val);
+                        if (kind === "fixed")
+                          cls =
+                            val == null
+                              ? "text-theme-muted/50"
+                              : getNumberColorClass(val);
+                        if (kind === "variable") {
+                          cls =
+                            val == null
+                              ? "text-theme-muted/50"
+                              : getNumberColorClass(val);
+                        }
+                        if (kind === "summary") {
+                          cls = "text-theme-primary font-semibold";
+                        }
+                        if (kind === "subtotal")
+                          cls = "text-theme-primary font-semibold";
+                        cellContent = (
+                          <span className={cls}>
+                            {val == null
+                              ? "—"
+                              : row.original.isPct
+                                ? pct(val)
+                                : fmt(val)}
+                          </span>
+                        );
+                      }
+
+                      if (isYearTotal) {
+                        let cls = "font-semibold text-theme-primary";
+                        cellContent = (
+                          <span className={cls}>
+                            {row.original.isPct
+                              ? pct(row.original.yearTotal)
+                              : fmt(row.original.yearTotal)}
+                          </span>
+                        );
+                      }
+
+                      if (isSticky) {
+                        cellContent = (
+                          <span className="text-xs font-medium text-theme-text">
+                            {row.original.label}
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <td
+                          key={cell.id}
+                          className={`px-3 py-2 text-xs whitespace-nowrap ${isSticky ? "sticky left-0 bg-theme-surface z-10" : "text-right"} ${isYearTotal ? "bg-theme-primary/10" : ""}`}
+                        >
+                          {cellContent}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   );

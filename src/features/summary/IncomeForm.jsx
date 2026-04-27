@@ -76,9 +76,7 @@ export default function IncomeForm({ income, frequency, onSave }) {
           <PencilIcon />
         </button>
       </div>
-      <p
-        className={`text-xl font-semibold ${getNumberColorClass(parseFloat(amt) || 0)}`}
-      >
+      <p className={`text-xl font-semibold text-theme-primary`}>
         {formatAmount(parseFloat(amt) || 0)}
       </p>
       <p className="text-sm text-theme-muted capitalize">
