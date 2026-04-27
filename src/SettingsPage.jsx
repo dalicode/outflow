@@ -71,6 +71,13 @@ const themePreviews = {
     text: "#fafafa",
     isDark: true,
   },
+  runescapeClassic: {
+    background: "#2b2118",
+    border: "#4a3728",
+    primary: "#c9a34e",
+    text: "#eadfcb",
+    isDark: true,
+  },
 };
 
 function ThemeCard({ theme, isSelected, onClick }) {
@@ -81,6 +88,7 @@ function ThemeCard({ theme, isSelected, onClick }) {
     sharpProfessional: "2px",
     sharpProfessionalDark: "2px",
     darkMinimal: "6px",
+    runescapeClassic: "6px",
   };
   const cardRadius = radiusMap[theme.id] || "8px";
 

@@ -151,6 +151,37 @@ export const THEMES = {
       negativeColor: "#f87171",
     },
   },
+  runescapeClassic: {
+    name: "RuneScape Classic",
+    id: "runescapeClassic",
+    isDark: true,
+    colors: {
+      background: "#2b2118",
+      surface: "#3d2e22",
+      primary: "#c9a34e",
+      secondary: "#8b6914",
+      text: "#eadfcb",
+      muted: "#a89b8c",
+      border: "#4a3728",
+      danger: "#b85450",
+      success: "#6b8e6b",
+    },
+    borderRadius: {
+      small: "3px",
+      medium: "6px",
+      large: "8px",
+    },
+    spacing: {
+      tight: "0.5rem",
+      normal: "1rem",
+      loose: "1.5rem",
+    },
+    numberStyle: {
+      currencyColor: "#c9a34e",
+      positiveColor: "#6b8e6b",
+      negativeColor: "#b85450",
+    },
+  },
 };
 
 export const LIGHT_THEME_DEFAULTS = {

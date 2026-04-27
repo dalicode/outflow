@@ -60,7 +60,7 @@ function BudgetInsights({
   const available = monthlyIncome - totalFixed;
   const savings = Math.max(0, available * (savingsRate / 100));
   const remaining = available - savings - monthTotal;
-  const totalSavings = savings + Math.max(0, remaining);
+  const totalSavings = savings + remaining;
 
   return (
     <section className="space-y-3">
@@ -76,7 +76,11 @@ function BudgetInsights({
             value: remaining,
             tone: remaining >= 0 ? "positive" : "negative",
           },
-          { label: "Total Savings", value: totalSavings, tone: "primary" },
+          {
+            label: "Total Savings",
+            value: totalSavings,
+            tone: totalSavings >= 0 ? "positive" : "negative",
+          },
         ].map(({ label, value, tone }) => {
           const toneClasses = {
             warning: "text-yellow-600",
