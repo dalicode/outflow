@@ -1,5 +1,5 @@
 import React from "react";
-import { useSettings } from "./SettingsContext";
+import { useSettings } from "../../context/settingsContext";
 
 function Card({ label, value, colorClass = "text-theme-text" }) {
   return (

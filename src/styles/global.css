@@ -1,0 +1,34 @@
+/* App background */
+body {
+  background-color: var(--theme-background);
+}
+
+/* Hover states */
+.hover\:bg-theme-primary-hover:hover {
+  filter: brightness(0.92);
+}
+.hover\:text-theme-primary:hover {
+  color: var(--theme-primary);
+}
+
+/* Scrollbar theming for webkit */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--theme-background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: var(--radius-small);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-muted);
+}
+
+/* Selection theming */
+::selection {
+  background-color: color-mix(in srgb, var(--theme-primary) 30%, transparent);
+  color: var(--theme-text);
+}

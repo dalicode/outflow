@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useSettings } from './SettingsContext'
+import { useSettings } from '../../context/settingsContext'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const EMPTY_FORM = { date: today(), categoryId: '', description: '', amount: '' }

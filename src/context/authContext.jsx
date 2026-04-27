@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from './supabase'
-import { flushSyncQueue, pullFromSupabase, migrateLocalToSupabase } from './SyncEngine'
+import { supabase } from '../services/supabase'
+import { flushSyncQueue, pullFromSupabase, migrateLocalToSupabase } from '../services/syncService'
 
 const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -30,6 +30,10 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null)
       setLoading(false)
       if (session?.user) runSync(session.user.id)
+    }).catch((err) => {
+      console.warn('Auth session error:', err)
+      setUser(null)
+      setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {

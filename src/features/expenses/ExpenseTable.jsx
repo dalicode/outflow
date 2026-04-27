@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useSettings } from "./SettingsContext";
+import { useSettings } from "../../context/settingsContext";
 
 function EditableCell({ editing, value, onChange, type = "text", children }) {
   if (!editing) return <span>{children ?? value}</span>;

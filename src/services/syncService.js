@@ -6,7 +6,7 @@
  *           into IndexedDB using last-write-wins (updated_at).
  */
 import { supabase } from './supabase'
-import { StorageService } from './StorageService'
+import { StorageService } from './storageService'
 
 // Map local table names → Supabase table names
 const TABLE_MAP = {

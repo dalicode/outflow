@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useSettings } from "./SettingsContext";
+import { useSettings } from "../../context/settingsContext";
 
 const EMPTY = { name: "", amount: "" };
 

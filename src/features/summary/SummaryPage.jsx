@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { StorageService } from "./StorageService";
-import { useSettings } from "./SettingsContext";
+import { StorageService } from "../../services/storageService";
+import { useSettings } from "../../context/settingsContext";
 import IncomeForm from "./IncomeForm";
-import FixedExpensesList from "./FixedExpensesList";
+import FixedExpensesList from "../fixedExpenses/FixedExpensesList";
 import SavingsForm from "./SavingsForm";
 import SummarySection from "./SummarySection";
-import ChartComponent from "./ChartComponent";
+import ChartComponent from "../../components/charts/ChartComponent";
 
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
 

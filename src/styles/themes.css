@@ -1,0 +1,143 @@
+/* Theme-aware utility classes */
+.bg-theme-background {
+  background-color: var(--theme-background);
+}
+.bg-theme-surface {
+  background-color: var(--theme-surface);
+}
+.bg-theme-primary {
+  background-color: var(--theme-primary);
+}
+.bg-theme-secondary {
+  background-color: var(--theme-secondary);
+}
+.bg-theme-danger {
+  background-color: var(--theme-danger);
+}
+.bg-theme-success {
+  background-color: var(--theme-success);
+}
+
+.text-theme-text {
+  color: var(--theme-text);
+}
+.text-theme-muted {
+  color: var(--theme-muted);
+}
+.text-theme-primary {
+  color: var(--theme-primary);
+}
+.text-theme-secondary {
+  color: var(--theme-secondary);
+}
+.text-theme-danger {
+  color: var(--theme-danger);
+}
+.text-theme-success {
+  color: var(--theme-success);
+}
+
+.border-theme-border {
+  border-color: var(--theme-border);
+}
+
+@layer utilities {
+  .divide-theme-border > * + * {
+    border-color: var(--theme-border);
+  }
+}
+
+.rounded-theme-small {
+  border-radius: var(--radius-small);
+}
+.rounded-theme-medium {
+  border-radius: var(--radius-medium);
+}
+.rounded-theme-large {
+  border-radius: var(--radius-large);
+}
+
+/* Button theme */
+.btn-theme {
+  border-radius: var(--radius-medium);
+  transition: all 0.15s ease;
+}
+.btn-theme:hover {
+  filter: brightness(0.95);
+}
+
+/* Card theme */
+.card-theme {
+  border-radius: var(--radius-large);
+  border: 1px solid var(--theme-border);
+  background-color: var(--theme-surface);
+}
+
+/* Input theme */
+.input-theme {
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-medium);
+  background-color: var(--theme-surface);
+  color: var(--theme-text);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.input-theme:focus {
+  outline: none;
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--theme-primary) 20%, transparent);
+}
+
+/* Table theme */
+.table-theme th {
+  background-color: color-mix(
+    in srgb,
+    var(--theme-background) 80%,
+    var(--theme-border)
+  );
+  color: var(--theme-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.table-theme td {
+  color: var(--theme-text);
+}
+.table-theme tr {
+  border-bottom: 1px solid var(--theme-border);
+}
+.table-theme tbody tr:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--theme-primary) 4%,
+    var(--theme-surface)
+  );
+}
+
+/* Modal / overlay */
+.modal-theme {
+  background-color: var(--theme-surface);
+  border-radius: var(--radius-large);
+  border: 1px solid var(--theme-border);
+}
+
+/* Number styling */
+.currency-number {
+  color: var(--currency-color);
+}
+.positive-number {
+  color: var(--positive-color);
+}
+.negative-number {
+  color: var(--negative-color);
+}
+
+/* Navbar — modern, seamless, no strong color block */
+.navbar-theme {
+  background-color: color-mix(in srgb, var(--theme-surface) 85%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--theme-border);
+}

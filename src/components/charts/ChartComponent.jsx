@@ -7,7 +7,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { useSettings } from "./SettingsContext";
+import { useSettings } from "../../context/settingsContext";
 
 export default function ChartComponent({
   totalFixed,

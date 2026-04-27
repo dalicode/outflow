@@ -5,8 +5,8 @@ import {
   getCoreRowModel,
   flexRender,
 } from '@tanstack/react-table'
-import { StorageService } from './StorageService'
-import { useSettings } from './SettingsContext'
+import { StorageService } from '../../services/storageService'
+import { useSettings } from '../../context/settingsContext'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const pct = (n) => n != null ? `${n.toFixed(1)}%` : '—'

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { supabase } from './supabase'
-import { useSettings } from './SettingsContext'
+import { supabase } from '../../services/supabase'
+import { useSettings } from '../../context/settingsContext'
 
 export default function AuthPage() {
   const { currentTheme } = useSettings()

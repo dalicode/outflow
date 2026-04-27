@@ -1,0 +1,20 @@
+:root {
+  --radius-small: 8px;
+  --radius-medium: 10px;
+  --radius-large: 12px;
+  --theme-background: #f8fafc;
+  --theme-surface: #ffffff;
+  --theme-primary: #6366f1;
+  --theme-secondary: #8b5cf6;
+  --theme-text: #1e293b;
+  --theme-muted: #64748b;
+  --theme-border: #e2e8f0;
+  --theme-danger: #ef4444;
+  --theme-success: #22c55e;
+  --currency-color: var(--theme-text);
+  --positive-color: #16a34a;
+  --negative-color: #dc2626;
+  --spacing-tight: 0.5rem;
+  --spacing-normal: 1rem;
+  --spacing-loose: 1.5rem;
+}

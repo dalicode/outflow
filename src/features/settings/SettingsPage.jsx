@@ -1,7 +1,8 @@
 import React, { useRef, useState } from "react";
-import { useSettings } from "./SettingsContext";
-import { StorageService } from "./StorageService";
-import { THEMES } from "./themeConfig";
+import { useSettings } from "../../context/settingsContext";
+import { StorageService } from "../../services/storageService";
+import { THEMES } from "../../utils/themeConfig";
+import Card from "../../components/ui/Card";
 
 function Row({ label, value, onChange, options }) {
   return (
@@ -19,19 +20,6 @@ function Row({ label, value, onChange, options }) {
         ))}
       </select>
     </div>
-  );
-}
-
-function Card({ title, children, className = "" }) {
-  return (
-    <section
-      className={`bg-theme-surface rounded-theme-large shadow-sm p-4 border border-theme-border ${className}`}
-    >
-      <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
-        {title}
-      </h2>
-      {children}
-    </section>
   );
 }
 
@@ -289,82 +277,89 @@ export default function SettingsPage({ expenses, onImport }) {
     if (!file) return;
     setImportStatus("Reading…");
     setImportErrors([]);
-    const text = await file.text();
-    const parsed = parseCSV(text);
+    try {
+      const text = await file.text();
+      const parsed = parseCSV(text);
 
-    if (parsed.length === 0) {
-      setImportStatus("No data rows found. Check CSV headers and content.");
-      return;
-    }
-
-    const valid = [];
-    const errors = [];
-    parsed.forEach((row, i) => {
-      const rawDate = getField(row, ['date', 'timestamp'])
-      const rawAmount = getField(row, ['amount'])
-      const amount = parseFloat(rawAmount)
-      const iso = parseDateInput(rawDate)
-
-      if (!rawDate) {
-        errors.push(`Row ${i + 2}: missing date/timestamp column`)
-        return
+      if (parsed.length === 0) {
+        setImportStatus("No data rows found. Check CSV headers and content.");
+        fileRef.current.value = "";
+        return;
       }
-      if (!iso) {
-        errors.push(`Row ${i + 2}: unrecognised date format "${rawDate}"`)
-        return
-      }
-      if (!rawAmount) {
-        errors.push(`Row ${i + 2}: missing amount column`)
-        return
-      }
-      if (isNaN(amount)) {
-        errors.push(`Row ${i + 2}: amount "${rawAmount}" is not a number`)
-        return
-      }
-      if (amount === 0) {
-        errors.push(`Row ${i + 2}: amount cannot be zero`)
-        return
-      }
-      valid.push({
-        date: iso,
-        category: getField(row, ['category']) || 'Uncategorized',
-        description: getField(row, ['description', 'item']) || '',
-        amount,
-      })
-    });
 
-    setImportErrors(errors)
+      const valid = [];
+      const errors = [];
+      parsed.forEach((row, i) => {
+        const rawDate = getField(row, ['date', 'timestamp'])
+        const rawAmount = getField(row, ['amount'])
+        const amount = parseFloat(rawAmount)
+        const iso = parseDateInput(rawDate)
 
-    if (errors.length) {
-      setImportStatus(
-        `${errors.length} row(s) skipped: ${errors.slice(0, 3).join("; ")}`,
-      );
-    }
+        if (!rawDate) {
+          errors.push(`Row ${i + 2}: missing date/timestamp column`)
+          return
+        }
+        if (!iso) {
+          errors.push(`Row ${i + 2}: unrecognised date format "${rawDate}"`)
+          return
+        }
+        if (!rawAmount) {
+          errors.push(`Row ${i + 2}: missing amount column`)
+          return
+        }
+        if (isNaN(amount)) {
+          errors.push(`Row ${i + 2}: amount "${rawAmount}" is not a number`)
+          return
+        }
+        if (amount === 0) {
+          errors.push(`Row ${i + 2}: amount cannot be zero`)
+          return
+        }
+        valid.push({
+          date: iso,
+          category: getField(row, ['category']) || 'Uncategorized',
+          description: getField(row, ['description', 'item']) || '',
+          amount,
+        })
+      });
 
-    if (valid.length === 0) {
-      setImportStatus("No valid rows found. See errors below.");
-      return;
-    }
+      setImportErrors(errors)
 
-    const existing = await StorageService.getAll();
-    const existingKeys = new Set(
-      existing.map((e) => `${e.date}|${e.amount}|${e.description}`),
-    );
-
-    let toAdd = replaceMode
-      ? valid
-      : valid.filter(
-          (r) => !existingKeys.has(`${r.date}|${r.amount}|${r.description}`),
+      if (errors.length) {
+        setImportStatus(
+          `${errors.length} row(s) skipped: ${errors.slice(0, 3).join("; ")}`,
         );
-    const skipped = valid.length - toAdd.length;
+      }
 
-    for (const row of toAdd) await StorageService.add(row);
-    await onImport();
+      if (valid.length === 0) {
+        setImportStatus("No valid rows found. See errors below.");
+        fileRef.current.value = "";
+        return;
+      }
 
-    setImportStatus(
-      `Imported ${toAdd.length} row(s)${skipped ? `, skipped ${skipped} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
-    );
-    fileRef.current.value = "";
+      const existing = await StorageService.getAll();
+      const existingKeys = new Set(
+        existing.map((e) => `${e.date}|${e.amount}|${e.description}`),
+      );
+
+      let toAdd = replaceMode
+        ? valid
+        : valid.filter(
+            (r) => !existingKeys.has(`${r.date}|${r.amount}|${r.description}`),
+          );
+      const skipped = valid.length - toAdd.length;
+
+      for (const row of toAdd) await StorageService.add(row);
+      await onImport();
+
+      setImportStatus(
+        `Imported ${toAdd.length} row(s)${skipped ? `, skipped ${skipped} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
+      );
+    } catch (err) {
+      console.error('Import failed:', err);
+      setImportStatus(`Import failed: ${err.message}`);
+    }
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   return (

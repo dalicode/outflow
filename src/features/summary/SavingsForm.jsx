@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSettings } from "./SettingsContext";
-
-const FREQUENCIES = ["monthly", "biweekly", "weekly"];
-const MULTIPLIERS = { monthly: 1, biweekly: 2.17, weekly: 4.33 };
+import { useSettings } from "../../context/settingsContext";
 
 function PencilIcon({ className = "w-4 h-4" }) {
   return (
@@ -21,21 +18,20 @@ function PencilIcon({ className = "w-4 h-4" }) {
   );
 }
 
-export default function IncomeForm({ income, frequency, onSave }) {
-  const { formatAmount, getNumberColorClass } = useSettings();
+export default function SavingsForm({ savingsRate, onSave }) {
+  const { getNumberColorClass } = useSettings();
+  const hasValue =
+    savingsRate !== null && savingsRate !== undefined && savingsRate !== "";
   const [showModal, setShowModal] = useState(false);
-  const [amt, setAmt] = useState(income || "");
-  const [freq, setFreq] = useState(frequency || "monthly");
+  const [rate, setRate] = useState(savingsRate ?? "");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setAmt(income || "");
-    setFreq(frequency || "monthly");
-  }, [income, frequency]);
+    setRate(savingsRate ?? "");
+  }, [savingsRate]);
 
   const openModal = () => {
-    setAmt(income || "");
-    setFreq(frequency || "monthly");
+    setRate(savingsRate ?? "");
     setError("");
     setShowModal(true);
   };
@@ -47,42 +43,37 @@ export default function IncomeForm({ income, frequency, onSave }) {
 
   const submit = (e) => {
     e.preventDefault();
-    if (!amt || isNaN(amt) || Number(amt) <= 0) {
-      setError("Enter a positive amount.");
+    const n = Number(rate);
+    if (isNaN(n) || n < 0 || n > 100) {
+      setError("Enter a value between 0 and 100.");
       return;
     }
     setError("");
-    onSave({
-      income: parseFloat(amt),
-      frequency: freq,
-      monthlyIncome: parseFloat(amt) * MULTIPLIERS[freq],
-    });
+    onSave(n);
     setShowModal(false);
   };
-
-  const inputCls = "input-theme px-3 py-2 text-sm";
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
-          Income
+          Savings Goal
         </h3>
         <button
           onClick={openModal}
-          aria-label="Edit income"
+          aria-label="Edit savings goal"
           className="w-8 h-8 flex items-center justify-center rounded-theme-small text-theme-muted transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
         >
           <PencilIcon />
         </button>
       </div>
       <p
-        className={`text-xl font-semibold ${getNumberColorClass(parseFloat(amt) || 0)}`}
+        className={`text-xl font-semibold ${getNumberColorClass(Number(rate) || 0)}`}
       >
-        {formatAmount(parseFloat(amt) || 0)}
+        {Number(rate).toFixed(1)}%
       </p>
-      <p className="text-sm text-theme-muted capitalize">
-        {freq} · {formatAmount((parseFloat(amt) || 0) * MULTIPLIERS[freq])}/mo
+      <p className="text-sm text-theme-muted">
+        of available income after fixed expenses
       </p>
 
       {showModal && (
@@ -93,7 +84,7 @@ export default function IncomeForm({ income, frequency, onSave }) {
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-theme-text">
-                Edit Income
+                Edit Savings Goal
               </h2>
               <button
                 type="button"
@@ -104,40 +95,31 @@ export default function IncomeForm({ income, frequency, onSave }) {
               </button>
             </div>
             {error && <p className="text-theme-danger text-xs">{error}</p>}
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <input
                 type="number"
-                value={amt}
-                onChange={(e) => setAmt(e.target.value)}
-                placeholder="Amount"
-                min="0.01"
-                step="0.01"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder="e.g. 20"
+                min="0"
+                max="100"
+                step="0.1"
                 autoFocus
-                className={`${inputCls} flex-1`}
+                className="input-theme px-3 py-2 text-sm w-28"
               />
-              <select
-                value={freq}
-                onChange={(e) => setFreq(e.target.value)}
-                className={inputCls}
-              >
-                {FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                  </option>
-                ))}
-              </select>
+              <span className="text-sm text-theme-muted">%</span>
             </div>
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex-1 bg-theme-primary hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-theme-medium transition-opacity"
+                className="flex-1 bg-theme-primary hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-theme-small transition-opacity"
               >
                 Save
               </button>
               <button
                 type="button"
                 onClick={closeModal}
-                className="text-theme-muted hover:text-theme-text text-sm px-3 py-2"
+                className="text-theme-muted hover:text-theme-text text-sm px-3 py-2 rounded-theme-small"
               >
                 Cancel
               </button>

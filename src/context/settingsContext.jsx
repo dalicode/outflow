@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react'
-import { StorageService } from './StorageService'
-import { THEMES, getTheme, getCSSVariables } from './themeConfig'
-import { supabase } from './supabase'
-import { syncThemeToProfile, fetchThemeFromProfile } from './SyncEngine'
+import { StorageService } from '../services/storageService'
+import { THEMES, getTheme, getCSSVariables } from '../utils/themeConfig'
+import { supabase } from '../services/supabase'
+import { syncThemeToProfile, fetchThemeFromProfile } from '../services/syncService'
 
 const DEFAULTS = {
   visualTheme: 'default',
@@ -32,23 +32,53 @@ export function SettingsProvider({ children }) {
   // Load settings on mount
   useEffect(() => {
     let cancelled = false
-    StorageService.getSetting('uiSettings', null).then(async (saved) => {
+    let fallbackTimer = null
+
+    StorageService.getSetting('uiSettings', null).then((saved) => {
       if (cancelled) return
       const next = saved ? { ...DEFAULTS, ...saved } : { ...DEFAULTS }
-      // If logged in, try to fetch theme from profile for cross-device sync
-      if (supabase) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user?.id) {
-          const profileTheme = await fetchThemeFromProfile(session.user.id)
-          if (profileTheme && THEMES[profileTheme]) {
-            next.visualTheme = profileTheme
-          }
-        }
-      }
       setSettings(next)
       setLoaded(true)
+      clearTimeout(fallbackTimer)
+
+      // If logged in, try to fetch theme from profile for cross-device sync (non-blocking)
+      if (supabase) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user?.id) {
+            fetchThemeFromProfile(session.user.id).then((profileTheme) => {
+              if (!cancelled && profileTheme && THEMES[profileTheme]) {
+                setSettings((prev) => ({ ...prev, visualTheme: profileTheme }))
+              }
+            }).catch((err) => {
+              console.warn('Theme profile fetch error:', err)
+            })
+          }
+        }).catch((err) => {
+          console.warn('Auth session error in settings:', err)
+        })
+      }
+    }).catch((err) => {
+      console.warn('Settings load error:', err)
+      if (!cancelled) {
+        setSettings({ ...DEFAULTS })
+        setLoaded(true)
+        clearTimeout(fallbackTimer)
+      }
     })
-    return () => { cancelled = true }
+
+    // Safety fallback: always unlock after 2s even if IndexedDB hangs
+    fallbackTimer = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('Settings load timeout — forcing unlock')
+        setSettings((prev) => (prev.visualTheme ? prev : { ...DEFAULTS }))
+        setLoaded(true)
+      }
+    }, 2000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(fallbackTimer)
+    }
   }, [])
 
   // Apply dark mode class based on selected visual theme
