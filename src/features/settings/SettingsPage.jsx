@@ -5,6 +5,7 @@ import { THEMES } from "../../utils/themeConfig";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
 import BackfillHistoricalDataModal from "./BackfillHistoricalDataModal";
+import ScheduleModal from "./ScheduleModal";
 
 function Row({ label, value, onChange, options }) {
   return (
@@ -245,6 +246,9 @@ export default function SettingsPage({
   const [savingsRate, setSavingsRate] = useState("");
   const [showClearModal, setShowClearModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [schedules, setSchedules] = useState([]);
+  const [editingSchedule, setEditingSchedule] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -254,6 +258,15 @@ export default function SettingsPage({
       setMonthlyIncome(income || "");
       setSavingsRate(rate || "");
     });
+  }, []);
+
+  const loadSchedules = async () => {
+    const all = await StorageService.getSchedules();
+    setSchedules(all);
+  };
+
+  useEffect(() => {
+    loadSchedules();
   }, []);
 
   const handleExport = () => {
@@ -750,6 +763,179 @@ export default function SettingsPage({
           setBackfillYears([]);
           onRefreshAll?.();
           triggerSync?.();
+        }}
+      />
+
+      {/* Scheduled Changes */}
+      <Card title="Scheduled Changes">
+        <p className="text-xs text-theme-muted mb-2">
+          Plan future changes to income, savings rate, and fixed expenses.
+        </p>
+
+        {schedules.length === 0 ? (
+          <p className="text-xs text-theme-muted/60 italic mb-3">
+            No scheduled changes yet.
+          </p>
+        ) : (
+          <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
+            {(() => {
+              const now = new Date();
+              const currentY = now.getFullYear();
+              const currentM = now.getMonth() + 1;
+
+              const upcoming = schedules
+                .filter((s) => s.isActive)
+                .filter(
+                  (s) =>
+                    s.effectiveYear > currentY ||
+                    (s.effectiveYear === currentY &&
+                      s.effectiveMonth >= currentM),
+                )
+                .sort(
+                  (a, b) =>
+                    a.effectiveYear - b.effectiveYear ||
+                    a.effectiveMonth - b.effectiveMonth,
+                );
+
+              const past = schedules
+                .filter((s) => s.isActive)
+                .filter(
+                  (s) =>
+                    s.effectiveYear < currentY ||
+                    (s.effectiveYear === currentY &&
+                      s.effectiveMonth < currentM),
+                )
+                .sort(
+                  (a, b) =>
+                    b.effectiveYear - a.effectiveYear ||
+                    b.effectiveMonth - a.effectiveMonth,
+                );
+
+              return (
+                <>
+                  {upcoming.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-semibold text-theme-muted uppercase tracking-wide">
+                        Upcoming
+                      </p>
+                      {upcoming.map((s) => (
+                        <div
+                          key={s.id}
+                          className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-theme-background border-l-2 border-l-theme-primary"
+                        >
+                          <div>
+                            <span className="font-medium text-theme-text">
+                              {s.type === "income"
+                                ? "Income"
+                                : s.type === "savingsRate"
+                                  ? "Savings %"
+                                  : "Fixed Exp."}
+                            </span>
+                            <span className="text-theme-muted mx-1">
+                              &rarr;
+                            </span>
+                            <span className="text-theme-primary font-semibold">
+                              {s.type === "savingsRate"
+                                ? `${s.newValue}%`
+                                : `$${s.newValue}`}
+                            </span>
+                            <span className="text-theme-muted ml-2">
+                              {MONTHS[s.effectiveMonth - 1]} {s.effectiveYear}
+                            </span>
+                            {s.note && (
+                              <span className="text-theme-muted/60 ml-1">
+                                ({s.note})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingSchedule(s);
+                                setShowScheduleModal(true);
+                              }}
+                              className="text-theme-primary hover:opacity-80 text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                await StorageService.deleteSchedule(s.id);
+                                loadSchedules();
+                              }}
+                              className="text-theme-danger hover:opacity-80 text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
+                            >
+                              Del
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {past.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      <p className="text-[10px] font-semibold text-theme-muted uppercase tracking-wide">
+                        Past
+                      </p>
+                      {past.map((s) => (
+                        <div
+                          key={s.id}
+                          className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-theme-background opacity-60"
+                        >
+                          <div>
+                            <span className="font-medium text-theme-text">
+                              {s.type === "income"
+                                ? "Income"
+                                : s.type === "savingsRate"
+                                  ? "Savings %"
+                                  : "Fixed Exp."}
+                            </span>
+                            <span className="text-theme-muted mx-1">
+                              &rarr;
+                            </span>
+                            <span className="text-theme-primary font-semibold">
+                              {s.type === "savingsRate"
+                                ? `${s.newValue}%`
+                                : `$${s.newValue}`}
+                            </span>
+                            <span className="text-theme-muted ml-2">
+                              {MONTHS[s.effectiveMonth - 1]} {s.effectiveYear}
+                            </span>
+                            <span className="text-theme-success ml-1.5 text-[10px]">
+                              &#10003;
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        <button
+          onClick={() => {
+            setEditingSchedule(null);
+            setShowScheduleModal(true);
+          }}
+          className="bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+        >
+          + Add Schedule
+        </button>
+      </Card>
+
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setEditingSchedule(null);
+        }}
+        editSchedule={editingSchedule}
+        onComplete={() => {
+          loadSchedules();
+          onRefreshAll?.();
         }}
       />
 

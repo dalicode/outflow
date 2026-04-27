@@ -31,6 +31,17 @@ db.version(5).stores({
   fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
 })
 
+db.version(6).stores({
+  expenses: '++id, date, category, categoryId',
+  settings: 'key',
+  fixedExpenses: '++id',
+  categories: '++id, name',
+  syncQueue: '++id, table, timestamp',
+  fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
+  // Scheduled changes for future income, savings rate, and fixed expenses
+  schedules: '++id, type, effectiveYear, effectiveMonth, isActive, targetId',
+})
+
 const DEFAULT_CATEGORIES = [
   'Entertainment', 'Health', 'Misc', 'Personal Goods',
   'Transportation', 'Groceries', 'Dining',
@@ -149,6 +160,29 @@ export const StorageService = {
   bulkUpsertSnapshots: (rows) => db.fixedExpenseSnapshots.bulkPut(rows),
   deleteSnapshotsForYear: (year) => db.fixedExpenseSnapshots.where('year').equals(year).delete(),
 
+  // ── Scheduled Changes ─────────────────────────────────────
+  getSchedules: () => db.schedules.toArray(),
+  getActiveSchedules: () => db.schedules.where('isActive').equals(1).toArray(),
+  addSchedule: async (schedule) => {
+    const id = await db.schedules.add({
+      ...schedule,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    })
+    const row = await db.schedules.get(id)
+    await enqueue('schedules', 'insert', row)
+    return id
+  },
+  updateSchedule: async (id, changes) => {
+    await db.schedules.update(id, changes)
+    const row = await db.schedules.get(id)
+    await enqueue('schedules', 'update', row)
+  },
+  deleteSchedule: async (id) => {
+    await db.schedules.delete(id)
+    await enqueue('schedules', 'delete', { id })
+  },
+
   // ── Categories ────────────────────────────────────────────
   getCategories: () => db.categories.toArray(),
   addCategory: async (name) => {
@@ -198,6 +232,7 @@ export const StorageService = {
     categories: await db.categories.toArray(),
     fixedExpenses: await db.fixedExpenses.toArray(),
     fixedExpenseSnapshots: await db.fixedExpenseSnapshots.toArray(),
+    schedules: await db.schedules.toArray(),
     settings: await db.settings.toArray(),
     syncQueue: await db.syncQueue.toArray(),
   }),
@@ -219,6 +254,7 @@ export const StorageService = {
     if (data.categories) await db.categories.bulkPut(data.categories)
     if (data.fixedExpenses) await db.fixedExpenses.bulkPut(data.fixedExpenses)
     if (data.fixedExpenseSnapshots) await db.fixedExpenseSnapshots.bulkPut(data.fixedExpenseSnapshots)
+    if (data.schedules) await db.schedules.bulkPut(data.schedules)
     if (data.settings) await db.settings.bulkPut(data.settings)
     if (data.syncQueue) await db.syncQueue.bulkPut(data.syncQueue)
   },

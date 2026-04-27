@@ -32,6 +32,7 @@ export default function SummaryPage({ expenses }) {
         snapshots,
         incomeRules,
         savingsRules,
+        schedules,
       ] = await Promise.all([
         StorageService.getSetting("incomeAmount", ""),
         StorageService.getSetting("incomeFrequency", "monthly"),
@@ -42,6 +43,7 @@ export default function SummaryPage({ expenses }) {
         StorageService.getSnapshotsForYear(currentYear),
         StorageService.getSetting("yearlyIncomeOverrides", {}),
         StorageService.getSetting("yearlySavingsOverrides", {}),
+        StorageService.getActiveSchedules(),
       ]);
 
       setIncomeRaw(amt);
@@ -66,6 +68,7 @@ export default function SummaryPage({ expenses }) {
         savingsRules,
         globalIncome: monthly,
         globalSavingsRate: rate,
+        schedules,
       };
 
       const summary = getMonthlyFinancialSummary(currentYear, currentMonth, data);

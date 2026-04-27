@@ -45,6 +45,7 @@ function useAnalyticsData({ expenses, categories, year }) {
         globalRate,
         incomeRules,
         savingsRules,
+        schedules,
       ] = await Promise.all([
         StorageService.getSnapshotsForYear(year),
         StorageService.getFixedExpenses(),
@@ -52,6 +53,7 @@ function useAnalyticsData({ expenses, categories, year }) {
         StorageService.getSetting("savingsRate", 0),
         StorageService.getSetting("yearlyIncomeOverrides", {}),
         StorageService.getSetting("yearlySavingsOverrides", {}),
+        StorageService.getActiveSchedules(),
       ]);
 
       const data = {
@@ -62,6 +64,7 @@ function useAnalyticsData({ expenses, categories, year }) {
         savingsRules,
         globalIncome,
         globalSavingsRate: globalRate,
+        schedules,
       };
 
       const fin = getYearFinancialSummary(year, data, {

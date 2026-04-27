@@ -156,12 +156,34 @@ function YearTabBar({ years, activeYear, dirtyYears, onSelect }) {
   );
 }
 
-function MultiRangeList({ ranges, type, onAdd, onRemove, onUpdate }) {
+function MonthSelect({ value, onChange, maxMonth = 12, cls }) {
+  return (
+    <select value={value} onChange={onChange} className={cls}>
+      {MONTHS.map((m, i) => {
+        const monthNum = i + 1;
+        if (monthNum > maxMonth) return null;
+        return (
+          <option key={m} value={monthNum}>
+            {m}
+          </option>
+        );
+      })}
+    </select>
+  );
+}
+
+function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }) {
   const isIncome = type === "income";
   const label = isIncome ? "Monthly Income" : "Auto Savings %";
   const placeholder = isIncome ? "e.g. 5000" : "e.g. 20";
   const step = isIncome ? "0.01" : "0.1";
   const inputWidth = isIncome ? "w-36" : "w-28";
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const isCurrentYear = year === currentYear;
+  const maxMonth = isCurrentYear ? currentMonth - 1 : 12;
 
   return (
     <SectionCard title={label}>
@@ -181,33 +203,23 @@ function MultiRangeList({ ranges, type, onAdd, onRemove, onUpdate }) {
               step={step}
               className={`${ghostInputCls} ${inputWidth}`}
             />
-            <select
+            <MonthSelect
               value={range.startMonth}
               onChange={(e) =>
                 onUpdate(range.id, { startMonth: parseInt(e.target.value, 10) })
               }
-              className={`${ghostSelectCls} w-18`}
-            >
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i + 1}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              maxMonth={maxMonth}
+              cls={`${ghostSelectCls} w-18`}
+            />
             <span className="text-theme-muted text-xs">→</span>
-            <select
-              value={range.endMonth}
+            <MonthSelect
+              value={Math.min(range.endMonth, maxMonth)}
               onChange={(e) =>
                 onUpdate(range.id, { endMonth: parseInt(e.target.value, 10) })
               }
-              className={`${ghostSelectCls} w-18`}
-            >
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i + 1}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              maxMonth={maxMonth}
+              cls={`${ghostSelectCls} w-18`}
+            />
             <RemoveBtn onClick={() => onRemove(range.id)} />
           </div>
         ))}
@@ -222,15 +234,19 @@ function MultiRangeList({ ranges, type, onAdd, onRemove, onUpdate }) {
   );
 }
 
-function FixedExpenseList({ items, onAdd, onRemove, onUpdate, onPreset }) {
+function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }) {
   const presets = ["Rent", "Utilities", "Insurance", "Internet", "Phone"];
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const isCurrentYear = year === currentYear;
+  const maxMonth = isCurrentYear ? currentMonth - 1 : 12;
 
   return (
     <SectionCard title="Fixed Expenses">
       {items.length === 0 && (
-        <p className="text-xs text-theme-muted/60 italic">
-          No fixed expenses configured.
-        </p>
+        <p className="text-xs text-theme-muted/60 italic">No fixed expenses configured.</p>
       )}
       <div className="space-y-2">
         {items.map((item) => (
@@ -249,33 +265,19 @@ function FixedExpenseList({ items, onAdd, onRemove, onUpdate, onPreset }) {
               step="0.01"
               className={`${ghostInputCls} w-28`}
             />
-            <select
+            <MonthSelect
               value={item.startMonth}
-              onChange={(e) =>
-                onUpdate(item.id, { startMonth: parseInt(e.target.value, 10) })
-              }
-              className={`${ghostSelectCls} w-18`}
-            >
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i + 1}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              onChange={(e) => onUpdate(item.id, { startMonth: parseInt(e.target.value, 10) })}
+              maxMonth={maxMonth}
+              cls={`${ghostSelectCls} w-18`}
+            />
             <span className="text-theme-muted text-xs">→</span>
-            <select
-              value={item.endMonth}
-              onChange={(e) =>
-                onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })
-              }
-              className={`${ghostSelectCls} w-18`}
-            >
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i + 1}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            <MonthSelect
+              value={Math.min(item.endMonth, maxMonth)}
+              onChange={(e) => onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })}
+              maxMonth={maxMonth}
+              cls={`${ghostSelectCls} w-18`}
+            />
             <RemoveBtn onClick={() => onRemove(item.id)} />
           </div>
         ))}
@@ -956,6 +958,7 @@ export default function BackfillHistoricalDataModal({
                   <MultiRangeList
                     ranges={activeConfig.incomeRanges}
                     type="income"
+                    year={activeYear}
                     onAdd={() => addIncomeRange(activeYear)}
                     onRemove={(id) => removeIncomeRange(activeYear, id)}
                     onUpdate={(id, patch) =>
@@ -967,6 +970,7 @@ export default function BackfillHistoricalDataModal({
                   <MultiRangeList
                     ranges={activeConfig.savingsRanges}
                     type="savings"
+                    year={activeYear}
                     onAdd={() => addSavingsRange(activeYear)}
                     onRemove={(id) => removeSavingsRange(activeYear, id)}
                     onUpdate={(id, patch) =>
@@ -977,6 +981,7 @@ export default function BackfillHistoricalDataModal({
                   {/* Fixed expenses */}
                   <FixedExpenseList
                     items={activeConfig.fixedItems}
+                    year={activeYear}
                     onAdd={() => addFixedItem(activeYear)}
                     onRemove={(id) => removeFixedItem(activeYear, id)}
                     onUpdate={(id, patch) =>

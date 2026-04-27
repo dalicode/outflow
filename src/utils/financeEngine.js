@@ -22,6 +22,7 @@
  * @property {Object} savingsRules  — yearlySavingsOverrides
  * @property {number} globalIncome
  * @property {number} globalSavingsRate
+ * @property {Array<{id:number,type:string,targetId:number|null,effectiveYear:number,effectiveMonth:number,newValue:number,isActive:boolean}>} [schedules]
  */
 
 /**
@@ -69,27 +70,73 @@ const MONTHS = [
 ];
 
 /**
- * Resolve per-month values for a year from rules + global fallback.
+ * Apply active schedules for a given type to a month map.
+ * Only affects current and future months.
+ */
+function applySchedules(monthValues, year, schedules, scheduleType) {
+  if (!schedules || schedules.length === 0) return monthValues;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const applicable = schedules
+    .filter((s) => s.isActive && s.type === scheduleType)
+    .filter((s) => s.effectiveYear < year || (s.effectiveYear === year && s.effectiveMonth <= 12))
+    .sort((a, b) => {
+      if (a.effectiveYear !== b.effectiveYear) return a.effectiveYear - b.effectiveYear;
+      return a.effectiveMonth - b.effectiveMonth;
+    });
+
+  if (applicable.length === 0) return monthValues;
+
+  const result = [...monthValues];
+  for (let m = 0; m < 12; m++) {
+    const monthNum = m + 1;
+    const isFutureOrCurrent =
+      year > currentYear || (year === currentYear && monthNum >= currentMonth);
+    if (!isFutureOrCurrent) continue;
+
+    // Find the latest schedule effective on or before this month
+    const latest = applicable
+      .filter(
+        (s) =>
+          s.effectiveYear < year ||
+          (s.effectiveYear === year && s.effectiveMonth <= monthNum),
+      )
+      .pop();
+
+    if (latest) {
+      result[m] = latest.newValue;
+    }
+  }
+  return result;
+}
+
+/**
+ * Resolve per-month values for a year from rules + global fallback + schedules.
  * Handles legacy {2023: 5000} → auto-expands to 12 months.
  */
-function resolveMonthlyValues(year, rules, globalValue) {
+function resolveMonthlyValues(year, rules, globalValue, schedules, scheduleType) {
   const yearRules = rules?.[year];
+  let values;
 
   // Legacy format: plain number for the whole year
   if (typeof yearRules === "number") {
-    return Array(12).fill(yearRules);
-  }
-
-  // New format: nested object { 1: 5000, 2: 5200, ... }
-  if (yearRules && typeof yearRules === "object") {
-    return Array.from({ length: 12 }, (_, m) => {
+    values = Array(12).fill(yearRules);
+  } else if (yearRules && typeof yearRules === "object") {
+    // New format: nested object { 1: 5000, 2: 5200, ... }
+    values = Array.from({ length: 12 }, (_, m) => {
       const month = m + 1;
       return month in yearRules ? yearRules[month] : globalValue;
     });
+  } else {
+    // No rule for this year — fall back to global
+    values = Array(12).fill(globalValue);
   }
 
-  // No rule for this year — fall back to global
-  return Array(12).fill(globalValue);
+  // Apply active schedules for future months
+  return applySchedules(values, year, schedules, scheduleType);
 }
 
 /**
@@ -128,8 +175,9 @@ function buildYearFixedRows(year, snapshots, fixedDefinitions) {
 
 /**
  * Get fixed expenses for a specific month.
+ * Schedules can override amounts for future months.
  */
-function getFixedExpensesForMonth(year, month, snapshots, fixedDefinitions) {
+function getFixedExpensesForMonth(year, month, snapshots, fixedDefinitions, schedules) {
   // month is 0-indexed (0-11)
   const targetMonth = month + 1;
   const monthSnaps = snapshots.filter(
@@ -144,6 +192,37 @@ function getFixedExpensesForMonth(year, month, snapshots, fixedDefinitions) {
     amount: s.amountSnapshot,
     isArchived: defMap.get(String(s.fixedExpenseId))?.isArchived === true,
   }));
+
+  // Apply active schedules for future months
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const isFutureOrCurrent =
+    year > currentYear || (year === currentYear && targetMonth >= currentMonth);
+
+  if (isFutureOrCurrent && schedules && schedules.length > 0) {
+    const applicable = schedules
+      .filter((s) => s.isActive && s.type === "fixedExpense")
+      .filter(
+        (s) =>
+          s.effectiveYear < year ||
+          (s.effectiveYear === year && s.effectiveMonth <= targetMonth),
+      )
+      .sort((a, b) => {
+        if (a.effectiveYear !== b.effectiveYear)
+          return a.effectiveYear - b.effectiveYear;
+        return a.effectiveMonth - b.effectiveMonth;
+      });
+
+    for (const item of items) {
+      const latest = applicable
+        .filter((s) => s.targetId === item.id)
+        .pop();
+      if (latest) {
+        item.amount = latest.newValue;
+      }
+    }
+  }
 
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   return { total, items };
@@ -178,15 +257,16 @@ export function getMonthlyFinancialSummary(year, month, data) {
     savingsRules,
     globalIncome,
     globalSavingsRate,
+    schedules,
   } = data;
 
-  const incomeValues = resolveMonthlyValues(year, incomeRules, globalIncome);
-  const savingsRateValues = resolveMonthlyValues(year, savingsRules, globalSavingsRate);
+  const incomeValues = resolveMonthlyValues(year, incomeRules, globalIncome, schedules, "income");
+  const savingsRateValues = resolveMonthlyValues(year, savingsRules, globalSavingsRate, schedules, "savingsRate");
 
   const income = incomeValues[month] || 0;
   const savingsRate = savingsRateValues[month] || 0;
 
-  const fixedResult = getFixedExpensesForMonth(year, month, snapshots, fixedExpenses);
+  const fixedResult = getFixedExpensesForMonth(year, month, snapshots, fixedExpenses, schedules);
   const fixedExpensesTotal = fixedResult.total;
 
   const variableExpenses = getVariableExpensesForMonth(year, month, expenses);
