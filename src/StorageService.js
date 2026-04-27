@@ -84,6 +84,14 @@ export const StorageService = {
     await db.expenses.delete(id)
     await enqueue('expenses', 'delete', { id })
   },
+  removeMany: async (ids) => {
+    await db.transaction('rw', db.expenses, db.syncQueue, async () => {
+      await db.expenses.bulkDelete(ids)
+      for (const id of ids) {
+        await enqueue('expenses', 'delete', { id })
+      }
+    })
+  },
 
   // ── Settings ──────────────────────────────────────────────
   getSetting: async (key, fallback = null) => {

@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+} from '@tanstack/react-table'
 import { StorageService } from './StorageService'
 import { useSettings } from './SettingsContext'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const pct = (n) => n != null ? `${n.toFixed(1)}%` : '—'
 
-export default function AnalyticsPage({ expenses, categories }) {
+// ── Precompute analytics dataset (unchanged logic) ────────────────────────────
+function useAnalyticsData({ expenses, categories, year }) {
   const now = new Date()
-  const [year, setYear] = useState(now.getFullYear())
   const [monthlyIncome, setMonthlyIncome] = useState(0)
   const [fixedExpenses, setFixedExpenses] = useState([])
   const [snapshots, setSnapshots] = useState([])
-  const { formatAmount, getNumberColorClass } = useSettings()
-  const fmt = (n) => (n != null && n !== 0) ? formatAmount(n) : '—'
 
   useEffect(() => {
     Promise.all([
@@ -30,12 +33,11 @@ export default function AnalyticsPage({ expenses, categories }) {
   }, [year])
 
   const activeCategories = useMemo(() => categories.filter((c) => !c.isDeleted), [categories])
-  const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
+  // catMap is available in parent components if needed
 
   const yearExpenses = useMemo(() =>
     expenses.filter((e) => e.date.startsWith(`${year}-`)), [expenses, year])
 
-  // ── Variable expense grid ─────────────────────────────────
   const grid = useMemo(() => {
     const g = {}
     yearExpenses.forEach((e) => {
@@ -61,7 +63,6 @@ export default function AnalyticsPage({ expenses, categories }) {
     MONTHS.map((_, m) => variableRows.reduce((s, r) => s + (grid[r.key]?.[m] ?? 0), 0)),
     [variableRows, grid])
 
-  // ── Fixed expense snapshot grid ───────────────────────────
   const fixedSnapshotGrid = useMemo(() => {
     const map = {}
     snapshots.forEach((s) => {
@@ -95,12 +96,10 @@ export default function AnalyticsPage({ expenses, categories }) {
     MONTHS.map((_, m) => fixedRows.reduce((s, r) => s + (r.amounts[m] ?? 0), 0)),
     [fixedRows])
 
-  // ── Combined monthly totals ───────────────────────────────
   const monthlyTotals = useMemo(() =>
     MONTHS.map((_, m) => monthlyVariableTotals[m] + monthlyFixedTotals[m]),
     [monthlyVariableTotals, monthlyFixedTotals])
 
-  // ── Savings ───────────────────────────────────────────────
   const currentMonth = now.getMonth()
   const isCurrentYear = year === now.getFullYear()
   const isFutureMonth = (m) => year > now.getFullYear() || (isCurrentYear && m > currentMonth)
@@ -125,129 +124,315 @@ export default function AnalyticsPage({ expenses, categories }) {
     MONTHS.map((_, m) => Math.max(0, ...variableRows.map((r) => grid[r.key]?.[m] ?? 0))),
     [variableRows, grid])
 
+  return {
+    year,
+    monthlyIncome,
+    variableRows,
+    grid,
+    fixedRows,
+    monthlyFixedTotals,
+    monthlyVariableTotals,
+    monthlyTotals,
+    monthlySavings,
+    monthlySavingsPct,
+    yearVariableTotal,
+    yearFixedTotal,
+    yearTotal,
+    yearSavings,
+    avgSavingsPct,
+    maxPerMonth,
+  }
+}
+
+// ── Build flat row dataset for TanStack Table ────────────────────────────────
+function buildTableRows(data) {
+  const rows = []
+
+  // Fixed Expenses section
+  rows.push({ id: 'sec-fixed', kind: 'section', label: 'Fixed Expenses', section: 'fixed' })
+  if (data.fixedRows.length === 0) {
+    rows.push({ id: 'empty-fixed', kind: 'empty', label: `No fixed expenses for ${data.year}.` })
+  } else {
+    data.fixedRows.forEach((row) => {
+      const total = row.amounts.reduce((s, v) => s + v, 0)
+      rows.push({
+        id: `fixed-${row.id}`,
+        kind: 'fixed',
+        label: row.name,
+        amounts: row.amounts,
+        yearTotal: total,
+      })
+    })
+    rows.push({
+      id: 'sub-fixed',
+      kind: 'subtotal',
+      label: 'Total Fixed',
+      amounts: data.monthlyFixedTotals,
+      yearTotal: data.yearFixedTotal,
+      section: 'fixed',
+    })
+  }
+
+  // Variable Expenses section
+  rows.push({ id: 'sec-var', kind: 'section', label: 'Variable Expenses', section: 'variable' })
+  if (data.variableRows.length === 0) {
+    rows.push({ id: 'empty-var', kind: 'empty', label: `No variable expenses for ${data.year}.` })
+  } else {
+    data.variableRows.forEach((row) => {
+      const vals = data.grid[row.key] ?? Array(12).fill(0)
+      const total = vals.reduce((s, v) => s + v, 0)
+      rows.push({
+        id: `var-${row.key}`,
+        kind: 'variable',
+        label: row.name,
+        amounts: vals,
+        yearTotal: total,
+        maxPerMonth: data.maxPerMonth,
+      })
+    })
+  }
+
+  // Summary rows
+  rows.push({
+    id: 'sum-total',
+    kind: 'summary',
+    label: 'Total Expenses',
+    amounts: data.monthlyTotals,
+    yearTotal: data.yearTotal,
+  })
+  rows.push({
+    id: 'sum-savings',
+    kind: 'summary',
+    label: 'Total Savings',
+    amounts: data.monthlySavings,
+    yearTotal: data.yearSavings,
+    isSavings: true,
+  })
+  rows.push({
+    id: 'sum-pct',
+    kind: 'summary',
+    label: 'Savings %',
+    amounts: data.monthlySavingsPct,
+    yearTotal: data.avgSavingsPct,
+    isPct: true,
+  })
+
+  return rows
+}
+
+// ── Analytics Grid Component ─────────────────────────────────────────────────
+export default function AnalyticsPage({ expenses, categories }) {
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const { formatAmount, getNumberColorClass } = useSettings()
+  const fmt = (n) => (n != null && n !== 0) ? formatAmount(n) : '—'
+
+  const data = useAnalyticsData({ expenses, categories, year })
+
+  const tableRows = useMemo(() => buildTableRows(data), [data])
+
   const navigate = useNavigate()
   const goToMonth = (m) => navigate(`/?month=${m}&year=${year}`)
 
-  const th = 'px-3 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap'
-  const td = 'px-3 py-2 text-sm text-right whitespace-nowrap'
-  const stickyLabel = () => `sticky left-0 bg-theme-surface px-3 py-2 text-sm font-medium text-theme-text whitespace-nowrap`
+  // TanStack Table column definitions
+  const columns = useMemo(() => {
+    const monthCols = MONTHS.map((m, i) => ({
+      accessorFn: (row) => row.amounts?.[i],
+      id: `m${i}`,
+      header: m,
+      meta: { monthIndex: i },
+    }))
+
+    return [
+      {
+        accessorKey: 'label',
+        id: 'label',
+        header: 'Category',
+        meta: { isSticky: true },
+      },
+      ...monthCols,
+      {
+        accessorFn: (row) => row.yearTotal,
+        id: 'yearTotal',
+        header: 'Year Total',
+        meta: { isYearTotal: true },
+      },
+    ]
+  }, [])
+
+  const table = useReactTable({
+    data: tableRows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  const headerGroups = table.getHeaderGroups()
+  const rowModel = table.getRowModel()
+
+  // Styling helpers keyed by row.kind
+  const kindStyles = {
+    section: '',
+    empty: 'italic text-theme-muted/70',
+    fixed: '',
+    variable: '',
+    subtotal: '',
+    summary: 'bg-theme-background',
+  }
+
+  const sectionBg = {
+    fixed: 'bg-orange-500/10',
+    variable: 'bg-blue-500/10',
+  }
+  const subtotalBg = {
+    fixed: 'bg-orange-500/15',
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-4">
+      {/* Year nav */}
       <div className="flex items-center gap-4">
         <button onClick={() => setYear((y) => y - 1)} className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors">&#8592;</button>
         <span className="text-lg font-semibold text-theme-text">{year}</span>
         <button onClick={() => setYear((y) => y + 1)} className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors">&#8594;</button>
       </div>
 
+      {/* Grid */}
       <div className="overflow-x-auto rounded-theme-large shadow-sm border border-theme-border">
-        <table className="min-w-full text-sm table-fixed bg-theme-surface">
+        <table className="min-w-full text-sm table-fixed border-collapse bg-theme-surface">
           <thead>
-            <tr className="border-b border-theme-border">
-              <th className={`${th} sticky left-0 bg-theme-surface text-left w-[calc(100%/14)]`}>Category</th>
-              {MONTHS.map((m, i) => (
-                <th key={m} className={`${th} cursor-pointer hover:text-theme-primary hover:bg-theme-primary/5 transition-colors w-[calc(100%/14)]`}
-                  onClick={() => goToMonth(i)}>{m}</th>
-              ))}
-              <th className={`${th} bg-theme-primary/10 text-theme-primary w-[calc(100%/14)]`}>Year Total</th>
-            </tr>
+            {headerGroups.map((headerGroup) => (
+              <tr key={headerGroup.id} className="border-b border-theme-border">
+                {headerGroup.headers.map((header) => {
+                  const meta = header.column.columnDef.meta
+                  const isSticky = meta?.isSticky
+                  const isYearTotal = meta?.isYearTotal
+                  const baseTh = 'px-3 py-2 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap'
+                  return (
+                    <th
+                      key={header.id}
+                      className={`${baseTh} ${isSticky ? 'sticky left-0 bg-theme-surface text-left z-10' : 'text-center'} ${isYearTotal ? 'bg-theme-primary/10 text-theme-primary' : ''} ${meta?.monthIndex != null ? 'cursor-pointer hover:text-theme-primary hover:bg-theme-primary/5 transition-colors' : ''}`}
+                      onClick={meta?.monthIndex != null ? () => goToMonth(meta.monthIndex) : undefined}
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  )
+                })}
+              </tr>
+            ))}
           </thead>
-
           <tbody>
-            {/* ── Section 1: Fixed Expenses ── */}
-            <tr className="bg-orange-500/10 border-t border-orange-500/20">
-              <td colSpan={14} className="sticky left-0 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-600 uppercase tracking-wide">
-                Fixed Expenses
-              </td>
-            </tr>
+            {rowModel.rows.map((row) => {
+              const kind = row.original.kind
+              const baseTr = `border-b border-theme-border ${kindStyles[kind] || ''}`
 
-            {fixedRows.length === 0 && (
-              <tr className="border-b border-theme-border">
-                <td colSpan={14} className="px-3 py-2 text-sm text-theme-muted italic">No fixed expenses for {year}.</td>
-              </tr>
-            )}
+              if (kind === 'section') {
+                const secBg = sectionBg[row.original.section] || 'bg-theme-primary/5'
+                return (
+                  <tr key={row.id} className={`${baseTr} ${secBg}`}>
+                    {row.getVisibleCells().map((cell, cellIndex) => {
+                      const colMeta = cell.column.columnDef.meta
+                      const isSticky = colMeta?.isSticky
+                      return (
+                        <td
+                          key={cell.id}
+                          className={`px-3 py-1.5 text-xs font-semibold text-theme-muted uppercase tracking-wide whitespace-nowrap ${isSticky ? 'sticky left-0 bg-theme-surface z-10' : ''}`}
+                        >
+                          {cellIndex === 0 ? row.original.label : ''}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              }
 
-            {fixedRows.map((row) => {
-              const rowTotal = row.amounts.reduce((s, v) => s + v, 0)
+              if (kind === 'empty') {
+                return (
+                  <tr key={row.id} className={baseTr}>
+                    {row.getVisibleCells().map((cell, cellIndex) => {
+                      const colMeta = cell.column.columnDef.meta
+                      const isSticky = colMeta?.isSticky
+                      return (
+                        <td
+                          key={cell.id}
+                          className={`px-3 py-2 text-sm text-theme-muted italic whitespace-nowrap ${isSticky ? 'sticky left-0 bg-theme-surface z-10' : ''}`}
+                        >
+                          {cellIndex === 0 ? row.original.label : ''}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              }
+
+              const rowBg = kind === 'subtotal' && row.original.section === 'fixed'
+                ? 'bg-orange-500/15'
+                : kind === 'summary'
+                  ? 'bg-theme-background'
+                  : ''
+
               return (
-                <tr key={row.id} className="border-b border-theme-border hover:bg-orange-500/5 transition-colors">
-                  <td className={stickyLabel()}>{row.name}</td>
-                  {row.amounts.map((v, m) => (
-                    <td key={m} className={`${td} text-orange-600`}>{fmt(v)}</td>
-                  ))}
-                  <td className={`${td} bg-theme-primary/10 font-semibold text-theme-primary`}>{fmt(rowTotal)}</td>
-                </tr>
-              )
-            })}
+                <tr key={row.id} className={`${baseTr} ${rowBg} transition-colors`}>
+                  {row.getVisibleCells().map((cell) => {
+                    const colMeta = cell.column.columnDef.meta
+                    const isSticky = colMeta?.isSticky
+                    const isYearTotal = colMeta?.isYearTotal
+                    const monthIndex = colMeta?.monthIndex
 
-            {/* Fixed subtotal */}
-            <tr className="bg-orange-500/15 border-t border-orange-500/30">
-              <td className="sticky left-0 bg-orange-500/15 px-3 py-2 text-sm font-semibold text-orange-700">Total Fixed</td>
-              {monthlyFixedTotals.map((v, m) => (
-                <td key={m} className={`${td} font-semibold text-orange-700`}>{fmt(v)}</td>
-              ))}
-              <td className={`${td} bg-theme-primary/15 font-semibold text-theme-primary`}>{fmt(yearFixedTotal)}</td>
-            </tr>
+                    let cellContent = flexRender(cell.column.columnDef.cell, cell.getContext())
 
-            {/* ── Section 2: Variable Expenses ── */}
-            <tr className="bg-blue-500/10 border-t-2 border-blue-500/20">
-              <td colSpan={14} className="sticky left-0 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                Variable Expenses
-              </td>
-            </tr>
+                    // Custom rendering for month / year-total cells
+                    if (monthIndex != null) {
+                      const val = row.original.amounts?.[monthIndex]
+                      let cls = 'text-theme-text'
+                      if (kind === 'fixed') cls = 'text-orange-600'
+                      if (kind === 'variable') {
+                        const isMax = val > 0 && val === row.original.maxPerMonth?.[monthIndex]
+                        cls = isMax ? 'text-orange-600 font-semibold' : 'text-theme-text'
+                      }
+                      if (kind === 'summary') {
+                        if (row.original.isSavings) {
+                          cls = val == null ? 'text-theme-muted/50' : getNumberColorClass(val)
+                        } else if (row.original.isPct) {
+                          cls = val == null ? 'text-theme-muted/50' : getNumberColorClass(val)
+                        } else {
+                          cls = 'text-theme-text font-semibold'
+                        }
+                      }
+                      if (kind === 'subtotal') cls = 'text-orange-700 font-semibold'
+                      cellContent = <span className={cls}>{val == null ? '—' : (row.original.isPct ? pct(val) : fmt(val))}</span>
+                    }
 
-            {variableRows.length === 0 && (
-              <tr className="border-b border-theme-border">
-                <td colSpan={14} className="px-3 py-2 text-sm text-theme-muted italic">No variable expenses for {year}.</td>
-              </tr>
-            )}
+                    if (isYearTotal) {
+                      let cls = 'font-semibold text-theme-primary'
+                      if (kind === 'fixed' || kind === 'variable') cls = 'font-semibold text-theme-primary'
+                      if (kind === 'subtotal') cls = 'font-semibold text-theme-primary'
+                      if (kind === 'summary') {
+                        if (row.original.isSavings || row.original.isPct) {
+                          cls = `font-semibold ${getNumberColorClass(row.original.yearTotal)}`
+                        } else {
+                          cls = 'font-semibold text-theme-primary'
+                        }
+                      }
+                      cellContent = <span className={cls}>{row.original.isPct ? pct(row.original.yearTotal) : fmt(row.original.yearTotal)}</span>
+                    }
 
-            {variableRows.map((row) => {
-              const vals = grid[row.key] ?? Array(12).fill(0)
-              const rowTotal = vals.reduce((s, v) => s + v, 0)
-              return (
-                <tr key={row.key} className="border-b border-theme-border hover:bg-theme-primary/[0.03] transition-colors">
-                  <td className={stickyLabel()}>{row.name}</td>
-                  {vals.map((v, m) => {
-                    const isMax = v > 0 && v === maxPerMonth[m]
+                    if (isSticky) {
+                      cellContent = <span className="text-sm font-medium text-theme-text">{row.original.label}</span>
+                    }
+
                     return (
-                      <td key={m} className={`${td} ${isMax ? 'text-orange-600 font-semibold' : 'text-theme-text'}`}>
-                        {fmt(v)}
+                      <td
+                        key={cell.id}
+                        className={`px-3 py-2 text-sm whitespace-nowrap ${isSticky ? 'sticky left-0 bg-theme-surface z-10' : 'text-right'} ${isYearTotal ? 'bg-theme-primary/10' : ''}`}
+                      >
+                        {cellContent}
                       </td>
                     )
                   })}
-                  <td className={`${td} bg-theme-primary/10 font-semibold text-theme-primary`}>{fmt(rowTotal)}</td>
                 </tr>
               )
             })}
           </tbody>
-
-          {/* ── Summary rows ── */}
-          <tfoot>
-            <tr className="bg-theme-background border-t-2 border-theme-border">
-              <td className="sticky left-0 bg-theme-background px-3 py-2 text-sm font-semibold text-theme-text">Total Expenses</td>
-              {monthlyTotals.map((v, m) => <td key={m} className={`${td} font-semibold text-theme-text`}>{fmt(v)}</td>)}
-              <td className={`${td} bg-theme-primary/15 font-semibold text-theme-primary`}>{fmt(yearTotal)}</td>
-            </tr>
-            <tr className="bg-green-500/10 border-t border-theme-border">
-              <td className="sticky left-0 bg-green-500/10 px-3 py-2 text-sm font-semibold text-green-700">Total Savings</td>
-              {monthlySavings.map((v, m) => (
-                <td key={m} className={`${td} font-semibold ${v == null ? 'text-theme-muted/50' : getNumberColorClass(v)}`}>
-                  {v == null ? '—' : fmt(v)}
-                </td>
-              ))}
-              <td className={`${td} bg-theme-primary/15 font-semibold ${getNumberColorClass(yearSavings)}`}>{fmt(yearSavings)}</td>
-            </tr>
-            <tr className="bg-green-500/10 border-t border-theme-border">
-              <td className="sticky left-0 bg-green-500/10 px-3 py-2 text-sm font-semibold text-green-700">Savings %</td>
-              {monthlySavingsPct.map((v, m) => (
-                <td key={m} className={`${td} ${v == null ? 'text-theme-muted/50' : getNumberColorClass(v)}`}>
-                  {v == null ? '—' : pct(v)}
-                </td>
-              ))}
-              <td className={`${td} bg-theme-primary/15 font-semibold ${getNumberColorClass(avgSavingsPct)}`}>{pct(avgSavingsPct)}</td>
-            </tr>
-          </tfoot>
         </table>
       </div>
     </main>

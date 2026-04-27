@@ -130,7 +130,7 @@ function BudgetInsights({
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({ expenses, categories, onUpdate, onDelete }) {
+function Dashboard({ expenses, categories, onUpdate, onDelete, onBulkDelete }) {
   const now = new Date();
   const { formatAmount, getNumberColorClass } = useSettings();
   const [searchParams] = useSearchParams();
@@ -141,7 +141,7 @@ function Dashboard({ expenses, categories, onUpdate, onDelete }) {
     const m = parseInt(searchParams.get("month"));
     return isNaN(m) ? now.getMonth() : m;
   });
-  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [savingsRate, setSavingsRate] = useState(0);
   const [totalFixed, setTotalFixed] = useState(0);
@@ -180,10 +180,6 @@ function Dashboard({ expenses, categories, onUpdate, onDelete }) {
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
     [categories],
   );
-  const activeCategories = useMemo(
-    () => categories.filter((c) => !c.isDeleted),
-    [categories],
-  );
   const resolveName = (exp) =>
     catMap[exp.categoryId]?.name ?? exp.category ?? "Uncategorized";
 
@@ -194,10 +190,10 @@ function Dashboard({ expenses, categories, onUpdate, onDelete }) {
 
   const filtered = useMemo(
     () =>
-      categoryFilter === "All"
+      selectedCategories.size === 0
         ? monthlyExpenses
-        : monthlyExpenses.filter((e) => resolveName(e) === categoryFilter),
-    [monthlyExpenses, categoryFilter, catMap],
+        : monthlyExpenses.filter((e) => selectedCategories.has(resolveName(e))),
+    [monthlyExpenses, selectedCategories, catMap],
   );
 
   const monthTotal = useMemo(
@@ -219,14 +215,6 @@ function Dashboard({ expenses, categories, onUpdate, onDelete }) {
     { month: "long", year: "numeric" },
   );
 
-  const filterPills = useMemo(() => {
-    const names = new Set(monthlyExpenses.map(resolveName));
-    return [
-      "All",
-      ...activeCategories.map((c) => c.name).filter((n) => names.has(n)),
-    ];
-  }, [monthlyExpenses, activeCategories, catMap]);
-
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
       <BudgetInsights
@@ -243,19 +231,46 @@ function Dashboard({ expenses, categories, onUpdate, onDelete }) {
             Spending by Category
           </h2>
           <div className="flex flex-wrap gap-2">
-            {categoryTotals.map(([cat, total]) => (
-              <div
-                key={cat}
-                className="bg-theme-surface rounded-theme-large shadow-sm px-3 py-2 flex items-center gap-2 border border-theme-border"
-              >
-                <span className="text-sm text-theme-muted">{cat}</span>
-                <span
-                  className={`text-sm font-semibold text-theme-text ${getNumberColorClass(total)}`}
+            <button
+              onClick={() => setSelectedCategories(new Set())}
+              className={`px-3 py-1.5 rounded-theme-medium text-sm font-medium transition-colors ${
+                selectedCategories.size === 0
+                  ? "bg-theme-primary text-white"
+                  : "bg-theme-surface text-theme-muted border border-theme-border hover:bg-theme-background"
+              }`}
+            >
+              All
+            </button>
+            {categoryTotals.map(([cat, total]) => {
+              const isSelected = selectedCategories.has(cat)
+              return (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    const next = new Set(selectedCategories)
+                    if (next.has(cat)) next.delete(cat)
+                    else next.add(cat)
+                    setSelectedCategories(next)
+                  }}
+                  className={`px-3 py-1.5 rounded-theme-medium text-sm font-medium transition-colors flex items-center gap-2 ${
+                    isSelected
+                      ? "bg-theme-primary text-white"
+                      : "bg-theme-surface text-theme-muted border border-theme-border hover:bg-theme-background"
+                  }`}
                 >
-                  {formatAmount(total)}
-                </span>
-              </div>
-            ))}
+                  <span>{cat}</span>
+                  <span
+                    className={
+                      isSelected
+                        ? "text-white/80"
+                        : getNumberColorClass(total)
+                    }
+                  >
+                    {formatAmount(total)}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </section>
       )}
@@ -297,26 +312,11 @@ function Dashboard({ expenses, categories, onUpdate, onDelete }) {
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {filterPills.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategoryFilter(c)}
-              className={`px-3 py-1 rounded-theme-medium text-sm font-medium transition-colors ${
-                categoryFilter === c
-                  ? "bg-theme-primary text-white"
-                  : "bg-theme-background text-theme-muted hover:bg-theme-border"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
         <ExpenseTable
           expenses={filtered}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          onBulkDelete={onBulkDelete}
           categories={categories}
         />
       </section>
@@ -386,6 +386,12 @@ export default function App() {
     triggerSync?.();
   };
 
+  const handleBulkDelete = async (ids) => {
+    await StorageService.removeMany(ids);
+    setExpenses((prev) => prev.filter((e) => !ids.includes(e.id)));
+    triggerSync?.();
+  };
+
   // Show auth page only when Supabase is configured and user is not logged in
   if (supabase && !loading && !user) return <AuthPage />;
   if (loading || !settingsLoaded) return null;
@@ -408,6 +414,7 @@ export default function App() {
                 categories={categories}
                 onUpdate={handleUpdate}
                 onDelete={handleDelete}
+                onBulkDelete={handleBulkDelete}
               />
             }
           />
