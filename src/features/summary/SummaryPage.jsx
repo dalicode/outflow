@@ -79,11 +79,14 @@ export default function SummaryPage({ expenses }) {
     frequency,
     monthlyIncome: monthly,
   }) => {
+    const now = new Date();
+    const existingSetAt = await StorageService.getSetting("monthlyIncomeSetAt", null);
     await Promise.all([
       StorageService.setSetting("incomeAmount", income),
       StorageService.setSetting("incomeFrequency", frequency),
       StorageService.setSetting("monthlyIncome", monthly),
-    ]);
+      !existingSetAt && StorageService.setSetting("monthlyIncomeSetAt", { year: now.getFullYear(), month: now.getMonth() + 1 }),
+    ].filter(Boolean));
     setIncomeRaw(income);
     setIncomeFreq(frequency);
     // Re-computation triggered by effect dependency on expenses (settings change will need refresh)
@@ -93,7 +96,12 @@ export default function SummaryPage({ expenses }) {
   };
 
   const handleSavingsRateSave = async (rate) => {
-    await StorageService.setSetting("savingsRate", rate);
+    const now = new Date();
+    const existingSetAt = await StorageService.getSetting("savingsRateSetAt", null);
+    await Promise.all([
+      StorageService.setSetting("savingsRate", rate),
+      !existingSetAt && StorageService.setSetting("savingsRateSetAt", { year: now.getFullYear(), month: now.getMonth() + 1 }),
+    ].filter(Boolean));
     setSavingsRate(rate);
   };
 

@@ -508,32 +508,69 @@ export default function BackfillHistoricalDataModal({
     const load = async () => {
       setLoading(true);
       try {
-        const [incomeOverrides, savingsOverrides, fixedDefs] =
-          await Promise.all([
-            StorageService.getSetting("yearlyIncomeOverrides", {}),
-            StorageService.getSetting("yearlySavingsOverrides", {}),
-            StorageService.getFixedExpenses(),
-          ]);
+        const [
+          incomeOverrides,
+          savingsOverrides,
+          fixedDefs,
+          incSetAt,
+          savSetAt,
+        ] = await Promise.all([
+          StorageService.getSetting("yearlyIncomeOverrides", {}),
+          StorageService.getSetting("yearlySavingsOverrides", {}),
+          StorageService.getFixedExpenses(),
+          StorageService.getSetting("monthlyIncomeSetAt", null),
+          StorageService.getSetting("savingsRateSetAt", null),
+        ]);
 
         const defMap = new Map(fixedDefs.map((f) => [f.id, f]));
         const configs = {};
 
-        for (const year of years) {
-          // Income: handle legacy flat format
-          let incObj = incomeOverrides[year];
-          if (typeof incObj === "number") {
-            incObj = {};
-            for (let m = 1; m <= 12; m++) incObj[m] = incObj;
-          }
-          const incomeRanges = monthMapToRanges(incObj);
+        const globalInc = parseFloat(defaultIncome);
+        const globalSav = parseFloat(defaultSavingsRate);
 
-          // Savings: handle legacy flat format
-          let savObj = savingsOverrides[year];
-          if (typeof savObj === "number") {
-            savObj = {};
-            for (let m = 1; m <= 12; m++) savObj[m] = savObj;
+        // Fallback to current date if no set-at tracking exists
+        const now = new Date();
+        const incCutoff = incSetAt || { year: now.getFullYear(), month: now.getMonth() + 1 };
+        const savCutoff = savSetAt || { year: now.getFullYear(), month: now.getMonth() + 1 };
+
+        for (const year of years) {
+          // Income: apply global defaults only from set-at month/year onward
+          const incMonthMap = {};
+          if (!isNaN(globalInc) && globalInc > 0) {
+            if (year > incCutoff.year) {
+              for (let m = 1; m <= 12; m++) incMonthMap[m] = globalInc;
+            } else if (year === incCutoff.year) {
+              for (let m = incCutoff.month; m <= 12; m++) incMonthMap[m] = globalInc;
+            }
           }
-          const savingsRanges = monthMapToRanges(savObj);
+          const incOverride = incomeOverrides[year];
+          if (typeof incOverride === "number") {
+            for (let m = 1; m <= 12; m++) incMonthMap[m] = incOverride;
+          } else if (incOverride && typeof incOverride === "object") {
+            for (let m = 1; m <= 12; m++) {
+              if (incOverride[m] != null) incMonthMap[m] = incOverride[m];
+            }
+          }
+          const incomeRanges = monthMapToRanges(incMonthMap);
+
+          // Savings: apply global defaults only from set-at month/year onward
+          const savMonthMap = {};
+          if (!isNaN(globalSav) && globalSav >= 0) {
+            if (year > savCutoff.year) {
+              for (let m = 1; m <= 12; m++) savMonthMap[m] = globalSav;
+            } else if (year === savCutoff.year) {
+              for (let m = savCutoff.month; m <= 12; m++) savMonthMap[m] = globalSav;
+            }
+          }
+          const savOverride = savingsOverrides[year];
+          if (typeof savOverride === "number") {
+            for (let m = 1; m <= 12; m++) savMonthMap[m] = savOverride;
+          } else if (savOverride && typeof savOverride === "object") {
+            for (let m = 1; m <= 12; m++) {
+              if (savOverride[m] != null) savMonthMap[m] = savOverride[m];
+            }
+          }
+          const savingsRanges = monthMapToRanges(savMonthMap);
 
           // Fixed expenses from snapshots
           const snapshots = await StorageService.getSnapshotsForYear(year);
@@ -685,7 +722,7 @@ export default function BackfillHistoricalDataModal({
     let hasError = false;
     let hasAnyData = false;
 
-    for (const year of years) {
+    for (const year of dirtyYears) {
       const config = yearConfigs[year];
       if (!config) continue;
 
@@ -736,7 +773,7 @@ export default function BackfillHistoricalDataModal({
     }
 
     if (!hasAnyData) {
-      nextErrors._global = "Configure data for at least one year.";
+      nextErrors._global = "Select at least one year and configure data for it.";
       hasError = true;
     }
 
@@ -751,7 +788,7 @@ export default function BackfillHistoricalDataModal({
       const dexieDb = StorageService.db;
       let totalSnapshots = 0;
 
-      for (const year of years) {
+      for (const year of dirtyYears) {
         const config = yearConfigs[year];
         if (!config) continue;
 
