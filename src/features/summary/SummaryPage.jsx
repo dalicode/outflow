@@ -82,7 +82,7 @@ export default function SummaryPage({ expenses }) {
   }, [expenses]);
 
   const available = monthlyIncome - totalFixed;
-  const savings = Math.max(0, available * (savingsRate / 100));
+  const savings = Math.max(0, monthlyIncome * (savingsRate / 100));
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">

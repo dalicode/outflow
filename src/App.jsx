@@ -149,12 +149,17 @@ export default function App() {
               <Route
                 path="/settings"
                 element={
-                  <SettingsPage
-                    expenses={expenses}
-                    onImport={async () =>
-                      setExpenses(await StorageService.getAll())
-                    }
-                  />
+              <SettingsPage
+                expenses={expenses}
+                onImport={async () =>
+                  setExpenses(await StorageService.getAll())
+                }
+                onRefreshAll={async () => {
+                  await refreshExpenses();
+                  await refreshCategories();
+                }}
+                triggerSync={triggerSync}
+              />
                 }
               />
             </Routes>

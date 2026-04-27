@@ -20,7 +20,7 @@ export default function SummarySection({
 }) {
   const { formatAmount, getNumberColorClass } = useSettings();
   const available = monthlyIncome - totalFixed;
-  const savings = available * (savingsRate / 100);
+  const savings = monthlyIncome * (savingsRate / 100);
   const remaining = available - savings - variableExpenses;
 
   return (
@@ -50,7 +50,7 @@ export default function SummarySection({
           colorClass="text-blue-600"
         />
         <Card
-          label="Savings"
+          label="Auto Savings"
           value={formatAmount(Math.max(0, savings))}
           colorClass="positive-number"
         />

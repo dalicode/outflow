@@ -10,7 +10,7 @@ export default function BudgetInsights({
 }) {
   const { formatAmount, getNumberColorClass } = useSettings();
   const available = monthlyIncome - totalFixed;
-  const savings = Math.max(0, available * (savingsRate / 100));
+  const savings = Math.max(0, monthlyIncome * (savingsRate / 100));
   const remaining = available - savings - monthTotal;
   const totalSavings = savings + remaining;
 
@@ -67,7 +67,9 @@ export default function BudgetInsights({
           </p>
         </div>
         {fixedExpenses.length === 0 ? (
-          <p className="text-sm text-theme-muted">No fixed expenses added yet.</p>
+          <p className="text-sm text-theme-muted">
+            No fixed expenses added yet.
+          </p>
         ) : (
           <ul className="divide-y divide-theme-border">
             {fixedExpenses.map((f) => (

@@ -73,7 +73,7 @@ export default function SavingsForm({ savingsRate, onSave }) {
         {Number(rate).toFixed(1)}%
       </p>
       <p className="text-sm text-theme-muted">
-        of available income after fixed expenses
+        of monthly income
       </p>
 
       {showModal && (

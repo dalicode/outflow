@@ -164,4 +164,35 @@ export const StorageService = {
   bulkUpsertExpenses: (rows) => db.expenses.bulkPut(rows),
   bulkUpsertCategories: (rows) => db.categories.bulkPut(rows),
   bulkUpsertFixedExpenses: (rows) => db.fixedExpenses.bulkPut(rows),
+
+  // ── Full data backup (JSON export / import) ────────────────
+  exportAllData: async () => ({
+    expenses: await db.expenses.toArray(),
+    categories: await db.categories.toArray(),
+    fixedExpenses: await db.fixedExpenses.toArray(),
+    fixedExpenseSnapshots: await db.fixedExpenseSnapshots.toArray(),
+    settings: await db.settings.toArray(),
+    syncQueue: await db.syncQueue.toArray(),
+  }),
+
+  importAllData: async (data, { replace = false } = {}) => {
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid data')
+    }
+
+    if (replace) {
+      await db.transaction('rw', db.tables, async () => {
+        for (const table of db.tables) {
+          await table.clear()
+        }
+      })
+    }
+
+    if (data.expenses) await db.expenses.bulkPut(data.expenses)
+    if (data.categories) await db.categories.bulkPut(data.categories)
+    if (data.fixedExpenses) await db.fixedExpenses.bulkPut(data.fixedExpenses)
+    if (data.fixedExpenseSnapshots) await db.fixedExpenseSnapshots.bulkPut(data.fixedExpenseSnapshots)
+    if (data.settings) await db.settings.bulkPut(data.settings)
+    if (data.syncQueue) await db.syncQueue.bulkPut(data.syncQueue)
+  },
 }

@@ -144,7 +144,7 @@ export default function FixedExpensesList({
         <p className="text-sm text-theme-muted">No fixed expenses added yet.</p>
       )}
 
-      <ul className="space-y-1">
+      <ul className="space-y-1 divide-y divide-theme-border">
         {items.map((item) => (
           <li key={item.id} className="flex items-center gap-2 text-sm">
             <span className="flex-1 text-theme-text">{item.name}</span>

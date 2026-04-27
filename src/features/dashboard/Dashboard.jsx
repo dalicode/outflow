@@ -201,40 +201,42 @@ export default function Dashboard({
       )}
 
       <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-4 border border-theme-border">
-        <div className="relative flex items-center justify-between">
-          <button
-            onClick={prevMonth}
-            className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
-            aria-label="Previous month"
-          >
-            &#8592;
-          </button>
-          <div className="text-center">
-            <span
-              className={`text-lg font-semibold ${isCurrentMonth ? "text-theme-primary" : "text-theme-text"}`}
+        <div className="relative flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={prevMonth}
+              className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
+              aria-label="Previous month"
             >
-              {label}
-            </span>
-            {isCurrentMonth && (
-              <span className="ml-2 text-xs bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-theme-medium">
-                current
+              &#8592;
+            </button>
+            <div className="text-center">
+              <span
+                className={`text-lg font-semibold ${isCurrentMonth ? "text-theme-primary" : "text-theme-text"}`}
+              >
+                {label}
               </span>
-            )}
-            <p className="text-sm text-theme-muted mt-0.5">
-              {monthlyExpenses.length} transaction
-              {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
-              <span className={getNumberColorClass(monthTotal)}>
-                {formatAmount(monthTotal)}
-              </span>
-            </p>
+              {isCurrentMonth && (
+                <span className="ml-2 text-xs bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-theme-medium">
+                  current
+                </span>
+              )}
+              <p className="text-sm text-theme-muted mt-0.5">
+                {monthlyExpenses.length} transaction
+                {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
+                <span className={getNumberColorClass(monthTotal)}>
+                  {formatAmount(monthTotal)}
+                </span>
+              </p>
+            </div>
+            <button
+              onClick={nextMonth}
+              className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
+              aria-label="Next month"
+            >
+              &#8594;
+            </button>
           </div>
-          <button
-            onClick={nextMonth}
-            className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
-            aria-label="Next month"
-          >
-            &#8594;
-          </button>
 
           {/* Floating manage button */}
           <button
@@ -243,16 +245,34 @@ export default function Dashboard({
             aria-pressed={manageMode}
             className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-theme-small transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 z-10 ${
               manageMode
-                ? "bg-theme-primary text-white"
-                : "bg-theme-background text-theme-muted border border-theme-border hover:bg-theme-border"
+                ? "text-white"
+                : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
             }`}
           >
             {manageMode ? (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4 h-4"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4 h-4"
+              >
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
               </svg>
             )}

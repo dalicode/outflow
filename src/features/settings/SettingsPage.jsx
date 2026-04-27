@@ -223,12 +223,14 @@ function parseCSV(text) {
   });
 }
 
-export default function SettingsPage({ expenses, onImport }) {
+export default function SettingsPage({ expenses, onImport, onRefreshAll, triggerSync }) {
   const { settings, save, formatDate, formatAmount, currentTheme } =
     useSettings();
   const fileRef = useRef();
+  const jsonFileRef = useRef();
   const [importStatus, setImportStatus] = useState("");
   const [replaceMode, setReplaceMode] = useState(false);
+  const [jsonReplaceMode, setJsonReplaceMode] = useState(false);
   const [exportRange, setExportRange] = useState({ from: "", to: "" });
 
   const handleExport = () => {
@@ -360,6 +362,79 @@ export default function SettingsPage({ expenses, onImport }) {
       setImportStatus(`Import failed: ${err.message}`);
     }
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleJsonExport = async () => {
+    try {
+      setImportStatus("Exporting JSON backup…");
+      const data = await StorageService.exportAllData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `spending-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setImportStatus("JSON backup exported successfully.");
+    } catch (err) {
+      console.error("JSON export failed:", err);
+      setImportStatus(`JSON export failed: ${err.message}`);
+    }
+  };
+
+  const handleJsonImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportStatus("Reading JSON backup…");
+    setImportErrors([]);
+    try {
+      const text = await file.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        setImportStatus("Invalid JSON file.");
+        if (jsonFileRef.current) jsonFileRef.current.value = "";
+        return;
+      }
+
+      if (!parsed || typeof parsed !== "object") {
+        setImportStatus("Invalid data: must be an object.");
+        if (jsonFileRef.current) jsonFileRef.current.value = "";
+        return;
+      }
+
+      const knownKeys = [
+        "expenses",
+        "categories",
+        "fixedExpenses",
+        "fixedExpenseSnapshots",
+        "settings",
+        "syncQueue",
+      ];
+      const hasKnownKey = knownKeys.some((k) => k in parsed);
+      if (!hasKnownKey) {
+        setImportStatus(
+          "Invalid backup: must include at least one known data key.",
+        );
+        if (jsonFileRef.current) jsonFileRef.current.value = "";
+        return;
+      }
+
+      await StorageService.importAllData(parsed, { replace: jsonReplaceMode });
+      await onRefreshAll?.();
+      triggerSync?.();
+
+      setImportStatus(
+        `JSON backup imported successfully.${jsonReplaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
+      );
+    } catch (err) {
+      console.error("JSON import failed:", err);
+      setImportStatus(`JSON import failed: ${err.message}`);
+    }
+    if (jsonFileRef.current) jsonFileRef.current.value = "";
   };
 
   return (
@@ -530,11 +605,46 @@ export default function SettingsPage({ expenses, onImport }) {
         </Card>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Card title="Data Backup (JSON)" className="flex-1">
+          <p className="text-xs text-theme-muted mb-2">
+            Export or import your complete dataset including expenses, categories, fixed expenses, and settings.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleJsonExport}
+              className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity"
+            >
+              Export JSON
+            </button>
+          </div>
+        </Card>
+
+        <Card title="Import JSON Backup" className="flex-1">
+          <label className="flex items-center gap-1.5 text-xs text-theme-text mb-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={jsonReplaceMode}
+              onChange={(e) => setJsonReplaceMode(e.target.checked)}
+              className="rounded-theme-small"
+            />
+            Replace existing data
+          </label>
+          <input
+            ref={jsonFileRef}
+            type="file"
+            accept=".json"
+            onChange={handleJsonImport}
+            className="block w-full text-xs text-theme-muted file:mr-2 file:py-1 file:px-2 file:rounded-theme-small file:border-0 file:text-xs file:font-medium file:bg-theme-primary/10 file:text-theme-primary hover:file:bg-theme-primary/20 truncate"
+          />
+        </Card>
+      </div>
+
       {(importStatus || importErrors.length > 0) && (
         <div className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-2 border border-theme-border">
           <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">Import Log</h2>
           {importStatus && (
-            <p className={`text-xs ${importStatus.startsWith("Imported") ? "text-theme-success" : "text-theme-danger"}`}>
+            <p className={`text-xs ${importStatus.includes("success") || importStatus.startsWith("Imported") ? "text-theme-success" : "text-theme-danger"}`}>
               {importStatus}
             </p>
           )}
