@@ -184,24 +184,44 @@ function useAnalyticsData({ expenses, categories, year }) {
     [variableRows, grid],
   );
 
-  return {
-    year,
-    monthlyIncome,
-    variableRows,
-    grid,
-    fixedRows,
-    monthlyFixedTotals,
-    monthlyVariableTotals,
-    monthlyTotals,
-    monthlySavings,
-    monthlySavingsPct,
-    yearVariableTotal,
-    yearFixedTotal,
-    yearTotal,
-    yearSavings,
-    avgSavingsPct,
-    maxPerMonth,
-  };
+  return useMemo(
+    () => ({
+      year,
+      monthlyIncome,
+      variableRows,
+      grid,
+      fixedRows,
+      monthlyFixedTotals,
+      monthlyVariableTotals,
+      monthlyTotals,
+      monthlySavings,
+      monthlySavingsPct,
+      yearVariableTotal,
+      yearFixedTotal,
+      yearTotal,
+      yearSavings,
+      avgSavingsPct,
+      maxPerMonth,
+    }),
+    [
+      year,
+      monthlyIncome,
+      variableRows,
+      grid,
+      fixedRows,
+      monthlyFixedTotals,
+      monthlyVariableTotals,
+      monthlyTotals,
+      monthlySavings,
+      monthlySavingsPct,
+      yearVariableTotal,
+      yearFixedTotal,
+      yearTotal,
+      yearSavings,
+      avgSavingsPct,
+      maxPerMonth,
+    ],
+  );
 }
 
 // ── Build flat row dataset for TanStack Table ────────────────────────────────
