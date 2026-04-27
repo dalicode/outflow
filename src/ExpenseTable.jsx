@@ -27,7 +27,7 @@ export default function ExpenseTable({ expenses, onUpdate, onDelete, categories 
   const startEdit = (expense) => { setEditId(expense.id); setDraft({ ...expense }) }
   const cancelEdit = () => { setEditId(null); setDraft({}) }
   const saveEdit = () => {
-    if (!draft.amount || isNaN(draft.amount) || Number(draft.amount) <= 0) return
+    if (!draft.amount || isNaN(draft.amount) || Number(draft.amount) === 0) return
     const cat = catMap[draft.categoryId]
     onUpdate(editId, { ...draft, amount: parseFloat(draft.amount), category: cat?.name ?? draft.category })
     cancelEdit()

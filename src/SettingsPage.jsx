@@ -246,37 +246,86 @@ export default function SettingsPage({ expenses, onImport }) {
     );
   };
 
+  function parseDateInput(raw) {
+    if (!raw) return null
+    // Strip time & timezone: "2022/07/16 9:48:04 PM AST" → "2022/07/16"
+    const datePart = raw.split(/\s+/)[0]
+    // YYYY/MM/DD
+    if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(datePart)) {
+      const [y, m, d] = datePart.split('/')
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+    }
+    // MM/DD/YYYY or M/D/YYYY (app default)
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(datePart)) {
+      const [m, d, y] = datePart.split('/')
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+    }
+    // YYYY-MM-DD (already ISO)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      return datePart
+    }
+    return null
+  }
+
+  function getField(row, keys) {
+    for (const k of keys) {
+      if (row[k] != null && row[k] !== '') return row[k]
+    }
+    return undefined
+  }
+
+  const [importErrors, setImportErrors] = useState([])
+
   const handleImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportStatus("Reading…");
+    setImportErrors([]);
     const text = await file.text();
     const parsed = parseCSV(text);
+
+    if (parsed.length === 0) {
+      setImportStatus("No data rows found. Check CSV headers and content.");
+      return;
+    }
 
     const valid = [];
     const errors = [];
     parsed.forEach((row, i) => {
-      const date = row.date || row["date"];
-      const amount = parseFloat(row.amount || row["amount"]);
-      if (!date || isNaN(amount) || amount <= 0) {
-        errors.push(`Row ${i + 2}: invalid date or amount`);
-        return;
+      const rawDate = getField(row, ['date', 'timestamp'])
+      const rawAmount = getField(row, ['amount'])
+      const amount = parseFloat(rawAmount)
+      const iso = parseDateInput(rawDate)
+
+      if (!rawDate) {
+        errors.push(`Row ${i + 2}: missing date/timestamp column`)
+        return
       }
-      let iso = date;
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-        const [m, d, y] = date.split("/");
-        iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-        const [d, m, y] = date.split("/");
-        iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+      if (!iso) {
+        errors.push(`Row ${i + 2}: unrecognised date format "${rawDate}"`)
+        return
+      }
+      if (!rawAmount) {
+        errors.push(`Row ${i + 2}: missing amount column`)
+        return
+      }
+      if (isNaN(amount)) {
+        errors.push(`Row ${i + 2}: amount "${rawAmount}" is not a number`)
+        return
+      }
+      if (amount === 0) {
+        errors.push(`Row ${i + 2}: amount cannot be zero`)
+        return
       }
       valid.push({
         date: iso,
-        category: row.category || row["category"] || "Uncategorized",
-        description: row.description || row["description"] || "",
+        category: getField(row, ['category']) || 'Uncategorized',
+        description: getField(row, ['description', 'item']) || '',
         amount,
-      });
+      })
     });
+
+    setImportErrors(errors)
 
     if (errors.length) {
       setImportStatus(
@@ -285,7 +334,7 @@ export default function SettingsPage({ expenses, onImport }) {
     }
 
     if (valid.length === 0) {
-      setImportStatus("No valid rows found.");
+      setImportStatus("No valid rows found. See errors below.");
       return;
     }
 
@@ -424,8 +473,8 @@ export default function SettingsPage({ expenses, onImport }) {
         </p>
       </Card>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <Card title="Export CSV">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Card title="Export CSV" className="flex-1">
           <div className="flex items-end gap-2">
             <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
               <span className="truncate">From</span>
@@ -458,7 +507,7 @@ export default function SettingsPage({ expenses, onImport }) {
           </div>
         </Card>
 
-        <Card title="Import CSV">
+        <Card title="Import CSV" className="flex-1">
           <label className="flex items-center gap-1.5 text-xs text-theme-text mb-1.5 cursor-pointer">
             <input
               type="checkbox"
@@ -475,15 +524,31 @@ export default function SettingsPage({ expenses, onImport }) {
             onChange={handleImport}
             className="block w-full text-xs text-theme-muted file:mr-2 file:py-1 file:px-2 file:rounded-theme-small file:border-0 file:text-xs file:font-medium file:bg-theme-primary/10 file:text-theme-primary hover:file:bg-theme-primary/20 truncate"
           />
+        </Card>
+      </div>
+
+      {(importStatus || importErrors.length > 0) && (
+        <div className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-2 border border-theme-border">
+          <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">Import Log</h2>
           {importStatus && (
-            <p
-              className={`text-xs mt-1.5 ${importStatus.startsWith("Imported") ? "text-theme-success" : "text-theme-danger"}`}
-            >
+            <p className={`text-xs ${importStatus.startsWith("Imported") ? "text-theme-success" : "text-theme-danger"}`}>
               {importStatus}
             </p>
           )}
-        </Card>
-      </div>
+          {importErrors.length > 0 && (
+            <details>
+              <summary className="text-xs text-theme-danger cursor-pointer select-none">
+                View all {importErrors.length} error(s)
+              </summary>
+              <ul className="mt-1.5 max-h-32 overflow-y-auto space-y-0.5 text-xs text-theme-danger/90 font-mono">
+                {importErrors.map((err, i) => (
+                  <li key={i} className="break-all">{err}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
     </main>
   );
 }

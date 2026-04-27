@@ -79,7 +79,7 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
   const submit = (e) => {
     e.preventDefault()
     if (!form.categoryId) { setError('Please select a category.'); return }
-    if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) { setError('Amount must be a positive number.'); return }
+    if (!form.amount || isNaN(form.amount) || Number(form.amount) === 0) { setError('Amount cannot be zero.'); return }
     const cat = categories.find((c) => c.id === Number(form.categoryId))
     onAdd({ ...form, categoryId: Number(form.categoryId), category: cat?.name ?? '', amount: parseFloat(form.amount) })
     setForm(EMPTY_FORM); setError('')
@@ -121,7 +121,7 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Amount ($)
             <input type="number" value={form.amount} onChange={set('amount')} placeholder="0.00"
-              min="0.01" step="0.01" required inputMode="decimal" className={inputCls} />
+              step="0.01" required inputMode="decimal" className={inputCls} />
           </label>
           <button type="submit"
             className="w-full bg-theme-primary hover:opacity-90 text-white font-medium py-3 rounded-theme-medium transition-opacity">
