@@ -25,8 +25,9 @@ export const THEMES = {
     },
     numberStyle: {
       currencyColor: "var(--theme-text)",
-      positiveColor: "#16a34a",
-      negativeColor: "#dc2626",
+      positiveColor: "var(--theme-text)",
+      negativeColor: "var(--theme-success)",
+      zeroColor: "var(--theme-muted)",
     },
   },
   modernSoft: {
@@ -55,8 +56,9 @@ export const THEMES = {
     },
     numberStyle: {
       currencyColor: "var(--theme-text)",
-      positiveColor: "#10b981",
-      negativeColor: "#ef4444",
+      positiveColor: "var(--theme-text)",
+      negativeColor: "var(--theme-success)",
+      zeroColor: "var(--theme-muted)",
     },
   },
   sharpProfessional: {
@@ -85,8 +87,9 @@ export const THEMES = {
     },
     numberStyle: {
       currencyColor: "var(--theme-text)",
-      positiveColor: "#15803d",
-      negativeColor: "#b91c1c",
+      positiveColor: "var(--theme-text)",
+      negativeColor: "var(--theme-success)",
+      zeroColor: "var(--theme-muted)",
     },
   },
   sharpProfessionalDark: {
@@ -116,8 +119,9 @@ export const THEMES = {
     },
     numberStyle: {
       currencyColor: "var(--theme-text)",
-      positiveColor: "#4ade80",
-      negativeColor: "#f87171",
+      positiveColor: "var(--theme-text)",
+      negativeColor: "var(--theme-success)",
+      zeroColor: "var(--theme-muted)",
     },
   },
   darkMinimal: {
@@ -147,8 +151,9 @@ export const THEMES = {
     },
     numberStyle: {
       currencyColor: "var(--theme-text)",
-      positiveColor: "#4ade80",
-      negativeColor: "#f87171",
+      positiveColor: "var(--theme-text)",
+      negativeColor: "var(--theme-success)",
+      zeroColor: "var(--theme-muted)",
     },
   },
   runescapeClassic: {
@@ -177,9 +182,10 @@ export const THEMES = {
       loose: "1.5rem",
     },
     numberStyle: {
-      currencyColor: "#c9a34e",
-      positiveColor: "#6b8e6b",
-      negativeColor: "#b85450",
+      currencyColor: "var(--theme-primary)",
+      positiveColor: "var(--theme-text)",
+      negativeColor: "var(--theme-success)",
+      zeroColor: "var(--theme-muted)",
     },
   },
 };
@@ -217,6 +223,10 @@ export function getCSSVariables(theme) {
     ["--currency-color", theme.numberStyle.currencyColor],
     ["--positive-color", theme.numberStyle.positiveColor],
     ["--negative-color", theme.numberStyle.negativeColor],
+    ["--number-currency", theme.numberStyle.currencyColor],
+    ["--number-positive", theme.numberStyle.positiveColor],
+    ["--number-negative", theme.numberStyle.negativeColor],
+    ["--number-zero", theme.numberStyle.zeroColor],
   ];
   for (const [key, value] of entries) {
     vars[key] = value;

@@ -125,13 +125,16 @@
 
 /* Number styling */
 .currency-number {
-  color: var(--currency-color);
+  color: var(--number-currency);
 }
 .positive-number {
-  color: var(--positive-color);
+  color: var(--number-positive);
 }
 .negative-number {
-  color: var(--negative-color);
+  color: var(--number-negative);
+}
+.zero-number {
+  color: var(--number-zero);
 }
 
 /* Navbar — modern, seamless, no strong color block */

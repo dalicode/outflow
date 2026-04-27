@@ -12,8 +12,12 @@
   --theme-danger: #ef4444;
   --theme-success: #22c55e;
   --currency-color: var(--theme-text);
-  --positive-color: #16a34a;
-  --negative-color: #dc2626;
+  --positive-color: var(--theme-text);
+  --negative-color: var(--theme-success);
+  --number-currency: var(--theme-text);
+  --number-positive: var(--theme-text);
+  --number-negative: var(--theme-success);
+  --number-zero: var(--theme-muted);
   --spacing-tight: 0.5rem;
   --spacing-normal: 1rem;
   --spacing-loose: 1.5rem;

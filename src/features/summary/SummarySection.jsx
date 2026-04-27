@@ -52,12 +52,12 @@ export default function SummarySection({
         <Card
           label="Auto Savings"
           value={formatAmount(Math.max(0, savings))}
-          colorClass="positive-number"
+          colorClass={getNumberColorClass(Math.max(0, savings))}
         />
         <Card
           label="Remaining Budget"
           value={formatAmount(remaining)}
-          colorClass={remaining >= 0 ? "positive-number" : "negative-number"}
+          colorClass={getNumberColorClass(remaining)}
         />
       </div>
     </div>

@@ -146,9 +146,9 @@ export function SettingsProvider({ children }) {
 
   const getNumberColorClass = useCallback((n) => {
     if (n == null) return 'currency-number'
-    if (n > 0) return 'positive-number'
     if (n < 0) return 'negative-number'
-    return 'currency-number'
+    if (n > 0) return 'positive-number'
+    return 'zero-number'
   }, [])
 
   const formatAmountPlain = useCallback((n) => {

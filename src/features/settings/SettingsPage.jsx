@@ -275,6 +275,7 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
   const [importErrors, setImportErrors] = useState([])
 
   const handleImport = async (e) => {
+    e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file) return;
     setImportStatus("Reading…");
@@ -375,7 +376,9 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
       const a = document.createElement("a");
       a.href = url;
       a.download = `spending-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setImportStatus("JSON backup exported successfully.");
     } catch (err) {
@@ -385,6 +388,7 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
   };
 
   const handleJsonImport = async (e) => {
+    e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file) return;
     setImportStatus("Reading JSON backup…");

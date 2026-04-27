@@ -22,22 +22,15 @@ export default function BudgetInsights({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { label: "Monthly Spending", value: monthTotal, tone: "warning" },
-          { label: "Auto Savings", value: savings, tone: "positive" },
-          {
-            label: "Remaining Budget",
-            value: remaining,
-            tone: remaining >= 0 ? "positive" : "negative",
-          },
-          {
-            label: "Total Savings",
-            value: totalSavings,
-            tone: totalSavings >= 0 ? "positive" : "negative",
-          },
+          { label: "Auto Savings", value: savings, tone: "savings" },
+          { label: "Remaining Budget", value: remaining, tone: "remaining" },
+          { label: "Total Savings", value: totalSavings, tone: "totalSavings" },
         ].map(({ label, value, tone }) => {
           const toneClasses = {
             warning: "text-yellow-600",
-            positive: "positive-number",
-            negative: "negative-number",
+            savings: getNumberColorClass(value),
+            remaining: getNumberColorClass(value),
+            totalSavings: getNumberColorClass(value),
             primary: "text-theme-primary",
           };
           return (

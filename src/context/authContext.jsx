@@ -36,15 +36,21 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const u = session?.user ?? null
-      setUser(u)
-      if (event === 'SIGNED_IN' && u) {
-        // First login: migrate any existing local data up
-        await migrateLocalToSupabase(u.id)
-        await runSync(u.id)
-      }
-    })
+    let subscription = { unsubscribe: () => {} }
+    try {
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const u = session?.user ?? null
+        setUser(u)
+        if (event === 'SIGNED_IN' && u) {
+          // First login: migrate any existing local data up
+          await migrateLocalToSupabase(u.id)
+          await runSync(u.id)
+        }
+      })
+      subscription = data.subscription
+    } catch (err) {
+      console.warn('Auth state change subscription error:', err)
+    }
 
     // Flush queue when coming back online
     const handleOnline = () => {
