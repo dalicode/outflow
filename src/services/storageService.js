@@ -68,6 +68,7 @@ const enqueue = (table, operation, payload) =>
   db.syncQueue.add({ table, operation, payload, timestamp: Date.now() })
 
 export const StorageService = {
+  db,
   // ── Expenses ──────────────────────────────────────────────
   getAll: () => db.expenses.orderBy('date').toArray(),
   add: async (expense) => {
@@ -146,6 +147,7 @@ export const StorageService = {
   // Returns all snapshots for a given year
   getSnapshotsForYear: (year) => db.fixedExpenseSnapshots.where('year').equals(year).toArray(),
   bulkUpsertSnapshots: (rows) => db.fixedExpenseSnapshots.bulkPut(rows),
+  deleteSnapshotsForYear: (year) => db.fixedExpenseSnapshots.where('year').equals(year).delete(),
 
   // ── Categories ────────────────────────────────────────────
   getCategories: () => db.categories.toArray(),

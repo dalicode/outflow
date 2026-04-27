@@ -4,7 +4,7 @@ import { StorageService } from "../../services/storageService";
 import { THEMES } from "../../utils/themeConfig";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
-import BackfillFixedExpensesModal from "../fixedExpenses/BackfillFixedExpensesModal";
+import BackfillHistoricalDataModal from "./BackfillHistoricalDataModal";
 
 function Row({ label, value, onChange, options }) {
   return (
@@ -225,7 +225,12 @@ function parseCSV(text) {
   });
 }
 
-export default function SettingsPage({ expenses, onImport, onRefreshAll, triggerSync }) {
+export default function SettingsPage({
+  expenses,
+  onImport,
+  onRefreshAll,
+  triggerSync,
+}) {
   const { settings, save, formatDate, formatAmount, currentTheme } =
     useSettings();
   const fileRef = useRef();
@@ -263,34 +268,34 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
   };
 
   function parseDateInput(raw) {
-    if (!raw) return null
+    if (!raw) return null;
     // Strip time & timezone: "2022/07/16 9:48:04 PM AST" → "2022/07/16"
-    const datePart = raw.split(/\s+/)[0]
+    const datePart = raw.split(/\s+/)[0];
     // YYYY/MM/DD
     if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(datePart)) {
-      const [y, m, d] = datePart.split('/')
-      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+      const [y, m, d] = datePart.split("/");
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
     }
     // MM/DD/YYYY or M/D/YYYY (app default)
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(datePart)) {
-      const [m, d, y] = datePart.split('/')
-      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+      const [m, d, y] = datePart.split("/");
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
     }
     // YYYY-MM-DD (already ISO)
     if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-      return datePart
+      return datePart;
     }
-    return null
+    return null;
   }
 
   function getField(row, keys) {
     for (const k of keys) {
-      if (row[k] != null && row[k] !== '') return row[k]
+      if (row[k] != null && row[k] !== "") return row[k];
     }
-    return undefined
+    return undefined;
   }
 
-  const [importErrors, setImportErrors] = useState([])
+  const [importErrors, setImportErrors] = useState([]);
 
   const handleImport = async (e) => {
     e.stopPropagation();
@@ -311,40 +316,40 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
       const valid = [];
       const errors = [];
       parsed.forEach((row, i) => {
-        const rawDate = getField(row, ['date', 'timestamp'])
-        const rawAmount = getField(row, ['amount'])
-        const amount = parseFloat(rawAmount)
-        const iso = parseDateInput(rawDate)
+        const rawDate = getField(row, ["date", "timestamp"]);
+        const rawAmount = getField(row, ["amount"]);
+        const amount = parseFloat(rawAmount);
+        const iso = parseDateInput(rawDate);
 
         if (!rawDate) {
-          errors.push(`Row ${i + 2}: missing date/timestamp column`)
-          return
+          errors.push(`Row ${i + 2}: missing date/timestamp column`);
+          return;
         }
         if (!iso) {
-          errors.push(`Row ${i + 2}: unrecognised date format "${rawDate}"`)
-          return
+          errors.push(`Row ${i + 2}: unrecognised date format "${rawDate}"`);
+          return;
         }
         if (!rawAmount) {
-          errors.push(`Row ${i + 2}: missing amount column`)
-          return
+          errors.push(`Row ${i + 2}: missing amount column`);
+          return;
         }
         if (isNaN(amount)) {
-          errors.push(`Row ${i + 2}: amount "${rawAmount}" is not a number`)
-          return
+          errors.push(`Row ${i + 2}: amount "${rawAmount}" is not a number`);
+          return;
         }
         if (amount === 0) {
-          errors.push(`Row ${i + 2}: amount cannot be zero`)
-          return
+          errors.push(`Row ${i + 2}: amount cannot be zero`);
+          return;
         }
         valid.push({
           date: iso,
-          category: getField(row, ['category']) || 'Uncategorized',
-          description: getField(row, ['description', 'item']) || '',
+          category: getField(row, ["category"]) || "Uncategorized",
+          description: getField(row, ["description", "item"]) || "",
           amount,
-        })
+        });
       });
 
-      setImportErrors(errors)
+      setImportErrors(errors);
 
       if (errors.length) {
         setImportStatus(
@@ -373,14 +378,16 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
       for (const row of toAdd) await StorageService.add(row);
       await onImport();
 
-      const importedYears = [...new Set(toAdd.map((r) => parseInt(r.date.slice(0, 4), 10)))].sort((a, b) => a - b);
+      const importedYears = [
+        ...new Set(toAdd.map((r) => parseInt(r.date.slice(0, 4), 10))),
+      ].sort((a, b) => a - b);
       setBackfillYears(importedYears);
 
       setImportStatus(
         `Imported ${toAdd.length} row(s)${skipped ? `, skipped ${skipped} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
       );
     } catch (err) {
-      console.error('Import failed:', err);
+      console.error("Import failed:", err);
       setImportStatus(`Import failed: ${err.message}`);
     }
     if (fileRef.current) fileRef.current.value = "";
@@ -633,7 +640,8 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
       <div className="flex flex-col sm:flex-row gap-3">
         <Card title="Data Backup (JSON)" className="flex-1">
           <p className="text-xs text-theme-muted mb-2">
-            Export or import your complete dataset including expenses, categories, fixed expenses, and settings.
+            Export or import your complete dataset including expenses,
+            categories, fixed expenses, and settings.
           </p>
           <div className="flex gap-2">
             <button
@@ -667,9 +675,13 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
 
       {(importStatus || importErrors.length > 0) && (
         <div className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-2 border border-theme-border">
-          <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">Import Log</h2>
+          <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
+            Import Log
+          </h2>
           {importStatus && (
-            <p className={`text-xs ${importStatus.includes("success") || importStatus.startsWith("Imported") ? "text-theme-success" : "text-theme-danger"}`}>
+            <p
+              className={`text-xs ${importStatus.includes("success") || importStatus.startsWith("Imported") ? "text-theme-success" : "text-theme-danger"}`}
+            >
               {importStatus}
             </p>
           )}
@@ -680,7 +692,9 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
               </summary>
               <ul className="mt-1.5 max-h-32 overflow-y-auto space-y-0.5 text-xs text-theme-danger/90 font-mono">
                 {importErrors.map((err, i) => (
-                  <li key={i} className="break-all">{err}</li>
+                  <li key={i} className="break-all">
+                    {err}
+                  </li>
                 ))}
               </ul>
             </details>
@@ -691,7 +705,8 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
       {backfillYears.length > 0 && (
         <Card title="Backfill Fixed Expenses">
           <p className="text-xs text-theme-muted mb-2">
-            You imported data for {backfillYears.join(", ")}. Add fixed expenses retroactively to those years for accurate analytics.
+            You imported data for {backfillYears.join(", ")}. Add fixed expenses
+            retroactively to those years for accurate analytics.
           </p>
           <button
             onClick={() => setShowBackfillModal(true)}
@@ -702,10 +717,11 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
         </Card>
       )}
 
-      {/* Standalone historical fixed expenses editor */}
-      <Card title="Historical Fixed Expenses">
+      {/* Standalone historical data editor */}
+      <Card title="Historical Data">
         <p className="text-xs text-theme-muted mb-2">
-          Edit fixed expenses and monthly income for past years. Changes apply to Analytics only.
+          Edit fixed expenses, savings rate, and monthly income for past months
+          and years.
         </p>
         <button
           onClick={() => setShowBackfillModal(true)}
@@ -715,10 +731,19 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
         </button>
       </Card>
 
-      <BackfillFixedExpensesModal
+      <BackfillHistoricalDataModal
         isOpen={showBackfillModal}
         onClose={() => setShowBackfillModal(false)}
-        years={backfillYears.length > 0 ? backfillYears : [...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10)))].sort((a, b) => a - b)}
+        years={
+          backfillYears.length > 0
+            ? backfillYears
+            : [
+                ...new Set(
+                  expenses.map((e) => parseInt(e.date.slice(0, 4), 10)),
+                ),
+              ].sort((a, b) => a - b)
+        }
+        expenses={expenses}
         defaultIncome={monthlyIncome}
         defaultSavingsRate={savingsRate}
         onComplete={() => {
@@ -731,7 +756,8 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
       {/* Danger Zone */}
       <Card title="Danger Zone" className="border-theme-danger/30">
         <p className="text-xs text-theme-muted mb-2">
-          Permanently delete all expenses, categories, fixed expenses, snapshots, and settings. This cannot be undone.
+          Permanently delete all expenses, categories, fixed expenses,
+          snapshots, and settings. This cannot be undone.
         </p>
         <button
           onClick={() => setShowClearModal(true)}
@@ -752,10 +778,14 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
       >
         <div className="space-y-3">
           <p className="text-xs text-theme-muted">
-            This will permanently delete <strong className="text-theme-text">everything</strong> — expenses, categories, fixed expenses, snapshots, and settings. This action cannot be undone.
+            This will permanently delete{" "}
+            <strong className="text-theme-text">everything</strong> — expenses,
+            categories, fixed expenses, snapshots, and settings. This action
+            cannot be undone.
           </p>
           <label className="flex flex-col gap-1 text-xs text-theme-muted">
-            Type <span className="font-mono text-theme-danger">DELETE</span> to confirm
+            Type <span className="font-mono text-theme-danger">DELETE</span> to
+            confirm
             <input
               value={deleteConfirm}
               onChange={(e) => setDeleteConfirm(e.target.value)}

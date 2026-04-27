@@ -76,6 +76,13 @@ function useAnalyticsData({ expenses, categories, year }) {
     load();
   }, [year, expenses, categories]);
 
+  const monthlyHasData = useMemo(() => {
+    return Array.from({ length: 12 }, (_, m) => {
+      const monthStr = String(m + 1).padStart(2, "0");
+      return expenses.some((e) => e.date?.startsWith(`${year}-${monthStr}`));
+    });
+  }, [year, expenses]);
+
   return useMemo(() => {
     if (!financials || !variableGrid) {
       return {
@@ -92,6 +99,7 @@ function useAnalyticsData({ expenses, categories, year }) {
         monthlyTotalSavings: Array(12).fill(null),
         monthlySavingsRates: Array(12).fill(0),
         monthlySavingsPct: Array(12).fill(null),
+        monthlyHasData,
         yearVariableTotal: 0,
         yearFixedTotal: 0,
         yearTotal: 0,
@@ -117,6 +125,7 @@ function useAnalyticsData({ expenses, categories, year }) {
       monthlyTotalSavings: financials.monthlyTotalSavings,
       monthlySavingsRates: financials.monthlySavingsRates,
       monthlySavingsPct: financials.monthlySavingsPct,
+      monthlyHasData,
       yearVariableTotal: financials.totals.totalVariable,
       yearFixedTotal: financials.totals.totalFixed,
       yearTotal: financials.totals.yearTotal,
@@ -126,7 +135,7 @@ function useAnalyticsData({ expenses, categories, year }) {
       avgSavingsPct: financials.totals.avgSavingsPct,
       maxPerMonth: variableGrid.maxPerMonth,
     };
-  }, [year, financials, variableGrid]);
+  }, [year, financials, variableGrid, monthlyHasData]);
 }
 
 // ── Build flat row dataset for TanStack Table ────────────────────────────────
@@ -448,97 +457,113 @@ export default function AnalyticsPage({ expenses, categories }) {
                       // Custom rendering for month / year-total cells
                       if (monthIndex != null) {
                         const val = row.original.amounts?.[monthIndex];
-                        let cls =
-                          val == null
-                            ? "text-theme-muted/50"
-                            : getNumberColorClass(val);
-                        if (kind === "fixed")
-                          cls =
+
+                        // Summary rows: show "—" if no variable expenses for this month
+                        if (kind === "summary" && !data.monthlyHasData[monthIndex]) {
+                          cellContent = (
+                            <span className="text-theme-muted">—</span>
+                          );
+                        } else {
+                          let cls =
                             val == null
-                              ? "text-theme-muted/50"
+                              ? "text-theme-muted"
                               : getNumberColorClass(val);
-                        if (kind === "variable") {
-                          cls =
-                            val == null
-                              ? "text-theme-muted/50"
-                              : getNumberColorClass(val);
-                        }
-                        if (kind === "summary") {
-                          if (row.original.id === "sum-remaining") {
+                          if (kind === "fixed")
                             cls =
-                              val > 0
-                                ? "text-theme-success font-semibold"
-                                : val < 0
-                                  ? "text-theme-danger font-semibold"
-                                  : "text-theme-text font-semibold";
-                          } else if (
-                            row.original.id === "sum-total-savings" ||
-                            row.original.id === "sum-pct"
-                          ) {
-                            cls = "font-semibold";
-                          } else {
+                              val == null
+                                ? "text-theme-muted"
+                                : getNumberColorClass(val);
+                          if (kind === "variable") {
+                            cls =
+                              val == null
+                                ? "text-theme-muted"
+                                : getNumberColorClass(val);
+                          }
+                          if (kind === "summary") {
+                            if (row.original.id === "sum-remaining") {
+                              cls =
+                                val > 0
+                                  ? "text-theme-success font-semibold"
+                                  : val < 0
+                                    ? "text-theme-danger font-semibold"
+                                    : "text-theme-text font-semibold";
+                            } else if (
+                              row.original.id === "sum-total-savings" ||
+                              row.original.id === "sum-pct"
+                            ) {
+                              cls = "font-semibold";
+                            } else {
+                              cls = "text-theme-primary font-semibold";
+                            }
+                          }
+                          if (kind === "subtotal")
                             cls = "text-theme-primary font-semibold";
-                          }
-                        }
-                        if (kind === "subtotal")
-                          cls = "text-theme-primary font-semibold";
 
-                        // Gradient color for Total Savings & Savings % rows
-                        let gradientStyle;
-                        if (kind === "summary") {
-                          if (row.original.id === "sum-total-savings") {
-                            const income = data.monthlyIncome[monthIndex];
-                            const ratio = income > 0 ? ((val || 0) / income) * 100 : 0;
-                            const rate = data.monthlySavingsRates[monthIndex];
-                            gradientStyle = { color: getSavingsGradientColor(ratio, rate) };
-                          } else if (row.original.id === "sum-pct") {
-                            const rate = data.monthlySavingsRates[monthIndex];
-                            gradientStyle = { color: getSavingsGradientColor(val || 0, rate) };
+                          // Gradient color for Total Savings & Savings % rows
+                          let gradientStyle;
+                          if (kind === "summary") {
+                            if (row.original.id === "sum-total-savings") {
+                              const income = data.monthlyIncome[monthIndex];
+                              const ratio = income > 0 ? ((val || 0) / income) * 100 : 0;
+                              const rate = data.monthlySavingsRates[monthIndex];
+                              gradientStyle = { color: getSavingsGradientColor(ratio, rate) };
+                            } else if (row.original.id === "sum-pct") {
+                              const rate = data.monthlySavingsRates[monthIndex];
+                              gradientStyle = { color: getSavingsGradientColor(val || 0, rate) };
+                            }
                           }
-                        }
 
-                        cellContent = (
-                          <span className={cls} style={gradientStyle}>
-                            {val == null
-                              ? "—"
-                              : row.original.isPct
-                                ? pct(val)
-                                : fmt(val)}
-                          </span>
-                        );
+                          cellContent = (
+                            <span className={cls} style={gradientStyle}>
+                              {val == null
+                                ? "—"
+                                : row.original.isPct
+                                  ? pct(val)
+                                  : fmt(val)}
+                            </span>
+                          );
+                        }
                       }
 
                       if (isYearTotal) {
                         const yt = row.original.yearTotal;
-                        let cls =
-                          row.original.id === "sum-remaining"
-                            ? yt > 0
-                              ? "font-semibold text-theme-success"
-                              : yt < 0
-                                ? "font-semibold text-theme-danger"
-                                : "font-semibold text-theme-text"
-                            : row.original.id === "sum-total-savings" || row.original.id === "sum-pct"
-                              ? "font-semibold"
-                              : "font-semibold text-theme-primary";
+                        const hasAnyData = data.monthlyHasData.some(Boolean);
 
-                        // Gradient color for year total of Total Savings & Savings %
-                        let gradientStyle;
-                        if (row.original.id === "sum-total-savings") {
-                          const ratio = data.yearTotalIncome > 0 ? (yt / data.yearTotalIncome) * 100 : 0;
-                          const avgRate = data.monthlySavingsRates.reduce((s, r) => s + r, 0) / 12;
-                          gradientStyle = { color: getSavingsGradientColor(ratio, avgRate) };
-                        } else if (row.original.id === "sum-pct") {
-                          const avgRate = data.monthlySavingsRates.reduce((s, r) => s + r, 0) / 12;
-                          gradientStyle = { color: getSavingsGradientColor(yt, avgRate) };
+                        if (kind === "summary" && !hasAnyData) {
+                          cellContent = (
+                            <span className="text-theme-muted">—</span>
+                          );
+                        } else {
+                          let cls =
+                            row.original.id === "sum-remaining"
+                              ? yt > 0
+                                ? "font-semibold text-theme-success"
+                                : yt < 0
+                                  ? "font-semibold text-theme-danger"
+                                  : "font-semibold text-theme-text"
+                              : row.original.id === "sum-total-savings" || row.original.id === "sum-pct"
+                                ? "font-semibold"
+                                : "font-semibold text-theme-primary";
+
+                          // Gradient color for year total of Total Savings & Savings %
+                          let gradientStyle;
+                          if (row.original.id === "sum-total-savings") {
+                            const ratio = data.yearTotalIncome > 0 ? (yt / data.yearTotalIncome) * 100 : 0;
+                            const avgRate = data.monthlySavingsRates.reduce((s, r) => s + r, 0) / 12;
+                            gradientStyle = { color: getSavingsGradientColor(ratio, avgRate) };
+                          } else if (row.original.id === "sum-pct") {
+                            const avgRate = data.monthlySavingsRates.reduce((s, r) => s + r, 0) / 12;
+                            gradientStyle = { color: getSavingsGradientColor(yt, avgRate) };
+                          }
+
+                          cellContent = (
+                            <span className={cls} style={gradientStyle}>
+                              {row.original.isPct
+                                ? pct(yt)
+                                : fmt(yt)}
+                            </span>
+                          );
                         }
-
-                        cellContent = (
-                          <span className={cls} style={gradientStyle}>
-                            {row.original.isPct
-                              ? pct(yt)
-                              : fmt(yt)}
-                          </span>
-                        );
                       }
 
                       if (isSticky) {
