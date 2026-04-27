@@ -1,8 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
 import { StorageService } from "../../services/storageService";
 import { THEMES } from "../../utils/themeConfig";
 import Card from "../../components/ui/Card";
+import Modal from "../../components/ui/Modal";
+import BackfillFixedExpensesModal from "../fixedExpenses/BackfillFixedExpensesModal";
 
 function Row({ label, value, onChange, options }) {
   return (
@@ -232,6 +234,22 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
   const [replaceMode, setReplaceMode] = useState(false);
   const [jsonReplaceMode, setJsonReplaceMode] = useState(false);
   const [exportRange, setExportRange] = useState({ from: "", to: "" });
+  const [showBackfillModal, setShowBackfillModal] = useState(false);
+  const [backfillYears, setBackfillYears] = useState([]);
+  const [monthlyIncome, setMonthlyIncome] = useState("");
+  const [savingsRate, setSavingsRate] = useState("");
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      StorageService.getSetting("monthlyIncome", 0),
+      StorageService.getSetting("savingsRate", 0),
+    ]).then(([income, rate]) => {
+      setMonthlyIncome(income || "");
+      setSavingsRate(rate || "");
+    });
+  }, []);
 
   const handleExport = () => {
     let rows = expenses;
@@ -354,6 +372,9 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
 
       for (const row of toAdd) await StorageService.add(row);
       await onImport();
+
+      const importedYears = [...new Set(toAdd.map((r) => parseInt(r.date.slice(0, 4), 10)))].sort((a, b) => a - b);
+      setBackfillYears(importedYears);
 
       setImportStatus(
         `Imported ${toAdd.length} row(s)${skipped ? `, skipped ${skipped} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
@@ -666,6 +687,115 @@ export default function SettingsPage({ expenses, onImport, onRefreshAll, trigger
           )}
         </div>
       )}
+
+      {backfillYears.length > 0 && (
+        <Card title="Backfill Fixed Expenses">
+          <p className="text-xs text-theme-muted mb-2">
+            You imported data for {backfillYears.join(", ")}. Add fixed expenses retroactively to those years for accurate analytics.
+          </p>
+          <button
+            onClick={() => setShowBackfillModal(true)}
+            className="bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+          >
+            Backfill Fixed Expenses
+          </button>
+        </Card>
+      )}
+
+      {/* Standalone historical fixed expenses editor */}
+      <Card title="Historical Fixed Expenses">
+        <p className="text-xs text-theme-muted mb-2">
+          Edit fixed expenses and monthly income for past years. Changes apply to Analytics only.
+        </p>
+        <button
+          onClick={() => setShowBackfillModal(true)}
+          className="bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+        >
+          Edit Historical Data
+        </button>
+      </Card>
+
+      <BackfillFixedExpensesModal
+        isOpen={showBackfillModal}
+        onClose={() => setShowBackfillModal(false)}
+        years={backfillYears.length > 0 ? backfillYears : [...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10)))].sort((a, b) => a - b)}
+        defaultIncome={monthlyIncome}
+        defaultSavingsRate={savingsRate}
+        onComplete={() => {
+          setBackfillYears([]);
+          onRefreshAll?.();
+          triggerSync?.();
+        }}
+      />
+
+      {/* Danger Zone */}
+      <Card title="Danger Zone" className="border-theme-danger/30">
+        <p className="text-xs text-theme-muted mb-2">
+          Permanently delete all expenses, categories, fixed expenses, snapshots, and settings. This cannot be undone.
+        </p>
+        <button
+          onClick={() => setShowClearModal(true)}
+          className="bg-theme-danger hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+        >
+          Clear All Data
+        </button>
+      </Card>
+
+      <Modal
+        isOpen={showClearModal}
+        onClose={() => {
+          setShowClearModal(false);
+          setDeleteConfirm("");
+        }}
+        title="Clear All Data"
+        className="max-w-sm"
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-theme-muted">
+            This will permanently delete <strong className="text-theme-text">everything</strong> — expenses, categories, fixed expenses, snapshots, and settings. This action cannot be undone.
+          </p>
+          <label className="flex flex-col gap-1 text-xs text-theme-muted">
+            Type <span className="font-mono text-theme-danger">DELETE</span> to confirm
+            <input
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="DELETE"
+              className="input-theme px-3 py-2 text-sm"
+              autoFocus
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                if (deleteConfirm !== "DELETE") return;
+                try {
+                  await StorageService.clearAllData();
+                  setImportStatus("All data cleared successfully.");
+                  setDeleteConfirm("");
+                  setShowClearModal(false);
+                  onRefreshAll?.();
+                } catch (err) {
+                  console.error("Clear all failed:", err);
+                  setImportStatus(`Clear failed: ${err.message}`);
+                }
+              }}
+              disabled={deleteConfirm !== "DELETE"}
+              className="flex-1 bg-theme-danger hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
+            >
+              Clear Everything
+            </button>
+            <button
+              onClick={() => {
+                setShowClearModal(false);
+                setDeleteConfirm("");
+              }}
+              className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }

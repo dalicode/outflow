@@ -1,37 +1,78 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
+import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
 import IncomeForm from "./IncomeForm";
 import FixedExpensesList from "../fixedExpenses/FixedExpensesList";
 import SavingsForm from "./SavingsForm";
 import SummarySection from "./SummarySection";
 import ChartComponent from "../../components/charts/ChartComponent";
 
-const currentMonthKey = () => new Date().toISOString().slice(0, 7);
-
 export default function SummaryPage({ expenses }) {
-  const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [incomeRaw, setIncomeRaw] = useState("");
   const [incomeFreq, setIncomeFreq] = useState("monthly");
   const [savingsRate, setSavingsRate] = useState(0);
   const [fixedExpenses, setFixedExpenses] = useState([]);
+  const [financialSummary, setFinancialSummary] = useState(null);
 
-  // Load persisted settings and fixed expenses on mount
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  // Load persisted settings and compute via engine
   useEffect(() => {
-    Promise.all([
-      StorageService.getSetting("incomeAmount", ""),
-      StorageService.getSetting("incomeFrequency", "monthly"),
-      StorageService.getSetting("monthlyIncome", 0),
-      StorageService.getSetting("savingsRate", 0),
-      StorageService.getFixedExpenses(),
-    ]).then(([amt, freq, monthly, rate, fixed]) => {
+    const load = async () => {
+      const [
+        amt,
+        freq,
+        monthly,
+        rate,
+        activeFixed,
+        allFixed,
+        snapshots,
+        incomeRules,
+        savingsRules,
+      ] = await Promise.all([
+        StorageService.getSetting("incomeAmount", ""),
+        StorageService.getSetting("incomeFrequency", "monthly"),
+        StorageService.getSetting("monthlyIncome", 0),
+        StorageService.getSetting("savingsRate", 0),
+        StorageService.getActiveFixedExpenses(),
+        StorageService.getFixedExpenses(),
+        StorageService.getSnapshotsForYear(currentYear),
+        StorageService.getSetting("yearlyIncomeOverrides", {}),
+        StorageService.getSetting("yearlySavingsOverrides", {}),
+      ]);
+
       setIncomeRaw(amt);
       setIncomeFreq(freq);
-      setMonthlyIncome(monthly);
       setSavingsRate(rate);
-      setFixedExpenses(fixed);
-    });
-  }, []);
+      setFixedExpenses(activeFixed);
+
+      // Build virtual snapshots from active definitions for current month
+      const virtualSnapshots = activeFixed.map((f) => ({
+        fixedExpenseId: f.id,
+        year: currentYear,
+        month: currentMonth + 1,
+        amountSnapshot: f.amount,
+        nameSnapshot: f.name,
+      }));
+
+      const data = {
+        expenses,
+        snapshots: virtualSnapshots,
+        fixedExpenses: allFixed,
+        incomeRules,
+        savingsRules,
+        globalIncome: monthly,
+        globalSavingsRate: rate,
+      };
+
+      const summary = getMonthlyFinancialSummary(currentYear, currentMonth, data);
+      setFinancialSummary(summary);
+    };
+    load();
+  }, [expenses, currentYear, currentMonth]);
 
   const handleIncomeSave = async ({
     income,
@@ -45,7 +86,10 @@ export default function SummaryPage({ expenses }) {
     ]);
     setIncomeRaw(income);
     setIncomeFreq(frequency);
-    setMonthlyIncome(monthly);
+    // Re-computation triggered by effect dependency on expenses (settings change will need refresh)
+    // For simplicity, reload the page data
+    const activeFixed = await StorageService.getActiveFixedExpenses();
+    setFixedExpenses(activeFixed);
   };
 
   const handleSavingsRateSave = async (rate) => {
@@ -55,34 +99,18 @@ export default function SummaryPage({ expenses }) {
 
   const handleAddFixed = async (item) => {
     await StorageService.addFixedExpense(item);
-    setFixedExpenses(await StorageService.getFixedExpenses());
+    setFixedExpenses(await StorageService.getActiveFixedExpenses());
   };
 
   const handleUpdateFixed = async (id, changes) => {
     await StorageService.updateFixedExpense(id, changes);
-    setFixedExpenses(await StorageService.getFixedExpenses());
+    setFixedExpenses(await StorageService.getActiveFixedExpenses());
   };
 
   const handleDeleteFixed = async (id) => {
     await StorageService.removeFixedExpense(id);
     setFixedExpenses((prev) => prev.filter((f) => f.id !== id));
   };
-
-  // Derived values — memoized
-  const totalFixed = useMemo(
-    () => fixedExpenses.reduce((s, f) => s + f.amount, 0),
-    [fixedExpenses],
-  );
-
-  const variableExpenses = useMemo(() => {
-    const key = currentMonthKey();
-    return expenses
-      .filter((e) => e.date.startsWith(key))
-      .reduce((s, e) => s + e.amount, 0);
-  }, [expenses]);
-
-  const available = monthlyIncome - totalFixed;
-  const savings = Math.max(0, monthlyIncome * (savingsRate / 100));
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
@@ -112,24 +140,23 @@ export default function SummaryPage({ expenses }) {
           onDelete={handleDeleteFixed}
         />
       </section>
-      <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
-        <SummarySection
-          monthlyIncome={monthlyIncome}
-          totalFixed={totalFixed}
-          variableExpenses={variableExpenses}
-          savingsRate={savingsRate}
-        />
-      </section>
+      {financialSummary && (
+        <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
+          <SummarySection summary={financialSummary} />
+        </section>
+      )}
       <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
         Spending Breakdown
       </h2>
-      <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
-        <ChartComponent
-          totalFixed={totalFixed}
-          variableExpenses={variableExpenses}
-          savings={savings}
-        />
-      </section>
+      {financialSummary && (
+        <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
+          <ChartComponent
+            totalFixed={financialSummary.fixedExpensesTotal}
+            variableExpenses={financialSummary.variableExpenses}
+            savings={financialSummary.autoSavings}
+          />
+        </section>
+      )}
     </main>
   );
 }

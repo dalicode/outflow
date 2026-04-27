@@ -12,16 +12,20 @@ function Card({ label, value, colorClass = "text-theme-text" }) {
   );
 }
 
-export default function SummarySection({
-  monthlyIncome,
-  totalFixed,
-  variableExpenses,
-  savingsRate,
-}) {
-  const { formatAmount, getNumberColorClass } = useSettings();
-  const available = monthlyIncome - totalFixed;
-  const savings = monthlyIncome * (savingsRate / 100);
-  const remaining = available - savings - variableExpenses;
+export default function SummarySection({ summary }) {
+  const { formatAmount } = useSettings();
+  if (!summary) return null;
+
+  const {
+    income,
+    fixedExpensesTotal,
+    variableExpenses,
+    savingsRate,
+    autoSavings,
+    remaining,
+  } = summary;
+
+  const available = income - fixedExpensesTotal;
 
   return (
     <div className="space-y-2">
@@ -31,12 +35,12 @@ export default function SummarySection({
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card
           label="Monthly Income"
-          value={formatAmount(monthlyIncome)}
+          value={formatAmount(income)}
           colorClass="text-theme-primary"
         />
         <Card
           label="Fixed Expenses"
-          value={formatAmount(totalFixed)}
+          value={formatAmount(fixedExpensesTotal)}
           colorClass="text-theme-primary"
         />
         <Card
@@ -51,7 +55,7 @@ export default function SummarySection({
         />
         <Card
           label="Auto Savings"
-          value={formatAmount(Math.max(0, savings))}
+          value={formatAmount(Math.max(0, autoSavings))}
           colorClass="text-theme-primary"
         />
         <Card

@@ -105,10 +105,26 @@ export const StorageService = {
 
   // ── Fixed Expenses ────────────────────────────────────────
   getFixedExpenses: () => db.fixedExpenses.toArray(),
+  // Active fixed expenses only (excludes archived / backfilled entries)
+  getActiveFixedExpenses: () =>
+    db.fixedExpenses.toArray().then((all) => all.filter((f) => f.isArchived !== true)),
   addFixedExpense: async (item) => {
     const id = await db.fixedExpenses.add(item)
     const row = await db.fixedExpenses.get(id)
     await snapshotFixed(row)
+    await enqueue('fixedExpenses', 'insert', row)
+    return id
+  },
+  // Creates an archived fixed-expense definition for historical backfill.
+  // Does NOT snapshot the current month — backfill snapshots are written separately.
+  addArchivedFixedExpense: async (item) => {
+    const payload = {
+      ...item,
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+    }
+    const id = await db.fixedExpenses.add(payload)
+    const row = await db.fixedExpenses.get(id)
     await enqueue('fixedExpenses', 'insert', row)
     return id
   },
@@ -159,6 +175,15 @@ export const StorageService = {
   getSyncQueue: () => db.syncQueue.orderBy('timestamp').toArray(),
   removeSyncQueueItem: (id) => db.syncQueue.delete(id),
   clearSyncQueue: () => db.syncQueue.clear(),
+
+  // ── Danger zone ───────────────────────────────────────────
+  clearAllData: async () => {
+    await db.transaction('rw', db.tables, async () => {
+      for (const table of db.tables) {
+        await table.clear()
+      }
+    })
+  },
 
   // ── Bulk upsert (used by incoming sync merge) ─────────────
   bulkUpsertExpenses: (rows) => db.expenses.bulkPut(rows),

@@ -1,18 +1,20 @@
 import React from "react";
 import { useSettings } from "../../context/settingsContext";
 
-export default function BudgetInsights({
-  monthTotal,
-  monthlyIncome,
-  savingsRate,
-  totalFixed,
-  fixedExpenses,
-}) {
+export default function BudgetInsights({ summary }) {
   const { formatAmount, getNumberColorClass } = useSettings();
-  const available = monthlyIncome - totalFixed;
-  const savings = Math.max(0, monthlyIncome * (savingsRate / 100));
-  const remaining = available - savings - monthTotal;
-  const totalSavings = savings + remaining;
+
+  if (!summary) return null;
+
+  const {
+    income,
+    fixedExpensesTotal,
+    autoSavings,
+    remaining,
+    fixedExpenses,
+  } = summary;
+
+  const totalSavings = autoSavings + remaining;
 
   return (
     <section className="space-y-3">
@@ -21,8 +23,8 @@ export default function BudgetInsights({
       </h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { label: "Monthly Spending", value: monthTotal, tone: "primary" },
-          { label: "Auto Savings", value: savings, tone: "primary" },
+          { label: "Monthly Spending", value: summary.variableExpenses, tone: "primary" },
+          { label: "Auto Savings", value: autoSavings, tone: "primary" },
           { label: "Remaining Budget", value: remaining, tone: "remaining" },
           { label: "Total Savings", value: totalSavings, tone: "primary" },
         ].map(({ label, value, tone }) => {
@@ -61,7 +63,7 @@ export default function BudgetInsights({
             Fixed Expenses
           </p>
           <p className="text-lg font-semibold text-theme-primary">
-            {formatAmount(totalFixed)}
+            {formatAmount(fixedExpensesTotal)}
           </p>
         </div>
         {fixedExpenses.length === 0 ? (
@@ -73,9 +75,7 @@ export default function BudgetInsights({
             {fixedExpenses.map((f) => (
               <li key={f.id} className="flex justify-between py-1 text-sm">
                 <span className="text-theme-text">{f.name}</span>
-                <span
-                  className={`text-theme-text font-medium text-theme-primary`}
-                >
+                <span className={`text-theme-text font-medium text-theme-primary`}>
                   {formatAmount(f.amount)}
                 </span>
               </li>

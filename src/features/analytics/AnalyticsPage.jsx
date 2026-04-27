@@ -7,6 +7,10 @@ import {
 } from "@tanstack/react-table";
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
+import {
+  getYearFinancialSummary,
+  getYearVariableGrid,
+} from "../../utils/financeEngine";
 
 const MONTHS = [
   "Jan",
@@ -24,207 +28,109 @@ const MONTHS = [
 ];
 const pct = (n) => (n != null ? `${n.toFixed(1)}%` : "—");
 
-// ── Precompute analytics dataset (unchanged logic) ────────────────────────────
+// ── Analytics Data Hook ──────────────────────────────────────────────────────
+// ALL calculations delegated to financeEngine.
+// This hook only fetches raw data and passes it through.
 function useAnalyticsData({ expenses, categories, year }) {
   const now = new Date();
-  const [monthlyIncome, setMonthlyIncome] = useState(0);
-  const [fixedExpenses, setFixedExpenses] = useState([]);
-  const [snapshots, setSnapshots] = useState([]);
+  const [financials, setFinancials] = useState(null);
+  const [variableGrid, setVariableGrid] = useState(null);
 
   useEffect(() => {
-    Promise.all([
-      StorageService.getSetting("monthlyIncome", 0),
-      StorageService.getFixedExpenses(),
-    ]).then(([income, fixed]) => {
-      setMonthlyIncome(income);
-      setFixedExpenses(fixed);
-    });
-  }, []);
+    const load = async () => {
+      const [
+        snapshots,
+        fixedDefs,
+        globalIncome,
+        globalRate,
+        incomeRules,
+        savingsRules,
+      ] = await Promise.all([
+        StorageService.getSnapshotsForYear(year),
+        StorageService.getFixedExpenses(),
+        StorageService.getSetting("monthlyIncome", 0),
+        StorageService.getSetting("savingsRate", 0),
+        StorageService.getSetting("yearlyIncomeOverrides", {}),
+        StorageService.getSetting("yearlySavingsOverrides", {}),
+      ]);
 
-  useEffect(() => {
-    StorageService.getSnapshotsForYear(year).then(setSnapshots);
-  }, [year]);
+      const data = {
+        expenses,
+        snapshots,
+        fixedExpenses: fixedDefs,
+        incomeRules,
+        savingsRules,
+        globalIncome,
+        globalSavingsRate: globalRate,
+      };
 
-  const activeCategories = useMemo(
-    () => categories.filter((c) => !c.isDeleted),
-    [categories],
-  );
-  // catMap is available in parent components if needed
-
-  const yearExpenses = useMemo(
-    () => expenses.filter((e) => e.date.startsWith(`${year}-`)),
-    [expenses, year],
-  );
-
-  const grid = useMemo(() => {
-    const g = {};
-    yearExpenses.forEach((e) => {
-      const key =
-        e.categoryId != null
-          ? String(e.categoryId)
-          : e.category || "Uncategorized";
-      const m = parseInt(e.date.slice(5, 7), 10) - 1;
-      if (!g[key]) g[key] = Array(12).fill(0);
-      g[key][m] += e.amount;
-    });
-    return g;
-  }, [yearExpenses]);
-
-  const variableRows = useMemo(() => {
-    const result = [];
-    const covered = new Set();
-    activeCategories.forEach((cat) => {
-      const key = String(cat.id);
-      if (grid[key]) {
-        result.push({ key, name: cat.name });
-        covered.add(key);
-      }
-    });
-    Object.keys(grid).forEach((key) => {
-      if (!covered.has(key)) result.push({ key, name: key });
-    });
-    return result;
-  }, [activeCategories, grid]);
-
-  const monthlyVariableTotals = useMemo(
-    () =>
-      MONTHS.map((_, m) =>
-        variableRows.reduce((s, r) => s + (grid[r.key]?.[m] ?? 0), 0),
-      ),
-    [variableRows, grid],
-  );
-
-  const fixedSnapshotGrid = useMemo(() => {
-    const map = {};
-    snapshots.forEach((s) => {
-      const m = s.month - 1;
-      if (!map[s.fixedExpenseId]) {
-        map[s.fixedExpenseId] = {
-          name: s.nameSnapshot,
-          amounts: Array(12).fill(0),
-        };
-      }
-      map[s.fixedExpenseId].amounts[m] = s.amountSnapshot;
-      map[s.fixedExpenseId].name = s.nameSnapshot;
-    });
-    return map;
-  }, [snapshots]);
-
-  const fixedRows = useMemo(() => {
-    const isCurrentYear = year === now.getFullYear();
-    const currentMonth = now.getMonth();
-    const rows = { ...fixedSnapshotGrid };
-    if (isCurrentYear) {
-      fixedExpenses.forEach((f) => {
-        const key = f.id;
-        if (!rows[key])
-          rows[key] = { name: f.name, amounts: Array(12).fill(0) };
-        for (let m = 0; m <= currentMonth; m++) {
-          if (rows[key].amounts[m] === 0) rows[key].amounts[m] = f.amount;
-        }
+      const fin = getYearFinancialSummary(year, data, {
+        currentYear: now.getFullYear(),
+        currentMonth: now.getMonth(),
       });
+      setFinancials(fin);
+
+      const vGrid = getYearVariableGrid(year, expenses, categories);
+      setVariableGrid(vGrid);
+    };
+    load();
+  }, [year, expenses, categories]);
+
+  return useMemo(() => {
+    if (!financials || !variableGrid) {
+      return {
+        year,
+        monthlyIncome: Array(12).fill(0),
+        variableRows: [],
+        grid: {},
+        fixedRows: [],
+        monthlyFixedTotals: Array(12).fill(0),
+        monthlyVariableTotals: Array(12).fill(0),
+        monthlyTotals: Array(12).fill(0),
+        monthlySavings: Array(12).fill(null),
+        monthlyRemaining: Array(12).fill(null),
+        monthlyTotalSavings: Array(12).fill(null),
+        monthlySavingsRates: Array(12).fill(0),
+        monthlySavingsPct: Array(12).fill(null),
+        yearVariableTotal: 0,
+        yearFixedTotal: 0,
+        yearTotal: 0,
+        yearSavings: 0,
+        yearRemaining: 0,
+        yearTotalIncome: 0,
+        avgSavingsPct: 0,
+        maxPerMonth: Array(12).fill(0),
+      };
     }
-    return Object.entries(rows).map(([id, { name, amounts }]) => ({
-      id,
-      name,
-      amounts,
-    }));
-  }, [fixedSnapshotGrid, fixedExpenses, year]);
 
-  const monthlyFixedTotals = useMemo(
-    () =>
-      MONTHS.map((_, m) =>
-        fixedRows.reduce((s, r) => s + (r.amounts[m] ?? 0), 0),
-      ),
-    [fixedRows],
-  );
-
-  const monthlyTotals = useMemo(
-    () =>
-      MONTHS.map((_, m) => monthlyVariableTotals[m] + monthlyFixedTotals[m]),
-    [monthlyVariableTotals, monthlyFixedTotals],
-  );
-
-  const currentMonth = now.getMonth();
-  const isCurrentYear = year === now.getFullYear();
-  const isFutureMonth = (m) =>
-    year > now.getFullYear() || (isCurrentYear && m > currentMonth);
-
-  const monthlySavings = useMemo(
-    () =>
-      monthlyTotals.map((spent, m) =>
-        isFutureMonth(m) ? null : monthlyIncome - spent,
-      ),
-    [monthlyTotals, monthlyIncome, isCurrentYear, currentMonth],
-  );
-
-  const monthlySavingsPct = useMemo(
-    () =>
-      monthlySavings.map((s) =>
-        s == null ? null : monthlyIncome > 0 ? (s / monthlyIncome) * 100 : 0,
-      ),
-    [monthlySavings, monthlyIncome],
-  );
-
-  const yearVariableTotal = monthlyVariableTotals.reduce((s, v) => s + v, 0);
-  const yearFixedTotal = monthlyFixedTotals.reduce((s, v) => s + v, 0);
-  const yearTotal = monthlyTotals.reduce((s, v) => s + v, 0);
-  const validSavings = monthlySavings.filter((v) => v != null);
-  const yearSavings = validSavings.reduce((s, v) => s + v, 0);
-  const avgSavingsPct =
-    monthlyIncome > 0 && validSavings.length > 0
-      ? (yearSavings / (monthlyIncome * validSavings.length)) * 100
-      : 0;
-
-  const maxPerMonth = useMemo(
-    () =>
-      MONTHS.map((_, m) =>
-        Math.max(0, ...variableRows.map((r) => grid[r.key]?.[m] ?? 0)),
-      ),
-    [variableRows, grid],
-  );
-
-  return useMemo(
-    () => ({
+    return {
       year,
-      monthlyIncome,
-      variableRows,
-      grid,
-      fixedRows,
-      monthlyFixedTotals,
-      monthlyVariableTotals,
-      monthlyTotals,
-      monthlySavings,
-      monthlySavingsPct,
-      yearVariableTotal,
-      yearFixedTotal,
-      yearTotal,
-      yearSavings,
-      avgSavingsPct,
-      maxPerMonth,
-    }),
-    [
-      year,
-      monthlyIncome,
-      variableRows,
-      grid,
-      fixedRows,
-      monthlyFixedTotals,
-      monthlyVariableTotals,
-      monthlyTotals,
-      monthlySavings,
-      monthlySavingsPct,
-      yearVariableTotal,
-      yearFixedTotal,
-      yearTotal,
-      yearSavings,
-      avgSavingsPct,
-      maxPerMonth,
-    ],
-  );
+      monthlyIncome: financials.months.map((m) => m.income),
+      variableRows: variableGrid.variableRows,
+      grid: variableGrid.grid,
+      fixedRows: financials.fixedRows,
+      monthlyFixedTotals: financials.monthlyFixedTotals,
+      monthlyVariableTotals: financials.monthlyVariableTotals,
+      monthlyTotals: financials.monthlyTotals,
+      monthlySavings: financials.monthlySavings,
+      monthlyRemaining: financials.monthlyRemaining,
+      monthlyTotalSavings: financials.monthlyTotalSavings,
+      monthlySavingsRates: financials.monthlySavingsRates,
+      monthlySavingsPct: financials.monthlySavingsPct,
+      yearVariableTotal: financials.totals.totalVariable,
+      yearFixedTotal: financials.totals.totalFixed,
+      yearTotal: financials.totals.yearTotal,
+      yearSavings: financials.totals.totalSavings,
+      yearRemaining: financials.totals.totalRemaining,
+      yearTotalIncome: financials.totals.totalIncome,
+      avgSavingsPct: financials.totals.avgSavingsPct,
+      maxPerMonth: variableGrid.maxPerMonth,
+    };
+  }, [year, financials, variableGrid]);
 }
 
 // ── Build flat row dataset for TanStack Table ────────────────────────────────
+// Zero financial calculations — all values come pre-computed from the engine.
 function buildTableRows(data) {
   const rows = [];
 
@@ -243,13 +149,13 @@ function buildTableRows(data) {
     });
   } else {
     data.fixedRows.forEach((row) => {
-      const total = row.amounts.reduce((s, v) => s + v, 0);
       rows.push({
         id: `fixed-${row.id}`,
         kind: "fixed",
         label: row.name,
         amounts: row.amounts,
-        yearTotal: total,
+        yearTotal: row.yearTotal,
+        isArchived: row.isArchived,
       });
     });
     rows.push({
@@ -277,14 +183,12 @@ function buildTableRows(data) {
     });
   } else {
     data.variableRows.forEach((row) => {
-      const vals = data.grid[row.key] ?? Array(12).fill(0);
-      const total = vals.reduce((s, v) => s + v, 0);
       rows.push({
         id: `var-${row.key}`,
         kind: "variable",
         label: row.name,
-        amounts: vals,
-        yearTotal: total,
+        amounts: row.amounts,
+        yearTotal: row.yearTotal,
         maxPerMonth: data.maxPerMonth,
       });
     });
@@ -301,10 +205,26 @@ function buildTableRows(data) {
   rows.push({
     id: "sum-savings",
     kind: "summary",
-    label: "Total Savings",
+    label: "Auto Savings",
     amounts: data.monthlySavings,
     yearTotal: data.yearSavings,
     isSavings: true,
+  });
+  rows.push({
+    id: "sum-remaining",
+    kind: "summary",
+    label: "Remaining Budget",
+    amounts: data.monthlyRemaining,
+    yearTotal: data.yearRemaining,
+    isRemaining: true,
+  });
+  rows.push({
+    id: "sum-total-savings",
+    kind: "summary",
+    label: "Total Savings",
+    amounts: data.monthlyTotalSavings,
+    yearTotal: data.yearSavings + data.yearRemaining,
+    isTotalSavings: true,
   });
   rows.push({
     id: "sum-pct",
@@ -316,6 +236,22 @@ function buildTableRows(data) {
   });
 
   return rows;
+}
+
+// ── Gradient helper for savings rows ─────────────────────────────────────────
+// Maps savings ratio to a theme-aware red→green gradient using CSS color-mix().
+// ≤ 0% = theme danger, ≥ (savingsRate × 1.5) = theme success,
+// with perceptible 5% steps in between.
+function getSavingsGradientColor(ratioPct, savingsRate) {
+  if (ratioPct <= 0) return "var(--theme-danger)";
+  const upperBound = savingsRate * 1.5;
+  if (ratioPct >= upperBound) return "var(--theme-success)";
+  // Quantize to nearest 5% for visible steps
+  const stepped = Math.round((ratioPct / upperBound) * 20) / 20;
+  const normalized = Math.max(0, Math.min(1, stepped));
+  const dangerPct = Math.round((1 - normalized) * 100);
+  const successPct = Math.round(normalized * 100);
+  return `color-mix(in hsl, var(--theme-danger) ${dangerPct}%, var(--theme-success) ${successPct}%)`;
 }
 
 // ── Analytics Grid Component ─────────────────────────────────────────────────
@@ -443,7 +379,8 @@ export default function AnalyticsPage({ expenses, categories }) {
             <tbody>
               {rowModel.rows.map((row) => {
                 const kind = row.original.kind;
-                const baseTr = `border-b border-theme-border ${kindStyles[kind] || ""}`;
+                const isArchived = row.original.isArchived;
+                const baseTr = `border-b border-theme-border ${kindStyles[kind] || ""} ${isArchived ? "italic text-theme-muted/70" : ""}`;
 
                 if (kind === "section") {
                   const secBg =
@@ -527,12 +464,41 @@ export default function AnalyticsPage({ expenses, categories }) {
                               : getNumberColorClass(val);
                         }
                         if (kind === "summary") {
-                          cls = "text-theme-primary font-semibold";
+                          if (row.original.id === "sum-remaining") {
+                            cls =
+                              val > 0
+                                ? "text-theme-success font-semibold"
+                                : val < 0
+                                  ? "text-theme-danger font-semibold"
+                                  : "text-theme-text font-semibold";
+                          } else if (
+                            row.original.id === "sum-total-savings" ||
+                            row.original.id === "sum-pct"
+                          ) {
+                            cls = "font-semibold";
+                          } else {
+                            cls = "text-theme-primary font-semibold";
+                          }
                         }
                         if (kind === "subtotal")
                           cls = "text-theme-primary font-semibold";
+
+                        // Gradient color for Total Savings & Savings % rows
+                        let gradientStyle;
+                        if (kind === "summary") {
+                          if (row.original.id === "sum-total-savings") {
+                            const income = data.monthlyIncome[monthIndex];
+                            const ratio = income > 0 ? ((val || 0) / income) * 100 : 0;
+                            const rate = data.monthlySavingsRates[monthIndex];
+                            gradientStyle = { color: getSavingsGradientColor(ratio, rate) };
+                          } else if (row.original.id === "sum-pct") {
+                            const rate = data.monthlySavingsRates[monthIndex];
+                            gradientStyle = { color: getSavingsGradientColor(val || 0, rate) };
+                          }
+                        }
+
                         cellContent = (
-                          <span className={cls}>
+                          <span className={cls} style={gradientStyle}>
                             {val == null
                               ? "—"
                               : row.original.isPct
@@ -543,20 +509,49 @@ export default function AnalyticsPage({ expenses, categories }) {
                       }
 
                       if (isYearTotal) {
-                        let cls = "font-semibold text-theme-primary";
+                        const yt = row.original.yearTotal;
+                        let cls =
+                          row.original.id === "sum-remaining"
+                            ? yt > 0
+                              ? "font-semibold text-theme-success"
+                              : yt < 0
+                                ? "font-semibold text-theme-danger"
+                                : "font-semibold text-theme-text"
+                            : row.original.id === "sum-total-savings" || row.original.id === "sum-pct"
+                              ? "font-semibold"
+                              : "font-semibold text-theme-primary";
+
+                        // Gradient color for year total of Total Savings & Savings %
+                        let gradientStyle;
+                        if (row.original.id === "sum-total-savings") {
+                          const ratio = data.yearTotalIncome > 0 ? (yt / data.yearTotalIncome) * 100 : 0;
+                          const avgRate = data.monthlySavingsRates.reduce((s, r) => s + r, 0) / 12;
+                          gradientStyle = { color: getSavingsGradientColor(ratio, avgRate) };
+                        } else if (row.original.id === "sum-pct") {
+                          const avgRate = data.monthlySavingsRates.reduce((s, r) => s + r, 0) / 12;
+                          gradientStyle = { color: getSavingsGradientColor(yt, avgRate) };
+                        }
+
                         cellContent = (
-                          <span className={cls}>
+                          <span className={cls} style={gradientStyle}>
                             {row.original.isPct
-                              ? pct(row.original.yearTotal)
-                              : fmt(row.original.yearTotal)}
+                              ? pct(yt)
+                              : fmt(yt)}
                           </span>
                         );
                       }
 
                       if (isSticky) {
                         cellContent = (
-                          <span className="text-xs font-medium text-theme-text">
+                          <span
+                            className={`text-xs font-medium ${isArchived ? "text-theme-muted" : "text-theme-text"}`}
+                          >
                             {row.original.label}
+                            {isArchived && (
+                              <span className="ml-1 text-[0.625rem] text-theme-muted/60">
+                                (Archived)
+                              </span>
+                            )}
                           </span>
                         );
                       }

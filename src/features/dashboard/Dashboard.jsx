@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
+import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
 import ExpenseTable from "../expenses/ExpenseTable";
 import BudgetInsights from "./BudgetInsights";
 
@@ -28,27 +29,56 @@ export default function Dashboard({
   const [manageMode, setManageMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
-  const [monthlyIncome, setMonthlyIncome] = useState(0);
-  const [savingsRate, setSavingsRate] = useState(0);
-  const [totalFixed, setTotalFixed] = useState(0);
-  const [fixedExpensesList, setFixedExpensesList] = useState([]);
+  const [financialSummary, setFinancialSummary] = useState(null);
 
+  // Load raw data and compute via engine — single source of truth
   useEffect(() => {
-    Promise.all([
-      StorageService.getSetting("monthlyIncome", 0),
-      StorageService.getSetting("savingsRate", 0),
-      StorageService.getFixedExpenses(),
-    ])
-      .then(([income, rate, fixed]) => {
-        setMonthlyIncome(income);
-        setSavingsRate(rate);
-        setFixedExpensesList(fixed ?? []);
-        setTotalFixed((fixed ?? []).reduce((s, f) => s + f.amount, 0));
-      })
-      .catch((err) => {
-        console.warn("Dashboard data load error:", err);
-      });
-  }, []);
+    const loadData = async () => {
+      const now = new Date();
+      const isCurrentOrFuture =
+        selectedYear > now.getFullYear() ||
+        (selectedYear === now.getFullYear() && selectedMonth >= now.getMonth());
+
+      const [allFixed, allSnapshots, globalIncome, globalRate, incomeRules, savingsRules] =
+        await Promise.all([
+          StorageService.getFixedExpenses(),
+          StorageService.getSnapshotsForYear(selectedYear),
+          StorageService.getSetting("monthlyIncome", 0),
+          StorageService.getSetting("savingsRate", 0),
+          StorageService.getSetting("yearlyIncomeOverrides", {}),
+          StorageService.getSetting("yearlySavingsOverrides", {}),
+        ]);
+
+      // For current/future months, active definitions act as virtual snapshots
+      let monthSnapshots;
+      if (isCurrentOrFuture) {
+        const active = allFixed.filter((f) => f.isArchived !== true);
+        monthSnapshots = active.map((f) => ({
+          fixedExpenseId: f.id,
+          year: selectedYear,
+          month: selectedMonth + 1,
+          amountSnapshot: f.amount,
+          nameSnapshot: f.name,
+        }));
+      } else {
+        monthSnapshots = allSnapshots.filter((s) => s.month === selectedMonth + 1);
+      }
+
+      const data = {
+        expenses,
+        snapshots: monthSnapshots,
+        fixedExpenses: allFixed,
+        incomeRules,
+        savingsRules,
+        globalIncome,
+        globalSavingsRate: globalRate,
+      };
+
+      const summary = getMonthlyFinancialSummary(selectedYear, selectedMonth, data);
+      setFinancialSummary(summary);
+    };
+    loadData();
+  }, [selectedYear, selectedMonth, expenses]);
 
   const prevMonth = () => {
     if (selectedMonth === 0) {
@@ -123,11 +153,6 @@ export default function Dashboard({
     setShowConfirm(false);
   }, [selectedIds, onBulkDelete]);
 
-  const monthTotal = useMemo(
-    () => monthlyExpenses.reduce((s, e) => s + e.amount, 0),
-    [monthlyExpenses],
-  );
-
   const categoryTotals = useMemo(() => {
     const map = {};
     monthlyExpenses.forEach((e) => {
@@ -144,13 +169,9 @@ export default function Dashboard({
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
-      <BudgetInsights
-        monthTotal={monthTotal}
-        monthlyIncome={monthlyIncome}
-        savingsRate={savingsRate}
-        totalFixed={totalFixed}
-        fixedExpenses={fixedExpensesList}
-      />
+      {financialSummary && (
+        <BudgetInsights summary={financialSummary} />
+      )}
 
       {categoryTotals.length > 0 && (
         <section>
@@ -224,8 +245,8 @@ export default function Dashboard({
               <p className="text-sm text-theme-muted mt-0.5">
                 {monthlyExpenses.length} transaction
                 {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
-                <span className={getNumberColorClass(monthTotal)}>
-                  {formatAmount(monthTotal)}
+                <span className={getNumberColorClass(financialSummary?.variableExpenses ?? 0)}>
+                  {formatAmount(financialSummary?.variableExpenses ?? 0)}
                 </span>
               </p>
             </div>
