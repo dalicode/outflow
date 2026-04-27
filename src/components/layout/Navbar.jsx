@@ -252,6 +252,7 @@ export default function Navbar({
                 display: "inline-block",
                 verticalAlign: "middle",
               }}
+              className="text-theme-primary"
             >
               Spending Tracker
             </span>

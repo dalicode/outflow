@@ -4,8 +4,18 @@ import { StorageService } from "../../services/storageService";
 import { getBackfillPreviewTimeline } from "../../utils/financeEngine";
 
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 let _idCounter = 0;
@@ -85,157 +95,195 @@ function flattenRangesToMonthMap(ranges) {
 
 // ── Reusable sub-components (defined inside same file for cohesion) ──────────
 
+// ── Modern Ghost Input Style ────────────────────────────────────────────────
+const ghostInputCls =
+  "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text placeholder:text-theme-muted/40 shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none";
+
+const ghostSelectCls =
+  "bg-theme-background border border-transparent rounded-lg px-2 py-2 text-sm text-theme-text shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none cursor-pointer";
+
+function RemoveBtn({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-6 h-6 flex items-center justify-center rounded-full text-theme-muted hover:text-theme-danger hover:bg-theme-danger/10 transition-all"
+      aria-label="Remove"
+    >
+      <span className="text-xs leading-none">&times;</span>
+    </button>
+  );
+}
+
+function SectionCard({ title, children }) {
+  return (
+    <div className="rounded-xl bg-theme-surface border border-theme-border shadow-sm p-4 space-y-3">
+      <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+// ── Reusable sub-components ──────────────────────────────────────────────────
+
 function YearTabBar({ years, activeYear, dirtyYears, onSelect }) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto pb-1">
-      {years.map((y) => {
-        const isActive = y === activeYear;
-        const isDirty = dirtyYears.has(y);
-        return (
-          <button
-            key={y}
-            onClick={() => onSelect(y)}
-            className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-theme-small whitespace-nowrap transition-colors ${
-              isActive
-                ? "bg-theme-primary text-white"
-                : "bg-theme-background border border-theme-border text-theme-text hover:bg-theme-primary/5"
-            }`}
-          >
-            {y}
-            {isDirty && !isActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-theme-primary" />
-            )}
-          </button>
-        );
-      })}
+    <div className="border-b border-theme-border">
+      <div className="flex items-end gap-0 px-1">
+        {years.map((y) => {
+          const isActive = y === activeYear;
+          const isDirty = dirtyYears.has(y);
+          return (
+            <button
+              key={y}
+              onClick={() => onSelect(y)}
+              className={`relative px-4 py-2 text-sm font-medium rounded-t-lg border-x border-t transition-colors focus:outline-none ${
+                isActive
+                  ? "bg-theme-surface text-theme-primary border-t-2 border-t-theme-primary border-theme-border border-b border-b-theme-surface shadow-sm"
+                  : "bg-theme-background text-theme-muted border-transparent hover:text-theme-text hover:bg-theme-background/80"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                {y}
+                {isDirty && !isActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-theme-primary inline-block" />
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 function MultiRangeList({ ranges, type, onAdd, onRemove, onUpdate }) {
-  const inputCls = "input-theme px-2 py-1.5 text-sm";
   const isIncome = type === "income";
   const label = isIncome ? "Monthly Income" : "Auto Savings %";
   const placeholder = isIncome ? "e.g. 5000" : "e.g. 20";
   const step = isIncome ? "0.01" : "0.1";
-  const inputWidth = isIncome ? "w-32" : "w-24";
+  const inputWidth = isIncome ? "w-36" : "w-28";
 
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-theme-muted uppercase tracking-wide block">
-        {label}
-      </label>
+    <SectionCard title={label}>
       {ranges.length === 0 && (
-        <p className="text-xs text-theme-muted/60 italic">No ranges configured.</p>
+        <p className="text-xs text-theme-muted/60 italic">
+          No ranges configured.
+        </p>
       )}
-      {ranges.map((range) => (
-        <div key={range.id} className="flex items-center gap-2 flex-wrap">
-          <input
-            type="number"
-            value={range.amount}
-            onChange={(e) => onUpdate(range.id, { amount: e.target.value })}
-            placeholder={placeholder}
-            step={step}
-            className={`${inputCls} ${inputWidth}`}
-          />
-          <select
-            value={range.startMonth}
-            onChange={(e) => onUpdate(range.id, { startMonth: parseInt(e.target.value, 10) })}
-            className={`${inputCls} w-16`}
-          >
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>{m}</option>
-            ))}
-          </select>
-          <span className="text-theme-muted text-xs">→</span>
-          <select
-            value={range.endMonth}
-            onChange={(e) => onUpdate(range.id, { endMonth: parseInt(e.target.value, 10) })}
-            className={`${inputCls} w-16`}
-          >
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>{m}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => onRemove(range.id)}
-            className="text-theme-danger hover:opacity-80 text-sm leading-none px-1"
-            aria-label="Remove"
-          >
-            &times;
-          </button>
-        </div>
-      ))}
+      <div className="space-y-2">
+        {ranges.map((range) => (
+          <div key={range.id} className="flex items-center gap-2 flex-wrap">
+            <input
+              type="number"
+              value={range.amount}
+              onChange={(e) => onUpdate(range.id, { amount: e.target.value })}
+              placeholder={placeholder}
+              step={step}
+              className={`${ghostInputCls} ${inputWidth}`}
+            />
+            <select
+              value={range.startMonth}
+              onChange={(e) =>
+                onUpdate(range.id, { startMonth: parseInt(e.target.value, 10) })
+              }
+              className={`${ghostSelectCls} w-18`}
+            >
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <span className="text-theme-muted text-xs">→</span>
+            <select
+              value={range.endMonth}
+              onChange={(e) =>
+                onUpdate(range.id, { endMonth: parseInt(e.target.value, 10) })
+              }
+              className={`${ghostSelectCls} w-18`}
+            >
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <RemoveBtn onClick={() => onRemove(range.id)} />
+          </div>
+        ))}
+      </div>
       <button
         onClick={onAdd}
-        className="text-xs text-theme-primary hover:opacity-80 font-medium"
+        className="text-sm text-theme-primary hover:text-theme-primary/80 font-medium transition-colors"
       >
         + Add {isIncome ? "income" : "savings"} range
       </button>
-    </div>
+    </SectionCard>
   );
 }
 
 function FixedExpenseList({ items, onAdd, onRemove, onUpdate, onPreset }) {
-  const inputCls = "input-theme px-2 py-1.5 text-sm";
   const presets = ["Rent", "Utilities", "Insurance", "Internet", "Phone"];
 
   return (
-    <div className="space-y-2">
-      <label className="text-xs font-semibold text-theme-muted uppercase tracking-wide block">
-        Fixed Expenses
-      </label>
+    <SectionCard title="Fixed Expenses">
       {items.length === 0 && (
-        <p className="text-xs text-theme-muted/60 italic">No fixed expenses configured.</p>
+        <p className="text-xs text-theme-muted/60 italic">
+          No fixed expenses configured.
+        </p>
       )}
-      {items.map((item) => (
-        <div key={item.id} className="flex items-center gap-2 flex-wrap">
-          <input
-            value={item.name}
-            onChange={(e) => onUpdate(item.id, { name: e.target.value })}
-            placeholder="Name"
-            className={`${inputCls} w-32`}
-          />
-          <input
-            type="number"
-            value={item.amount}
-            onChange={(e) => onUpdate(item.id, { amount: e.target.value })}
-            placeholder="Amount"
-            step="0.01"
-            className={`${inputCls} w-24`}
-          />
-          <select
-            value={item.startMonth}
-            onChange={(e) => onUpdate(item.id, { startMonth: parseInt(e.target.value, 10) })}
-            className={`${inputCls} w-16`}
-          >
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>{m}</option>
-            ))}
-          </select>
-          <span className="text-theme-muted text-xs">→</span>
-          <select
-            value={item.endMonth}
-            onChange={(e) => onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })}
-            className={`${inputCls} w-16`}
-          >
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>{m}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => onRemove(item.id)}
-            className="text-theme-danger hover:opacity-80 text-sm leading-none px-1"
-            aria-label="Remove"
-          >
-            &times;
-          </button>
-        </div>
-      ))}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="space-y-2">
+        {items.map((item) => (
+          <div key={item.id} className="flex items-center gap-2 flex-wrap">
+            <input
+              value={item.name}
+              onChange={(e) => onUpdate(item.id, { name: e.target.value })}
+              placeholder="Name"
+              className={`${ghostInputCls} w-36`}
+            />
+            <input
+              type="number"
+              value={item.amount}
+              onChange={(e) => onUpdate(item.id, { amount: e.target.value })}
+              placeholder="Amount"
+              step="0.01"
+              className={`${ghostInputCls} w-28`}
+            />
+            <select
+              value={item.startMonth}
+              onChange={(e) =>
+                onUpdate(item.id, { startMonth: parseInt(e.target.value, 10) })
+              }
+              className={`${ghostSelectCls} w-18`}
+            >
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <span className="text-theme-muted text-xs">→</span>
+            <select
+              value={item.endMonth}
+              onChange={(e) =>
+                onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })
+              }
+              className={`${ghostSelectCls} w-18`}
+            >
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <RemoveBtn onClick={() => onRemove(item.id)} />
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={onAdd}
-          className="text-xs text-theme-primary hover:opacity-80 font-medium"
+          className="text-sm text-theme-primary hover:text-theme-primary/80 font-medium transition-colors"
         >
           + Add another
         </button>
@@ -244,13 +292,13 @@ function FixedExpenseList({ items, onAdd, onRemove, onUpdate, onPreset }) {
           <button
             key={preset}
             onClick={() => onPreset(preset)}
-            className="text-xs px-2 py-0.5 rounded-theme-small bg-theme-primary/10 text-theme-primary hover:bg-theme-primary/20 transition-colors"
+            className="text-xs text-theme-primary hover:underline font-medium transition-all"
           >
             {preset}
           </button>
         ))}
       </div>
-    </div>
+    </SectionCard>
   );
 }
 
@@ -279,7 +327,16 @@ function PreviewTable({ yearConfig, variableTotals }) {
       const autoSavings = Math.max(0, income * (rate / 100));
       const remaining = income - fixedTotal - variableTotal - autoSavings;
       const totalSavings = autoSavings + remaining;
-      return { month, income, fixedTotal, variableTotal, autoSavings, remaining, totalSavings, rate };
+      return {
+        month,
+        income,
+        fixedTotal,
+        variableTotal,
+        autoSavings,
+        remaining,
+        totalSavings,
+        rate,
+      };
     });
   }, [yearConfig, variableTotals]);
 
@@ -295,10 +352,10 @@ function PreviewTable({ yearConfig, variableTotals }) {
 
   return (
     <div>
-      <label className="text-xs font-semibold text-theme-muted uppercase tracking-wide block mb-1.5">
+      <label className="text-xs font-semibold text-theme-muted uppercase tracking-wide block mb-2">
         Preview
       </label>
-      <div className="overflow-x-auto rounded-theme-small border border-theme-border">
+      <div className="overflow-x-auto rounded-xl border border-theme-border shadow-sm">
         <table className="min-w-full text-xs">
           <thead>
             <tr className="bg-theme-background border-b border-theme-border">
@@ -306,7 +363,10 @@ function PreviewTable({ yearConfig, variableTotals }) {
                 Name
               </th>
               {MONTHS.map((m) => (
-                <th key={m} className="text-center px-1 py-1.5 font-semibold text-theme-muted w-10">
+                <th
+                  key={m}
+                  className="text-center px-1 py-1.5 font-semibold text-theme-muted w-10"
+                >
                   {m}
                 </th>
               ))}
@@ -371,7 +431,10 @@ function PreviewTable({ yearConfig, variableTotals }) {
                       : "text-theme-text",
               },
             ].map((row) => (
-              <tr key={row.label} className="border-b border-theme-border bg-theme-background/50">
+              <tr
+                key={row.label}
+                className="border-b border-theme-border bg-theme-background/50"
+              >
                 <td className="px-2 py-1.5 text-theme-text font-semibold whitespace-nowrap sticky left-0 bg-theme-background">
                   {row.label}
                 </td>
@@ -391,13 +454,16 @@ function PreviewTable({ yearConfig, variableTotals }) {
                 ))}
                 {(() => {
                   const total = row.values.reduce((s, v) => s + v, 0);
-                  const totalCls = total !== 0
-                    ? row.getCls
-                      ? row.getCls(total)
-                      : row.cls
-                    : "text-theme-muted/40";
+                  const totalCls =
+                    total !== 0
+                      ? row.getCls
+                        ? row.getCls(total)
+                        : row.cls
+                      : "text-theme-muted/40";
                   return (
-                    <td className={`text-right px-2 py-1.5 font-semibold whitespace-nowrap ${totalCls}`}>
+                    <td
+                      className={`text-right px-2 py-1.5 font-semibold whitespace-nowrap ${totalCls}`}
+                    >
                       {total !== 0 ? formatAmount(total) : "—"}
                     </td>
                   );
@@ -423,7 +489,7 @@ export default function BackfillHistoricalDataModal({
   defaultSavingsRate = "",
 }) {
   const [activeYear, setActiveYear] = useState(() =>
-    years.length > 0 ? years[0] : null
+    years.length > 0 ? years[0] : null,
   );
   const [yearConfigs, setYearConfigs] = useState({});
   const [initialYearConfigs, setInitialYearConfigs] = useState({});
@@ -442,11 +508,12 @@ export default function BackfillHistoricalDataModal({
     const load = async () => {
       setLoading(true);
       try {
-        const [incomeOverrides, savingsOverrides, fixedDefs] = await Promise.all([
-          StorageService.getSetting("yearlyIncomeOverrides", {}),
-          StorageService.getSetting("yearlySavingsOverrides", {}),
-          StorageService.getFixedExpenses(),
-        ]);
+        const [incomeOverrides, savingsOverrides, fixedDefs] =
+          await Promise.all([
+            StorageService.getSetting("yearlyIncomeOverrides", {}),
+            StorageService.getSetting("yearlySavingsOverrides", {}),
+            StorageService.getFixedExpenses(),
+          ]);
 
         const defMap = new Map(fixedDefs.map((f) => [f.id, f]));
         const configs = {};
@@ -534,7 +601,10 @@ export default function BackfillHistoricalDataModal({
   const addIncomeRange = (year) => {
     const ranges = yearConfigs[year]?.incomeRanges || [];
     updateYearConfig(year, {
-      incomeRanges: [...ranges, { id: nextId(), amount: "", startMonth: 1, endMonth: 12 }],
+      incomeRanges: [
+        ...ranges,
+        { id: nextId(), amount: "", startMonth: 1, endMonth: 12 },
+      ],
     });
   };
 
@@ -555,7 +625,10 @@ export default function BackfillHistoricalDataModal({
   const addSavingsRange = (year) => {
     const ranges = yearConfigs[year]?.savingsRanges || [];
     updateYearConfig(year, {
-      savingsRanges: [...ranges, { id: nextId(), rate: "", startMonth: 1, endMonth: 12 }],
+      savingsRanges: [
+        ...ranges,
+        { id: nextId(), rate: "", startMonth: 1, endMonth: 12 },
+      ],
     });
   };
 
@@ -623,24 +696,31 @@ export default function BackfillHistoricalDataModal({
         const amt = parseFloat(range.amount);
         if (isNaN(amt)) yearErrors.push("Income amount must be a number.");
         else if (amt <= 0) yearErrors.push("Income amount must be > 0.");
-        if (range.startMonth > range.endMonth) yearErrors.push("Income start month must be ≤ end month.");
+        if (range.startMonth > range.endMonth)
+          yearErrors.push("Income start month must be ≤ end month.");
       }
 
       // Validate savings ranges
       for (const range of config.savingsRanges) {
         const rate = parseFloat(range.rate);
         if (isNaN(rate)) yearErrors.push("Savings rate must be a number.");
-        else if (rate < 0 || rate > 100) yearErrors.push("Savings rate must be 0–100.");
-        if (range.startMonth > range.endMonth) yearErrors.push("Savings start month must be ≤ end month.");
+        else if (rate < 0 || rate > 100)
+          yearErrors.push("Savings rate must be 0–100.");
+        if (range.startMonth > range.endMonth)
+          yearErrors.push("Savings start month must be ≤ end month.");
       }
 
       // Validate fixed items
       for (const item of config.fixedItems) {
-        if (!item.name.trim()) yearErrors.push("Fixed expense name is required.");
+        if (!item.name.trim())
+          yearErrors.push("Fixed expense name is required.");
         const amt = parseFloat(item.amount);
-        if (isNaN(amt)) yearErrors.push("Fixed expense amount must be a number.");
-        else if (amt === 0) yearErrors.push("Fixed expense amount cannot be zero.");
-        if (item.startMonth > item.endMonth) yearErrors.push("Fixed expense start month must be ≤ end month.");
+        if (isNaN(amt))
+          yearErrors.push("Fixed expense amount must be a number.");
+        else if (amt === 0)
+          yearErrors.push("Fixed expense amount cannot be zero.");
+        if (item.startMonth > item.endMonth)
+          yearErrors.push("Fixed expense start month must be ≤ end month.");
       }
 
       const yearHasData =
@@ -684,7 +764,10 @@ export default function BackfillHistoricalDataModal({
         // 1. Income overrides
         const incomeMap = flattenRangesToMonthMap(config.incomeRanges);
         if (Object.keys(incomeMap).length > 0) {
-          const existing = await StorageService.getSetting("yearlyIncomeOverrides", {});
+          const existing = await StorageService.getSetting(
+            "yearlyIncomeOverrides",
+            {},
+          );
           const updated = { ...existing };
           if (saveMode === "replace") {
             updated[year] = incomeMap;
@@ -697,7 +780,10 @@ export default function BackfillHistoricalDataModal({
         // 2. Savings overrides
         const savingsMap = flattenRangesToMonthMap(config.savingsRanges);
         if (Object.keys(savingsMap).length > 0) {
-          const existing = await StorageService.getSetting("yearlySavingsOverrides", {});
+          const existing = await StorageService.getSetting(
+            "yearlySavingsOverrides",
+            {},
+          );
           const updated = { ...existing };
           if (saveMode === "replace") {
             updated[year] = savingsMap;
@@ -709,36 +795,43 @@ export default function BackfillHistoricalDataModal({
 
         // 3. Fixed expenses & snapshots
         const validFixedItems = config.fixedItems.filter(
-          (i) => i.name.trim() && !isNaN(parseFloat(i.amount)) && parseFloat(i.amount) !== 0
+          (i) =>
+            i.name.trim() &&
+            !isNaN(parseFloat(i.amount)) &&
+            parseFloat(i.amount) !== 0,
         );
         if (validFixedItems.length > 0) {
           if (saveMode === "replace") {
             // Atomic: delete old snapshots then insert new ones
-            await dexieDb.transaction("rw", dexieDb.fixedExpenseSnapshots, async () => {
-              await StorageService.deleteSnapshotsForYear(year);
-              const newSnapshots = [];
-              for (const item of validFixedItems) {
-                const newId = await StorageService.addArchivedFixedExpense({
-                  name: item.name.trim(),
-                  amount: parseFloat(item.amount),
-                });
-                const sm = clamp(parseInt(item.startMonth, 10) || 1, 1, 12);
-                const em = clamp(parseInt(item.endMonth, 10) || 12, 1, 12);
-                for (let m = sm; m <= em; m++) {
-                  newSnapshots.push({
-                    fixedExpenseId: newId,
-                    year,
-                    month: m,
-                    amountSnapshot: parseFloat(item.amount),
-                    nameSnapshot: item.name.trim(),
+            await dexieDb.transaction(
+              "rw",
+              dexieDb.fixedExpenseSnapshots,
+              async () => {
+                await StorageService.deleteSnapshotsForYear(year);
+                const newSnapshots = [];
+                for (const item of validFixedItems) {
+                  const newId = await StorageService.addArchivedFixedExpense({
+                    name: item.name.trim(),
+                    amount: parseFloat(item.amount),
                   });
+                  const sm = clamp(parseInt(item.startMonth, 10) || 1, 1, 12);
+                  const em = clamp(parseInt(item.endMonth, 10) || 12, 1, 12);
+                  for (let m = sm; m <= em; m++) {
+                    newSnapshots.push({
+                      fixedExpenseId: newId,
+                      year,
+                      month: m,
+                      amountSnapshot: parseFloat(item.amount),
+                      nameSnapshot: item.name.trim(),
+                    });
+                  }
                 }
-              }
-              if (newSnapshots.length > 0) {
-                await StorageService.bulkUpsertSnapshots(newSnapshots);
-              }
-              totalSnapshots += newSnapshots.length;
-            });
+                if (newSnapshots.length > 0) {
+                  await StorageService.bulkUpsertSnapshots(newSnapshots);
+                }
+                totalSnapshots += newSnapshots.length;
+              },
+            );
           } else {
             // Merge: create new definitions + snapshots, leave old ones untouched
             const newSnapshots = [];
@@ -794,12 +887,6 @@ export default function BackfillHistoricalDataModal({
     fixedItems: [],
   };
 
-  const inputCls = "input-theme px-2 py-1.5 text-sm";
-  const btnSecondary =
-    "bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-colors border border-theme-border";
-  const btnPrimary =
-    "bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity";
-
   return (
     <Modal
       isOpen={isOpen}
@@ -808,138 +895,155 @@ export default function BackfillHistoricalDataModal({
       className="max-w-3xl w-[92vw] max-h-[90vh] flex flex-col"
     >
       {loading ? (
-        <div className="py-8 text-center text-sm text-theme-muted">Loading existing data…</div>
+        <div className="py-8 text-center text-sm text-theme-muted">
+          Loading existing data…
+        </div>
       ) : (
         <>
-          <div className="space-y-4 overflow-y-auto pr-1">
-            {/* Year tabs */}
-            {years.length > 1 && (
-              <YearTabBar
-                years={years}
-                activeYear={activeYear}
-                dirtyYears={dirtyYears}
-                onSelect={setActiveYear}
-              />
-            )}
+          {/* Year tabs — sit outside the card */}
+          {years.length > 1 && (
+            <YearTabBar
+              years={years}
+              activeYear={activeYear}
+              dirtyYears={dirtyYears}
+              onSelect={setActiveYear}
+            />
+          )}
 
-            {activeYear && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-theme-text">
-                    {activeYear}
-                  </span>
-                  {dirtyYears.has(activeYear) && (
-                    <span className="text-xs text-theme-primary">(edited)</span>
-                  )}
+          {/* Content card */}
+          <div className="bg-theme-surface border border-theme-border rounded-b-xl rounded-tr-xl shadow-sm overflow-y-auto pr-1">
+            <div className="p-5 space-y-5">
+              {activeYear && (
+                <>
+                  {/* Income ranges */}
+                  <MultiRangeList
+                    ranges={activeConfig.incomeRanges}
+                    type="income"
+                    onAdd={() => addIncomeRange(activeYear)}
+                    onRemove={(id) => removeIncomeRange(activeYear, id)}
+                    onUpdate={(id, patch) =>
+                      updateIncomeRange(activeYear, id, patch)
+                    }
+                  />
+
+                  {/* Savings ranges */}
+                  <MultiRangeList
+                    ranges={activeConfig.savingsRanges}
+                    type="savings"
+                    onAdd={() => addSavingsRange(activeYear)}
+                    onRemove={(id) => removeSavingsRange(activeYear, id)}
+                    onUpdate={(id, patch) =>
+                      updateSavingsRange(activeYear, id, patch)
+                    }
+                  />
+
+                  {/* Fixed expenses */}
+                  <FixedExpenseList
+                    items={activeConfig.fixedItems}
+                    onAdd={() => addFixedItem(activeYear)}
+                    onRemove={(id) => removeFixedItem(activeYear, id)}
+                    onUpdate={(id, patch) =>
+                      updateFixedItem(activeYear, id, patch)
+                    }
+                    onPreset={(preset) => addPreset(activeYear, preset)}
+                  />
+
+                  {/* Preview */}
+                  <PreviewTable
+                    yearConfig={activeConfig}
+                    variableTotals={getYearlyVariableTotals(
+                      activeYear,
+                      expenses,
+                    )}
+                  />
+                </>
+              )}
+
+              {/* Save mode — segmented control */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-theme-muted">
+                  Save mode
+                </span>
+                <div className="inline-flex rounded-lg bg-theme-background border border-theme-border p-0.5">
+                  <button
+                    onClick={() => setSaveMode("merge")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                      saveMode === "merge"
+                        ? "bg-theme-surface text-theme-primary shadow-sm"
+                        : "text-theme-muted hover:text-theme-text"
+                    }`}
+                  >
+                    Merge
+                  </button>
+                  <button
+                    onClick={() => setSaveMode("replace")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                      saveMode === "replace"
+                        ? "bg-theme-surface text-theme-primary shadow-sm"
+                        : "text-theme-muted hover:text-theme-text"
+                    }`}
+                  >
+                    Replace
+                  </button>
                 </div>
-
-                {/* Income ranges */}
-                <MultiRangeList
-                  ranges={activeConfig.incomeRanges}
-                  type="income"
-                  onAdd={() => addIncomeRange(activeYear)}
-                  onRemove={(id) => removeIncomeRange(activeYear, id)}
-                  onUpdate={(id, patch) => updateIncomeRange(activeYear, id, patch)}
-                />
-
-                {/* Savings ranges */}
-                <MultiRangeList
-                  ranges={activeConfig.savingsRanges}
-                  type="savings"
-                  onAdd={() => addSavingsRange(activeYear)}
-                  onRemove={(id) => removeSavingsRange(activeYear, id)}
-                  onUpdate={(id, patch) => updateSavingsRange(activeYear, id, patch)}
-                />
-
-                {/* Fixed expenses */}
-                <FixedExpenseList
-                  items={activeConfig.fixedItems}
-                  onAdd={() => addFixedItem(activeYear)}
-                  onRemove={(id) => removeFixedItem(activeYear, id)}
-                  onUpdate={(id, patch) => updateFixedItem(activeYear, id, patch)}
-                  onPreset={(preset) => addPreset(activeYear, preset)}
-                />
-
-                {/* Preview */}
-                <PreviewTable
-                  yearConfig={activeConfig}
-                  variableTotals={getYearlyVariableTotals(activeYear, expenses)}
-                />
               </div>
-            )}
-
-            {/* Save mode toggle */}
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-semibold text-theme-muted uppercase tracking-wide">
-                Save mode
-              </span>
-              <label className="flex items-center gap-1.5 text-xs text-theme-text cursor-pointer">
-                <input
-                  type="radio"
-                  name="saveMode"
-                  value="merge"
-                  checked={saveMode === "merge"}
-                  onChange={() => setSaveMode("merge")}
-                  className="rounded-theme-small"
-                />
-                Merge (default)
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-theme-text cursor-pointer">
-                <input
-                  type="radio"
-                  name="saveMode"
-                  value="replace"
-                  checked={saveMode === "replace"}
-                  onChange={() => setSaveMode("replace")}
-                  className="rounded-theme-small"
-                />
-                Replace
-              </label>
-            </div>
-            <p className="text-xs text-theme-muted">
-              <strong>Merge</strong>: New values overwrite existing months. Unchanged months keep their old values. Old snapshots remain.
-              <br />
-              <strong>Replace</strong>: All existing snapshots for the year are deleted and replaced. Income/savings overrides are fully rewritten.
-            </p>
-
-            {/* Validation errors */}
-            {errors._global && (
-              <p className="text-theme-danger text-xs">{errors._global}</p>
-            )}
-            {Object.entries(errors)
-              .filter(([k]) => k !== "_global")
-              .map(([year, errs]) => (
-                <div key={year} className="space-y-0.5">
-                  <p className="text-theme-danger text-xs font-semibold">
-                    {year}:
-                  </p>
-                  {errs.map((err, i) => (
-                    <p key={i} className="text-theme-danger text-xs">
-                      {err}
-                    </p>
-                  ))}
-                </div>
-              ))}
-
-            {resultMsg && (
-              <p
-                className={`text-xs ${
-                  resultMsg.startsWith("Error")
-                    ? "text-theme-danger"
-                    : "text-theme-success"
-                }`}
-              >
-                {resultMsg}
+              <p className="text-xs text-theme-muted leading-relaxed">
+                <strong className="text-theme-text">Merge</strong>: New values
+                overwrite existing months. Unchanged months keep their old
+                values. Old snapshots remain.
+                <br />
+                <strong className="text-theme-text">Replace</strong>: All
+                existing snapshots for the year are deleted and replaced.
+                Income/savings overrides are fully rewritten.
               </p>
-            )}
+
+              {/* Validation errors */}
+              {errors._global && (
+                <p className="text-theme-danger text-xs">{errors._global}</p>
+              )}
+              {Object.entries(errors)
+                .filter(([k]) => k !== "_global")
+                .map(([year, errs]) => (
+                  <div key={year} className="space-y-0.5">
+                    <p className="text-theme-danger text-xs font-semibold">
+                      {year}:
+                    </p>
+                    {errs.map((err, i) => (
+                      <p key={i} className="text-theme-danger text-xs">
+                        {err}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+
+              {resultMsg && (
+                <p
+                  className={`text-xs ${
+                    resultMsg.startsWith("Error")
+                      ? "text-theme-danger"
+                      : "text-theme-success"
+                  }`}
+                >
+                  {resultMsg}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-theme-border mt-3">
-            <button onClick={handleClose} className={btnSecondary} disabled={saving}>
+          <div className="flex items-center justify-end gap-2 pt-4">
+            <button
+              onClick={handleClose}
+              className="bg-theme-background hover:bg-theme-border/40 text-theme-text font-medium px-4 py-2 rounded-lg border border-theme-border transition-all text-sm"
+              disabled={saving}
+            >
               Cancel
             </button>
-            <button onClick={handleConfirm} className={btnPrimary} disabled={saving}>
+            <button
+              onClick={handleConfirm}
+              className="bg-theme-primary hover:brightness-110 text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all text-sm"
+              disabled={saving}
+            >
               {saving ? "Saving…" : "Confirm Backfill"}
             </button>
           </div>
