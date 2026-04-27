@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StorageService } from "./services/storageService";
 import { useAuth } from "./context/authContext";
 import { useSettings } from "./context/settingsContext";
@@ -48,7 +44,11 @@ export default function App() {
   const { user, loading, syncStatus, triggerSync, signOut } = useAuth();
   const { loaded: settingsLoaded } = useSettings();
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses();
-  const { categories, setCategories, refresh: refreshCategories } = useCategories();
+  const {
+    categories,
+    setCategories,
+    refresh: refreshCategories,
+  } = useCategories();
   const [showForm, setShowForm] = useState(false);
 
   // Re-load local data after a sync pull so UI reflects merged state
@@ -104,14 +104,14 @@ export default function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-theme-background">
         {!isReady ? (
-          <div style={{ padding: 40, fontFamily: 'system-ui, sans-serif' }}>
+          <div style={{ padding: 40, fontFamily: "system-ui, sans-serif" }}>
             <p style={{ fontSize: 18, marginBottom: 12 }}>
               <strong>Loading…</strong>
             </p>
             <p>Auth loading: {String(loading)}</p>
             <p>Settings loaded: {String(settingsLoaded)}</p>
             <p>Supabase configured: {String(!!supabase)}</p>
-            <p style={{ marginTop: 12, fontSize: 12, color: '#666' }}>
+            <p style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
               If this persists, check the browser console for errors.
             </p>
           </div>
@@ -127,39 +127,52 @@ export default function App() {
               <Route
                 path="/"
                 element={
-                  <Dashboard
-                    expenses={expenses}
-                    categories={categories}
-                    onUpdate={handleUpdate}
-                    onDelete={handleDelete}
-                    onBulkDelete={handleBulkDelete}
-                  />
+                  <div className="pb-20 sm:pb-0">
+                    <Dashboard
+                      expenses={expenses}
+                      categories={categories}
+                      onUpdate={handleUpdate}
+                      onDelete={handleDelete}
+                      onBulkDelete={handleBulkDelete}
+                    />
+                  </div>
                 }
               />
               <Route
                 path="/summary"
-                element={<SummaryPage expenses={expenses} />}
+                element={
+                  <div className="pb-20 sm:pb-0">
+                    <SummaryPage expenses={expenses} />
+                  </div>
+                }
               />
               <Route
                 path="/analytics"
                 element={
-                  <AnalyticsPage expenses={expenses} categories={categories} />
+                  <div className="pb-20 sm:pb-0">
+                    <AnalyticsPage
+                      expenses={expenses}
+                      categories={categories}
+                    />
+                  </div>
                 }
               />
               <Route
                 path="/settings"
                 element={
-              <SettingsPage
-                expenses={expenses}
-                onImport={async () =>
-                  setExpenses(await StorageService.getAll())
-                }
-                onRefreshAll={async () => {
-                  await refreshExpenses();
-                  await refreshCategories();
-                }}
-                triggerSync={triggerSync}
-              />
+                  <div className="pb-20 sm:pb-0">
+                    <SettingsPage
+                      expenses={expenses}
+                      onImport={async () =>
+                        setExpenses(await StorageService.getAll())
+                      }
+                      onRefreshAll={async () => {
+                        await refreshExpenses();
+                        await refreshCategories();
+                      }}
+                      triggerSync={triggerSync}
+                    />
+                  </div>
                 }
               />
             </Routes>
