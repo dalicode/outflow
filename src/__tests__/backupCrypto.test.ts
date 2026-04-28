@@ -70,4 +70,22 @@ describe('backupCrypto', () => {
     expect(envelope.salt.length).toBeGreaterThan(0)
     expect(envelope.iv.length).toBeGreaterThan(0)
   })
+
+  it('roundtrips a meta+data shaped payload', async () => {
+    const payload = {
+      meta: {
+        exportedAt: new Date().toISOString(),
+        appVersion: '1.0.0',
+        dbVersion: 7,
+        format: 'outflow-backup',
+        recordCounts: { expenses: 2, categories: 1 },
+        userEmail: 'test@example.com',
+      },
+      data: sampleData,
+    }
+    const password = 'meta-data-pw'
+    const envelope = await encryptBackup(payload, password)
+    const decrypted = await decryptBackup(envelope, password)
+    expect(decrypted).toEqual(payload)
+  })
 })

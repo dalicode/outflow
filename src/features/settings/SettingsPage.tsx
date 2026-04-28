@@ -5,6 +5,7 @@ import { StorageService } from "../../services/storageService";
 import { THEMES } from "../../utils/themeConfig";
 import {
   encryptBackup,
+  decryptBackup,
   isEncryptedEnvelope,
 } from "../../utils/backupCrypto";
 import {
@@ -305,6 +306,9 @@ export default function SettingsPage({
   const [rememberBackupPassword, setRememberBackupPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showDbVersionModal, setShowDbVersionModal] = useState(false);
+  const [pendingImportPayload, setPendingImportPayload] = useState<Record<string, unknown> | null>(null);
+  const [pendingImportMeta, setPendingImportMeta] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -476,7 +480,23 @@ export default function SettingsPage({
     try {
       setImportStatus("Exporting encrypted backup…");
       const data = await StorageService.exportAllData();
-      const envelope = await encryptBackup(data, password);
+      const dbVersion = StorageService.dbVersion();
+      const recordCounts: Record<string, number> = {};
+      for (const [key, arr] of Object.entries(data)) {
+        recordCounts[key] = Array.isArray(arr) ? arr.length : 0;
+      }
+      const payload = {
+        meta: {
+          exportedAt: new Date().toISOString(),
+          appVersion: "1.0.0",
+          dbVersion,
+          format: "outflow-backup",
+          recordCounts,
+          userEmail: user?.email ?? null,
+        },
+        data,
+      };
+      const envelope = await encryptBackup(payload, password);
       const blob = new Blob([JSON.stringify(envelope, null, 2)], {
         type: "application/json",
       });
@@ -527,11 +547,30 @@ export default function SettingsPage({
       try {
         const text = await pendingFile.text();
         const parsed = JSON.parse(text);
-        await StorageService.importBackup(
-          parsed,
-          backupPassword,
-          { replace: jsonReplaceMode },
-        );
+        const decrypted = isEncryptedEnvelope(parsed)
+          ? await decryptBackup(parsed, backupPassword)
+          : parsed;
+        if (
+          typeof decrypted === "object" &&
+          decrypted !== null &&
+          "meta" in decrypted &&
+          typeof (decrypted as Record<string, unknown>).meta === "object"
+        ) {
+          const meta = (decrypted as Record<string, unknown>).meta as Record<string, unknown>;
+          const currentDbVersion = StorageService.dbVersion();
+          const backupDbVersion = typeof meta.dbVersion === "number" ? meta.dbVersion : 0;
+          if (backupDbVersion > currentDbVersion) {
+            setPendingImportPayload(decrypted as Record<string, unknown>);
+            setPendingImportMeta(meta);
+            setShowDbVersionModal(true);
+            setShowPasswordModal(false);
+            setPendingFile(null);
+            return;
+          }
+        }
+        await StorageService.importAllData(decrypted as Record<string, unknown>, {
+          replace: jsonReplaceMode,
+        });
         await onRefreshAll?.();
         triggerSync?.();
         setImportStatus(
@@ -579,6 +618,24 @@ export default function SettingsPage({
         return;
       }
 
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "meta" in parsed &&
+        typeof (parsed as Record<string, unknown>).meta === "object"
+      ) {
+        const meta = (parsed as Record<string, unknown>).meta as Record<string, unknown>;
+        const currentDbVersion = StorageService.dbVersion();
+        const backupDbVersion = typeof meta.dbVersion === "number" ? meta.dbVersion : 0;
+        if (backupDbVersion > currentDbVersion) {
+          setPendingImportPayload(parsed as Record<string, unknown>);
+          setPendingImportMeta(meta);
+          setShowDbVersionModal(true);
+          if (jsonFileRef.current) jsonFileRef.current.value = "";
+          return;
+        }
+      }
+
       const knownKeys = [
         "expenses",
         "categories",
@@ -587,7 +644,10 @@ export default function SettingsPage({
         "settings",
         "syncQueue",
       ];
-      const hasKnownKey = knownKeys.some((k) => k in parsed);
+      const payload = (typeof parsed === "object" && parsed !== null && "data" in parsed)
+        ? (parsed as Record<string, unknown>).data as Record<string, unknown>
+        : parsed as Record<string, unknown>;
+      const hasKnownKey = knownKeys.some((k) => k in payload);
       if (!hasKnownKey) {
         setImportStatus(
           "Invalid backup: must include at least one known data key.",
@@ -1228,6 +1288,85 @@ export default function SettingsPage({
                 setShowPasswordModal(false);
                 setPasswordError("");
                 setPendingFile(null);
+              }}
+              className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* DB Version Warning Modal */}
+      <Modal
+        isOpen={showDbVersionModal}
+        onClose={() => {
+          setShowDbVersionModal(false);
+          setPendingImportPayload(null);
+          setPendingImportMeta(null);
+        }}
+        title="Backup Version Mismatch"
+        className="max-w-sm"
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-theme-danger">
+            This backup was made with a newer app version. Some data may not import correctly.
+          </p>
+          {pendingImportMeta && (
+            <div className="text-xs text-theme-muted space-y-1">
+              <p>
+                <span className="font-medium">Exported:</span>{" "}
+                {pendingImportMeta.exportedAt
+                  ? new Date(pendingImportMeta.exportedAt as string).toLocaleString()
+                  : "Unknown"}
+              </p>
+              <p>
+                <span className="font-medium">Backup DB version:</span>{" "}
+                {String(pendingImportMeta.dbVersion ?? "?")}
+              </p>
+              <p>
+                <span className="font-medium">Current DB version:</span>{" "}
+                {StorageService.dbVersion()}
+              </p>
+              {pendingImportMeta.recordCounts && (
+                <p>
+                  <span className="font-medium">Records:</span>{" "}
+                  {Object.entries(pendingImportMeta.recordCounts as Record<string, number>)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                if (!pendingImportPayload) return;
+                try {
+                  await StorageService.importAllData(pendingImportPayload, {
+                    replace: jsonReplaceMode,
+                  });
+                  await onRefreshAll?.();
+                  triggerSync?.();
+                  setImportStatus(
+                    `Backup imported (version mismatch).${jsonReplaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
+                  );
+                } catch (err) {
+                  setImportStatus(`Import failed: ${(err as Error).message}`);
+                }
+                setShowDbVersionModal(false);
+                setPendingImportPayload(null);
+                setPendingImportMeta(null);
+              }}
+              className="flex-1 bg-theme-danger hover:opacity-90 text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
+            >
+              Proceed Anyway
+            </button>
+            <button
+              onClick={() => {
+                setShowDbVersionModal(false);
+                setPendingImportPayload(null);
+                setPendingImportMeta(null);
               }}
               className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
             >

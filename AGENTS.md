@@ -83,6 +83,24 @@ JSON string → gzip (CompressionStream) → AES-256-GCM encryption → envelope
 Key derivation: PBKDF2 with SHA-256, 100K iterations, 16-byte random salt.  
 Envelope format: `{ version: 1, format: "gzip+aes", salt, iv, ciphertext }` (all base64).
 
+**Payload structure (inside the encrypted envelope or plain JSON):**
+```json
+{
+  "meta": {
+    "exportedAt": "2026-04-28T16:20:00.000Z",
+    "appVersion": "1.0.0",
+    "dbVersion": 7,
+    "format": "outflow-backup",
+    "recordCounts": { "expenses": 342, "categories": 8, ... },
+    "userEmail": "user@example.com"
+  },
+  "data": { "expenses": [...], "categories": [...] }
+}
+```
+
+- `dbVersion` is checked on import. If backup DB version > current app DB version, a **blocking warning modal** is shown before proceeding.
+- Legacy flat-format backups (no `meta`/`data` wrapper) are still supported for backward compatibility.
+
 **Auto-password (Supabase users):**
 - When logged in, the app checks `profiles.backup_password` in Supabase
 - If found → auto-uses it for silent export

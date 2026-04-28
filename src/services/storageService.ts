@@ -384,6 +384,8 @@ export const StorageService = {
   bulkUpsertFixedExpenses: (rows: FixedExpense[]) => db.fixedExpenses.bulkPut(rows),
 
   // ── Full data backup (JSON export / import) ────────────────
+  dbVersion: () => db.verno,
+
   exportAllData: async () => ({
     expenses: await db.expenses.toArray(),
     categories: await db.categories.toArray(),
@@ -412,6 +414,11 @@ export const StorageService = {
       throw new Error('Invalid data')
     }
 
+    // Support new { meta, data } format and old flat format
+    const payload = ('data' in data && typeof data.data === 'object' && data.data !== null)
+      ? data.data as Record<string, unknown>
+      : data
+
     if (replace) {
       await db.transaction('rw', db.tables, async () => {
         for (const table of db.tables) {
@@ -420,14 +427,14 @@ export const StorageService = {
       })
     }
 
-    if (data.expenses) await db.expenses.bulkPut(data.expenses as Expense[])
-    if (data.categories) await db.categories.bulkPut(data.categories as Category[])
-    if (data.fixedExpenses) await db.fixedExpenses.bulkPut(data.fixedExpenses as FixedExpense[])
-    if (data.fixedExpenseSnapshots) await db.fixedExpenseSnapshots.bulkPut(data.fixedExpenseSnapshots as FixedExpenseSnapshot[])
-    if (data.incomeSnapshots) await db.incomeSnapshots.bulkPut(data.incomeSnapshots as IncomeSnapshot[])
-    if (data.savingsSnapshots) await db.savingsSnapshots.bulkPut(data.savingsSnapshots as SavingsSnapshot[])
-    if (data.schedules) await db.schedules.bulkPut(data.schedules as Schedule[])
-    if (data.settings) await db.settings.bulkPut(data.settings as Setting[])
-    if (data.syncQueue) await db.syncQueue.bulkPut(data.syncQueue as SyncQueueItem[])
+    if (payload.expenses) await db.expenses.bulkPut(payload.expenses as Expense[])
+    if (payload.categories) await db.categories.bulkPut(payload.categories as Category[])
+    if (payload.fixedExpenses) await db.fixedExpenses.bulkPut(payload.fixedExpenses as FixedExpense[])
+    if (payload.fixedExpenseSnapshots) await db.fixedExpenseSnapshots.bulkPut(payload.fixedExpenseSnapshots as FixedExpenseSnapshot[])
+    if (payload.incomeSnapshots) await db.incomeSnapshots.bulkPut(payload.incomeSnapshots as IncomeSnapshot[])
+    if (payload.savingsSnapshots) await db.savingsSnapshots.bulkPut(payload.savingsSnapshots as SavingsSnapshot[])
+    if (payload.schedules) await db.schedules.bulkPut(payload.schedules as Schedule[])
+    if (payload.settings) await db.settings.bulkPut(payload.settings as Setting[])
+    if (payload.syncQueue) await db.syncQueue.bulkPut(payload.syncQueue as SyncQueueItem[])
   },
 }
