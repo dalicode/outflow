@@ -270,7 +270,7 @@ export default function Navbar({
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}
-              className="navbar-toggle-btn"
+              className="navbar-toggle-btn nav-item-hover"
               aria-label="Collapse sidebar"
               title="Collapse"
             >
@@ -292,7 +292,7 @@ export default function Navbar({
           <div className="flex justify-center pb-2">
             <button
               onClick={() => setCollapsed(false)}
-              className="navbar-toggle-btn"
+              className="navbar-toggle-btn nav-item-hover"
               aria-label="Expand sidebar"
               title="Expand"
             >
@@ -319,10 +319,10 @@ export default function Navbar({
                 to={to}
                 end
                 className={cn(
-                  "flex items-center rounded-lg transition-colors duration-150",
+                  "flex items-center rounded-lg nav-item-hover",
                   collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2",
                   isActive
-                    ? "bg-theme-primary/5 text-theme-primary font-semibold"
+                    ? "bg-theme-primary/5 text-theme-primary font-semibold nav-item-indicator"
                     : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
                 )}
               >
@@ -341,7 +341,7 @@ export default function Navbar({
           <button
             onClick={onAddExpense}
             className={cn(
-              "w-full flex items-center rounded-lg text-theme-primary transition-all duration-150 hover:bg-theme-primary/5 active:scale-95",
+              "w-full flex items-center rounded-lg text-theme-primary nav-item-hover hover:bg-theme-primary/5 active:scale-95",
               collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2"
             )}
             aria-label="Add expense"
@@ -366,7 +366,7 @@ export default function Navbar({
             <button
               onClick={onSignOut}
               className={cn(
-                "w-full flex items-center rounded-lg transition-colors duration-150 text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5",
+                "w-full flex items-center rounded-lg nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5",
                 collapsed ? "justify-center py-2.5 px-2 mx-1" : "gap-3 py-2.5 px-3 mx-2"
               )}
               title={userEmail}
@@ -399,7 +399,7 @@ export default function Navbar({
               end
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col items-center justify-center flex-1 py-1 transition-colors",
+                  "flex flex-col items-center justify-center flex-1 py-1 nav-item-hover",
                   isActive ? "text-theme-primary" : "text-theme-muted"
                 )
               }
@@ -424,7 +424,7 @@ export default function Navbar({
               end
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col items-center justify-center flex-1 py-1 transition-colors",
+                  "flex flex-col items-center justify-center flex-1 py-1 nav-item-hover",
                   isActive ? "text-theme-primary" : "text-theme-muted"
                 )
               }

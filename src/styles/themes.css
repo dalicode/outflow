@@ -145,6 +145,33 @@
   border-bottom: 1px solid var(--theme-border);
 }
 
+/* Active nav-item indicator — straight vertical line to the left of the icon */
+.nav-item-indicator {
+  position: relative;
+}
+.nav-item-indicator::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 50%;
+  background-color: var(--theme-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Nav-item hover expansion */
+.nav-item-hover {
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.nav-item-hover:hover {
+  transform: scale(1.2);
+}
+
 /* ── Global Component Primitives ─────────────────────────────────────── */
 
 /* Primary action button (small) */
@@ -215,11 +242,15 @@
   font-weight: 500;
   color: #ffffff;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .btn-modal-primary:hover {
   filter: brightness(1.1);
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 /* Modal cancel button */
@@ -234,7 +265,9 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--theme-text);
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 .btn-modal-cancel:hover {
   background-color: color-mix(in srgb, var(--theme-border) 40%, transparent);
@@ -249,14 +282,21 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   color: var(--theme-text);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .input-sm:focus {
   outline: none;
   border-color: var(--theme-primary);
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) color-mix(in srgb, var(--theme-primary) 40%, transparent);
-  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
+    var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
+    calc(1px + var(--tw-ring-offset-width))
+    color-mix(in srgb, var(--theme-primary) 40%, transparent);
+  box-shadow:
+    var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
+    var(--tw-shadow, 0 0 #0000);
 }
 
 /* Medium input / select (used in settings rows) */
@@ -267,14 +307,21 @@
   padding: 0.25rem 0.625rem;
   font-size: 0.875rem;
   color: var(--theme-text);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .input-md:focus {
   outline: none;
   border-color: var(--theme-primary);
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) color-mix(in srgb, var(--theme-primary) 40%, transparent);
-  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
+    var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
+    calc(2px + var(--tw-ring-offset-width))
+    color-mix(in srgb, var(--theme-primary) 40%, transparent);
+  box-shadow:
+    var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
+    var(--tw-shadow, 0 0 #0000);
 }
 
 /* Table header cell (sticky, blurred) */
@@ -290,7 +337,9 @@
   backdrop-filter: blur(12px);
   background-color: color-mix(in srgb, var(--theme-surface) 95%, transparent);
   border-bottom: 1px solid var(--theme-border);
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 /* Icon-only button */
@@ -302,7 +351,9 @@
   height: 2rem;
   border-radius: var(--radius-small);
   color: var(--theme-muted);
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 .icon-btn:hover {
   color: var(--theme-text);
@@ -310,9 +361,14 @@
 }
 .icon-btn:focus {
   outline: none;
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) color-mix(in srgb, var(--theme-primary) 40%, transparent);
-  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
+    var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
+    calc(2px + var(--tw-ring-offset-width))
+    color-mix(in srgb, var(--theme-primary) 40%, transparent);
+  box-shadow:
+    var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
+    var(--tw-shadow, 0 0 #0000);
 }
 
 /* Modal backdrop overlay */
@@ -338,7 +394,9 @@
   background-color: var(--theme-surface);
   border-right: 1px solid var(--theme-border);
   z-index: 40;
-  transition: width 0.2s ease-in-out, all 0.2s ease-in-out;
+  transition:
+    width 0.2s ease-in-out,
+    all 0.2s ease-in-out;
 }
 @media (min-width: 640px) {
   .navbar-desktop {
@@ -355,7 +413,9 @@
   border-radius: 0.375rem;
   color: var(--theme-muted);
   flex-shrink: 0;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 .navbar-toggle-btn:hover {
   color: var(--theme-text);
@@ -373,7 +433,9 @@
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border-radius: 1rem;
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
   border: 1px solid var(--theme-border);
 }
 
@@ -391,7 +453,8 @@
   border-radius: 9999px;
   background-color: var(--theme-primary);
   color: #ffffff;
-  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--theme-primary) 30%, transparent);
+  box-shadow: 0 10px 15px -3px
+    color-mix(in srgb, var(--theme-primary) 30%, transparent);
   flex-shrink: 0;
   z-index: 10;
   transition: transform 0.15s ease;

@@ -1,4 +1,4 @@
-import { ThemeConfig } from '../types'
+import { ThemeConfig } from "../types";
 
 export const THEMES: Record<string, ThemeConfig> = {
   default: {
@@ -128,22 +128,22 @@ export const THEMES: Record<string, ThemeConfig> = {
       zeroColor: "var(--theme-muted)",
     },
   },
-}
+};
 
 export const LIGHT_THEME_DEFAULTS: ThemeConfig = {
   ...THEMES.default,
-}
+};
 
 export const DARK_THEME_DEFAULTS: ThemeConfig = {
   ...THEMES.darkMinimal,
-}
+};
 
 export function getTheme(themeId: string): ThemeConfig {
-  return THEMES[themeId] || THEMES.default
+  return THEMES[themeId] || THEMES.default;
 }
 
 export function getCSSVariables(theme: ThemeConfig): Record<string, string> {
-  const vars: Record<string, string> = {}
+  const vars: Record<string, string> = {};
   const entries: [string, string][] = [
     ["--theme-background", theme.colors.background],
     ["--theme-surface", theme.colors.surface],
@@ -167,16 +167,16 @@ export function getCSSVariables(theme: ThemeConfig): Record<string, string> {
     ["--number-positive", theme.numberStyle.positiveColor],
     ["--number-negative", theme.numberStyle.negativeColor],
     ["--number-zero", theme.numberStyle.zeroColor],
-  ]
+  ];
   for (const [key, value] of entries) {
-    vars[key] = value
+    vars[key] = value;
   }
   if (theme.glassEffect) {
-    vars["--glass-blur"] = "12px"
-    vars["--glass-opacity"] = "0.08"
+    vars["--glass-blur"] = "12px";
+    vars["--glass-opacity"] = "0.08";
   } else {
-    vars["--glass-blur"] = "0px"
-    vars["--glass-opacity"] = "0"
+    vars["--glass-blur"] = "0px";
+    vars["--glass-opacity"] = "0";
   }
-  return vars
+  return vars;
 }
