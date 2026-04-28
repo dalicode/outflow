@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import { cn } from "../../utils/cn";
+import "./dashboard.css";
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
 import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
@@ -218,11 +220,12 @@ export default function Dashboard({
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedCategories(new Set())}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              className={cn(
+                "category-chip",
                 selectedCategories.size === 0
-                  ? "bg-theme-primary text-white"
-                  : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
-              }`}
+                  ? "category-chip-active"
+                  : "category-chip-inactive"
+              )}
             >
               All
             </button>
@@ -237,11 +240,12 @@ export default function Dashboard({
                     else next.add(cat);
                     setSelectedCategories(next);
                   }}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={cn(
+                    "category-chip",
                     isSelected
-                      ? "bg-theme-primary text-white"
-                      : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
-                  }`}
+                      ? "category-chip-active"
+                      : "category-chip-inactive"
+                  )}
                 >
                   <span>{cat}</span>
                   <span
@@ -265,11 +269,11 @@ export default function Dashboard({
         {/* Month nav header */}
         <div className="relative flex items-center justify-center">
           <div className="flex items-center gap-3">
-            <button
-              onClick={prevMonth}
-              className="p-2 rounded-lg hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
-              aria-label="Previous month"
-            >
+          <button
+            onClick={prevMonth}
+            className="month-nav-btn"
+            aria-label="Previous month"
+          >
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -286,7 +290,10 @@ export default function Dashboard({
             </button>
             <div className="text-center">
               <span
-                className={`text-lg font-semibold ${isCurrentMonth ? "text-theme-primary" : "text-theme-text"}`}
+                className={cn(
+                  "text-lg font-semibold",
+                  isCurrentMonth ? "text-theme-primary" : "text-theme-text"
+                )}
               >
                 {label}
               </span>
@@ -308,10 +315,10 @@ export default function Dashboard({
               </p>
             </div>
             <button
-              onClick={nextMonth}
-              className="p-2 rounded-lg hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
-              aria-label="Next month"
-            >
+            onClick={nextMonth}
+            className="month-nav-btn"
+            aria-label="Next month"
+          >
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -333,11 +340,12 @@ export default function Dashboard({
             onClick={toggleManageMode}
             aria-label={manageMode ? "Done" : "Manage"}
             aria-pressed={manageMode}
-            className={`absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 z-10 ${
+            className={cn(
+              "absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 z-10",
               manageMode
                 ? "bg-theme-primary text-white"
                 : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
-            }`}
+            )}
           >
             {manageMode ? (
               <svg
@@ -374,7 +382,7 @@ export default function Dashboard({
 
         {/* Confirm delete modal */}
         {showConfirm && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-30">
+          <div className="backdrop-overlay">
             <div className="bg-theme-surface rounded-xl p-6 w-full max-w-xs space-y-4 shadow-lg">
               <h3 className="text-base font-semibold text-theme-text">
                 Confirm Delete

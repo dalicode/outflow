@@ -6,9 +6,11 @@ import {
   getYearFinancialSummary,
   getYearVariableGrid,
 } from "../../utils/financeEngine";
+import { cn } from "../../utils/cn";
 import AnalyticsCharts from "./AnalyticsCharts";
 import AnalyticsTable from "./AnalyticsTable";
 import type { AnalyticsData, Expense, Category, YearSummary, VariableGridResult } from "../../types";
+import "./analytics.css";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -160,7 +162,7 @@ const SummaryCard = ({ label, value, tone }: SummaryCardProps) => {
         : "text-theme-text";
 
   return (
-    <div className="min-w-[140px] md:min-w-0 flex-1 rounded-xl bg-theme-surface shadow-sm p-4 transition-shadow hover:shadow-md">
+    <div className="summary-card">
       <div className={`text-xl md:text-2xl font-bold tabular-nums ${toneClass}`}>
         {value}
       </div>
@@ -247,11 +249,12 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
           <button
             onClick={() => canGoForward && handleYearChange(year + 1)}
             disabled={!canGoForward}
-            className={`p-2 rounded-lg transition-colors ${
+            className={cn(
+              "p-2 rounded-lg transition-colors",
               canGoForward
                 ? "hover:bg-theme-surface text-theme-muted hover:text-theme-text"
                 : "text-theme-muted cursor-not-allowed"
-            }`}
+            )}
             aria-label="Next year"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -263,13 +266,14 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
 
       {/* Month selector */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        <button
+          <button
           onClick={() => setSelectedMonth(null)}
-          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+          className={cn(
+            "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
             selectedMonth === null
               ? "bg-theme-primary text-white"
               : "bg-theme-surface text-theme-muted hover:text-theme-text shadow-sm"
-          }`}
+          )}
         >
           Year
         </button>
@@ -277,11 +281,12 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
           <button
             key={m}
             onClick={() => setSelectedMonth(i)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+            className={cn(
+              "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
               selectedMonth === i
                 ? "bg-theme-primary text-white"
                 : "bg-theme-surface text-theme-muted hover:text-theme-text shadow-sm"
-            }`}
+            )}
           >
             {m}
           </button>
@@ -303,11 +308,12 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative px-5 py-2.5 text-sm font-semibold transition-colors ${
+              className={cn(
+                "relative px-5 py-2.5 text-sm font-semibold transition-colors",
                 isActive
                   ? "text-theme-primary"
                   : "text-theme-muted hover:text-theme-text"
-              }`}
+              )}
             >
               {tab.label}
               {isActive && (

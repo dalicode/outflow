@@ -12,6 +12,7 @@ import {
   fetchBackupPasswordFromProfile,
 } from "../../services/syncService";
 import { APP_VERSION } from "../../utils/appVersion";
+import { cn } from "../../utils/cn";
 import type { User } from "@supabase/supabase-js";
 
 interface BackupSectionProps {
@@ -349,10 +350,10 @@ export default function BackupSection({
             <p className="text-xs text-theme-danger">{passwordError}</p>
           )}
           <div className="flex gap-2">
-            <button
-              onClick={handlePasswordSubmit}
-              className="flex-1 bg-theme-primary hover:opacity-90 text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
-            >
+          <button
+            onClick={handlePasswordSubmit}
+            className="btn-primary-sm w-full py-2.5"
+          >
               {passwordModalMode === "export"
                 ? "Encrypt & Export"
                 : "Decrypt & Import"}
@@ -363,7 +364,7 @@ export default function BackupSection({
                 setPasswordError("");
                 setPendingFile(null);
               }}
-              className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
+              className="btn-cancel-sm py-2.5"
             >
               Cancel
             </button>
@@ -437,7 +438,7 @@ export default function BackupSection({
                 setPendingImportPayload(null);
                 setPendingImportMeta(null);
               }}
-              className="flex-1 bg-theme-danger hover:opacity-90 text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
+              className="btn-danger-sm w-full py-2.5"
             >
               Proceed Anyway
             </button>
@@ -447,7 +448,7 @@ export default function BackupSection({
                 setPendingImportPayload(null);
                 setPendingImportMeta(null);
               }}
-              className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
+              className="btn-cancel-sm py-2.5"
             >
               Cancel
             </button>

@@ -3,12 +3,14 @@ import { useSettings } from "../../context/settingsContext";
 import { useAuth } from "../../context/authContext";
 import { StorageService } from "../../services/storageService";
 import { THEMES } from "../../utils/themeConfig";
+import { cn } from "../../utils/cn";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
 import BackfillHistoricalDataModal from "./BackfillHistoricalDataModal";
 import ScheduleModal from "./ScheduleModal";
 import BackupSection from "./BackupSection";
 import type { Expense, Schedule, ThemeConfig } from "../../types";
+import "./settings.css";
 
 const MONTHS = [
   "Jan",
@@ -111,11 +113,12 @@ function ThemeCard({ theme, isSelected, onClick }: ThemeCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex-shrink-0 w-28 sm:w-32 p-2 rounded-theme-large border-2 transition-all text-left snap-start ${
+      className={cn(
+        "flex-shrink-0 w-28 sm:w-32 p-2 rounded-theme-large border-2 transition-all text-left snap-start",
         isSelected
           ? "border-theme-primary ring-2 ring-theme-primary/30"
           : "border-transparent hover:border-theme-border"
-      }`}
+      )}
       style={{ background: preview.background }}
     >
       <div
@@ -665,7 +668,12 @@ export default function SettingsPage({
           </h2>
           {importStatus && (
             <p
-              className={`text-xs ${importStatus.includes("success") || importStatus.startsWith("Imported") ? "text-theme-success" : "text-theme-danger"}`}
+              className={cn(
+                "text-xs",
+                importStatus.includes("success") || importStatus.startsWith("Imported")
+                  ? "text-theme-success"
+                  : "text-theme-danger"
+              )}
             >
               {importStatus}
             </p>
@@ -777,7 +785,10 @@ export default function SettingsPage({
                       {upcoming.map((s) => (
                         <div
                           key={s.id}
-                          className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-theme-background border-l-2 border-l-theme-primary"
+                          className={cn(
+                            "schedule-row",
+                            "schedule-row-upcoming"
+                          )}
                         >
                           <div>
                             <span className="font-medium text-theme-text">
@@ -838,7 +849,10 @@ export default function SettingsPage({
                       {past.map((s) => (
                         <div
                           key={s.id}
-                          className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-theme-background"
+                          className={cn(
+                            "schedule-row",
+                            "schedule-row-archived"
+                          )}
                         >
                           <div>
                             <span className="font-medium text-theme-text">

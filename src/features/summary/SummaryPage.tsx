@@ -10,6 +10,7 @@ import {
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
 import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
+import { cn } from "../../utils/cn";
 import IncomeForm from "./IncomeForm";
 import FixedExpensesList from "../fixedExpenses/FixedExpensesList";
 import SavingsForm from "./SavingsForm";
@@ -63,9 +64,10 @@ function BreakdownPie({ type, financialSummary, variableBreakdown }) {
           >
             <span className="text-sm text-theme-text">{item.name}</span>
             <span
-              className={`text-sm font-medium tabular-nums ${
+              className={cn(
+                "text-sm font-medium tabular-nums",
                 item.value < 0 ? "text-theme-danger" : "text-theme-text"
-              }`}
+              )}
             >
               {currency(item.value)}
             </span>

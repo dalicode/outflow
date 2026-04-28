@@ -1,0 +1,37 @@
+/* Dashboard-specific styles */
+
+/* Category filter chip */
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.category-chip-inactive {
+  background-color: var(--theme-surface);
+  color: var(--theme-muted);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+.category-chip-inactive:hover {
+  color: var(--theme-text);
+}
+.category-chip-active {
+  background-color: var(--theme-primary);
+  color: #ffffff;
+}
+
+/* Month navigation button */
+.month-nav-btn {
+  padding: 0.5rem;
+  border-radius: var(--radius-small);
+  color: var(--theme-muted);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.month-nav-btn:hover {
+  color: var(--theme-text);
+  background-color: var(--theme-background);
+}

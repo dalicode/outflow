@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useSettings } from "../../context/settingsContext";
+import { cn } from "../../utils/cn";
 import type { Expense, Category } from "../../types";
 
 interface EditableCellProps {
@@ -151,9 +152,10 @@ export default function ExpenseTable({
             return (
               <tr
                 key={exp.id}
-                className={`border-b border-theme-muted/10 transition-colors duration-150 hover:bg-theme-primary/[0.03] ${
-                  isSelected ? "bg-theme-primary/[0.04]" : ""
-                }`}
+                className={cn(
+                  "border-b border-theme-muted/10 transition-colors duration-150 hover:bg-theme-primary/[0.03]",
+                  isSelected && "bg-theme-primary/[0.04]"
+                )}
               >
                 {manageMode && (
                   <td className="px-3 py-2.5 text-center">
@@ -193,11 +195,11 @@ export default function ExpenseTable({
                     </select>
                   ) : (
                     <span
-                      className={
+                      className={cn(
                         catMap[exp.categoryId as number]?.isDeleted
                           ? "text-theme-muted italic"
                           : "text-theme-text font-medium"
-                      }
+                      )}
                     >
                       {resolveName(exp)}
                     </span>

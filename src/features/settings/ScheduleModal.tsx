@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Modal from "../../components/ui/Modal";
 import { StorageService } from "../../services/storageService";
+import { cn } from "../../utils/cn";
 import type { Schedule, FixedExpense } from "../../types";
 
 const MONTHS = [
@@ -175,7 +176,7 @@ export default function ScheduleModal({
           <select
             value={type}
             onChange={(e) => setType(e.target.value as "income" | "savingsRate" | "fixedExpense")}
-            className={`${selectCls} w-full${isReadOnly ? disabledCls : ""}`}
+            className={cn(selectCls, "w-full", isReadOnly && disabledCls)}
             disabled={isReadOnly}
           >
             {SCHEDULE_TYPES.map((t) => (
@@ -195,7 +196,7 @@ export default function ScheduleModal({
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              className={`${selectCls} w-full${isReadOnly ? disabledCls : ""}`}
+              className={cn(selectCls, "w-full", isReadOnly && disabledCls)}
               disabled={isReadOnly}
             >
               <option value="">Select…</option>
@@ -224,7 +225,7 @@ export default function ScheduleModal({
                   setEffectiveMonth(currentMonth);
                 }
               }}
-              className={`${selectCls} w-28${isReadOnly ? disabledCls : ""}`}
+              className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
               disabled={isReadOnly}
             >
               {yearOptions.map((y) => (
@@ -236,7 +237,7 @@ export default function ScheduleModal({
             <select
               value={Math.max(effectiveMonth, minMonth)}
               onChange={(e) => setEffectiveMonth(parseInt(e.target.value, 10))}
-              className={`${selectCls} w-28${isReadOnly ? disabledCls : ""}`}
+              className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
               disabled={isReadOnly}
             >
               {MONTHS.map((m, i) => {
@@ -269,7 +270,7 @@ export default function ScheduleModal({
               type === "savingsRate" ? "e.g. 25" : "e.g. 6000"
             }
             step={type === "savingsRate" ? "0.1" : "0.01"}
-            className={`${inputCls} w-full${isReadOnly ? disabledCls : ""}`}
+            className={cn(inputCls, "w-full", isReadOnly && disabledCls)}
             disabled={isReadOnly}
           />
         </div>
@@ -283,7 +284,7 @@ export default function ScheduleModal({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Annual salary review"
-            className={`${inputCls} w-full${isReadOnly ? disabledCls : ""}`}
+            className={cn(inputCls, "w-full", isReadOnly && disabledCls)}
             disabled={isReadOnly}
           />
         </div>

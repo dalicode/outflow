@@ -161,6 +161,48 @@ The `appVersion` in backup metadata is auto-synced from `package.json`. Bump the
 - **All params typed**, explicit return types on exported functions
 - **No `@ts-nocheck` or `@ts-ignore`** directives anywhere in the codebase
 
+### Conditional className Composition
+
+Use the `cn()` utility (`src/utils/cn.ts`) — a thin wrapper around `clsx` + `tailwind-merge` — for all conditional className strings:
+
+```tsx
+import { cn } from "../../utils/cn";
+
+// ✅ Good
+className={cn(
+  "flex items-center rounded-lg transition-colors",
+  isActive
+    ? "bg-theme-primary/5 text-theme-primary font-semibold"
+    : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
+  collapsed && "justify-center"
+)}
+
+// ❌ Avoid template-literal concatenation
+className={`flex items-center rounded-lg ${isActive ? "bg-theme-primary" : ""}`}
+```
+
+### Hybrid CSS Organization
+
+We use a **hybrid approach** — Tailwind utility classes for one-offs, CSS classes for reusable patterns:
+
+| Approach | Location | Use When |
+|----------|----------|----------|
+| **Tailwind inline** | JSX `className` | One-off styling, layout, spacing |
+| **Global CSS class** | `src/styles/themes.css` | Pattern used by **3+ features** (e.g. `.btn-primary-sm`, `.table-header-cell`) |
+| **Feature CSS class** | `src/features/{name}/{name}.css` | Pattern used by **1–2 features** only (e.g. `.category-chip`, `.analytics-tab`) |
+
+Import feature CSS in the feature's entry component:
+
+```tsx
+// src/features/dashboard/Dashboard.tsx
+import "./dashboard.css";
+```
+
+**Rules:**
+- Do **not** create wrapper React components purely for styling (e.g. no `<PrimaryButton>` — use `.btn-primary-sm` or inline Tailwind).
+- Do **not** use `@apply` in feature CSS files — write plain CSS.
+- Global primitives in `themes.css` may use `@apply` if they bundle many Tailwind utilities.
+
 ## Database Schema (Dexie v7)
 
 ```

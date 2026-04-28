@@ -1,5 +1,6 @@
 import { useState, type ReactNode, type MouseEventHandler } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { cn } from "../../utils/cn";
 
 
 interface NavIconProps {
@@ -249,7 +250,10 @@ export default function Navbar({
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden sm:flex flex-col h-screen sticky top-0 bg-theme-surface border-r border-theme-border z-40 transition-all duration-200 ease-in-out ${sidebarWidth}`}
+        className={cn(
+          "hidden sm:flex flex-col h-screen sticky top-0 bg-theme-surface border-r border-theme-border z-40 transition-all duration-200 ease-in-out",
+          sidebarWidth
+        )}
       >
         {/* Brand + Collapse toggle */}
         <div className="px-3 pt-4 pb-2 flex items-center justify-between">
@@ -317,15 +321,13 @@ export default function Navbar({
                 key={to}
                 to={to}
                 end
-                className={`
-                  flex items-center rounded-lg transition-colors duration-150
-                  ${collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2"}
-                  ${
-                    isActive
-                      ? "bg-theme-primary/5 text-theme-primary font-semibold"
-                      : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
-                  }
-                `}
+                className={cn(
+                  "flex items-center rounded-lg transition-colors duration-150",
+                  collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2",
+                  isActive
+                    ? "bg-theme-primary/5 text-theme-primary font-semibold"
+                    : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
+                )}
               >
                 <Icon active={isActive} />
                 {!collapsed && (
@@ -341,10 +343,10 @@ export default function Navbar({
           {/* Add expense */}
           <button
             onClick={onAddExpense}
-            className={`
-                  w-full flex items-center rounded-lg text-theme-primary transition-all duration-150 hover:bg-theme-primary/5 active:scale-95
-                  ${collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2"}
-                `}
+            className={cn(
+              "w-full flex items-center rounded-lg text-theme-primary transition-all duration-150 hover:bg-theme-primary/5 active:scale-95",
+              collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2"
+            )}
             aria-label="Add expense"
           >
             <PlusIcon />
@@ -355,7 +357,9 @@ export default function Navbar({
 
           {syncDot && (
             <div
-              className={`${collapsed ? "flex justify-center py-2" : "px-3 py-2 mx-2"}`}
+              className={cn(
+                collapsed ? "flex justify-center py-2" : "px-3 py-2 mx-2"
+              )}
             >
               {syncDot}
             </div>
@@ -364,10 +368,10 @@ export default function Navbar({
           {onSignOut && (
             <button
               onClick={onSignOut}
-              className={`
-                w-full flex items-center rounded-lg transition-colors duration-150 text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5
-                ${collapsed ? "justify-center py-2.5 px-2 mx-1" : "gap-3 py-2.5 px-3 mx-2"}
-              `}
+              className={cn(
+                "w-full flex items-center rounded-lg transition-colors duration-150 text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5",
+                collapsed ? "justify-center py-2.5 px-2 mx-1" : "gap-3 py-2.5 px-3 mx-2"
+              )}
               title={userEmail}
             >
               <SignOutIcon />
@@ -397,9 +401,10 @@ export default function Navbar({
               to={to}
               end
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
+                cn(
+                  "flex flex-col items-center justify-center flex-1 py-1 transition-colors",
                   isActive ? "text-theme-primary" : "text-theme-muted"
-                }`
+                )
               }
             >
               <Icon active={location.pathname === to} />
@@ -409,7 +414,8 @@ export default function Navbar({
 
           <button
             onClick={onAddExpense}
-            className="-mt-4 !mx-0 w-14 h-14 rounded-full bg-theme-primary text-white shadow-lg shadow-theme-primary/30 flex flex-col items-center justify-center transition-transform active:scale-90 hover:scale-105 z-10 shrink-0"
+            className="-mt-4 !mx-0 w-14 h-14 rounded-full bg-theme-primary text-white shadow-lg flex flex-col items-center justify-center transition-transform active:scale-90 hover:scale-105 z-10 shrink-0"
+            style={{ boxShadow: "0 10px 15px -3px color-mix(in srgb, var(--theme-primary) 30%, transparent)" }}
             aria-label="Add expense"
           >
             <PlusIcon />
@@ -421,9 +427,10 @@ export default function Navbar({
               to={to}
               end
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
+                cn(
+                  "flex flex-col items-center justify-center flex-1 py-1 transition-colors",
                   isActive ? "text-theme-primary" : "text-theme-muted"
-                }`
+                )
               }
             >
               <Icon active={location.pathname === to} />
