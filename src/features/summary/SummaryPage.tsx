@@ -17,6 +17,7 @@ import SavingsForm from "./SavingsForm";
 import SummarySection from "./SummarySection";
 import ChartComponent from "../../components/charts/ChartComponent";
 import Card from "../../components/ui/Card";
+import "./summary.css";
 
 type SliceType = "fixed" | "variable" | "savings";
 
@@ -60,7 +61,7 @@ function BreakdownPie({ type, financialSummary, variableBreakdown }) {
         {data.map((item) => (
           <div
             key={item.name}
-            className="flex items-center justify-between py-1.5 border-b border-theme-border/30 last:border-0"
+            className="breakdown-row"
           >
             <span className="text-sm text-theme-text">{item.name}</span>
             <span
@@ -73,7 +74,7 @@ function BreakdownPie({ type, financialSummary, variableBreakdown }) {
             </span>
           </div>
         ))}
-        <div className="flex items-center justify-between py-1.5 border-t border-theme-border/50 pt-2">
+        <div className="breakdown-total-row">
           <span className="text-sm font-medium text-theme-text">Total Savings</span>
           <span className="text-sm font-bold tabular-nums text-theme-success">
             {currency(financialSummary.autoSavings + financialSummary.remaining)}

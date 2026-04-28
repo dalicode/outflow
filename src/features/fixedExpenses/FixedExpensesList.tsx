@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { cn } from "../../utils/cn";
 import { useSettings } from "../../context/settingsContext";
+import "../expenses/expenses.css";
 import type { FixedExpense } from "../../types";
 
 const EMPTY = { name: "", amount: "" };
@@ -129,7 +131,7 @@ export default function FixedExpensesList({
           {manageMode && (
             <button
               onClick={openAdd}
-              className="bg-theme-primary hover:opacity-90 text-white font-semibold w-7 h-7 rounded-full flex items-center justify-center text-lg leading-none transition-opacity"
+              className="btn-add-circle"
               aria-label="Add fixed expense"
             >
               +
@@ -139,9 +141,10 @@ export default function FixedExpensesList({
             onClick={toggleManageMode}
             aria-label={manageMode ? "Done" : "Manage fixed expenses"}
             aria-pressed={manageMode}
-            className={`w-8 h-8 flex items-center justify-center rounded-theme-small transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 ${
+            className={cn(
+              "manage-toggle-btn",
               manageMode ? "text-white" : "text-theme-muted"
-            }`}
+            )}
           >
             {manageMode ? <CheckIcon /> : <PencilIcon />}
           </button>
@@ -232,7 +235,7 @@ export default function FixedExpensesList({
             </label>
             <button
               type="submit"
-              className="w-full bg-theme-primary hover:opacity-90 text-white font-medium py-2 rounded-theme-medium transition-opacity"
+              className="btn-submit-fixed"
             >
               {modalMode === "add" ? "Add" : "Save"}
             </button>

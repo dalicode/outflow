@@ -1,0 +1,82 @@
+/* Summary feature styles */
+
+/* Stat card used in SummarySection */
+.summary-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--theme-surface);
+  border-radius: var(--radius-large);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid var(--theme-border);
+}
+
+/* Reusable label text */
+.summary-label {
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--theme-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Breakdown list row */
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 30%, transparent);
+}
+.breakdown-row:last-child {
+  border-bottom-width: 0;
+}
+
+/* Breakdown total row */
+.breakdown-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.5rem;
+  padding-bottom: 0.375rem;
+  border-top: 1px solid color-mix(in srgb, var(--theme-border) 50%, transparent);
+}
+
+/* Save button in income / savings modals */
+.summary-save-btn {
+  flex: 1 1 0%;
+  background-color: var(--theme-primary);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-small);
+  transition: opacity 0.15s ease;
+}
+.summary-save-btn:hover {
+  opacity: 0.9;
+}
+
+/* Cancel button in income / savings modals */
+.summary-cancel-btn {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--theme-muted);
+  transition: color 0.15s ease;
+}
+.summary-cancel-btn:hover {
+  color: var(--theme-text);
+}
+
+/* Modal close (×) button */
+.modal-close-btn {
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--theme-muted);
+  transition: color 0.15s ease;
+}
+.modal-close-btn:hover {
+  color: var(--theme-text);
+}

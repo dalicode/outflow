@@ -1,0 +1,39 @@
+/* Auth page styles */
+
+/* Primary submit button */
+.auth-submit-btn {
+  width: 100%;
+  background-color: var(--theme-primary);
+  color: #ffffff;
+  font-weight: 500;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  border-radius: var(--radius-medium);
+  transition: opacity 0.15s ease;
+}
+.auth-submit-btn:hover {
+  opacity: 0.9;
+}
+.auth-submit-btn:disabled {
+  opacity: 0.6;
+}
+
+/* Secondary button (Google sign-in) */
+.auth-secondary-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  border-radius: var(--radius-medium);
+  transition: background-color 0.15s ease;
+}
+.auth-secondary-btn:hover {
+  background-color: var(--theme-background);
+}

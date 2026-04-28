@@ -156,7 +156,7 @@ export default function AnalyticsTable({ data, goToMonth, formatAmount, getNumbe
                   <th
                     key={header.id}
                     className={cn(
-                      "px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap backdrop-blur-md bg-theme-surface/95 border-b border-theme-border transition-colors duration-150",
+                      "table-header-cell",
                       isSticky ? "sticky left-0 z-30 text-left border-r border-theme-border" : "text-center",
                       isYearTotal ? "bg-theme-primary/[0.04] text-theme-primary" : "text-theme-muted",
                       isMonth && "cursor-pointer hover:text-theme-primary"
@@ -186,7 +186,7 @@ export default function AnalyticsTable({ data, goToMonth, formatAmount, getNumbe
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-3 py-2 text-xs font-semibold uppercase tracking-wider text-theme-muted whitespace-nowrap border-b border-theme-muted/10",
+                          "analytics-section-cell",
                           isSticky && "sticky left-0 bg-theme-surface z-10 border-r border-theme-border"
                         )}
                       >
@@ -208,7 +208,7 @@ export default function AnalyticsTable({ data, goToMonth, formatAmount, getNumbe
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-3 py-2.5 text-sm text-theme-muted italic whitespace-nowrap border-b border-theme-muted/10",
+                          "analytics-empty-cell",
                           isSticky && "sticky left-0 bg-theme-surface z-10 border-r border-theme-border"
                         )}
                       >
@@ -334,7 +334,7 @@ export default function AnalyticsTable({ data, goToMonth, formatAmount, getNumbe
                     <td
                       key={cell.id}
                       className={cn(
-                        "px-3 py-2.5 whitespace-nowrap text-sm border-b border-theme-muted/10 transition-colors duration-150",
+                        "analytics-data-cell",
                         isSticky ? "sticky left-0 bg-theme-surface z-10 border-r border-theme-border text-left" : "text-right",
                         isYearTotal && "bg-theme-primary/[0.03] font-semibold",
                         (monthIndex != null || isYearTotal) && "number"

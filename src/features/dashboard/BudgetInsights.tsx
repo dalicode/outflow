@@ -1,4 +1,5 @@
 import { useSettings } from "../../context/settingsContext";
+import "./dashboard.css";
 import type { MonthlySummary } from "../../types";
 
 interface InsightTileProps {
@@ -21,7 +22,7 @@ function InsightTile({ label, value, tone, subValue }: InsightTileProps) {
           : getNumberColorClass(Number(value.replace(/[^0-9.-]/g, "")) || 0);
 
   return (
-    <div className="min-w-[130px] md:min-w-0 flex-1 rounded-xl bg-theme-surface shadow-sm p-4 transition-shadow duration-200 hover:shadow-md">
+    <div className="insight-tile">
       <div
         className={`text-2xl font-bold tabular-nums tracking-tight ${toneClass}`}
       >
@@ -62,7 +63,7 @@ export default function BudgetInsights({ summary }: BudgetInsightsProps) {
   return (
     <div className="space-y-4">
       {/* Insight tiles */}
-      <div className="flex md:grid md:grid-cols-4 gap-3 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+      <div className="insight-scroll">
         <InsightTile
           label="Spending"
           value={formatAmount(variableExpenses)}

@@ -32,3 +32,32 @@
 .summary-card:hover {
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
+
+/* Analytics table cells */
+.analytics-section-cell {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--theme-muted);
+  white-space: nowrap;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
+}
+
+.analytics-empty-cell {
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  color: var(--theme-muted);
+  white-space: nowrap;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
+}
+
+.analytics-data-cell {
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}

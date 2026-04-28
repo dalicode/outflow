@@ -165,7 +165,7 @@ export default function ScheduleModal({
     >
       <div className="space-y-4">
         {isReadOnly && (
-          <div className="rounded-lg bg-theme-primary/10 border border-theme-primary/20 px-3 py-2 text-xs text-theme-primary">
+          <div className="modal-readonly-banner">
             This schedule has already taken effect and cannot be edited.
           </div>
         )}
@@ -304,14 +304,14 @@ export default function ScheduleModal({
         <div className="flex items-center justify-end gap-2 pt-2">
           <button
             onClick={handleClose}
-            className="bg-theme-background hover:bg-theme-border/40 text-theme-text font-medium px-4 py-2 rounded-lg border border-theme-border transition-all text-sm"
+            className="btn-modal-cancel"
           >
             {isReadOnly ? "Close" : "Cancel"}
           </button>
           {!isReadOnly && (
             <button
               onClick={handleSave}
-              className="bg-theme-primary hover:brightness-110 text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all text-sm"
+              className="btn-modal-primary"
               disabled={saving}
             >
               {saving ? "Saving…" : editSchedule ? "Update" : "Save Schedule"}

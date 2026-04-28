@@ -250,10 +250,7 @@ export default function Navbar({
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={cn(
-          "hidden sm:flex flex-col h-screen sticky top-0 bg-theme-surface border-r border-theme-border z-40 transition-all duration-200 ease-in-out",
-          sidebarWidth
-        )}
+        className={cn("navbar-desktop", sidebarWidth)}
       >
         {/* Brand + Collapse toggle */}
         <div className="px-3 pt-4 pb-2 flex items-center justify-between">
@@ -273,7 +270,7 @@ export default function Navbar({
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}
-              className="p-1.5 rounded-md text-theme-muted hover:text-theme-text hover:bg-theme-background transition-colors shrink-0"
+              className="navbar-toggle-btn"
               aria-label="Collapse sidebar"
               title="Collapse"
             >
@@ -295,7 +292,7 @@ export default function Navbar({
           <div className="flex justify-center pb-2">
             <button
               onClick={() => setCollapsed(false)}
-              className="p-1.5 rounded-md text-theme-muted hover:text-theme-text hover:bg-theme-background transition-colors"
+              className="navbar-toggle-btn"
               aria-label="Expand sidebar"
               title="Expand"
             >
@@ -394,7 +391,7 @@ export default function Navbar({
 
       {/* Mobile Bottom Navigation */}
       <nav className="sm:hidden fixed bottom-4 left-4 right-4 z-30">
-        <div className="bg-theme-surface/95 backdrop-blur-md rounded-2xl shadow-lg border border-theme-border flex items-center h-14 px-2">
+        <div className="mobile-nav-container">
           {links.slice(0, 2).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -414,8 +411,7 @@ export default function Navbar({
 
           <button
             onClick={onAddExpense}
-            className="-mt-4 !mx-0 w-14 h-14 rounded-full bg-theme-primary text-white shadow-lg flex flex-col items-center justify-center transition-transform active:scale-90 hover:scale-105 z-10 shrink-0"
-            style={{ boxShadow: "0 10px 15px -3px color-mix(in srgb, var(--theme-primary) 30%, transparent)" }}
+            className="mobile-add-btn"
             aria-label="Add expense"
           >
             <PlusIcon />

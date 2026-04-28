@@ -41,7 +41,7 @@ function Row({ label, value, onChange, options }: RowProps) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border border-theme-border rounded-theme-medium px-2.5 py-1 text-sm bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+        className="input-md"
       >
         {options.map(([v, l]) => (
           <option key={v} value={v}>
@@ -602,7 +602,7 @@ export default function SettingsPage({
                 onChange={(e) =>
                   setExportRange((r) => ({ ...r, from: e.target.value }))
                 }
-                className="w-full border border-theme-border rounded-theme-small px-2 py-1 text-xs bg-theme-surface text-theme-text focus:outline-none focus:ring-1 focus:ring-theme-primary/40"
+                className="input-sm"
               />
             </label>
             <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
@@ -613,12 +613,12 @@ export default function SettingsPage({
                 onChange={(e) =>
                   setExportRange((r) => ({ ...r, to: e.target.value }))
                 }
-                className="w-full border border-theme-border rounded-theme-small px-2 py-1 text-xs bg-theme-surface text-theme-text focus:outline-none focus:ring-1 focus:ring-theme-primary/40"
+                className="input-sm"
               />
             </label>
             <button
               onClick={handleExport}
-              className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity"
+              className="btn-primary-sm"
             >
               Export
             </button>
@@ -703,7 +703,7 @@ export default function SettingsPage({
           </p>
           <button
             onClick={() => setShowBackfillModal(true)}
-            className="bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+            className="btn-primary-sm"
           >
             Backfill Fixed Expenses
           </button>
@@ -821,7 +821,7 @@ export default function SettingsPage({
                                 setEditingSchedule(s);
                                 setShowScheduleModal(true);
                               }}
-                              className="text-theme-primary hover:opacity-80 text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
+                              className="settings-edit-btn"
                             >
                               Edit
                             </button>
@@ -832,7 +832,7 @@ export default function SettingsPage({
                                 );
                                 loadSchedules();
                               }}
-                              className="text-theme-danger hover:opacity-80 text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
+                              className="settings-del-btn"
                             >
                               Del
                             </button>
@@ -919,7 +919,7 @@ export default function SettingsPage({
         </p>
         <button
           onClick={() => setShowClearModal(true)}
-          className="bg-theme-danger hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+          className="btn-danger-sm"
         >
           Clear All Data
         </button>
@@ -977,7 +977,7 @@ export default function SettingsPage({
                 setShowClearModal(false);
                 setDeleteConfirm("");
               }}
-              className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
+              className="btn-cancel-sm"
             >
               Cancel
             </button>

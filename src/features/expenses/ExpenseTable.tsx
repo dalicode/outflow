@@ -25,7 +25,7 @@ function EditableCell({
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+                      className="input-sm"
     />
   );
 }
@@ -113,7 +113,7 @@ export default function ExpenseTable({
         <thead className="sticky top-0 z-10">
           <tr>
             {manageMode && (
-              <th className="px-3 py-2.5 text-center w-10 backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+              <th className="table-header-cell text-center w-10">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -123,20 +123,20 @@ export default function ExpenseTable({
                 />
               </th>
             )}
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+            <th className="table-header-cell text-left">
               Date
             </th>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+            <th className="table-header-cell text-left">
               Category
             </th>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+            <th className="table-header-cell text-left">
               Description
             </th>
-            <th className="px-3 py-2.5 text-right text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20 tabular-nums">
+            <th className="table-header-cell text-right tabular-nums">
               Amount
             </th>
             {manageMode && (
-              <th className="px-3 py-2.5 text-center text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+              <th className="table-header-cell text-center">
                 Actions
               </th>
             )}
@@ -185,7 +185,7 @@ export default function ExpenseTable({
                       onChange={(e) =>
                         setField("categoryId")(Number(e.target.value))
                       }
-                      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+      className="input-sm"
                     >
                       {activeCategories.map((c) => (
                         <option key={c.id} value={c.id as number}>

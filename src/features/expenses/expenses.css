@@ -6,3 +6,71 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
+
+/* Full-width save button (ExpenseForm) */
+.btn-save-expense {
+  width: 100%;
+  border-radius: var(--radius-medium);
+  background-color: var(--theme-primary);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  transition: opacity 0.15s ease;
+}
+.btn-save-expense:hover {
+  opacity: 0.9;
+}
+
+/* Circular add button (FixedExpensesList) */
+.btn-add-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background-color: var(--theme-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #ffffff;
+  transition: opacity 0.15s ease;
+}
+.btn-add-circle:hover {
+  opacity: 0.9;
+}
+
+/* Fixed expense modal submit button */
+.btn-submit-fixed {
+  width: 100%;
+  border-radius: var(--radius-medium);
+  background-color: var(--theme-primary);
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  transition: opacity 0.15s ease;
+}
+.btn-submit-fixed:hover {
+  opacity: 0.9;
+}
+
+/* Manage toggle button (FixedExpensesList) */
+.manage-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-small);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.manage-toggle-btn:focus {
+  outline: none;
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) color-mix(in srgb, var(--theme-primary) 40%, transparent);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}

@@ -35,3 +35,116 @@
   color: var(--theme-text);
   background-color: var(--theme-background);
 }
+
+/* Current month badge (next to month label) */
+.current-badge {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--theme-primary);
+  background-color: color-mix(in srgb, var(--theme-primary) 10%, transparent);
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+}
+
+/* Bulk delete floating button */
+.bulk-delete-btn {
+  position: absolute;
+  right: 2.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-small);
+  background-color: var(--theme-danger);
+  color: #ffffff;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+}
+.bulk-delete-btn:hover {
+  opacity: 0.9;
+}
+
+/* Confirm delete modal actions */
+.confirm-delete-btn {
+  flex: 1 1 0%;
+  background-color: var(--theme-danger);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.625rem 0;
+  border-radius: var(--radius-small);
+  transition: opacity 0.15s ease;
+}
+.confirm-delete-btn:hover {
+  opacity: 0.9;
+}
+.confirm-cancel-btn {
+  flex: 1 1 0%;
+  background-color: var(--theme-background);
+  color: var(--theme-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.625rem 0;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--theme-border);
+  transition: background-color 0.15s ease;
+}
+.confirm-cancel-btn:hover {
+  background-color: var(--theme-border);
+}
+
+/* Insight tile (BudgetInsights) */
+.insight-tile {
+  display: flex;
+  min-width: 130px;
+  flex: 1 1 0%;
+  flex-direction: column;
+  border-radius: var(--radius-large);
+  background-color: var(--theme-surface);
+  padding: 1rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: box-shadow 0.2s ease;
+}
+.insight-tile:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Dashboard manage button (month nav) */
+.dashboard-manage-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-small);
+  transition: color 0.15s ease, background-color 0.15s ease;
+  z-index: 10;
+}
+.dashboard-manage-btn:focus {
+  outline: none;
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) color-mix(in srgb, var(--theme-primary) 40%, transparent);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+/* Horizontal scroll container for insight tiles */
+.insight-scroll {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+@media (min-width: 768px) {
+  .insight-scroll {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+}

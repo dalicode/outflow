@@ -263,7 +263,7 @@ export default function BackupSection({
           <div className="flex gap-2">
             <button
               onClick={handleBackupExport}
-              className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity"
+              className="btn-primary-sm"
             >
               Export Backup
             </button>

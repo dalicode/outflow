@@ -9,8 +9,8 @@ interface CardProps {
 
 function Card({ label, value, colorClass = "text-theme-text" }: CardProps) {
   return (
-    <div className="bg-theme-surface rounded-xl shadow-sm px-4 py-3 flex flex-col gap-0.5 border border-theme-border">
-      <span className="text-xs text-theme-muted uppercase tracking-widest mb-2">
+    <div className="summary-stat-card">
+      <span className="summary-label">
         {label}
       </span>
       <span className={`text-xl font-semibold ${colorClass}`}>{value}</span>
@@ -38,7 +38,7 @@ export default function SummarySection({ summary }: SummarySectionProps) {
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
+      <h3 className="summary-label font-semibold">
         Financial Summary
       </h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

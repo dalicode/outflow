@@ -1,5 +1,7 @@
 import { useState, useMemo, type FormEvent } from 'react'
+import { cn } from '../../utils/cn'
 import { useSettings } from '../../context/settingsContext'
+import './expenses.css'
 import type { Expense, Category } from '../../types'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -50,7 +52,7 @@ function CategoryModal({ categories, onCategoriesChange, onClose }: CategoryModa
         <form onSubmit={addCat} className="flex gap-2">
           <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category…" autoFocus
             className="input-theme text-sm flex-1 px-3 py-2" />
-          <button type="submit" className="bg-theme-primary hover:opacity-90 text-white text-sm px-3 py-2 rounded-theme-small transition-opacity">Add</button>
+          <button type="submit"             className="btn-primary-sm">Add</button>
         </form>
         {newError && <p className="text-theme-danger text-xs -mt-2">{newError}</p>}
         <ul className="space-y-1 max-h-64 overflow-y-auto">
@@ -151,7 +153,7 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
               step="0.01" required inputMode="decimal" className={inputCls} />
           </label>
           <button type="submit"
-            className="w-full bg-theme-primary hover:opacity-90 text-white font-medium py-3 rounded-theme-medium transition-opacity">
+            className="btn-save-expense">
             Save Expense
           </button>
         </form>

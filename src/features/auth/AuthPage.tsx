@@ -2,6 +2,7 @@ import { useState, useRef, type FormEvent } from 'react'
 import { supabase } from '../../services/supabase'
 import { useSettings } from '../../context/settingsContext'
 import OutflowWordmark from '../../components/ui/OutflowWordmark'
+import './auth.css'
 
 type AuthMode = 'login' | 'signup'
 
@@ -80,7 +81,7 @@ export default function AuthPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-theme-primary hover:opacity-90 disabled:opacity-60 text-white font-medium py-2.5 rounded-theme-medium transition-opacity"
+            className="auth-submit-btn"
           >
             {loading
               ? 'Please wait…'
@@ -97,7 +98,7 @@ export default function AuthPage() {
 
         <button
           onClick={signInWithGoogle}
-          className="w-full border border-theme-border hover:bg-theme-background text-theme-text text-sm font-medium py-2.5 rounded-theme-medium transition-colors flex items-center justify-center gap-2"
+          className="auth-secondary-btn"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path

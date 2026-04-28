@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
+import { cn } from "../../utils/cn";
 
 function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -64,7 +65,7 @@ export default function SavingsForm({ savingsRate, onSave }: SavingsFormProps) {
         <button
           onClick={openModal}
           aria-label="Edit savings goal"
-          className="w-8 h-8 flex items-center justify-center rounded-theme-small text-theme-muted transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+          className="icon-btn"
         >
           <PencilIcon />
         </button>
@@ -87,7 +88,7 @@ export default function SavingsForm({ savingsRate, onSave }: SavingsFormProps) {
               <button
                 type="button"
                 onClick={closeModal}
-                className="text-theme-muted hover:text-theme-text text-xl leading-none"
+                className="modal-close-btn"
               >
                 &times;
               </button>
@@ -110,14 +111,14 @@ export default function SavingsForm({ savingsRate, onSave }: SavingsFormProps) {
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex-1 bg-theme-primary hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-theme-small transition-opacity"
+                className="summary-save-btn"
               >
                 Save
               </button>
               <button
                 type="button"
                 onClick={closeModal}
-                className="text-theme-muted hover:text-theme-text text-sm px-3 py-2 rounded-theme-small"
+                className={cn("summary-cancel-btn", "rounded-theme-small")}
               >
                 Cancel
               </button>

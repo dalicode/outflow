@@ -1108,14 +1108,14 @@ export default function BackfillHistoricalDataModal({
           <div className="flex items-center justify-end gap-2 pt-4">
             <button
               onClick={handleClose}
-              className="bg-theme-background hover:bg-theme-border/40 text-theme-text font-medium px-4 py-2 rounded-lg border border-theme-border transition-all text-sm"
+              className="btn-modal-cancel"
               disabled={saving}
             >
               Cancel
             </button>
             <button
               onClick={handleConfirm}
-              className="bg-theme-primary hover:brightness-110 text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all text-sm"
+              className="btn-modal-primary"
               disabled={saving}
             >
               {saving ? "Saving…" : "Confirm Backfill"}

@@ -298,7 +298,7 @@ export default function Dashboard({
                 {label}
               </span>
               {isCurrentMonth && (
-                <span className="ml-2 text-xs bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-full font-medium">
+                <span className="current-badge">
                   current
                 </span>
               )}
@@ -341,7 +341,7 @@ export default function Dashboard({
             aria-label={manageMode ? "Done" : "Manage"}
             aria-pressed={manageMode}
             className={cn(
-              "absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 z-10",
+              "dashboard-manage-btn",
               manageMode
                 ? "bg-theme-primary text-white"
                 : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
@@ -373,7 +373,7 @@ export default function Dashboard({
           {manageMode && selectedIds.size > 0 && (
             <button
               onClick={handleBulkDeleteClick}
-              className="absolute right-10 top-1/2 -translate-y-1/2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-theme-danger text-white hover:opacity-90 transition-opacity z-10"
+              className="bulk-delete-btn"
             >
               Delete {selectedIds.size}
             </button>
@@ -395,13 +395,13 @@ export default function Dashboard({
               <div className="flex gap-3">
                 <button
                   onClick={confirmDelete}
-                  className="flex-1 bg-theme-danger hover:opacity-90 text-white text-sm font-semibold py-2.5 rounded-lg transition-opacity focus:outline-none focus:ring-2 focus:ring-theme-danger/50"
+                  className="confirm-delete-btn"
                 >
                   Delete
                 </button>
                 <button
                   onClick={() => setShowConfirm(false)}
-                  className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-sm font-semibold py-2.5 rounded-lg transition-colors border border-theme-border focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+                  className="confirm-cancel-btn"
                 >
                   Cancel
                 </button>
