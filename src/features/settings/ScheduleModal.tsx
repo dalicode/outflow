@@ -161,7 +161,7 @@ export default function ScheduleModal({
       isOpen={isOpen}
       onClose={handleClose}
       title={isReadOnly ? "Schedule Details" : editSchedule ? "Edit Schedule" : "Add Schedule"}
-      className="max-w-md w-[92vw]"
+      size="md"
     >
       <div className="space-y-4">
         {isReadOnly && (

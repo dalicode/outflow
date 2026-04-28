@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { cn } from "../../utils/cn";
 import { useSettings } from "../../context/settingsContext";
+import Modal from "../../components/ui/Modal";
 import "../expenses/expenses.css";
 import type { FixedExpense } from "../../types";
 
@@ -186,62 +187,48 @@ export default function FixedExpensesList({
         ))}
       </ul>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-10">
-          <form
-            onSubmit={handleSubmit}
-            className="modal-theme p-6 w-full max-w-sm space-y-4"
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title={modalMode === "add" ? "Add Fixed Expense" : "Edit Fixed Expense"}
+        size="md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <p className="text-theme-danger text-sm">{error}</p>}
+          <label className="flex flex-col gap-1 text-sm text-theme-muted">
+            Name
+            <input
+              value={form.name}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, name: e.target.value }))
+              }
+              placeholder="e.g. Rent"
+              autoFocus
+              className={inputCls}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-theme-muted">
+            Amount ($)
+            <input
+              type="number"
+              value={form.amount}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, amount: e.target.value }))
+              }
+              placeholder="0.00"
+              min="0.01"
+              step="0.01"
+              className={inputCls}
+            />
+          </label>
+          <button
+            type="submit"
+            className="btn-submit-fixed"
           >
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-theme-text">
-                {modalMode === "add"
-                  ? "Add Fixed Expense"
-                  : "Edit Fixed Expense"}
-              </h2>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="text-theme-muted hover:text-theme-text text-xl leading-none"
-              >
-                &times;
-              </button>
-            </div>
-            {error && <p className="text-theme-danger text-sm">{error}</p>}
-            <label className="flex flex-col gap-1 text-sm text-theme-muted">
-              Name
-              <input
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                placeholder="e.g. Rent"
-                autoFocus
-                className={inputCls}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-theme-muted">
-              Amount ($)
-              <input
-                type="number"
-                value={form.amount}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, amount: e.target.value }))
-                }
-                placeholder="0.00"
-                min="0.01"
-                step="0.01"
-                className={inputCls}
-              />
-            </label>
-            <button
-              type="submit"
-              className="btn-submit-fixed"
-            >
-              {modalMode === "add" ? "Add" : "Save"}
-            </button>
-          </form>
-        </div>
-      )}
+            {modalMode === "add" ? "Add" : "Save"}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 }

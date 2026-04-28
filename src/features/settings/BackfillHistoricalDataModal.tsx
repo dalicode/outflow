@@ -963,7 +963,7 @@ export default function BackfillHistoricalDataModal({
       isOpen={isOpen}
       onClose={handleClose}
       title="Backfill Historical Data"
-      className="max-w-3xl w-[92vw] max-h-[90vh] flex flex-col"
+      size="full"
     >
       {loading ? (
         <div className="py-8 text-center text-sm text-theme-muted">
@@ -981,9 +981,9 @@ export default function BackfillHistoricalDataModal({
             />
           )}
 
-          {/* Content card */}
-          <div className="bg-theme-surface border border-theme-border rounded-b-xl rounded-tr-xl shadow-sm overflow-y-auto pr-1">
-            <div className="p-5 space-y-5">
+          {/* Content */}
+          <div className="overflow-x-auto">
+            <div className="space-y-5">
               {activeYear && (
                 <>
                   {/* Income ranges */}

@@ -62,12 +62,12 @@ describe('Modal', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('applies custom className', () => {
+  it('applies size classes', () => {
     const { container } = render(
-      <Modal isOpen={true} onClose={vi.fn()} title="Test" className="custom-modal">
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="lg">
         Content
       </Modal>,
     )
-    expect(container.querySelector('.custom-modal')).toBeInTheDocument()
+    expect(container.querySelector('.sm\\:max-w-lg')).toBeInTheDocument()
   })
 })

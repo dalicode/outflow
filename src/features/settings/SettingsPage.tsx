@@ -932,7 +932,7 @@ export default function SettingsPage({
           setDeleteConfirm("");
         }}
         title="Clear All Data"
-        className="max-w-sm"
+        size="sm"
       >
         <div className="space-y-3">
           <p className="text-xs text-theme-muted">

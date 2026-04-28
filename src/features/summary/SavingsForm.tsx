@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
-import { cn } from "../../utils/cn";
+import Modal from "../../components/ui/Modal";
 
 function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -75,57 +75,45 @@ export default function SavingsForm({ savingsRate, onSave }: SavingsFormProps) {
       </p>
       <p className="text-sm text-theme-muted">of monthly income</p>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-10">
-          <form
-            onSubmit={submit}
-            className="modal-theme p-6 w-full max-w-sm space-y-4"
-          >
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-theme-text">
-                Edit Savings Goal
-              </h2>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="modal-close-btn"
-              >
-                &times;
-              </button>
-            </div>
-            {error && <p className="text-theme-danger text-xs">{error}</p>}
-            <div className="flex gap-2 items-center">
-              <input
-                type="number"
-                value={rate}
-                onChange={(e) => setRate(e.target.value)}
-                placeholder="e.g. 20"
-                min="0"
-                max="100"
-                step="0.1"
-                autoFocus
-                className="input-theme px-3 py-2 text-sm w-28"
-              />
-              <span className="text-sm text-theme-muted">%</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="summary-save-btn"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={closeModal}
-                className={cn("summary-cancel-btn", "rounded-theme-small")}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title="Edit Savings Goal"
+        size="md"
+      >
+        <form onSubmit={submit} className="space-y-4">
+          {error && <p className="text-theme-danger text-xs">{error}</p>}
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              placeholder="e.g. 20"
+              min="0"
+              max="100"
+              step="0.1"
+              autoFocus
+              className="input-theme px-3 py-2 text-sm w-28"
+            />
+            <span className="text-sm text-theme-muted">%</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="summary-save-btn"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="summary-cancel-btn rounded-theme-small"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

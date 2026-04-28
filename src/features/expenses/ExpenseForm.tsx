@@ -1,6 +1,7 @@
 import { useState, useMemo, type FormEvent } from 'react'
 import { cn } from '../../utils/cn'
 import { useSettings } from '../../context/settingsContext'
+import Modal from '../../components/ui/Modal'
 import './expenses.css'
 import type { Expense, Category } from '../../types'
 
@@ -43,40 +44,34 @@ function CategoryModal({ categories, onCategoriesChange, onClose }: CategoryModa
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-20">
-      <div className="modal-theme p-5 w-full max-w-sm space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-base font-semibold text-theme-text">Manage Categories</h2>
-          <button onClick={onClose} className="text-theme-muted hover:text-theme-text text-xl leading-none">&times;</button>
-        </div>
-        <form onSubmit={addCat} className="flex gap-2">
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category…" autoFocus
-            className="input-theme text-sm flex-1 px-3 py-2" />
-          <button type="submit"             className="btn-primary-sm">Add</button>
-        </form>
-        {newError && <p className="text-theme-danger text-xs -mt-2">{newError}</p>}
-        <ul className="space-y-1 max-h-64 overflow-y-auto">
-          {active.map((cat) => (
-            <li key={cat.id} className="flex items-center gap-2 text-sm">
-              {editId === cat.id ? (
-                <form onSubmit={saveEdit} className="flex gap-2 flex-1">
-                  <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
-                    className="input-theme text-sm flex-1 px-2 py-1" />
-                  <button type="submit" className="text-theme-success hover:opacity-80 font-medium">Save</button>
-                  <button type="button" onClick={() => setEditId(null)} className="text-theme-muted hover:text-theme-text">Cancel</button>
-                </form>
-              ) : (
-                <>
-                  <span className="flex-1 text-theme-text">{cat.name}</span>
-                  <button type="button" onClick={() => { setEditId(cat.id as number); setEditName(cat.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
-                  <button type="button" onClick={() => onCategoriesChange('delete', { id: cat.id })} className="text-theme-danger hover:opacity-80">Delete</button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <Modal isOpen={true} onClose={onClose} title="Manage Categories" size="md">
+      <form onSubmit={addCat} className="flex gap-2">
+        <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category…" autoFocus
+          className="input-theme text-sm flex-1 px-3 py-2" />
+        <button type="submit"             className="btn-primary-sm">Add</button>
+      </form>
+      {newError && <p className="text-theme-danger text-xs -mt-2">{newError}</p>}
+      <ul className="space-y-1 max-h-64 overflow-y-auto">
+        {active.map((cat) => (
+          <li key={cat.id} className="flex items-center gap-2 text-sm">
+            {editId === cat.id ? (
+              <form onSubmit={saveEdit} className="flex gap-2 flex-1">
+                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
+                  className="input-theme text-sm flex-1 px-2 py-1" />
+                <button type="submit" className="text-theme-success hover:opacity-80 font-medium">Save</button>
+                <button type="button" onClick={() => setEditId(null)} className="text-theme-muted hover:text-theme-text">Cancel</button>
+              </form>
+            ) : (
+              <>
+                <span className="flex-1 text-theme-text">{cat.name}</span>
+                <button type="button" onClick={() => { setEditId(cat.id as number); setEditName(cat.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
+                <button type="button" onClick={() => onCategoriesChange('delete', { id: cat.id })} className="text-theme-danger hover:opacity-80">Delete</button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Modal>
   )
 }
 
@@ -118,13 +113,8 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-10">
-        <form onSubmit={submit}
-          className="modal-theme w-full sm:max-w-md space-y-4 p-5">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-theme-text">Add Expense</h2>
-            <button type="button" onClick={onClose} className="text-theme-muted hover:text-theme-text text-xl leading-none">&times;</button>
-          </div>
+      <Modal isOpen={true} onClose={onClose} title="Add Expense" size="md">
+        <form onSubmit={submit} className="space-y-4">
           {error && <p className="text-theme-danger text-sm">{error}</p>}
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm text-theme-muted">
@@ -157,7 +147,7 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
             Save Expense
           </button>
         </form>
-      </div>
+      </Modal>
       {showCatModal && (
         <CategoryModal categories={categories} onCategoriesChange={onCategoriesChange} onClose={() => setShowCatModal(false)} />
       )}

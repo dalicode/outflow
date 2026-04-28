@@ -311,7 +311,7 @@ export default function BackupSection({
             ? "Encrypt Backup"
             : "Decrypt Backup"
         }
-        className="max-w-sm"
+        size="md"
       >
         <div className="space-y-3">
           <p className="text-xs text-theme-muted">
@@ -381,7 +381,7 @@ export default function BackupSection({
           setPendingImportMeta(null);
         }}
         title="Backup Version Mismatch"
-        className="max-w-sm"
+        size="md"
       >
         <div className="space-y-3">
           <p className="text-xs text-theme-danger">

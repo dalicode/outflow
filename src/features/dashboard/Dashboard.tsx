@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
+import Modal from "../../components/ui/Modal";
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
 import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
@@ -381,34 +382,32 @@ export default function Dashboard({
         </div>
 
         {/* Confirm delete modal */}
-        {showConfirm && (
-          <div className="backdrop-overlay">
-            <div className="bg-theme-surface rounded-xl p-6 w-full max-w-xs space-y-4 shadow-lg">
-              <h3 className="text-base font-semibold text-theme-text">
-                Confirm Delete
-              </h3>
-              <p className="text-sm text-theme-muted">
-                Are you sure you want to delete{" "}
-                <strong className="text-theme-text">{selectedIds.size}</strong>{" "}
-                expense{selectedIds.size !== 1 ? "s" : ""}?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={confirmDelete}
-                  className="confirm-delete-btn"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  className="confirm-cancel-btn"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+        <Modal
+          isOpen={showConfirm}
+          onClose={() => setShowConfirm(false)}
+          title="Confirm Delete"
+          size="sm"
+        >
+          <p className="text-sm text-theme-muted">
+            Are you sure you want to delete{" "}
+            <strong className="text-theme-text">{selectedIds.size}</strong>{" "}
+            expense{selectedIds.size !== 1 ? "s" : ""}?
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={confirmDelete}
+              className="confirm-delete-btn"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="confirm-cancel-btn"
+            >
+              Cancel
+            </button>
           </div>
-        )}
+        </Modal>
 
         <ExpenseTable
           expenses={filtered}

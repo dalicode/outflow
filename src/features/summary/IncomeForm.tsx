@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
-import { cn } from "../../utils/cn";
+import Modal from "../../components/ui/Modal";
 
 const FREQUENCIES = ["monthly", "biweekly", "weekly"] as const;
 const MULTIPLIERS: Record<string, number> = {
@@ -103,66 +103,54 @@ export default function IncomeForm({
         {freq} · {formatAmount((parseFloat(amt) || 0) * MULTIPLIERS[freq])}/mo
       </p>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-10">
-          <form
-            onSubmit={submit}
-            className="modal-theme p-6 w-full max-w-sm space-y-4"
-          >
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-theme-text">
-                Edit Income
-              </h2>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="modal-close-btn"
-              >
-                &times;
-              </button>
-            </div>
-            {error && <p className="text-theme-danger text-xs">{error}</p>}
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={amt}
-                onChange={(e) => setAmt(e.target.value)}
-                placeholder="Amount"
-                min="0.01"
-                step="0.01"
-                autoFocus
-                className={`${inputCls} flex-1`}
-              />
-              <select
-                value={freq}
-                onChange={(e) => setFreq(e.target.value)}
-                className={inputCls}
-              >
-                {FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="summary-save-btn"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="summary-cancel-btn"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title="Edit Income"
+        size="md"
+      >
+        <form onSubmit={submit} className="space-y-4">
+          {error && <p className="text-theme-danger text-xs">{error}</p>}
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={amt}
+              onChange={(e) => setAmt(e.target.value)}
+              placeholder="Amount"
+              min="0.01"
+              step="0.01"
+              autoFocus
+              className={`${inputCls} flex-1`}
+            />
+            <select
+              value={freq}
+              onChange={(e) => setFreq(e.target.value)}
+              className={inputCls}
+            >
+              {FREQUENCIES.map((f) => (
+                <option key={f} value={f}>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="summary-save-btn"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="summary-cancel-btn"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
