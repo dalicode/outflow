@@ -1,8 +1,14 @@
-// @ts-nocheck
-import React from "react";
 import { useSettings } from "../../context/settingsContext";
+import type { MonthlySummary } from "../../types";
 
-const InsightTile = ({ label, value, tone, subValue }) => {
+interface InsightTileProps {
+  label: string;
+  value: string;
+  tone?: "success" | "danger" | "primary" | "neutral";
+  subValue?: string;
+}
+
+function InsightTile({ label, value, tone, subValue }: InsightTileProps) {
   const { getNumberColorClass } = useSettings();
 
   const toneClass =
@@ -12,11 +18,13 @@ const InsightTile = ({ label, value, tone, subValue }) => {
         ? "text-theme-danger"
         : tone === "primary"
           ? "text-theme-primary"
-          : getNumberColorClass(value);
+          : getNumberColorClass(Number(value.replace(/[^0-9.-]/g, "")) || 0);
 
   return (
     <div className="min-w-[130px] md:min-w-0 flex-1 rounded-xl bg-theme-surface shadow-sm p-4 transition-shadow duration-200 hover:shadow-md">
-      <div className={`text-2xl font-bold tabular-nums tracking-tight ${toneClass}`}>
+      <div
+        className={`text-2xl font-bold tabular-nums tracking-tight ${toneClass}`}
+      >
         {value}
       </div>
       <div className="text-xs text-theme-muted mt-1 font-medium uppercase tracking-wider">
@@ -31,7 +39,11 @@ const InsightTile = ({ label, value, tone, subValue }) => {
   );
 }
 
-export default function BudgetInsights({ summary }) {
+interface BudgetInsightsProps {
+  summary: MonthlySummary;
+}
+
+export default function BudgetInsights({ summary }: BudgetInsightsProps) {
   const { formatAmount } = useSettings();
 
   if (!summary) return null;
@@ -85,14 +97,18 @@ export default function BudgetInsights({ summary }) {
         </div>
 
         {fixedExpenses.length === 0 ? (
-          <p className="text-sm text-theme-muted">No fixed expenses added yet.</p>
+          <p className="text-sm text-theme-muted">
+            No fixed expenses added yet.
+          </p>
         ) : (
           <ul className="space-y-0">
             {fixedExpenses.map((f, i) => (
               <li
                 key={f.id}
                 className={`flex items-center justify-between py-2 text-sm ${
-                  i !== fixedExpenses.length - 1 ? "border-b border-theme-muted/10" : ""
+                  i !== fixedExpenses.length - 1
+                    ? "border-b border-theme-muted/10"
+                    : ""
                 }`}
               >
                 <span className="text-theme-text font-medium">{f.name}</span>

@@ -1,18 +1,43 @@
-// @ts-nocheck
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useSettings } from "../../context/settingsContext";
+import type { Expense, Category } from "../../types";
 
-const EditableCell = ({ editing, value, onChange, type = "text", children }) => {
+interface EditableCellProps {
+  editing: boolean;
+  value: string | number;
+  onChange: (val: string) => void;
+  type?: string;
+  children?: React.ReactNode;
+}
+
+function EditableCell({
+  editing,
+  value,
+  onChange,
+  type = "text",
+  children,
+}: EditableCellProps) {
   if (!editing) return <span>{children ?? value}</span>;
-  if (type === "select") return children;
+  if (type === "select") return <span>{children}</span>;
   return (
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-                      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
     />
   );
+}
+
+interface ExpenseTableProps {
+  expenses: Expense[];
+  onUpdate: (id: number, changes: Partial<Expense>) => void;
+  onDelete: (id: number) => void;
+  categories?: Category[];
+  manageMode?: boolean;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
+  onToggleSelectAll?: () => void;
 }
 
 export default function ExpenseTable({
@@ -24,9 +49,9 @@ export default function ExpenseTable({
   selectedIds = new Set(),
   onToggleSelect,
   onToggleSelectAll,
-}) {
-  const [editId, setEditId] = useState(null);
-  const [draft, setDraft] = useState({});
+}: ExpenseTableProps) {
+  const [editId, setEditId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<Partial<Expense>>({});
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
 
   const catMap = useMemo(
@@ -38,14 +63,14 @@ export default function ExpenseTable({
     [categories],
   );
 
-  const resolveName = (exp) => {
-    const cat = catMap[exp.categoryId];
+  const resolveName = (exp: Expense) => {
+    const cat = catMap[exp.categoryId as number];
     if (cat) return cat.isDeleted ? `${cat.name} (deleted)` : cat.name;
     return exp.category || "Uncategorized";
   };
 
-  const startEdit = (expense) => {
-    setEditId(expense.id);
+  const startEdit = (expense: Expense) => {
+    setEditId(expense.id as number);
     setDraft({ ...expense });
   };
   const cancelEdit = () => {
@@ -53,25 +78,26 @@ export default function ExpenseTable({
     setDraft({});
   };
   const saveEdit = () => {
-    if (!draft.amount || isNaN(draft.amount) || Number(draft.amount) === 0)
+    if (!draft.amount || isNaN(Number(draft.amount)) || Number(draft.amount) === 0)
       return;
-    const cat = catMap[draft.categoryId];
-    onUpdate(editId, {
+    const cat = catMap[draft.categoryId as number];
+    onUpdate(editId as number, {
       ...draft,
-      amount: parseFloat(draft.amount),
+      amount: parseFloat(String(draft.amount)),
       category: cat?.name ?? draft.category,
     });
     cancelEdit();
   };
 
-  const setField = (field) => (val) =>
+  const setField = (field: keyof Expense) => (val: string | number) =>
     setDraft((d) => ({ ...d, [field]: val }));
 
   if (expenses.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-sm text-theme-muted">
-          No expenses yet. Hit <strong className="text-theme-primary">+</strong> to add one.
+          No expenses yet. Hit <strong className="text-theme-primary">+</strong>{" "}
+          to add one.
         </p>
       </div>
     );
@@ -118,8 +144,9 @@ export default function ExpenseTable({
         <tbody>
           {expenses.map((exp) => {
             const editing = editId === exp.id;
-            const isSelected = selectedIds.has(exp.id);
-            const amountColor = exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
+            const isSelected = selectedIds.has(exp.id as number);
+            const amountColor =
+              exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
 
             return (
               <tr
@@ -133,7 +160,7 @@ export default function ExpenseTable({
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => onToggleSelect(exp.id)}
+                      onChange={() => onToggleSelect?.(exp.id as number)}
                       className="w-4 h-4 rounded-theme-small cursor-pointer"
                       aria-label={`Select ${exp.description || "expense"}`}
                     />
@@ -143,7 +170,7 @@ export default function ExpenseTable({
                   <EditableCell
                     editing={editing}
                     type="date"
-                    value={draft.date}
+                    value={String(draft.date ?? "")}
                     onChange={setField("date")}
                   >
                     {formatDate(exp.date)}
@@ -152,14 +179,14 @@ export default function ExpenseTable({
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   {editing ? (
                     <select
-                      value={draft.categoryId ?? ""}
+                      value={(draft.categoryId as number) ?? ""}
                       onChange={(e) =>
                         setField("categoryId")(Number(e.target.value))
                       }
-      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+                      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
                     >
                       {activeCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
+                        <option key={c.id} value={c.id as number}>
                           {c.name}
                         </option>
                       ))}
@@ -167,7 +194,7 @@ export default function ExpenseTable({
                   ) : (
                     <span
                       className={
-                        catMap[exp.categoryId]?.isDeleted
+                        catMap[exp.categoryId as number]?.isDeleted
                           ? "text-theme-muted italic"
                           : "text-theme-text font-medium"
                       }
@@ -179,7 +206,7 @@ export default function ExpenseTable({
                 <td className="px-3 py-2.5 text-theme-text max-w-[200px] truncate">
                   <EditableCell
                     editing={editing}
-                    value={draft.description}
+                    value={String(draft.description ?? "")}
                     onChange={setField("description")}
                   >
                     {exp.description || (
@@ -187,11 +214,13 @@ export default function ExpenseTable({
                     )}
                   </EditableCell>
                 </td>
-                <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${amountColor}`}>
+                <td
+                  className={`px-3 py-2.5 text-right tabular-nums font-semibold ${amountColor}`}
+                >
                   <EditableCell
                     editing={editing}
                     type="number"
-                    value={draft.amount}
+                    value={String(draft.amount ?? "")}
                     onChange={setField("amount")}
                   >
                     {formatAmount(exp.amount)}
@@ -223,7 +252,7 @@ export default function ExpenseTable({
                           Edit
                         </button>
                         <button
-                          onClick={() => onDelete(exp.id)}
+                          onClick={() => onDelete(exp.id as number)}
                           className="text-theme-danger hover:opacity-80 text-sm transition-opacity"
                         >
                           Delete

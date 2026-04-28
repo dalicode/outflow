@@ -1,19 +1,28 @@
-// @ts-nocheck
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { useSettings } from '../../context/settingsContext'
+import type { Expense, Category } from '../../types'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const EMPTY_FORM = { date: today(), categoryId: '', description: '', amount: '' }
 
-const CategoryModal = ({ categories, onCategoriesChange, onClose }) => {
+interface CategoryModalProps {
+  categories: Category[];
+  onCategoriesChange: (
+    action: 'add' | 'update' | 'delete',
+    payload: { id?: number; name?: string },
+  ) => Promise<void>;
+  onClose: () => void;
+}
+
+function CategoryModal({ categories, onCategoriesChange, onClose }: CategoryModalProps) {
   const [newName, setNewName] = useState('')
   const [newError, setNewError] = useState('')
-  const [editId, setEditId] = useState(null)
+  const [editId, setEditId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
 
   const active = categories.filter((c) => !c.isDeleted)
 
-  const addCat = async (e) => {
+  const addCat = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const name = newName.trim()
     if (!name) { setNewError('Name is required.'); return }
@@ -22,12 +31,12 @@ const CategoryModal = ({ categories, onCategoriesChange, onClose }) => {
     setNewName(''); setNewError('')
   }
 
-  const saveEdit = async (e) => {
+  const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const name = editName.trim()
     if (!name) return
     if (active.some((c) => c.id !== editId && c.name.toLowerCase() === name.toLowerCase())) return
-    await onCategoriesChange('update', { id: editId, name })
+    await onCategoriesChange('update', { id: editId as number, name })
     setEditId(null)
   }
 
@@ -57,7 +66,7 @@ const CategoryModal = ({ categories, onCategoriesChange, onClose }) => {
               ) : (
                 <>
                   <span className="flex-1 text-theme-text">{cat.name}</span>
-                  <button type="button" onClick={() => { setEditId(cat.id); setEditName(cat.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
+                  <button type="button" onClick={() => { setEditId(cat.id as number); setEditName(cat.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
                   <button type="button" onClick={() => onCategoriesChange('delete', { id: cat.id })} className="text-theme-danger hover:opacity-80">Delete</button>
                 </>
               )}
@@ -69,20 +78,37 @@ const CategoryModal = ({ categories, onCategoriesChange, onClose }) => {
   )
 }
 
-export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesChange }) {
+interface ExpenseFormProps {
+  onAdd: (expense: Omit<Expense, 'id'>) => void;
+  onClose: () => void;
+  categories: Category[];
+  onCategoriesChange: (
+    action: 'add' | 'update' | 'delete',
+    payload: { id?: number; name?: string },
+  ) => Promise<void>;
+}
+
+export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesChange }: ExpenseFormProps) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
   const [showCatModal, setShowCatModal] = useState(false)
 
   const activeCategories = useMemo(() => categories.filter((c) => !c.isDeleted), [categories])
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
+  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [field]: e.target.value }))
 
-  const submit = (e) => {
+  const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!form.categoryId) { setError('Please select a category.'); return }
-    if (!form.amount || isNaN(form.amount) || Number(form.amount) === 0) { setError('Amount cannot be zero.'); return }
+    if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) === 0) { setError('Amount cannot be zero.'); return }
     const cat = categories.find((c) => c.id === Number(form.categoryId))
-    onAdd({ ...form, categoryId: Number(form.categoryId), category: cat?.name ?? '', amount: parseFloat(form.amount) })
+    onAdd({
+      date: form.date,
+      categoryId: Number(form.categoryId),
+      category: cat?.name ?? '',
+      description: form.description,
+      amount: parseFloat(form.amount),
+    })
     setForm(EMPTY_FORM); setError('')
   }
 

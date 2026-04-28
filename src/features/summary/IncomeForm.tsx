@@ -1,11 +1,14 @@
-// @ts-nocheck
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
 
-const FREQUENCIES = ["monthly", "biweekly", "weekly"];
-const MULTIPLIERS = { monthly: 1, biweekly: 2.17, weekly: 4.33 };
+const FREQUENCIES = ["monthly", "biweekly", "weekly"] as const;
+const MULTIPLIERS: Record<string, number> = {
+  monthly: 1,
+  biweekly: 2.17,
+  weekly: 4.33,
+};
 
-const PencilIcon = ({ className = "w-4 h-4" }) => {
+function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -22,20 +25,34 @@ const PencilIcon = ({ className = "w-4 h-4" }) => {
   );
 }
 
-export default function IncomeForm({ income, frequency, onSave }) {
-  const { formatAmount, getNumberColorClass } = useSettings();
+interface IncomeFormProps {
+  income: number | string | null | undefined;
+  frequency: string | null | undefined;
+  onSave: (data: {
+    income: number;
+    frequency: string;
+    monthlyIncome: number;
+  }) => void;
+}
+
+export default function IncomeForm({
+  income,
+  frequency,
+  onSave,
+}: IncomeFormProps) {
+  const { formatAmount } = useSettings();
   const [showModal, setShowModal] = useState(false);
-  const [amt, setAmt] = useState(income || "");
+  const [amt, setAmt] = useState<string>(income ? String(income) : "");
   const [freq, setFreq] = useState(frequency || "monthly");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setAmt(income || "");
+    setAmt(income ? String(income) : "");
     setFreq(frequency || "monthly");
   }, [income, frequency]);
 
   const openModal = () => {
-    setAmt(income || "");
+    setAmt(income ? String(income) : "");
     setFreq(frequency || "monthly");
     setError("");
     setShowModal(true);
@@ -46,17 +63,18 @@ export default function IncomeForm({ income, frequency, onSave }) {
     setError("");
   };
 
-  const submit = (e) => {
+  const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!amt || isNaN(amt) || Number(amt) <= 0) {
+    const parsed = parseFloat(amt);
+    if (!amt || isNaN(parsed) || parsed <= 0) {
       setError("Enter a positive amount.");
       return;
     }
     setError("");
     onSave({
-      income: parseFloat(amt),
+      income: parsed,
       frequency: freq,
-      monthlyIncome: parseFloat(amt) * MULTIPLIERS[freq],
+      monthlyIncome: parsed * MULTIPLIERS[freq],
     });
     setShowModal(false);
   };
@@ -77,7 +95,7 @@ export default function IncomeForm({ income, frequency, onSave }) {
           <PencilIcon />
         </button>
       </div>
-      <p className={`text-xl font-semibold text-theme-primary`}>
+      <p className="text-xl font-semibold text-theme-primary">
         {formatAmount(parseFloat(amt) || 0)}
       </p>
       <p className="text-sm text-theme-muted capitalize">

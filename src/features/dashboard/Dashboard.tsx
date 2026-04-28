@@ -1,13 +1,21 @@
-// @ts-nocheck
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
 import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
 import ExpenseTable from "../expenses/ExpenseTable";
 import BudgetInsights from "./BudgetInsights";
+import type { Expense, Category, MonthlySummary } from "../../types";
 
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+
+interface DashboardProps {
+  expenses: Expense[];
+  categories: Category[];
+  onUpdate: (id: number, changes: Partial<Expense>) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  onBulkDelete: (ids: number[]) => Promise<void>;
+}
 
 export default function Dashboard({
   expenses,
@@ -15,22 +23,25 @@ export default function Dashboard({
   onUpdate,
   onDelete,
   onBulkDelete,
-}) {
+}: DashboardProps) {
   const now = new Date();
   const { formatAmount, getNumberColorClass } = useSettings();
   const [searchParams] = useSearchParams();
   const [selectedYear, setSelectedYear] = useState(
-    () => parseInt(searchParams.get("year")) || now.getFullYear(),
+    () => parseInt(searchParams.get("year") || "", 10) || now.getFullYear(),
   );
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const m = parseInt(searchParams.get("month"));
+    const m = parseInt(searchParams.get("month") || "", 10);
     return isNaN(m) ? now.getMonth() : m;
   });
-  const [selectedCategories, setSelectedCategories] = useState(new Set());
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set(),
+  );
   const [manageMode, setManageMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
-  const [financialSummary, setFinancialSummary] = useState(null);
+  const [financialSummary, setFinancialSummary] =
+    useState<MonthlySummary | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -39,43 +50,56 @@ export default function Dashboard({
         selectedYear > now.getFullYear() ||
         (selectedYear === now.getFullYear() && selectedMonth >= now.getMonth());
 
-      const [allFixed, allSnapshots, globalIncome, globalRate, schedules, incomeSnaps, savingsSnaps] =
-        await Promise.all([
-          StorageService.getFixedExpenses(),
-          StorageService.getSnapshotsForYear(selectedYear),
-          StorageService.getSetting("monthlyIncome", 0),
-          StorageService.getSetting("savingsRate", 0),
-          StorageService.getActiveSchedules(),
-          StorageService.getIncomeSnapshotsForYear(selectedYear),
-          StorageService.getSavingsSnapshotsForYear(selectedYear),
-        ]);
+      const [
+        allFixed,
+        allSnapshots,
+        globalIncome,
+        globalRate,
+        schedules,
+        incomeSnaps,
+        savingsSnaps,
+      ] = await Promise.all([
+        StorageService.getFixedExpenses(),
+        StorageService.getSnapshotsForYear(selectedYear),
+        StorageService.getSetting("monthlyIncome", 0),
+        StorageService.getSetting("savingsRate", 0),
+        StorageService.getActiveSchedules(),
+        StorageService.getIncomeSnapshotsForYear(selectedYear),
+        StorageService.getSavingsSnapshotsForYear(selectedYear),
+      ]);
 
       let monthSnapshots;
       if (isCurrentOrFuture) {
         const active = allFixed.filter((f) => f.isArchived !== true);
         monthSnapshots = active.map((f) => ({
-          fixedExpenseId: f.id,
+          fixedExpenseId: f.id as number,
           year: selectedYear,
           month: selectedMonth + 1,
           amountSnapshot: f.amount,
           nameSnapshot: f.name,
         }));
       } else {
-        monthSnapshots = allSnapshots.filter((s) => s.month === selectedMonth + 1);
+        monthSnapshots = allSnapshots.filter(
+          (s) => s.month === selectedMonth + 1,
+        );
       }
 
       const data = {
         expenses,
         snapshots: monthSnapshots,
         fixedExpenses: allFixed,
-        globalIncome,
-        globalSavingsRate: globalRate,
+        globalIncome: globalIncome as number,
+        globalSavingsRate: globalRate as number,
         schedules,
         incomeSnapshots: incomeSnaps,
         savingsSnapshots: savingsSnaps,
       };
 
-      const summary = getMonthlyFinancialSummary(selectedYear, selectedMonth, data);
+      const summary = getMonthlyFinancialSummary(
+        selectedYear,
+        selectedMonth,
+        data,
+      );
       setFinancialSummary(summary);
     };
     loadData();
@@ -101,8 +125,10 @@ export default function Dashboard({
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
     [categories],
   );
-  const resolveName = (exp) =>
-    catMap[exp.categoryId]?.name ?? exp.category ?? "Uncategorized";
+  const resolveName = (exp: Expense) =>
+    catMap[exp.categoryId as number]?.name ??
+    exp.category ??
+    "Uncategorized";
 
   const monthlyExpenses = useMemo(
     () => expenses.filter((e) => e.date.startsWith(selectedKey)),
@@ -113,7 +139,9 @@ export default function Dashboard({
     () =>
       selectedCategories.size === 0
         ? monthlyExpenses
-        : monthlyExpenses.filter((e) => selectedCategories.has(resolveName(e))),
+        : monthlyExpenses.filter((e) =>
+            selectedCategories.has(resolveName(e)),
+          ),
     [monthlyExpenses, selectedCategories, catMap],
   );
 
@@ -127,7 +155,7 @@ export default function Dashboard({
     });
   }, []);
 
-  const toggleSelect = useCallback((id) => {
+  const toggleSelect = useCallback((id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -139,7 +167,7 @@ export default function Dashboard({
   const toggleSelectAll = useCallback(() => {
     setSelectedIds((prev) => {
       if (prev.size === filtered.length) return new Set();
-      return new Set(filtered.map((e) => e.id));
+      return new Set(filtered.map((e) => e.id as number));
     });
   }, [filtered]);
 
@@ -155,7 +183,7 @@ export default function Dashboard({
   }, [selectedIds, onBulkDelete]);
 
   const categoryTotals = useMemo(() => {
-    const map = {};
+    const map: Record<string, number> = {};
     monthlyExpenses.forEach((e) => {
       const n = resolveName(e);
       map[n] = (map[n] || 0) + e.amount;
@@ -163,15 +191,20 @@ export default function Dashboard({
     return Object.entries(map).sort(([, a], [, b]) => b - a);
   }, [monthlyExpenses, catMap]);
 
-  const label = new Date(selectedYear, selectedMonth).toLocaleString("default", {
-    month: "long",
-    year: "numeric",
-  });
+  const label = new Date(selectedYear, selectedMonth).toLocaleString(
+    "default",
+    {
+      month: "long",
+      year: "numeric",
+    },
+  );
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-theme-text tracking-tight">
+          Dashboard
+        </h1>
       </div>
       {/* Budget Insights */}
       {financialSummary && <BudgetInsights summary={financialSummary} />}
@@ -188,7 +221,7 @@ export default function Dashboard({
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 selectedCategories.size === 0
                   ? "bg-theme-primary text-white"
-                      : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
+                  : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
               }`}
             >
               All
@@ -207,11 +240,17 @@ export default function Dashboard({
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
                     isSelected
                       ? "bg-theme-primary text-white"
-                  : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
+                      : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
                   }`}
                 >
                   <span>{cat}</span>
-                  <span className={isSelected ? "text-white/80" : getNumberColorClass(total)}>
+                  <span
+                    className={
+                      isSelected
+                        ? "text-white/80"
+                        : getNumberColorClass(total)
+                    }
+                  >
                     {formatAmount(total)}
                   </span>
                 </button>
@@ -231,12 +270,24 @@ export default function Dashboard({
               className="p-2 rounded-lg hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
               aria-label="Previous month"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
             <div className="text-center">
-              <span className={`text-lg font-semibold ${isCurrentMonth ? "text-theme-primary" : "text-theme-text"}`}>
+              <span
+                className={`text-lg font-semibold ${isCurrentMonth ? "text-theme-primary" : "text-theme-text"}`}
+              >
                 {label}
               </span>
               {isCurrentMonth && (
@@ -245,8 +296,13 @@ export default function Dashboard({
                 </span>
               )}
               <p className="text-sm text-theme-muted mt-0.5">
-                {monthlyExpenses.length} transaction{monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
-                <span className={getNumberColorClass(financialSummary?.variableExpenses ?? 0)}>
+                {monthlyExpenses.length} transaction
+                {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
+                <span
+                  className={getNumberColorClass(
+                    financialSummary?.variableExpenses ?? 0,
+                  )}
+                >
                   {formatAmount(financialSummary?.variableExpenses ?? 0)}
                 </span>
               </p>
@@ -256,8 +312,18 @@ export default function Dashboard({
               className="p-2 rounded-lg hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
               aria-label="Next month"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </button>
           </div>
@@ -274,11 +340,23 @@ export default function Dashboard({
             }`}
           >
             {manageMode ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
               </svg>
             )}
@@ -298,7 +376,9 @@ export default function Dashboard({
         {showConfirm && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-30">
             <div className="bg-theme-surface rounded-xl p-6 w-full max-w-xs space-y-4 shadow-lg">
-              <h3 className="text-base font-semibold text-theme-text">Confirm Delete</h3>
+              <h3 className="text-base font-semibold text-theme-text">
+                Confirm Delete
+              </h3>
               <p className="text-sm text-theme-muted">
                 Are you sure you want to delete{" "}
                 <strong className="text-theme-text">{selectedIds.size}</strong>{" "}

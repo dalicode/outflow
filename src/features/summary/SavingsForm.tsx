@@ -1,8 +1,7 @@
-// @ts-nocheck
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
 
-const PencilIcon = ({ className = "w-4 h-4" }) => {
+function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -19,20 +18,22 @@ const PencilIcon = ({ className = "w-4 h-4" }) => {
   );
 }
 
-export default function SavingsForm({ savingsRate, onSave }) {
-  const { getNumberColorClass } = useSettings();
-  const hasValue =
-    savingsRate !== null && savingsRate !== undefined && savingsRate !== "";
+interface SavingsFormProps {
+  savingsRate: number | string | null | undefined;
+  onSave: (rate: number) => void;
+}
+
+export default function SavingsForm({ savingsRate, onSave }: SavingsFormProps) {
   const [showModal, setShowModal] = useState(false);
-  const [rate, setRate] = useState(savingsRate ?? "");
+  const [rate, setRate] = useState<string>(savingsRate ? String(savingsRate) : "");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setRate(savingsRate ?? "");
+    setRate(savingsRate ? String(savingsRate) : "");
   }, [savingsRate]);
 
   const openModal = () => {
-    setRate(savingsRate ?? "");
+    setRate(savingsRate ? String(savingsRate) : "");
     setError("");
     setShowModal(true);
   };
@@ -42,7 +43,7 @@ export default function SavingsForm({ savingsRate, onSave }) {
     setError("");
   };
 
-  const submit = (e) => {
+  const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const n = Number(rate);
     if (isNaN(n) || n < 0 || n > 100) {
@@ -68,7 +69,7 @@ export default function SavingsForm({ savingsRate, onSave }) {
           <PencilIcon />
         </button>
       </div>
-      <p className={`text-xl font-semibold text-theme-primary`}>
+      <p className="text-xl font-semibold text-theme-primary">
         {Number(rate).toFixed(1)}%
       </p>
       <p className="text-sm text-theme-muted">of monthly income</p>

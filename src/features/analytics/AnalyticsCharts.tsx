@@ -94,12 +94,18 @@ function sliceMonths(arr: (number | null)[], count: number): (number | null)[] {
 
 // ── Custom Tooltip ───────────────────────────────────────────────────────────
 
+interface TooltipPayloadItem {
+  value: number;
+  name: string;
+  color: string;
+}
+
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: TooltipPayloadItem[];
   label?: string;
   colors: ThemeColors;
-  formatter?: (value: any, name: string) => [string, string] | string;
+  formatter?: (value: number, name: string) => [string, string] | string;
 }
 
 const CustomTooltip = ({ active, payload, label, formatter, colors }: CustomTooltipProps) => {

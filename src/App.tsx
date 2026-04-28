@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StorageService } from "./services/storageService";
 import { useAuth } from "./context/authContext";
@@ -13,16 +12,18 @@ import SummaryPage from "./features/summary/SummaryPage";
 import AnalyticsPage from "./features/analytics/AnalyticsPage";
 import AuthPage from "./features/auth/AuthPage";
 import SettingsPage from "./features/settings/SettingsPage";
+import type { SyncStatus } from "./types";
+import type { Expense } from "./types";
 
-function SyncDot({ status }) {
+function SyncDot({ status }: { status: SyncStatus }) {
   if (!supabase) return null;
-  const styles = {
+  const styles: Record<string, string> = {
     idle: "bg-theme-success",
     syncing: "bg-yellow-400 animate-pulse",
     offline: "bg-theme-muted",
     error: "bg-theme-danger",
   };
-  const labels = {
+  const labels: Record<string, string> = {
     idle: "Synced",
     syncing: "Syncing…",
     offline: "Offline",
@@ -61,41 +62,45 @@ export default function App() {
   }, [syncStatus]);
 
   useEffect(() => {
-    StorageService.materializePendingSnapshots?.().catch(console.error)
-  }, [])
+    StorageService.materializePendingSnapshots?.().catch(console.error);
+  }, []);
 
-  const handleCategoriesChange = async (action, payload) => {
-    if (action === "add") await StorageService.addCategory(payload.name);
-    else if (action === "update")
+  const handleCategoriesChange = async (
+    action: "add" | "update" | "delete",
+    payload: { id?: number; name?: string },
+  ) => {
+    if (action === "add" && payload.name)
+      await StorageService.addCategory(payload.name);
+    else if (action === "update" && payload.id != null && payload.name)
       await StorageService.updateCategory(payload.id, { name: payload.name });
-    else if (action === "delete")
+    else if (action === "delete" && payload.id != null)
       await StorageService.deleteCategory(payload.id);
     await refreshCategories();
     triggerSync?.();
   };
 
-  const handleAdd = async (expense) => {
+  const handleAdd = async (expense: Omit<Expense, "id">) => {
     await StorageService.add(expense);
     setExpenses(await StorageService.getAll());
     setShowForm(false);
     triggerSync?.();
   };
 
-  const handleUpdate = async (id, changes) => {
+  const handleUpdate = async (id: number, changes: Partial<Expense>) => {
     await StorageService.update(id, changes);
     setExpenses(await StorageService.getAll());
     triggerSync?.();
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number) => {
     await StorageService.remove(id);
     setExpenses((prev) => prev.filter((e) => e.id !== id));
     triggerSync?.();
   };
 
-  const handleBulkDelete = async (ids) => {
+  const handleBulkDelete = async (ids: number[]) => {
     await StorageService.removeMany(ids);
-    setExpenses((prev) => prev.filter((e) => !ids.includes(e.id)));
+    setExpenses((prev) => prev.filter((e) => !ids.includes(e.id as number)));
     triggerSync?.();
   };
 
@@ -107,7 +112,13 @@ export default function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-theme-background flex">
         {!isReady ? (
-          <div className="flex-1 p-10" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif' }}>
+          <div
+            className="flex-1 p-10"
+            style={{
+              fontFamily:
+                '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif',
+            }}
+          >
             <p className="text-lg font-bold mb-3">Loading…</p>
             <p>Auth loading: {String(loading)}</p>
             <p>Settings loaded: {String(settingsLoaded)}</p>
@@ -121,7 +132,7 @@ export default function App() {
             <Navbar
               onAddExpense={() => setShowForm(true)}
               syncDot={<SyncDot status={syncStatus} />}
-              onSignOut={supabase ? signOut : null}
+              onSignOut={supabase ? signOut : undefined}
               userEmail={user?.email}
             />
             <main className="flex-1 min-w-0 pb-24 sm:pb-0">

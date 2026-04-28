@@ -1,8 +1,13 @@
-// @ts-nocheck
-import React from "react";
 import { useSettings } from "../../context/settingsContext";
+import type { MonthlySummary } from "../../types";
 
-const Card = ({ label, value, colorClass = "text-theme-text" }) => {
+interface CardProps {
+  label: string;
+  value: string;
+  colorClass?: string;
+}
+
+function Card({ label, value, colorClass = "text-theme-text" }: CardProps) {
   return (
     <div className="bg-theme-surface rounded-xl shadow-sm px-4 py-3 flex flex-col gap-0.5 border border-theme-border">
       <span className="text-xs text-theme-muted uppercase tracking-widest mb-2">
@@ -13,7 +18,11 @@ const Card = ({ label, value, colorClass = "text-theme-text" }) => {
   );
 }
 
-export default function SummarySection({ summary }) {
+interface SummarySectionProps {
+  summary: MonthlySummary | null;
+}
+
+export default function SummarySection({ summary }: SummarySectionProps) {
   const { formatAmount } = useSettings();
   if (!summary) return null;
 
@@ -21,7 +30,6 @@ export default function SummarySection({ summary }) {
     income,
     fixedExpensesTotal,
     variableExpenses,
-    savingsRate,
     autoSavings,
     remaining,
   } = summary;

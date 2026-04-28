@@ -157,6 +157,7 @@ The `appVersion` in backup metadata is auto-synced from `package.json`. Bump the
 - **No `/` opacity modifiers** on `text-theme-*` or `border-theme-*` — use separate `opacity-*` class
 - **Theme tokens only** — no hardcoded colors
 - **All params typed**, explicit return types on exported functions
+- **No `@ts-nocheck` or `@ts-ignore`** directives anywhere in the codebase
 
 ## Database Schema (Dexie v7)
 

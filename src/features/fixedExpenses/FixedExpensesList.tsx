@@ -1,10 +1,10 @@
-// @ts-nocheck
-import React, { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
+import type { FixedExpense } from "../../types";
 
 const EMPTY = { name: "", amount: "" };
 
-const PencilIcon = ({ className = "w-4 h-4" }) => {
+function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -21,7 +21,7 @@ const PencilIcon = ({ className = "w-4 h-4" }) => {
   );
 }
 
-const CheckIcon = ({ className = "w-4 h-4" }) => {
+function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -38,23 +38,30 @@ const CheckIcon = ({ className = "w-4 h-4" }) => {
   );
 }
 
+interface FixedExpensesListProps {
+  items: FixedExpense[];
+  onAdd: (item: Omit<FixedExpense, "id">) => void;
+  onUpdate: (id: number, changes: Partial<FixedExpense>) => void;
+  onDelete: (id: number) => void;
+}
+
 export default function FixedExpensesList({
   items,
   onAdd,
   onUpdate,
   onDelete,
-}) {
-  const { formatAmount, getNumberColorClass } = useSettings();
+}: FixedExpensesListProps) {
+  const { formatAmount } = useSettings();
   const [manageMode, setManageMode] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState("add"); // 'add' | 'edit'
-  const [editId, setEditId] = useState(null);
+  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+  const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState("");
 
-  const validate = (name, amount) => {
+  const validate = (name: string, amount: string) => {
     if (!name.trim()) return "Name is required.";
-    if (!amount || isNaN(amount) || Number(amount) <= 0)
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0)
       return "Enter a positive amount.";
     return "";
   };
@@ -78,9 +85,9 @@ export default function FixedExpensesList({
     setShowModal(true);
   };
 
-  const openEdit = (item) => {
+  const openEdit = (item: FixedExpense) => {
     setModalMode("edit");
-    setEditId(item.id);
+    setEditId(item.id as number);
     setForm({ name: item.name, amount: String(item.amount) });
     setError("");
     setShowModal(true);
@@ -92,7 +99,7 @@ export default function FixedExpensesList({
     setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const err = validate(form.name, form.amount);
     if (err) {
@@ -101,7 +108,7 @@ export default function FixedExpensesList({
     }
     if (modalMode === "add") {
       onAdd({ name: form.name.trim(), amount: parseFloat(form.amount) });
-    } else {
+    } else if (editId != null) {
       onUpdate(editId, {
         name: form.name.trim(),
         amount: parseFloat(form.amount),
@@ -142,14 +149,18 @@ export default function FixedExpensesList({
       </div>
 
       {items.length === 0 && (
-        <p className="text-sm text-theme-muted">No fixed expenses added yet.</p>
+        <p className="text-sm text-theme-muted">
+          No fixed expenses added yet.
+        </p>
       )}
 
       <ul className="space-y-1 divide-y divide-theme-border">
         {items.map((item) => (
           <li key={item.id} className="flex items-center gap-2 text-sm">
             <span className="flex-1 text-theme-text">{item.name}</span>
-            <span className={`text-theme-muted font-medium text-theme-primary`}>
+            <span
+              className={`text-theme-muted font-medium text-theme-primary`}
+            >
               {formatAmount(item.amount)}
             </span>
             {manageMode && (
@@ -161,7 +172,7 @@ export default function FixedExpensesList({
                   Edit
                 </button>
                 <button
-                  onClick={() => onDelete(item.id)}
+                  onClick={() => onDelete(item.id as number)}
                   className="text-theme-danger hover:opacity-80"
                 >
                   Delete
