@@ -2,70 +2,8 @@ import { ThemeConfig } from '../types'
 
 export const THEMES: Record<string, ThemeConfig> = {
   default: {
-    name: "Default (Clean)",
-    id: "default",
-    colors: {
-      background: "#f8fafc",
-      surface: "#ffffff",
-      primary: "#6366f1",
-      secondary: "#8b5cf6",
-      text: "#1e293b",
-      muted: "#475569",
-      border: "#e2e8f0",
-      danger: "#ef4444",
-      success: "#22c55e",
-    },
-    borderRadius: {
-      small: "8px",
-      medium: "10px",
-      large: "12px",
-    },
-    spacing: {
-      tight: "0.5rem",
-      normal: "1rem",
-      loose: "1.5rem",
-    },
-    numberStyle: {
-      currencyColor: "var(--theme-text)",
-      positiveColor: "var(--theme-text)",
-      negativeColor: "var(--theme-success)",
-      zeroColor: "var(--theme-muted)",
-    },
-  },
-  modernSoft: {
-    name: "Modern Soft",
-    id: "modernSoft",
-    colors: {
-      background: "#f5f3ff",
-      surface: "#ffffff",
-      primary: "#a78bfa",
-      secondary: "#f472b6",
-      text: "#1f1642",
-      muted: "#4b5563",
-      border: "#ede9fe",
-      danger: "#f87171",
-      success: "#4ade80",
-    },
-    borderRadius: {
-      small: "16px",
-      medium: "20px",
-      large: "24px",
-    },
-    spacing: {
-      tight: "0.75rem",
-      normal: "1.25rem",
-      loose: "2rem",
-    },
-    numberStyle: {
-      currencyColor: "var(--theme-text)",
-      positiveColor: "var(--theme-text)",
-      negativeColor: "var(--theme-success)",
-      zeroColor: "var(--theme-muted)",
-    },
-  },
-  sharpProfessional: {
     name: "Sharp Professional",
-    id: "sharpProfessional",
+    id: "default",
     colors: {
       background: "#f1f5f9",
       surface: "#ffffff",

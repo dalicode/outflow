@@ -41,20 +41,6 @@ function Row({ label, value, onChange, options }: RowProps) {
 
 const themePreviews: Record<string, { background: string; border: string; primary: string; text: string; isDark: boolean }> = {
   default: {
-    background: "#f8fafc",
-    border: "#e2e8f0",
-    primary: "#6366f1",
-    text: "#1e293b",
-    isDark: false,
-  },
-  modernSoft: {
-    background: "#f5f3ff",
-    border: "#ede9fe",
-    primary: "#a78bfa",
-    text: "#1f1642",
-    isDark: false,
-  },
-  sharpProfessional: {
     background: "#f1f5f9",
     border: "#cbd5e1",
     primary: "#334155",
@@ -93,9 +79,7 @@ interface ThemeCardProps {
 function ThemeCard({ theme, isSelected, onClick }: ThemeCardProps) {
   const preview = themePreviews[theme.id] || themePreviews.default;
   const radiusMap: Record<string, string> = {
-    default: "8px",
-    modernSoft: "16px",
-    sharpProfessional: "2px",
+    default: "2px",
     sharpProfessionalDark: "2px",
     darkMinimal: "6px",
     runescapeClassic: "6px",

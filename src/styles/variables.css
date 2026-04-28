@@ -1,16 +1,16 @@
 :root {
-  --radius-small: 8px;
-  --radius-medium: 10px;
-  --radius-large: 12px;
-  --theme-background: #f8fafc;
+  --radius-small: 2px;
+  --radius-medium: 4px;
+  --radius-large: 6px;
+  --theme-background: #f1f5f9;
   --theme-surface: #ffffff;
-  --theme-primary: #6366f1;
-  --theme-secondary: #8b5cf6;
-  --theme-text: #1e293b;
-  --theme-muted: #64748b;
-  --theme-border: #e2e8f0;
-  --theme-danger: #ef4444;
-  --theme-success: #22c55e;
+  --theme-primary: #334155;
+  --theme-secondary: #475569;
+  --theme-text: #0f172a;
+  --theme-muted: #334155;
+  --theme-border: #cbd5e1;
+  --theme-danger: #b91c1c;
+  --theme-success: #15803d;
   --currency-color: var(--theme-text);
   --positive-color: var(--theme-text);
   --negative-color: var(--theme-success);
@@ -18,7 +18,7 @@
   --number-positive: var(--theme-text);
   --number-negative: var(--theme-success);
   --number-zero: var(--theme-muted);
-  --spacing-tight: 0.5rem;
-  --spacing-normal: 1rem;
-  --spacing-loose: 1.5rem;
+  --spacing-tight: 0.25rem;
+  --spacing-normal: 0.75rem;
+  --spacing-loose: 1rem;
 }
