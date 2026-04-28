@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { supabase } from '../../services/supabase'
 import { useSettings } from '../../context/settingsContext'
+import OutflowWordmark from '../../components/ui/OutflowWordmark'
 
 export default function AuthPage() {
   const { currentTheme } = useSettings()
@@ -30,8 +31,8 @@ export default function AuthPage() {
     <div className="min-h-screen bg-theme-background flex items-center justify-center px-4">
       <div className="modal-theme p-8 w-full max-w-sm space-y-5 shadow-xl">
         <div className="text-center">
-          <p className="text-3xl mb-1">Spending Tracker</p>
-          <h1 className="text-lg font-semibold text-theme-text">Spending Tracker</h1>
+          <OutflowWordmark className="h-8 w-auto mx-auto mb-2 text-theme-primary" />
+          <h1 className="text-lg font-semibold text-theme-text">Outflow</h1>
           <p className="text-sm text-theme-muted mt-1">{mode === 'login' ? 'Sign in to sync your data' : 'Create an account'}</p>
         </div>
 

@@ -1,5 +1,5 @@
 {
-  "name": "spending-tracker-v1",
+  "name": "outflow",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",

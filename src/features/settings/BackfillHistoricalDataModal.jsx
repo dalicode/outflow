@@ -97,7 +97,7 @@ function flattenRangesToMonthMap(ranges) {
 
 // ── Modern Ghost Input Style ────────────────────────────────────────────────
 const ghostInputCls =
-  "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text placeholder:text-theme-muted/40 shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none";
+  "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text placeholder:text-theme-muted shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none";
 
 const ghostSelectCls =
   "bg-theme-background border border-transparent rounded-lg px-2 py-2 text-sm text-theme-text shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none cursor-pointer";
@@ -188,7 +188,7 @@ function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }) {
   return (
     <SectionCard title={label}>
       {ranges.length === 0 && (
-        <p className="text-xs text-theme-muted/60 italic">
+        <p className="text-xs text-theme-muted italic">
           No ranges configured.
         </p>
       )}
@@ -226,7 +226,7 @@ function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }) {
       </div>
       <button
         onClick={onAdd}
-        className="text-sm text-theme-primary hover:text-theme-primary/80 font-medium transition-colors"
+        className="text-sm text-theme-primary hover:text-theme-primary font-medium transition-colors"
       >
         + Add {isIncome ? "income" : "savings"} range
       </button>
@@ -246,7 +246,7 @@ function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }) 
   return (
     <SectionCard title="Fixed Expenses">
       {items.length === 0 && (
-        <p className="text-xs text-theme-muted/60 italic">No fixed expenses configured.</p>
+        <p className="text-xs text-theme-muted italic">No fixed expenses configured.</p>
       )}
       <div className="space-y-2">
         {items.map((item) => (
@@ -285,7 +285,7 @@ function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }) 
       <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={onAdd}
-          className="text-sm text-theme-primary hover:text-theme-primary/80 font-medium transition-colors"
+          className="text-sm text-theme-primary hover:text-theme-primary font-medium transition-colors"
         >
           + Add another
         </button>
@@ -394,7 +394,7 @@ function PreviewTable({ yearConfig, variableTotals }) {
                       className={`text-center px-1 py-1.5 ${
                         m + 1 >= sm && m + 1 <= em
                           ? "text-theme-text"
-                          : "text-theme-muted/40"
+                          : "text-theme-muted"
                       }`}
                     >
                       {m + 1 >= sm && m + 1 <= em ? formatAmount(amt) : "—"}
@@ -448,7 +448,7 @@ function PreviewTable({ yearConfig, variableTotals }) {
                         ? row.getCls
                           ? row.getCls(val)
                           : row.cls
-                        : "text-theme-muted/40"
+                        : "text-theme-muted"
                     }`}
                   >
                     {val !== 0 ? formatAmount(val) : "—"}
@@ -461,7 +461,7 @@ function PreviewTable({ yearConfig, variableTotals }) {
                       ? row.getCls
                         ? row.getCls(total)
                         : row.cls
-                      : "text-theme-muted/40";
+                      : "text-theme-muted";
                   return (
                     <td
                       className={`text-right px-2 py-1.5 font-semibold whitespace-nowrap ${totalCls}`}

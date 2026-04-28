@@ -7,6 +7,7 @@ import FixedExpensesList from "../fixedExpenses/FixedExpensesList";
 import SavingsForm from "./SavingsForm";
 import SummarySection from "./SummarySection";
 import ChartComponent from "../../components/charts/ChartComponent";
+import Card from "../../components/ui/Card";
 
 export default function SummaryPage({ expenses }) {
   const [incomeRaw, setIncomeRaw] = useState("");
@@ -19,7 +20,6 @@ export default function SummaryPage({ expenses }) {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
-  // Load persisted settings and compute via engine
   useEffect(() => {
     const load = async () => {
       const [
@@ -51,7 +51,6 @@ export default function SummaryPage({ expenses }) {
       setSavingsRate(rate);
       setFixedExpenses(activeFixed);
 
-      // Build virtual snapshots from active definitions for current month
       const virtualSnapshots = activeFixed.map((f) => ({
         fixedExpenseId: f.id,
         year: currentYear,
@@ -77,11 +76,7 @@ export default function SummaryPage({ expenses }) {
     load();
   }, [expenses, currentYear, currentMonth]);
 
-  const handleIncomeSave = async ({
-    income,
-    frequency,
-    monthlyIncome: monthly,
-  }) => {
+  const handleIncomeSave = async ({ income, frequency, monthlyIncome: monthly }) => {
     const now = new Date();
     const existingSetAt = await StorageService.getSetting("monthlyIncomeSetAt", null);
     await Promise.all([
@@ -92,8 +87,6 @@ export default function SummaryPage({ expenses }) {
     ].filter(Boolean));
     setIncomeRaw(income);
     setIncomeFreq(frequency);
-    // Re-computation triggered by effect dependency on expenses (settings change will need refresh)
-    // For simplicity, reload the page data
     const activeFixed = await StorageService.getActiveFixedExpenses();
     setFixedExpenses(activeFixed);
   };
@@ -124,49 +117,43 @@ export default function SummaryPage({ expenses }) {
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
-      <h1 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
-        Summary
-      </h1>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
-          <IncomeForm
-            income={incomeRaw}
-            frequency={incomeFreq}
-            onSave={handleIncomeSave}
-          />
-        </section>
-        <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
-          <SavingsForm
-            savingsRate={savingsRate}
-            onSave={handleSavingsRateSave}
-          />
-        </section>
+    <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Summary</h1>
       </div>
-      <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card title="Income">
+          <IncomeForm income={incomeRaw} frequency={incomeFreq} onSave={handleIncomeSave} />
+        </Card>
+        <Card title="Savings Rate">
+          <SavingsForm savingsRate={savingsRate} onSave={handleSavingsRateSave} />
+        </Card>
+      </div>
+
+      <Card title="Fixed Expenses">
         <FixedExpensesList
           items={fixedExpenses}
           onAdd={handleAddFixed}
           onUpdate={handleUpdateFixed}
           onDelete={handleDeleteFixed}
         />
-      </section>
+      </Card>
+
       {financialSummary && (
-        <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
+        <Card title="Monthly Overview">
           <SummarySection summary={financialSummary} />
-        </section>
+        </Card>
       )}
-      <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
-        Spending Breakdown
-      </h2>
+
       {financialSummary && (
-        <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 card-theme">
+        <Card title="Spending Breakdown">
           <ChartComponent
             totalFixed={financialSummary.fixedExpensesTotal}
             variableExpenses={financialSummary.variableExpenses}
             savings={financialSummary.autoSavings}
           />
-        </section>
+        </Card>
       )}
     </main>
   );

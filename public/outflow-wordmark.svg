@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 80" fill="none">
+  <style>
+    .wordmark { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 800; font-size: 64px; letter-spacing: -0.04em; }
+  </style>
+
+  <!-- Outflow mark: circle with flowing tail -->
+  <g transform="translate(8, 8)">
+    <!-- Outer ring -->
+    <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="6" fill="none" opacity="0.9"/>
+    <!-- Inner dot -->
+    <circle cx="32" cy="32" r="10" fill="currentColor" opacity="0.9"/>
+    <!-- Flow tail -->
+    <path d="M52 52 L68 68" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.9"/>
+    <path d="M58 70 L68 68 L66 58" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  </g>
+
+  <!-- Outflow wordmark -->
+  <text x="100" y="62" class="wordmark" fill="currentColor">Outflow</text>
+</svg>

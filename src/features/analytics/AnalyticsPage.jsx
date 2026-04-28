@@ -133,7 +133,7 @@ function SummaryCard({ label, value, tone }) {
         : "text-theme-text";
 
   return (
-    <div className="min-w-[140px] md:min-w-0 flex-1 rounded-xl bg-theme-surface border border-theme-border opacity-60 p-4 transition-shadow hover:shadow-sm">
+    <div className="min-w-[140px] md:min-w-0 flex-1 rounded-xl bg-theme-surface shadow-sm p-4 transition-shadow hover:shadow-md">
       <div className={`text-xl md:text-2xl font-bold tabular-nums ${toneClass}`}>
         {value}
       </div>
@@ -218,7 +218,7 @@ export default function AnalyticsPage({ expenses, categories }) {
             className={`p-2 rounded-lg transition-colors ${
               canGoForward
                 ? "hover:bg-theme-surface text-theme-muted hover:text-theme-text"
-                : "text-theme-muted/30 cursor-not-allowed"
+                : "text-theme-muted cursor-not-allowed"
             }`}
             aria-label="Next year"
           >
@@ -236,7 +236,7 @@ export default function AnalyticsPage({ expenses, categories }) {
           className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
             selectedMonth === null
               ? "bg-theme-primary text-white"
-              : "bg-theme-surface text-theme-muted hover:text-theme-text border border-theme-border opacity-60"
+              : "bg-theme-surface text-theme-muted hover:text-theme-text shadow-sm"
           }`}
         >
           Year
@@ -248,7 +248,7 @@ export default function AnalyticsPage({ expenses, categories }) {
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
               selectedMonth === i
                 ? "bg-theme-primary text-white"
-                : "bg-theme-surface text-theme-muted hover:text-theme-text border border-theme-border opacity-60"
+                : "bg-theme-surface text-theme-muted hover:text-theme-text shadow-sm"
             }`}
           >
             {m}
@@ -287,7 +287,7 @@ export default function AnalyticsPage({ expenses, categories }) {
       </div>
 
       {/* Content */}
-      <div className="rounded-xl bg-theme-surface border border-theme-border opacity-60 shadow-sm overflow-hidden">
+      <div className="rounded-xl bg-theme-surface shadow-sm overflow-hidden">
         {activeTab === "overview" ? (
           <AnalyticsCharts
             data={data}

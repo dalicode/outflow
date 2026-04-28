@@ -469,7 +469,7 @@ function MonthMetricCards({ data, selectedMonth, colors }) {
 function EmptyState({ label }) {
   return (
     <div className="h-[200px] md:h-[260px] flex items-center justify-center">
-      <span className="text-xs text-theme-muted/60">{label}</span>
+      <span className="text-xs text-theme-muted">{label}</span>
     </div>
   );
 }
@@ -478,7 +478,7 @@ function EmptyState({ label }) {
 
 function ChartCard({ title, children }) {
   return (
-    <div className="rounded-xl bg-theme-surface border border-theme-border opacity-60 shadow-sm p-4">
+    <div className="rounded-xl bg-theme-surface shadow-sm p-4">
       <h3 className="text-sm font-semibold text-theme-text mb-3">{title}</h3>
       {children}
     </div>

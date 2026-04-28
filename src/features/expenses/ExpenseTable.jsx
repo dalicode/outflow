@@ -9,7 +9,7 @@ function EditableCell({ editing, value, onChange, type = "text", children }) {
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="border border-theme-border rounded-theme-small px-1 py-0.5 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-1 focus:ring-theme-primary/40"
+                      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
     />
   );
 }
@@ -68,9 +68,11 @@ export default function ExpenseTable({
 
   if (expenses.length === 0) {
     return (
-      <p className="text-center text-sm text-theme-muted py-10">
-        No expenses yet. Hit <strong>+</strong> to add one.
-      </p>
+      <div className="text-center py-12">
+        <p className="text-sm text-theme-muted">
+          No expenses yet. Hit <strong className="text-theme-primary">+</strong> to add one.
+        </p>
+      </div>
     );
   }
 
@@ -78,12 +80,12 @@ export default function ExpenseTable({
     selectedIds.size === expenses.length && expenses.length > 0;
 
   return (
-    <div className="overflow-x-auto pt-2">
-      <table className="w-full text-sm border-collapse table-theme">
-        <thead>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-separate border-spacing-0">
+        <thead className="sticky top-0 z-10">
           <tr>
             {manageMode && (
-              <th className="px-2 top-4 text-center w-10">
+              <th className="px-3 py-2.5 text-center w-10 backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -93,26 +95,40 @@ export default function ExpenseTable({
                 />
               </th>
             )}
-            <th className="px-3 py-2 text-left">Date</th>
-            <th className="px-3 py-2 text-left">Category</th>
-            <th className="px-3 py-2 text-left">Description</th>
-            <th className="px-3 py-2 text-right">Amount</th>
-            {manageMode && <th className="px-3 py-2 text-center">Actions</th>}
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+              Date
+            </th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+              Category
+            </th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+              Description
+            </th>
+            <th className="px-3 py-2.5 text-right text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20 tabular-nums">
+              Amount
+            </th>
+            {manageMode && (
+              <th className="px-3 py-2.5 text-center text-xs font-semibold text-theme-muted uppercase tracking-wider backdrop-blur-md bg-theme-surface/95 border-b border-theme-muted/20">
+                Actions
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
           {expenses.map((exp) => {
             const editing = editId === exp.id;
             const isSelected = selectedIds.has(exp.id);
+            const amountColor = exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
+
             return (
               <tr
                 key={exp.id}
-                className={`hover:bg-theme-primary/[0.04] transition-colors ${
-                  isSelected ? "bg-theme-primary/[0.06]" : ""
+                className={`border-b border-theme-muted/10 transition-colors duration-150 hover:bg-theme-primary/[0.03] ${
+                  isSelected ? "bg-theme-primary/[0.04]" : ""
                 }`}
               >
                 {manageMode && (
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-3 py-2.5 text-center">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -122,7 +138,7 @@ export default function ExpenseTable({
                     />
                   </td>
                 )}
-                <td className="px-3 py-2 text-theme-text">
+                <td className="px-3 py-2.5 text-theme-text whitespace-nowrap">
                   <EditableCell
                     editing={editing}
                     type="date"
@@ -132,14 +148,14 @@ export default function ExpenseTable({
                     {formatDate(exp.date)}
                   </EditableCell>
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   {editing ? (
                     <select
                       value={draft.categoryId ?? ""}
                       onChange={(e) =>
                         setField("categoryId")(Number(e.target.value))
                       }
-                      className="border border-theme-border rounded-theme-small px-1 py-0.5 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-1 focus:ring-theme-primary/40"
+      className="border border-theme-border rounded-theme-small px-2 py-1 text-sm w-full bg-theme-surface text-theme-text focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
                     >
                       {activeCategories.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -152,33 +168,25 @@ export default function ExpenseTable({
                       className={
                         catMap[exp.categoryId]?.isDeleted
                           ? "text-theme-muted italic"
-                          : "text-theme-text"
+                          : "text-theme-text font-medium"
                       }
                     >
                       {resolveName(exp)}
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-theme-text">
+                <td className="px-3 py-2.5 text-theme-text max-w-[200px] truncate">
                   <EditableCell
                     editing={editing}
                     value={draft.description}
                     onChange={setField("description")}
                   >
                     {exp.description || (
-                      <span className="text-theme-muted/50">—</span>
+                      <span className="text-theme-muted">—</span>
                     )}
                   </EditableCell>
                 </td>
-                <td
-                  className="px-3 py-2 text-right"
-                  style={{
-                    color:
-                      exp.amount < 0
-                        ? "var(--theme-success)"
-                        : "var(--theme-primary)",
-                  }}
-                >
+                <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${amountColor}`}>
                   <EditableCell
                     editing={editing}
                     type="number"
@@ -189,37 +197,37 @@ export default function ExpenseTable({
                   </EditableCell>
                 </td>
                 {manageMode && (
-                  <td className="px-3 py-2 text-center whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-center whitespace-nowrap">
                     {editing ? (
-                      <>
+                      <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={saveEdit}
-                          className="text-theme-success hover:opacity-80 font-medium mr-2"
+                          className="text-theme-success hover:opacity-80 font-medium text-sm transition-opacity"
                         >
                           Save
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="text-theme-muted hover:text-theme-text"
+                          className="text-theme-muted hover:text-theme-text text-sm transition-colors"
                         >
                           Cancel
                         </button>
-                      </>
+                      </div>
                     ) : (
-                      <>
+                      <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => startEdit(exp)}
-                          className="text-theme-primary hover:opacity-80 mr-2"
+                          className="text-theme-primary hover:opacity-80 text-sm font-medium transition-opacity"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => onDelete(exp.id)}
-                          className="text-theme-danger hover:opacity-80"
+                          className="text-theme-danger hover:opacity-80 text-sm transition-opacity"
                         >
                           Delete
                         </button>
-                      </>
+                      </div>
                     )}
                   </td>
                 )}

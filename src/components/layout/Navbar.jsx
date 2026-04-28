@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import OutflowWordmark from "../../components/ui/OutflowWordmark";
+import OutflowMark from "../../components/ui/OutflowMark";
 
-// RuneScape-inspired pixel art icons
 const DashboardIcon = ({ active }) => (
-  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
+  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
     <path
       d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
@@ -20,8 +21,7 @@ const DashboardIcon = ({ active }) => (
 );
 
 const SummaryIcon = ({ active }) => (
-  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
-    {/* Pixelated scroll icon */}
+  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
     <rect
       x="4"
       y="2"
@@ -66,8 +66,7 @@ const SummaryIcon = ({ active }) => (
 );
 
 const AnalyticsIcon = ({ active }) => (
-  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
-    {/* Pixelated bar chart */}
+  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
     <rect
       x="3"
       y="14"
@@ -103,8 +102,7 @@ const AnalyticsIcon = ({ active }) => (
 );
 
 const SettingsIcon = ({ active }) => (
-  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
-    {/* Pixelated gear/cog */}
+  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
     <circle
       cx="12"
       cy="12"
@@ -189,22 +187,33 @@ const SettingsIcon = ({ active }) => (
   </svg>
 );
 
-const AddIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
-    {/* Gold coin / gem + icon */}
-    <circle cx="12" cy="12" r="10" fill="var(--theme-primary)" />
-    <circle cx="12" cy="12" r="8" fill="#ffd700" />
-    <circle cx="12" cy="12" r="6" fill="#ffec8b" />
-    <text
-      x="12"
-      y="16"
-      textAnchor="middle"
-      fill="var(--theme-primary)"
-      fontSize="14"
-      fontWeight="bold"
-    >
-      +
-    </text>
+const PlusIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+  >
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const SignOutIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    className="w-5 h-5 shrink-0"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
 
@@ -221,176 +230,193 @@ export default function Navbar({
   onSignOut,
   userEmail,
 }) {
-  const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
 
-  const activeClass = "bg-theme-primary/10 text-theme-primary";
-  const inactiveClass =
-    "text-theme-muted hover:bg-theme-background hover:text-theme-text";
-
-  // Determine if we're on mobile (any route matches for bottom nav)
-  const isMobile = () => {
-    // Check if screen is small - we use CSS to hide/show, but for logic:
-    return typeof window !== "undefined" && window.innerWidth < 640;
-  };
+  const sidebarWidth = collapsed ? "w-14" : "w-44";
 
   return (
     <>
-      {/* Desktop Navbar - Top */}
-      <nav className="navbar-theme sticky top-0 z-30 hidden sm:block">
-        <div className="max-w-4xl mx-auto px-4 flex items-center justify-between h-14">
-          <span className="text-theme-text font-semibold text-lg tracking-tight flex items-center gap-2">
-            <img
-              src="/icon.svg"
-              alt="Gold stack"
-              className="w-7 h-7 align-middle"
-              style={{ marginBottom: "2px" }}
-            />
-            <span
-              style={{
-                lineHeight: "1",
-                display: "inline-block",
-                verticalAlign: "middle",
-              }}
-              className="text-theme-primary"
-            >
-              Spending Tracker
-            </span>
-          </span>
-
-          {/* Desktop Links */}
-          <div className="flex items-center gap-0.5">
-            {links.map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end
-                className={({ isActive }) =>
-                  `px-3 py-1.5 rounded-theme-small text-sm font-medium transition-colors ${isActive ? activeClass : inactiveClass}`
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
-            {syncDot && <span className="ml-2">{syncDot}</span>}
+      {/* Desktop Sidebar */}
+      <aside
+        className={`hidden sm:flex flex-col h-screen sticky top-0 bg-theme-surface border-r border-theme-border z-40 transition-all duration-200 ease-in-out ${sidebarWidth}`}
+      >
+        {/* Brand + Collapse toggle */}
+        <div className="px-3 pt-4 pb-2 flex items-center justify-between">
+          {!collapsed && (
+            <div className="flex items-center gap-2 overflow-hidden">
+              <OutflowWordmark className="h-6 w-auto shrink-0 text-theme-primary" />
+            </div>
+          )}
+          {collapsed && (
+            <div className="flex justify-center w-full">
+              <OutflowMark className="w-9 h-9 shrink-0 text-theme-primary" />
+            </div>
+          )}
+          {!collapsed && (
             <button
-              onClick={onAddExpense}
-              className="ml-3 bg-theme-primary text-white font-semibold text-lg w-8 h-8 rounded-theme-medium shadow-sm hover:opacity-90 transition-opacity flex items-center justify-center"
-              aria-label="Add expense"
+              onClick={() => setCollapsed(true)}
+              className="p-1.5 rounded-md text-theme-muted hover:text-theme-text hover:bg-theme-background transition-colors shrink-0"
+              aria-label="Collapse sidebar"
+              title="Collapse"
             >
-              +
-            </button>
-            {onSignOut && (
-              <button
-                onClick={onSignOut}
-                className="ml-2 text-theme-muted hover:text-theme-danger text-sm px-2 py-1 rounded-theme-small transition-colors"
-                title={userEmail}
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
               >
-                Sign out
-              </button>
-            )}
-          </div>
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Mobile dropdown (when hamburger clicked) */}
-        {open && (
-          <div className="sm:hidden bg-theme-surface/95 backdrop-blur-md border-b border-theme-border px-4 pb-3 flex flex-col gap-0.5">
-            {links.map(({ to, label }) => (
+        {/* Expand toggle (visible only when collapsed) */}
+        {collapsed && (
+          <div className="flex justify-center pb-2">
+            <button
+              onClick={() => setCollapsed(false)}
+              className="p-1.5 rounded-md text-theme-muted hover:text-theme-text hover:bg-theme-background transition-colors"
+              aria-label="Expand sidebar"
+              title="Expand"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Nav Links */}
+        <nav className="flex-1 px-2 space-y-1">
+          {links.map(({ to, label, icon: Icon }) => {
+            const isActive = location.pathname === to;
+            return (
               <NavLink
                 key={to}
                 to={to}
                 end
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  `px-3 py-2 rounded-theme-small text-sm font-medium transition-colors ${isActive ? "bg-theme-primary/10 text-theme-primary" : "text-theme-muted hover:bg-theme-background hover:text-theme-text"}`
-                }
+                className={`
+                  flex items-center rounded-lg transition-colors duration-150
+                  ${collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2"}
+                  ${
+                    isActive
+                      ? "bg-theme-primary/5 text-theme-primary font-semibold"
+                      : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
+                  }
+                `}
               >
-                {label}
+                <Icon active={isActive} />
+                {!collapsed && (
+                  <span className="text-sm font-medium truncate">{label}</span>
+                )}
               </NavLink>
-            ))}
-            {onSignOut && (
-              <button
-                onClick={onSignOut}
-                className="text-left px-3 py-2 text-theme-muted hover:text-theme-danger text-sm font-medium"
-              >
-                Sign out {userEmail ? `(${userEmail})` : ""}
-              </button>
-            )}
-          </div>
-        )}
-      </nav>
+            );
+          })}
+        </nav>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 navbar-theme">
-        <div className="flex items-center justify-between h-16 px-2 relative">
-          {/* Dashboard */}
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center flex-1 py-2 transition-transform active:scale-95 ${isActive ? "text-theme-primary" : "text-theme-muted"}`
-            }
-            aria-current={location.pathname === "/" ? "page" : undefined}
-          >
-            <DashboardIcon active={location.pathname === "/"} />
-            <span className="text-[10px] mt-0.5">Dashboard</span>
-          </NavLink>
-
-          {/* Summary */}
-          <NavLink
-            to="/summary"
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center flex-1 py-2 transition-transform active:scale-95 ${isActive ? "text-theme-primary" : "text-theme-muted"}`
-            }
-            aria-current={location.pathname === "/summary" ? "page" : undefined}
-          >
-            <SummaryIcon active={location.pathname === "/summary"} />
-            <span className="text-[10px] mt-0.5">Summary</span>
-          </NavLink>
-
-          {/* Spacer for centering */}
-          <div className="w-12" />
-
-          {/* Analytics */}
-          <NavLink
-            to="/analytics"
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center flex-1 py-2 transition-transform active:scale-95 ${isActive ? "text-theme-primary" : "text-theme-muted"}`
-            }
-            aria-current={
-              location.pathname === "/analytics" ? "page" : undefined
-            }
-          >
-            <AnalyticsIcon active={location.pathname === "/analytics"} />
-            <span className="text-[10px] mt-0.5">Analytics</span>
-          </NavLink>
-
-          {/* Settings */}
-          <NavLink
-            to="/settings"
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center flex-1 py-2 transition-transform active:scale-95 ${isActive ? "text-theme-primary" : "text-theme-muted"}`
-            }
-            aria-current={
-              location.pathname === "/settings" ? "page" : undefined
-            }
-          >
-            <SettingsIcon active={location.pathname === "/settings"} />
-            <span className="text-[10px] mt-0.5">Settings</span>
-          </NavLink>
-
-          {/* Floating Add Button - Centered */}
+        {/* Actions Footer */}
+        <div className="pb-4 space-y-1">
+          {/* Add expense */}
           <button
             onClick={onAddExpense}
-            className="absolute left-1/2 -translate-x-1/2 -top-3 w-14 h-14 rounded-full bg-theme-primary text-white text-2xl font-medium shadow-lg shadow-theme-primary/30 flex items-center justify-center transition-transform active:scale-90 hover:scale-105"
+            className={`
+                  w-full flex items-center rounded-lg text-theme-primary transition-all duration-150 hover:bg-theme-primary/5 active:scale-95
+                  ${collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2"}
+                `}
             aria-label="Add expense"
-            style={{ bottom: "1px" }}
           >
-            +
+            <PlusIcon />
+            {!collapsed && (
+              <span className="text-sm font-medium truncate">Add</span>
+            )}
           </button>
+
+          {syncDot && (
+            <div
+              className={`${collapsed ? "flex justify-center py-2" : "px-3 py-2 mx-2"}`}
+            >
+              {syncDot}
+            </div>
+          )}
+
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className={`
+                w-full flex items-center rounded-lg transition-colors duration-150 text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5
+                ${collapsed ? "justify-center py-2.5 px-2 mx-1" : "gap-3 py-2.5 px-3 mx-2"}
+              `}
+              title={userEmail}
+            >
+              <SignOutIcon />
+              {!collapsed && (
+                <div className="text-left overflow-hidden">
+                  <span className="text-sm font-medium block truncate">
+                    Sign out
+                  </span>
+                  {userEmail && (
+                    <span className="text-[0.6875rem] text-theme-muted block truncate">
+                      {userEmail}
+                    </span>
+                  )}
+                </div>
+              )}
+            </button>
+          )}
+        </div>
+      </aside>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="sm:hidden fixed bottom-4 left-4 right-4 z-30">
+        <div className="bg-theme-surface/95 backdrop-blur-md rounded-2xl shadow-lg border border-theme-border flex items-center h-14 px-2">
+          {links.slice(0, 2).map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
+                  isActive ? "text-theme-primary" : "text-theme-muted"
+                }`
+              }
+            >
+              <Icon active={location.pathname === to} />
+              <span className="text-[10px] mt-0.5 font-medium">{label}</span>
+            </NavLink>
+          ))}
+
+          <button
+            onClick={onAddExpense}
+            className="-mt-4 !mx-0 w-14 h-14 rounded-full bg-theme-primary text-white shadow-lg shadow-theme-primary/30 flex flex-col items-center justify-center transition-transform active:scale-90 hover:scale-105 z-10 shrink-0"
+            aria-label="Add expense"
+          >
+            <PlusIcon />
+          </button>
+
+          {links.slice(2).map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
+                  isActive ? "text-theme-primary" : "text-theme-muted"
+                }`
+              }
+            >
+              <Icon active={location.pathname === to} />
+              <span className="text-[10px] mt-0.5 font-medium">{label}</span>
+            </NavLink>
+          ))}
         </div>
       </nav>
     </>

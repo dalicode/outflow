@@ -1,4 +1,4 @@
-# Spending Tracker
+# Outflow
 
 A personal expense tracker that runs entirely in the browser. Data is stored in IndexedDB (via Dexie) and persists across page refreshes.
 

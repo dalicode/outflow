@@ -1,8 +1,37 @@
 import React from "react";
 import { useSettings } from "../../context/settingsContext";
 
+function InsightTile({ label, value, tone, subValue }) {
+  const { getNumberColorClass } = useSettings();
+
+  const toneClass =
+    tone === "success"
+      ? "text-theme-success"
+      : tone === "danger"
+        ? "text-theme-danger"
+        : tone === "primary"
+          ? "text-theme-primary"
+          : getNumberColorClass(value);
+
+  return (
+    <div className="min-w-[130px] md:min-w-0 flex-1 rounded-xl bg-theme-surface shadow-sm p-4 transition-shadow duration-200 hover:shadow-md">
+      <div className={`text-2xl font-bold tabular-nums tracking-tight ${toneClass}`}>
+        {value}
+      </div>
+      <div className="text-xs text-theme-muted mt-1 font-medium uppercase tracking-wider">
+        {label}
+      </div>
+      {subValue && (
+        <div className="text-[0.6875rem] text-theme-muted mt-0.5">
+          {subValue}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BudgetInsights({ summary }) {
-  const { formatAmount, getNumberColorClass } = useSettings();
+  const { formatAmount } = useSettings();
 
   if (!summary) return null;
 
@@ -12,70 +41,61 @@ export default function BudgetInsights({ summary }) {
     autoSavings,
     remaining,
     fixedExpenses,
+    variableExpenses,
   } = summary;
 
   const totalSavings = autoSavings + remaining;
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
-        Budget Insights
-      </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          { label: "Monthly Spending", value: summary.variableExpenses, tone: "primary" },
-          { label: "Auto Savings", value: autoSavings, tone: "primary" },
-          { label: "Remaining Budget", value: remaining, tone: "remaining" },
-          { label: "Total Savings", value: totalSavings, tone: "primary" },
-        ].map(({ label, value, tone }) => {
-          const toneClasses = {
-            warning: "text-yellow-600",
-            savings: getNumberColorClass(value),
-            remaining:
-              value > 0
-                ? "text-theme-success"
-                : value < 0
-                  ? "text-theme-danger"
-                  : "text-theme-text",
-            totalSavings: getNumberColorClass(value),
-            primary: "text-theme-primary",
-          };
-          return (
-            <div
-              key={label}
-              className="bg-theme-surface rounded-theme-large shadow-sm px-4 py-3 border border-theme-border"
-            >
-              <p className="text-xs text-theme-muted uppercase tracking-widest mb-2">
-                {label}
-              </p>
-              <p className={`text-xl font-semibold ${toneClasses[tone]}`}>
-                {formatAmount(value)}
-              </p>
-            </div>
-          );
-        })}
+    <div className="space-y-4">
+      {/* Insight tiles */}
+      <div className="flex md:grid md:grid-cols-4 gap-3 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+        <InsightTile
+          label="Spending"
+          value={formatAmount(variableExpenses)}
+          tone="primary"
+        />
+        <InsightTile
+          label="Auto Savings"
+          value={formatAmount(autoSavings)}
+          tone="primary"
+        />
+        <InsightTile
+          label="Remaining"
+          value={formatAmount(remaining)}
+          tone={remaining >= 0 ? "success" : "danger"}
+        />
+        <InsightTile
+          label="Total Savings"
+          value={formatAmount(totalSavings)}
+          tone={totalSavings >= 0 ? "success" : "danger"}
+        />
       </div>
 
-      {/* Fixed Expenses summary card */}
-      <div className="bg-theme-surface rounded-theme-large shadow-sm px-4 py-3 space-y-2 border border-theme-border">
-        <div className="flex justify-between items-center">
-          <p className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
+      {/* Fixed expenses mini card */}
+      <div className="rounded-xl bg-theme-surface shadow-sm p-4 md:p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-theme-text tracking-tight">
             Fixed Expenses
-          </p>
-          <p className="text-lg font-semibold text-theme-primary">
+          </h3>
+          <span className="text-lg font-bold text-theme-primary tabular-nums">
             {formatAmount(fixedExpensesTotal)}
-          </p>
+          </span>
         </div>
+
         {fixedExpenses.length === 0 ? (
-          <p className="text-sm text-theme-muted">
-            No fixed expenses added yet.
-          </p>
+          <p className="text-sm text-theme-muted">No fixed expenses added yet.</p>
         ) : (
-          <ul className="divide-y divide-theme-border">
-            {fixedExpenses.map((f) => (
-              <li key={f.id} className="flex justify-between py-1 text-sm">
-                <span className="text-theme-text">{f.name}</span>
-                <span className={`text-theme-text font-medium text-theme-primary`}>
+          <ul className="space-y-0">
+            {fixedExpenses.map((f, i) => (
+              <li
+                key={f.id}
+                className={`flex items-center justify-between py-2 text-sm ${
+                  i !== fixedExpenses.length - 1 ? "border-b border-theme-muted/10" : ""
+                }`}
+              >
+                <span className="text-theme-text font-medium">{f.name}</span>
+                <span className="text-theme-primary font-semibold tabular-nums">
                   {formatAmount(f.amount)}
                 </span>
               </li>
@@ -83,6 +103,6 @@ export default function BudgetInsights({ summary }) {
           </ul>
         )}
       </div>
-    </section>
+    </div>
   );
 }

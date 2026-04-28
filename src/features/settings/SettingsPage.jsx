@@ -416,7 +416,7 @@ export default function SettingsPage({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `spending-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `outflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -483,10 +483,10 @@ export default function SettingsPage({
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
-      <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
-        Settings
-      </h2>
+    <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Settings</h1>
+      </div>
       <Card title="Visual Theme">
         <p className="text-xs text-theme-muted mb-2">
           Choose a visual style. Changes apply instantly and sync across
@@ -687,7 +687,7 @@ export default function SettingsPage({
       </div>
 
       {(importStatus || importErrors.length > 0) && (
-        <div className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-2 border border-theme-border">
+        <div className="bg-theme-surface rounded-xl shadow-sm p-4 space-y-2">
           <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
             Import Log
           </h2>
@@ -703,7 +703,7 @@ export default function SettingsPage({
               <summary className="text-xs text-theme-danger cursor-pointer select-none">
                 View all {importErrors.length} error(s)
               </summary>
-              <ul className="mt-1.5 max-h-32 overflow-y-auto space-y-0.5 text-xs text-theme-danger/90 font-mono">
+              <ul className="mt-1.5 max-h-32 overflow-y-auto space-y-0.5 text-xs text-theme-danger font-mono">
                 {importErrors.map((err, i) => (
                   <li key={i} className="break-all">
                     {err}
@@ -773,7 +773,7 @@ export default function SettingsPage({
         </p>
 
         {schedules.length === 0 ? (
-          <p className="text-xs text-theme-muted/60 italic mb-3">
+          <p className="text-xs text-theme-muted italic mb-3">
             No scheduled changes yet.
           </p>
         ) : (
@@ -843,7 +843,7 @@ export default function SettingsPage({
                               {MONTHS[s.effectiveMonth - 1]} {s.effectiveYear}
                             </span>
                             {s.note && (
-                              <span className="text-theme-muted/60 ml-1">
+                              <span className="text-theme-muted ml-1">
                                 ({s.note})
                               </span>
                             )}
@@ -880,7 +880,7 @@ export default function SettingsPage({
                       {past.map((s) => (
                         <div
                           key={s.id}
-                          className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-theme-background opacity-60"
+                           className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-theme-background"
                         >
                           <div>
                             <span className="font-medium text-theme-text">

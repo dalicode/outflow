@@ -203,7 +203,7 @@ export default function AnalyticsTable({ data, year, goToMonth, formatAmount, ge
                   transition-colors duration-150
                   hover:bg-theme-primary/[0.03]
                   ${rowBg}
-                  ${isArchived ? "italic text-theme-muted/70" : ""}
+                  ${isArchived ? "italic text-theme-muted" : ""}
                 `}
               >
                 {row.getVisibleCells().map((cell) => {
@@ -218,11 +218,11 @@ export default function AnalyticsTable({ data, year, goToMonth, formatAmount, ge
                     const val = row.original.amounts?.[monthIndex];
 
                     if (kind === "summary" && !data.monthlyHasData[monthIndex]) {
-                      cellContent = <span className="text-theme-muted/50">—</span>;
+                      cellContent = <span className="text-theme-muted">—</span>;
                     } else {
-                      let cls = val == null ? "text-theme-muted/50" : getNumberColorClass(val);
-                      if (kind === "fixed") cls = val == null ? "text-theme-muted/50" : getNumberColorClass(val);
-                      if (kind === "variable") cls = val == null ? "text-theme-muted/50" : getNumberColorClass(val);
+                      let cls = val == null ? "text-theme-muted" : getNumberColorClass(val);
+                      if (kind === "fixed") cls = val == null ? "text-theme-muted" : getNumberColorClass(val);
+                      if (kind === "variable") cls = val == null ? "text-theme-muted" : getNumberColorClass(val);
                       if (kind === "summary") {
                         if (row.original.id === "sum-remaining") {
                           cls = val > 0 ? "text-theme-success font-semibold" : val < 0 ? "text-theme-danger font-semibold" : "text-theme-text font-semibold";
@@ -260,7 +260,7 @@ export default function AnalyticsTable({ data, year, goToMonth, formatAmount, ge
                     const hasAnyData = data.monthlyHasData.some(Boolean);
 
                     if (kind === "summary" && !hasAnyData) {
-                      cellContent = <span className="text-theme-muted/50">—</span>;
+                      cellContent = <span className="text-theme-muted">—</span>;
                     } else {
                       let cls = row.original.id === "sum-remaining"
                         ? yt > 0 ? "font-semibold text-theme-success" : yt < 0 ? "font-semibold text-theme-danger" : "font-semibold text-theme-text"
@@ -290,7 +290,7 @@ export default function AnalyticsTable({ data, year, goToMonth, formatAmount, ge
                     cellContent = (
                       <span className={`text-sm font-medium ${isArchived ? "text-theme-muted" : "text-theme-text"}`}>
                         {row.original.label}
-                        {isArchived && <span className="ml-1.5 text-xs text-theme-muted/60">(Archived)</span>}
+                        {isArchived && <span className="ml-1.5 text-xs text-theme-muted">(Archived)</span>}
                       </span>
                     );
                   }

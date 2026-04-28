@@ -31,7 +31,6 @@ export default function Dashboard({
   const [showConfirm, setShowConfirm] = useState(false);
   const [financialSummary, setFinancialSummary] = useState(null);
 
-  // Load raw data and compute via engine — single source of truth
   useEffect(() => {
     const loadData = async () => {
       const now = new Date();
@@ -50,7 +49,6 @@ export default function Dashboard({
           StorageService.getActiveSchedules(),
         ]);
 
-      // For current/future months, active definitions act as virtual snapshots
       let monthSnapshots;
       if (isCurrentOrFuture) {
         const active = allFixed.filter((f) => f.isArchived !== true);
@@ -164,29 +162,32 @@ export default function Dashboard({
     return Object.entries(map).sort(([, a], [, b]) => b - a);
   }, [monthlyExpenses, catMap]);
 
-  const label = new Date(selectedYear, selectedMonth).toLocaleString(
-    "default",
-    { month: "long", year: "numeric" },
-  );
+  const label = new Date(selectedYear, selectedMonth).toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
-      {financialSummary && (
-        <BudgetInsights summary={financialSummary} />
-      )}
+    <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Dashboard</h1>
+      </div>
+      {/* Budget Insights */}
+      {financialSummary && <BudgetInsights summary={financialSummary} />}
 
+      {/* Category filter chips */}
       {categoryTotals.length > 0 && (
-        <section>
-          <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
-            Spending by Category
+        <div>
+          <h2 className="text-sm font-semibold text-theme-text tracking-tight mb-3">
+            Filter by Category
           </h2>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedCategories(new Set())}
-              className={`px-3 py-1.5 rounded-theme-medium text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 selectedCategories.size === 0
                   ? "bg-theme-primary text-white"
-                  : "bg-theme-surface text-theme-muted border border-theme-border hover:bg-theme-background"
+                      : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
               }`}
             >
               All
@@ -202,51 +203,48 @@ export default function Dashboard({
                     else next.add(cat);
                     setSelectedCategories(next);
                   }}
-                  className={`px-3 py-1.5 rounded-theme-medium text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
                     isSelected
                       ? "bg-theme-primary text-white"
-                      : "bg-theme-surface text-theme-muted border border-theme-border hover:bg-theme-background"
+                  : "bg-theme-surface text-theme-muted shadow-sm hover:text-theme-text"
                   }`}
                 >
                   <span>{cat}</span>
-                  <span
-                    className={
-                      isSelected ? "text-white/80" : getNumberColorClass(total)
-                    }
-                  >
+                  <span className={isSelected ? "text-white/80" : getNumberColorClass(total)}>
                     {formatAmount(total)}
                   </span>
                 </button>
               );
             })}
           </div>
-        </section>
+        </div>
       )}
 
-      <section className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-4 border border-theme-border">
+      {/* Expenses Table Card */}
+      <section className="rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 space-y-4">
+        {/* Month nav header */}
         <div className="relative flex items-center justify-center">
           <div className="flex items-center gap-3">
             <button
               onClick={prevMonth}
-              className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
+              className="p-2 rounded-lg hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
               aria-label="Previous month"
             >
-              &#8592;
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
             <div className="text-center">
-              <span
-                className={`text-lg font-semibold ${isCurrentMonth ? "text-theme-primary" : "text-theme-text"}`}
-              >
+              <span className={`text-lg font-semibold ${isCurrentMonth ? "text-theme-primary" : "text-theme-text"}`}>
                 {label}
               </span>
               {isCurrentMonth && (
-                <span className="ml-2 text-xs bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-theme-medium">
+                <span className="ml-2 text-xs bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-full font-medium">
                   current
                 </span>
               )}
               <p className="text-sm text-theme-muted mt-0.5">
-                {monthlyExpenses.length} transaction
-                {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
+                {monthlyExpenses.length} transaction{monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
                 <span className={getNumberColorClass(financialSummary?.variableExpenses ?? 0)}>
                   {formatAmount(financialSummary?.variableExpenses ?? 0)}
                 </span>
@@ -254,48 +252,32 @@ export default function Dashboard({
             </div>
             <button
               onClick={nextMonth}
-              className="p-2 rounded-theme-small hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
+              className="p-2 rounded-lg hover:bg-theme-background text-theme-muted hover:text-theme-text transition-colors"
               aria-label="Next month"
             >
-              &#8594;
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
 
-          {/* Floating manage button */}
+          {/* Manage button */}
           <button
             onClick={toggleManageMode}
             aria-label={manageMode ? "Done" : "Manage"}
             aria-pressed={manageMode}
-            className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-theme-small transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 z-10 ${
+            className={`absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 z-10 ${
               manageMode
-                ? "text-white"
+                ? "bg-theme-primary text-white"
                 : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
             }`}
           >
             {manageMode ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-4 h-4"
-              >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-4 h-4"
-              >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
               </svg>
             )}
@@ -304,34 +286,33 @@ export default function Dashboard({
           {manageMode && selectedIds.size > 0 && (
             <button
               onClick={handleBulkDeleteClick}
-              className="absolute right-12 top-1/2 -translate-y-1/2 text-xs font-medium px-2.5 py-1.5 rounded-theme-small bg-theme-danger text-white hover:opacity-90 transition-opacity z-10"
+              className="absolute right-10 top-1/2 -translate-y-1/2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-theme-danger text-white hover:opacity-90 transition-opacity z-10"
             >
               Delete {selectedIds.size}
             </button>
           )}
         </div>
 
+        {/* Confirm delete modal */}
         {showConfirm && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-30">
-            <div className="modal-theme p-5 w-full max-w-xs space-y-4">
-              <h3 className="text-base font-semibold text-theme-text">
-                Confirm Delete
-              </h3>
+            <div className="bg-theme-surface rounded-xl p-6 w-full max-w-xs space-y-4 shadow-lg">
+              <h3 className="text-base font-semibold text-theme-text">Confirm Delete</h3>
               <p className="text-sm text-theme-muted">
                 Are you sure you want to delete{" "}
                 <strong className="text-theme-text">{selectedIds.size}</strong>{" "}
                 expense{selectedIds.size !== 1 ? "s" : ""}?
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={confirmDelete}
-                  className="flex-1 bg-theme-danger hover:opacity-90 text-white text-sm font-medium py-2 rounded-theme-small transition-opacity focus:outline-none focus:ring-2 focus:ring-theme-danger/50"
+                  className="flex-1 bg-theme-danger hover:opacity-90 text-white text-sm font-semibold py-2.5 rounded-lg transition-opacity focus:outline-none focus:ring-2 focus:ring-theme-danger/50"
                 >
                   Delete
                 </button>
                 <button
                   onClick={() => setShowConfirm(false)}
-                  className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-sm font-medium py-2 rounded-theme-small transition-colors border border-theme-border focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
+                  className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-sm font-semibold py-2.5 rounded-lg transition-colors border border-theme-border focus:outline-none focus:ring-2 focus:ring-theme-primary/40"
                 >
                   Cancel
                 </button>

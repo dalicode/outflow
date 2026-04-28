@@ -29,13 +29,13 @@ function SyncDot({ status }) {
   };
   return (
     <span
-      className="flex items-center gap-1 text-xs text-white/70"
+      className="flex items-center gap-1 text-xs text-theme-muted"
       title={labels[status]}
     >
       <span
         className={`w-2 h-2 rounded-theme-small ${styles[status] ?? styles.idle}`}
       />
-      <span className="hidden sm:inline">{labels[status]}</span>
+      <span className="hidden lg:inline">{labels[status]}</span>
     </span>
   );
 }
@@ -51,7 +51,6 @@ export default function App() {
   } = useCategories();
   const [showForm, setShowForm] = useState(false);
 
-  // Re-load local data after a sync pull so UI reflects merged state
   useEffect(() => {
     if (syncStatus === "idle") {
       refreshExpenses();
@@ -95,23 +94,20 @@ export default function App() {
     triggerSync?.();
   };
 
-  // Show auth page only when Supabase is configured and user is not logged in
   if (supabase && !loading && !user) return <AuthPage />;
 
   const isReady = !loading && settingsLoaded;
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-theme-background">
+      <div className="min-h-screen bg-theme-background flex">
         {!isReady ? (
-          <div style={{ padding: 40, fontFamily: "system-ui, sans-serif" }}>
-            <p style={{ fontSize: 18, marginBottom: 12 }}>
-              <strong>Loading…</strong>
-            </p>
+          <div className="flex-1 p-10" style={{ fontFamily: "system-ui, sans-serif" }}>
+            <p className="text-lg font-bold mb-3">Loading…</p>
             <p>Auth loading: {String(loading)}</p>
             <p>Settings loaded: {String(settingsLoaded)}</p>
             <p>Supabase configured: {String(!!supabase)}</p>
-            <p style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
+            <p className="mt-3 text-xs text-gray-500">
               If this persists, check the browser console for errors.
             </p>
           </div>
@@ -123,11 +119,11 @@ export default function App() {
               onSignOut={supabase ? signOut : null}
               userEmail={user?.email}
             />
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <div className="pb-20 sm:pb-0">
+            <main className="flex-1 min-w-0 pb-24 sm:pb-0">
+              <Routes>
+                <Route
+                  path="/"
+                  element={
                     <Dashboard
                       expenses={expenses}
                       categories={categories}
@@ -135,32 +131,24 @@ export default function App() {
                       onDelete={handleDelete}
                       onBulkDelete={handleBulkDelete}
                     />
-                  </div>
-                }
-              />
-              <Route
-                path="/summary"
-                element={
-                  <div className="pb-20 sm:pb-0">
-                    <SummaryPage expenses={expenses} />
-                  </div>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <div className="pb-20 sm:pb-0">
+                  }
+                />
+                <Route
+                  path="/summary"
+                  element={<SummaryPage expenses={expenses} />}
+                />
+                <Route
+                  path="/analytics"
+                  element={
                     <AnalyticsPage
                       expenses={expenses}
                       categories={categories}
                     />
-                  </div>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <div className="pb-20 sm:pb-0">
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
                     <SettingsPage
                       expenses={expenses}
                       onImport={async () =>
@@ -172,10 +160,10 @@ export default function App() {
                       }}
                       triggerSync={triggerSync}
                     />
-                  </div>
-                }
-              />
-            </Routes>
+                  }
+                />
+              </Routes>
+            </main>
             {showForm && (
               <ExpenseForm
                 onAdd={handleAdd}
