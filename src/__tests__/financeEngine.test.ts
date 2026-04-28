@@ -134,7 +134,7 @@ describe('getMonthlyFinancialSummary', () => {
       effectiveYear: now.getFullYear(),
       effectiveMonth: now.getMonth() + 1,
       newValue: 8000,
-      isActive: true,
+      isActive: 1,
     }
 
     const data: FinanceEngineData = {
@@ -154,7 +154,7 @@ describe('getMonthlyFinancialSummary', () => {
       effectiveYear: pastYear,
       effectiveMonth: 1,
       newValue: 9999,
-      isActive: true,
+      isActive: 1,
     }
 
     const data: FinanceEngineData = {
@@ -192,7 +192,7 @@ describe('getMonthlyFinancialSummary', () => {
       effectiveYear: 2024,
       effectiveMonth: 1,
       newValue: 9999,
-      isActive: true,
+      isActive: 1,
     }
 
     const data: FinanceEngineData = {

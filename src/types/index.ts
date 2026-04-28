@@ -73,7 +73,7 @@ export interface Schedule {
   effectiveYear: number
   effectiveMonth: number
   newValue: number
-  isActive: boolean
+  isActive: number  // IndexedDB cannot index booleans; stored as 1/0
   note?: string
   createdAt?: string
 }

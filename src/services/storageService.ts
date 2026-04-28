@@ -143,7 +143,7 @@ async function materializePendingSnapshots() {
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
 
-  const schedules = await db.schedules.where('isActive').equals(true).toArray()
+  const schedules = await db.schedules.where('isActive').equals(1).toArray()
   const fixedDefs = await db.fixedExpenses.toArray()
   const fixedDefMap = new Map(fixedDefs.map((f) => [f.id, f]))
 
@@ -319,11 +319,11 @@ export const StorageService = {
 
   // ── Scheduled Changes ─────────────────────────────────────
   getSchedules: () => db.schedules.toArray(),
-  getActiveSchedules: () => db.schedules.where('isActive').equals(true).toArray(),
+  getActiveSchedules: () => db.schedules.where('isActive').equals(1).toArray(),
   addSchedule: async (schedule: Omit<Schedule, 'id' | 'isActive' | 'createdAt'>) => {
     const id = await db.schedules.add({
       ...schedule,
-      isActive: true,
+      isActive: 1,
       createdAt: new Date().toISOString(),
     } as Schedule)
     const row = await db.schedules.get(id)

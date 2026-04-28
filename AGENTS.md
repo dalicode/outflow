@@ -56,11 +56,13 @@ Schedules (`schedules` table) automate future changes to income, savings rate, a
 
 | Phase | Condition | DB State | Behavior |
 |-------|-----------|----------|----------|
-| Upcoming | Effective date > current month | `isActive: true` | Editable. `applySchedules()` projects value. |
-| Current | Effective date == current month | `isActive: true` | Materialized on app startup → snapshot written, global updated, schedule archived. |
-| Archived | Effective date < current month | `isActive: false` | Read-only. Value frozen in snapshot. |
+| Upcoming | Effective date > current month | `isActive: 1` | Editable. `applySchedules()` projects value. |
+| Current | Effective date == current month | `isActive: 1` | Materialized on app startup → snapshot written, global updated, schedule archived. |
+| Archived | Effective date < current month | `isActive: 0` | Read-only. Value frozen in snapshot. |
 
-`StorageService.materializePendingSnapshots()` runs once on app startup (called in `App.tsx`). It iterates all active schedules, writes snapshots for effective months, updates global settings/definitions, and archives the schedule (`isActive: false`).
+> **IndexedDB cannot index booleans.** `isActive` is stored as `1`/`0` (number), not `true`/`false` (boolean). Dexie queries like `.where('isActive').equals(1)` work; `.equals(true)` throws `DataError: The parameter is not a valid key`.
+
+`StorageService.materializePendingSnapshots()` runs once on app startup (called in `App.tsx`). It iterates all active schedules, writes snapshots for effective months, updates global settings/definitions, and archives the schedule (`isActive: 0`).
 
 ### Backfill Historical Data
 
