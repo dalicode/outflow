@@ -37,8 +37,6 @@ const baseData: FinanceEngineData = {
   expenses: [],
   snapshots: [],
   fixedExpenses: [],
-  incomeRules: {},
-  savingsRules: {},
   globalIncome: 5000,
   globalSavingsRate: 20,
   schedules: [],
@@ -87,10 +85,10 @@ describe('getMonthlyFinancialSummary', () => {
     expect(result.remaining).toBe(3875) // 5000 - 0 - 1000 - 125
   })
 
-  it('uses yearly income overrides', () => {
+  it('uses income snapshots', () => {
     const data: FinanceEngineData = {
       ...baseData,
-      incomeRules: { 2024: 6000 },
+      incomeSnapshots: [{ year: 2024, month: 1, amountSnapshot: 6000 }],
     }
 
     const result = getMonthlyFinancialSummary(2024, 0, data)
@@ -98,10 +96,13 @@ describe('getMonthlyFinancialSummary', () => {
     expect(result.autoSavings).toBe(1200) // 6000 * 0.20
   })
 
-  it('uses per-month income overrides', () => {
+  it('uses per-month income snapshots', () => {
     const data: FinanceEngineData = {
       ...baseData,
-      incomeRules: { 2024: { 1: 7000, 2: 5500 } },
+      incomeSnapshots: [
+        { year: 2024, month: 1, amountSnapshot: 7000 },
+        { year: 2024, month: 2, amountSnapshot: 5500 },
+      ],
     }
 
     const jan = getMonthlyFinancialSummary(2024, 0, data)
@@ -114,10 +115,10 @@ describe('getMonthlyFinancialSummary', () => {
     expect(mar.income).toBe(5000) // falls back to global
   })
 
-  it('uses yearly savings rate overrides', () => {
+  it('uses savings rate snapshots', () => {
     const data: FinanceEngineData = {
       ...baseData,
-      savingsRules: { 2024: 30 },
+      savingsSnapshots: [{ year: 2024, month: 1, rateSnapshot: 30 }],
     }
 
     const result = getMonthlyFinancialSummary(2024, 0, data)
@@ -145,7 +146,7 @@ describe('getMonthlyFinancialSummary', () => {
     expect(result.income).toBe(8000)
   })
 
-  it('does not apply schedules to past months', () => {
+  it('applies schedules to past months when no snapshot exists', () => {
     const pastYear = 2020
     const schedule: Schedule = {
       type: 'income',
@@ -162,7 +163,46 @@ describe('getMonthlyFinancialSummary', () => {
     }
 
     const result = getMonthlyFinancialSummary(pastYear, 0, data)
-    expect(result.income).toBe(5000) // global fallback, schedule not applied to past
+    expect(result.income).toBe(9999) // schedule applied even to past month
+  })
+
+  it('ignores archived schedules', () => {
+    const schedule: Schedule = {
+      type: 'income',
+      targetId: null,
+      effectiveYear: 2024,
+      effectiveMonth: 1,
+      newValue: 9999,
+      isActive: false,
+    }
+
+    const data: FinanceEngineData = {
+      ...baseData,
+      schedules: [schedule],
+    }
+
+    const result = getMonthlyFinancialSummary(2024, 0, data)
+    expect(result.income).toBe(5000) // archived schedule ignored
+  })
+
+  it('snapshot takes precedence over schedule', () => {
+    const schedule: Schedule = {
+      type: 'income',
+      targetId: null,
+      effectiveYear: 2024,
+      effectiveMonth: 1,
+      newValue: 9999,
+      isActive: true,
+    }
+
+    const data: FinanceEngineData = {
+      ...baseData,
+      schedules: [schedule],
+      incomeSnapshots: [{ year: 2024, month: 1, amountSnapshot: 7500 }],
+    }
+
+    const result = getMonthlyFinancialSummary(2024, 0, data)
+    expect(result.income).toBe(7500) // snapshot wins over schedule
   })
 
   it('handles zero income', () => {
@@ -321,7 +361,11 @@ describe('getYearFinancialSummary', () => {
   it('computes average savings percentage across valid months', () => {
     const data: FinanceEngineData = {
       ...baseData,
-      incomeRules: { 2024: { 1: 5000, 2: 0, 3: 5000 } },
+      incomeSnapshots: [
+        { year: 2024, month: 1, amountSnapshot: 5000 },
+        { year: 2024, month: 2, amountSnapshot: 0 },
+        { year: 2024, month: 3, amountSnapshot: 5000 },
+      ],
     }
 
     const result = getYearFinancialSummary(2024, data, { currentYear: 2024, currentMonth: 0 })

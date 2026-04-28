@@ -579,67 +579,29 @@ export default function BackfillHistoricalDataModal({
       setLoading(true);
       try {
         const [
-          incomeOverrides,
-          savingsOverrides,
           fixedDefs,
-          incSetAt,
-          savSetAt,
+          incSnaps,
+          savSnaps,
         ] = await Promise.all([
-          StorageService.getSetting("yearlyIncomeOverrides", {}),
-          StorageService.getSetting("yearlySavingsOverrides", {}),
           StorageService.getFixedExpenses(),
-          StorageService.getSetting("monthlyIncomeSetAt", null),
-          StorageService.getSetting("savingsRateSetAt", null),
+          StorageService.getAllIncomeSnapshots(),
+          StorageService.getAllSavingsSnapshots(),
         ]);
 
         const defMap = new Map((fixedDefs as Array<{ id?: number; name: string }>).map((f) => [f.id, f]));
         const configs: Record<number, YearConfig> = {};
 
-        const globalInc = parseFloat(defaultIncome);
-        const globalSav = parseFloat(defaultSavingsRate);
-
-        // Fallback to current date if no set-at tracking exists
-        const now = new Date();
-        const incCutoff = (incSetAt as { year: number; month: number } | null) || { year: now.getFullYear(), month: now.getMonth() + 1 };
-        const savCutoff = (savSetAt as { year: number; month: number } | null) || { year: now.getFullYear(), month: now.getMonth() + 1 };
-
         for (const year of years) {
-          // Income: apply global defaults only from set-at month/year onward
+          // Income: load from snapshots
+          const yearIncSnaps = incSnaps.filter((s) => s.year === year);
           const incMonthMap: Record<number, number> = {};
-          if (!isNaN(globalInc) && globalInc > 0) {
-            if (year > incCutoff.year) {
-              for (let m = 1; m <= 12; m++) incMonthMap[m] = globalInc;
-            } else if (year === incCutoff.year) {
-              for (let m = incCutoff.month; m <= 12; m++) incMonthMap[m] = globalInc;
-            }
-          }
-          const incOverride = (incomeOverrides as Record<string, number | Record<number, number>>)[year];
-          if (typeof incOverride === "number") {
-            for (let m = 1; m <= 12; m++) incMonthMap[m] = incOverride;
-          } else if (incOverride && typeof incOverride === "object") {
-            for (let m = 1; m <= 12; m++) {
-              if (incOverride[m] != null) incMonthMap[m] = incOverride[m];
-            }
-          }
+          for (const s of yearIncSnaps) incMonthMap[s.month] = s.amountSnapshot;
           const incomeRanges = monthMapToRanges(incMonthMap);
 
-          // Savings: apply global defaults only from set-at month/year onward
+          // Savings: load from snapshots
+          const yearSavSnaps = savSnaps.filter((s) => s.year === year);
           const savMonthMap: Record<number, number> = {};
-          if (!isNaN(globalSav) && globalSav >= 0) {
-            if (year > savCutoff.year) {
-              for (let m = 1; m <= 12; m++) savMonthMap[m] = globalSav;
-            } else if (year === savCutoff.year) {
-              for (let m = savCutoff.month; m <= 12; m++) savMonthMap[m] = globalSav;
-            }
-          }
-          const savOverride = (savingsOverrides as Record<string, number | Record<number, number>>)[year];
-          if (typeof savOverride === "number") {
-            for (let m = 1; m <= 12; m++) savMonthMap[m] = savOverride;
-          } else if (savOverride && typeof savOverride === "object") {
-            for (let m = 1; m <= 12; m++) {
-              if (savOverride[m] != null) savMonthMap[m] = savOverride[m];
-            }
-          }
+          for (const s of yearSavSnaps) savMonthMap[s.month] = s.rateSnapshot;
           const savingsRanges = monthMapToRanges(savMonthMap);
 
           // Fixed expenses from snapshots
@@ -867,39 +829,31 @@ export default function BackfillHistoricalDataModal({
           config.fixedItems.length > 0;
         if (!hasData) continue;
 
-        // 1. Income overrides
+        // 1. Income & Savings snapshots
         const incomeMap = flattenRangesToMonthMap(config.incomeRanges);
-        if (Object.keys(incomeMap).length > 0) {
-          const existing = await StorageService.getSetting(
-            "yearlyIncomeOverrides",
-            {},
-          );
-          const updated = { ...(existing as Record<string, unknown>) };
-          if (saveMode === "replace") {
-            updated[year] = incomeMap;
-          } else {
-            updated[year] = { ...(updated[year] as Record<number, number>), ...incomeMap };
-          }
-          await StorageService.setSetting("yearlyIncomeOverrides", updated);
-        }
-
-        // 2. Savings overrides
         const savingsMap = flattenRangesToMonthMap(config.savingsRanges);
-        if (Object.keys(savingsMap).length > 0) {
-          const existing = await StorageService.getSetting(
-            "yearlySavingsOverrides",
-            {},
-          );
-          const updated = { ...(existing as Record<string, unknown>) };
-          if (saveMode === "replace") {
-            updated[year] = savingsMap;
-          } else {
-            updated[year] = { ...(updated[year] as Record<number, number>), ...savingsMap };
-          }
-          await StorageService.setSetting("yearlySavingsOverrides", updated);
+        if (saveMode === "replace") {
+          await StorageService.deleteIncomeSnapshotsForYear(year);
+          await StorageService.deleteSavingsSnapshotsForYear(year);
+        }
+        const incomeSnapshots = Object.entries(incomeMap).map(([month, amount]) => ({
+          year,
+          month: parseInt(month, 10),
+          amountSnapshot: amount as number,
+        }));
+        const savingsSnapshots = Object.entries(savingsMap).map(([month, rate]) => ({
+          year,
+          month: parseInt(month, 10),
+          rateSnapshot: rate as number,
+        }));
+        if (incomeSnapshots.length > 0) {
+          await StorageService.bulkUpsertIncomeSnapshots(incomeSnapshots);
+        }
+        if (savingsSnapshots.length > 0) {
+          await StorageService.bulkUpsertSavingsSnapshots(savingsSnapshots);
         }
 
-        // 3. Fixed expenses & snapshots
+        // 4. Fixed expenses & snapshots
         const validFixedItems = config.fixedItems.filter(
           (i) =>
             i.name.trim() &&

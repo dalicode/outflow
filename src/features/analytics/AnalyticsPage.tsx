@@ -33,28 +33,28 @@ function useAnalyticsData({ expenses, categories, year }: UseAnalyticsDataParams
         fixedDefs,
         globalIncome,
         globalRate,
-        incomeRules,
-        savingsRules,
         schedules,
+        incomeSnaps,
+        savingsSnaps,
       ] = await Promise.all([
         StorageService.getSnapshotsForYear(year),
         StorageService.getFixedExpenses(),
         StorageService.getSetting("monthlyIncome", 0),
         StorageService.getSetting("savingsRate", 0),
-        StorageService.getSetting("yearlyIncomeOverrides", {}),
-        StorageService.getSetting("yearlySavingsOverrides", {}),
         StorageService.getActiveSchedules(),
+        StorageService.getIncomeSnapshotsForYear(year),
+        StorageService.getSavingsSnapshotsForYear(year),
       ]);
 
       const data: import("../../types").FinanceEngineData = {
         expenses,
         snapshots,
         fixedExpenses: fixedDefs,
-        incomeRules: incomeRules as Record<string, number | Record<number, number>>,
-        savingsRules: savingsRules as Record<string, number | Record<number, number>>,
         globalIncome: (globalIncome as number | null) ?? 0,
         globalSavingsRate: (globalRate as number | null) ?? 0,
         schedules,
+        incomeSnapshots: incomeSnaps,
+        savingsSnapshots: savingsSnaps,
       };
 
       const fin = getYearFinancialSummary(year, data, {
@@ -104,6 +104,20 @@ function useAnalyticsData({ expenses, categories, year }: UseAnalyticsDataParams
       };
     }
 
+    const isCurrentYear = year === now.getFullYear();
+    const currentMonthIdx = now.getMonth();
+
+    // For current year, only count months up to and including current month
+    const monthsToCount = isCurrentYear
+      ? financials.months.slice(0, currentMonthIdx + 1)
+      : financials.months;
+
+    const yearTotalIncome = monthsToCount.reduce((s, m) => s + m.income, 0);
+    const yearFixedTotal = monthsToCount.reduce((s, m) => s + m.fixedExpensesTotal, 0);
+    const yearSavings = monthsToCount.reduce((s, m) => s + m.autoSavings, 0);
+    const yearRemaining = monthsToCount.reduce((s, m) => s + m.remaining, 0);
+    const yearVariableTotal = monthsToCount.reduce((s, m) => s + m.variableExpenses, 0);
+
     return {
       year,
       monthlyIncome: financials.months.map((m) => m.income),
@@ -119,12 +133,12 @@ function useAnalyticsData({ expenses, categories, year }: UseAnalyticsDataParams
       monthlySavingsRates: financials.monthlySavingsRates,
       monthlySavingsPct: financials.monthlySavingsPct,
       monthlyHasData,
-      yearVariableTotal: financials.totals.totalVariable,
-      yearFixedTotal: financials.totals.totalFixed,
-      yearTotal: financials.totals.yearTotal,
-      yearSavings: financials.totals.totalSavings,
-      yearRemaining: financials.totals.totalRemaining,
-      yearTotalIncome: financials.totals.totalIncome,
+      yearVariableTotal,
+      yearFixedTotal,
+      yearTotal: yearFixedTotal + yearVariableTotal,
+      yearSavings,
+      yearRemaining,
+      yearTotalIncome,
       avgSavingsPct: financials.totals.avgSavingsPct,
       maxPerMonth: variableGrid.maxPerMonth,
     };

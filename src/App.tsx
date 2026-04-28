@@ -60,6 +60,10 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncStatus]);
 
+  useEffect(() => {
+    StorageService.materializePendingSnapshots?.().catch(console.error)
+  }, [])
+
   const handleCategoriesChange = async (action, payload) => {
     if (action === "add") await StorageService.addCategory(payload.name);
     else if (action === "update")

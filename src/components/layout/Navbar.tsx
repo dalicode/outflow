@@ -1,7 +1,6 @@
 import { useState, type ReactNode, type MouseEventHandler } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import OutflowWordmark from "../../components/ui/OutflowWordmark";
-import OutflowMark from "../../components/ui/OutflowMark";
+
 
 interface NavIconProps {
   active: boolean;
@@ -256,12 +255,15 @@ export default function Navbar({
         <div className="px-3 pt-4 pb-2 flex items-center justify-between">
           {!collapsed && (
             <div className="flex items-center gap-2 overflow-hidden">
-              <OutflowWordmark className="h-6 w-auto shrink-0 text-theme-primary" />
+              <img src="/icon.svg" alt="" className="w-7 h-7 shrink-0" />
+              <span className="text-lg font-bold text-theme-primary tracking-tight">
+                Outflow
+              </span>
             </div>
           )}
           {collapsed && (
             <div className="flex justify-center w-full">
-              <OutflowMark className="w-9 h-9 shrink-0 text-theme-primary" />
+              <img src="/icon.svg" alt="" className="w-9 h-9 shrink-0" />
             </div>
           )}
           {!collapsed && (

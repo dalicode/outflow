@@ -46,6 +46,22 @@ export interface FixedExpenseSnapshot {
   createdAt?: string
 }
 
+export interface IncomeSnapshot {
+  id?: number
+  year: number
+  month: number
+  amountSnapshot: number
+  createdAt?: string
+}
+
+export interface SavingsSnapshot {
+  id?: number
+  year: number
+  month: number
+  rateSnapshot: number
+  createdAt?: string
+}
+
 // ── Schedules ───────────────────────────────────────────────────────────────
 
 export type ScheduleType = 'income' | 'savingsRate' | 'fixedExpense'
@@ -80,11 +96,11 @@ export interface FinanceEngineData {
   expenses: Expense[]
   snapshots: FixedExpenseSnapshot[]
   fixedExpenses: FixedExpense[]
-  incomeRules: Record<string, number | Record<number, number>>
-  savingsRules: Record<string, number | Record<number, number>>
   globalIncome: number
   globalSavingsRate: number
   schedules?: Schedule[]
+  incomeSnapshots?: IncomeSnapshot[]
+  savingsSnapshots?: SavingsSnapshot[]
 }
 
 export interface MonthlySummary {

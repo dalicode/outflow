@@ -4,6 +4,8 @@ import type {
   Category,
   FixedExpense,
   FixedExpenseSnapshot,
+  IncomeSnapshot,
+  SavingsSnapshot,
   Schedule,
   SyncQueueItem,
 } from '../types'
@@ -13,17 +15,19 @@ interface Setting {
   value: unknown
 }
 
-class SpendingTrackerDB extends Dexie {
+class OutflowDB extends Dexie {
   expenses!: Table<Expense, number>
   categories!: Table<Category, number>
   fixedExpenses!: Table<FixedExpense, number>
   fixedExpenseSnapshots!: Table<FixedExpenseSnapshot, number>
+  incomeSnapshots!: Table<IncomeSnapshot, number>
+  savingsSnapshots!: Table<SavingsSnapshot, number>
   schedules!: Table<Schedule, number>
   settings!: Table<Setting, string>
   syncQueue!: Table<SyncQueueItem, number>
 
   constructor() {
-    super('SpendingTracker')
+    super('Outflow')
 
     this.version(1).stores({ expenses: '++id, date, category' })
     this.version(2).stores({
@@ -61,6 +65,17 @@ class SpendingTrackerDB extends Dexie {
       fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
       schedules: '++id, type, effectiveYear, effectiveMonth, isActive, targetId',
     })
+    this.version(7).stores({
+      expenses: '++id, date, category, categoryId',
+      settings: 'key',
+      fixedExpenses: '++id',
+      categories: '++id, name',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
+      schedules: '++id, type, effectiveYear, effectiveMonth, isActive, targetId',
+      incomeSnapshots: '++id, [year+month], year, month',
+      savingsSnapshots: '++id, [year+month], year, month',
+    })
 
     this.on('populate', () => {
       const now = new Date().toISOString()
@@ -71,7 +86,7 @@ class SpendingTrackerDB extends Dexie {
   }
 }
 
-const db = new SpendingTrackerDB()
+const db = new OutflowDB()
 
 const DEFAULT_CATEGORIES = [
   'Entertainment', 'Health', 'Misc', 'Personal Goods',
@@ -95,6 +110,98 @@ const snapshotFixed = async (item: FixedExpense) => {
       month,
       createdAt: now.toISOString(),
     })
+  }
+}
+
+// ── Income & Savings Snapshots ────────────────────────────
+
+async function snapshotIncome(year: number, month: number, amount: number) {
+  const existing = await db.incomeSnapshots.where({ year, month }).first()
+  if (existing) {
+    await db.incomeSnapshots.update(existing.id as number, { amountSnapshot: amount })
+  } else {
+    await db.incomeSnapshots.add({ year, month, amountSnapshot: amount, createdAt: new Date().toISOString() })
+  }
+}
+
+async function snapshotSavings(year: number, month: number, rate: number) {
+  const existing = await db.savingsSnapshots.where({ year, month }).first()
+  if (existing) {
+    await db.savingsSnapshots.update(existing.id as number, { rateSnapshot: rate })
+  } else {
+    await db.savingsSnapshots.add({ year, month, rateSnapshot: rate, createdAt: new Date().toISOString() })
+  }
+}
+
+// ── Schedule Materialization ──────────────────────────────
+// When a schedule's effective date arrives, execute it: write snapshot,
+// update global settings / fixed expense definition, archive the schedule.
+
+async function materializePendingSnapshots() {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+
+  const schedules = await db.schedules.where('isActive').equals(1 as any).toArray()
+  const fixedDefs = await db.fixedExpenses.toArray()
+  const fixedDefMap = new Map(fixedDefs.map((f) => [f.id, f]))
+
+  for (const schedule of schedules) {
+    const isEffective =
+      schedule.effectiveYear < currentYear ||
+      (schedule.effectiveYear === currentYear && schedule.effectiveMonth <= currentMonth)
+
+    if (!isEffective) continue
+
+    if (schedule.type === 'income') {
+      const existing = await db.incomeSnapshots
+        .where({ year: schedule.effectiveYear, month: schedule.effectiveMonth })
+        .first()
+      if (!existing) {
+        await db.incomeSnapshots.add({
+          year: schedule.effectiveYear,
+          month: schedule.effectiveMonth,
+          amountSnapshot: schedule.newValue,
+          createdAt: now.toISOString(),
+        })
+      }
+      await db.settings.put({ key: 'monthlyIncome', value: schedule.newValue })
+    } else if (schedule.type === 'savingsRate') {
+      const existing = await db.savingsSnapshots
+        .where({ year: schedule.effectiveYear, month: schedule.effectiveMonth })
+        .first()
+      if (!existing) {
+        await db.savingsSnapshots.add({
+          year: schedule.effectiveYear,
+          month: schedule.effectiveMonth,
+          rateSnapshot: schedule.newValue,
+          createdAt: now.toISOString(),
+        })
+      }
+      await db.settings.put({ key: 'savingsRate', value: schedule.newValue })
+    } else if (schedule.type === 'fixedExpense' && schedule.targetId != null) {
+      const existing = await db.fixedExpenseSnapshots
+        .where('[fixedExpenseId+year+month]')
+        .equals([schedule.targetId, schedule.effectiveYear, schedule.effectiveMonth])
+        .first()
+      const def = fixedDefMap.get(schedule.targetId)
+      if (!existing) {
+        await db.fixedExpenseSnapshots.add({
+          fixedExpenseId: schedule.targetId,
+          nameSnapshot: def?.name ?? 'Unknown',
+          amountSnapshot: schedule.newValue,
+          year: schedule.effectiveYear,
+          month: schedule.effectiveMonth,
+          createdAt: now.toISOString(),
+        })
+      }
+      if (def) {
+        await db.fixedExpenses.update(schedule.targetId, { amount: schedule.newValue })
+      }
+    }
+
+    // Archive the schedule
+    await db.schedules.update(schedule.id as number, { isActive: false })
   }
 }
 
@@ -184,6 +291,31 @@ export const StorageService = {
   bulkUpsertSnapshots: (rows: FixedExpenseSnapshot[]) => db.fixedExpenseSnapshots.bulkPut(rows),
   deleteSnapshotsForYear: (year: number) => db.fixedExpenseSnapshots.where('year').equals(year).delete(),
 
+  // ── Income Snapshots ──────────────────────────────────────
+  getIncomeSnapshot: async (year: number, month: number): Promise<number | null> => {
+    const row = await db.incomeSnapshots.where({ year, month }).first()
+    return row ? row.amountSnapshot : null
+  },
+  setIncomeSnapshot: snapshotIncome,
+  getIncomeSnapshotsForYear: (year: number) => db.incomeSnapshots.where('year').equals(year).toArray(),
+  getAllIncomeSnapshots: () => db.incomeSnapshots.toArray(),
+  bulkUpsertIncomeSnapshots: (rows: IncomeSnapshot[]) => db.incomeSnapshots.bulkPut(rows),
+  deleteIncomeSnapshotsForYear: (year: number) => db.incomeSnapshots.where('year').equals(year).delete(),
+
+  // ── Savings Snapshots ─────────────────────────────────────
+  getSavingsSnapshot: async (year: number, month: number): Promise<number | null> => {
+    const row = await db.savingsSnapshots.where({ year, month }).first()
+    return row ? row.rateSnapshot : null
+  },
+  setSavingsSnapshot: snapshotSavings,
+  getSavingsSnapshotsForYear: (year: number) => db.savingsSnapshots.where('year').equals(year).toArray(),
+  getAllSavingsSnapshots: () => db.savingsSnapshots.toArray(),
+  bulkUpsertSavingsSnapshots: (rows: SavingsSnapshot[]) => db.savingsSnapshots.bulkPut(rows),
+  deleteSavingsSnapshotsForYear: (year: number) => db.savingsSnapshots.where('year').equals(year).delete(),
+
+  // ── Schedule Materialization ──────────────────────────────
+  materializePendingSnapshots,
+
   // ── Scheduled Changes ─────────────────────────────────────
   getSchedules: () => db.schedules.toArray(),
   getActiveSchedules: () => db.schedules.where('isActive').equals(1 as any).toArray(),
@@ -256,6 +388,8 @@ export const StorageService = {
     categories: await db.categories.toArray(),
     fixedExpenses: await db.fixedExpenses.toArray(),
     fixedExpenseSnapshots: await db.fixedExpenseSnapshots.toArray(),
+    incomeSnapshots: await db.incomeSnapshots.toArray(),
+    savingsSnapshots: await db.savingsSnapshots.toArray(),
     schedules: await db.schedules.toArray(),
     settings: await db.settings.toArray(),
     syncQueue: await db.syncQueue.toArray(),
@@ -278,6 +412,8 @@ export const StorageService = {
     if (data.categories) await db.categories.bulkPut(data.categories as Category[])
     if (data.fixedExpenses) await db.fixedExpenses.bulkPut(data.fixedExpenses as FixedExpense[])
     if (data.fixedExpenseSnapshots) await db.fixedExpenseSnapshots.bulkPut(data.fixedExpenseSnapshots as FixedExpenseSnapshot[])
+    if (data.incomeSnapshots) await db.incomeSnapshots.bulkPut(data.incomeSnapshots as IncomeSnapshot[])
+    if (data.savingsSnapshots) await db.savingsSnapshots.bulkPut(data.savingsSnapshots as SavingsSnapshot[])
     if (data.schedules) await db.schedules.bulkPut(data.schedules as Schedule[])
     if (data.settings) await db.settings.bulkPut(data.settings as Setting[])
     if (data.syncQueue) await db.syncQueue.bulkPut(data.syncQueue as SyncQueueItem[])

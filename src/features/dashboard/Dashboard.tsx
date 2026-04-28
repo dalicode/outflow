@@ -39,15 +39,15 @@ export default function Dashboard({
         selectedYear > now.getFullYear() ||
         (selectedYear === now.getFullYear() && selectedMonth >= now.getMonth());
 
-      const [allFixed, allSnapshots, globalIncome, globalRate, incomeRules, savingsRules, schedules] =
+      const [allFixed, allSnapshots, globalIncome, globalRate, schedules, incomeSnaps, savingsSnaps] =
         await Promise.all([
           StorageService.getFixedExpenses(),
           StorageService.getSnapshotsForYear(selectedYear),
           StorageService.getSetting("monthlyIncome", 0),
           StorageService.getSetting("savingsRate", 0),
-          StorageService.getSetting("yearlyIncomeOverrides", {}),
-          StorageService.getSetting("yearlySavingsOverrides", {}),
           StorageService.getActiveSchedules(),
+          StorageService.getIncomeSnapshotsForYear(selectedYear),
+          StorageService.getSavingsSnapshotsForYear(selectedYear),
         ]);
 
       let monthSnapshots;
@@ -68,11 +68,11 @@ export default function Dashboard({
         expenses,
         snapshots: monthSnapshots,
         fixedExpenses: allFixed,
-        incomeRules,
-        savingsRules,
         globalIncome,
         globalSavingsRate: globalRate,
         schedules,
+        incomeSnapshots: incomeSnaps,
+        savingsSnapshots: savingsSnaps,
       };
 
       const summary = getMonthlyFinancialSummary(selectedYear, selectedMonth, data);

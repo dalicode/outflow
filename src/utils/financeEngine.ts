@@ -20,14 +20,12 @@ const MONTHS = [
 
 /**
  * Apply active schedules for a given type to a month map.
- * Only affects current and future months.
+ * Schedules are only active before materialization; after materialization
+ * their value is frozen in a snapshot and the schedule is archived.
+ * Therefore this function naturally only affects future months.
  */
 function applySchedules(monthValues: number[], year: number, schedules: Schedule[], scheduleType: string): number[] {
   if (!schedules || schedules.length === 0) return monthValues;
-
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
 
   const applicable = schedules
     .filter((s) => s.isActive && s.type === scheduleType)
@@ -42,9 +40,6 @@ function applySchedules(monthValues: number[], year: number, schedules: Schedule
   const result = [...monthValues];
   for (let m = 0; m < 12; m++) {
     const monthNum = m + 1;
-    const isFutureOrCurrent =
-      year > currentYear || (year === currentYear && monthNum >= currentMonth);
-    if (!isFutureOrCurrent) continue;
 
     // Find the latest schedule effective on or before this month
     const latest = applicable
@@ -68,30 +63,31 @@ function applySchedules(monthValues: number[], year: number, schedules: Schedule
  */
 function resolveMonthlyValues(
   year: number,
-  rules: Record<string, number | Record<number, number>> | undefined,
   globalValue: number,
   schedules: Schedule[] | undefined,
   scheduleType: string,
+  snapshots?: Array<{ year: number; month: number; amountSnapshot?: number; rateSnapshot?: number }>,
 ): number[] {
-  const yearRules = rules?.[year];
-  let values: number[];
+  // Start with global fallback for all months
+  let values: number[] = Array(12).fill(globalValue);
 
-  // Legacy format: plain number for the whole year
-  if (typeof yearRules === "number") {
-    values = Array(12).fill(yearRules);
-  } else if (yearRules && typeof yearRules === "object") {
-    // New format: nested object { 1: 5000, 2: 5200, ... }
-    values = Array.from({ length: 12 }, (_, m) => {
+  // Apply active schedules (projections for future months)
+  values = applySchedules(values, year, schedules ?? [], scheduleType);
+
+  // Snapshots always win — frozen historical values overlay everything
+  if (snapshots && snapshots.length > 0) {
+    for (let m = 0; m < 12; m++) {
       const month = m + 1;
-      return month in yearRules ? yearRules[month] : globalValue;
-    });
-  } else {
-    // No rule for this year — fall back to global
-    values = Array(12).fill(globalValue);
+      const snap = snapshots.find((s) => s.year === year && s.month === month);
+      if (snap) {
+        values[m] = scheduleType === "income"
+          ? (snap.amountSnapshot ?? globalValue)
+          : (snap.rateSnapshot ?? globalValue);
+      }
+    }
   }
 
-  // Apply active schedules for future months
-  return applySchedules(values, year, schedules ?? [], scheduleType);
+  return values;
 }
 
 /**
@@ -214,15 +210,13 @@ export function getMonthlyFinancialSummary(year: number, month: number, data: Fi
     expenses,
     snapshots,
     fixedExpenses,
-    incomeRules,
-    savingsRules,
     globalIncome,
     globalSavingsRate,
     schedules,
   } = data;
 
-  const incomeValues = resolveMonthlyValues(year, incomeRules, globalIncome, schedules, "income");
-  const savingsRateValues = resolveMonthlyValues(year, savingsRules, globalSavingsRate, schedules, "savingsRate");
+  const incomeValues = resolveMonthlyValues(year, globalIncome, schedules, "income", data.incomeSnapshots);
+  const savingsRateValues = resolveMonthlyValues(year, globalSavingsRate, schedules, "savingsRate", data.savingsSnapshots);
 
   const income = incomeValues[month] || 0;
   const savingsRate = savingsRateValues[month] || 0;

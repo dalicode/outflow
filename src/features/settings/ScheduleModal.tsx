@@ -41,6 +41,11 @@ export default function ScheduleModal({
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
+  const isReadOnly = editSchedule
+    ? editSchedule.effectiveYear < currentYear ||
+      (editSchedule.effectiveYear === currentYear && editSchedule.effectiveMonth <= currentMonth)
+    : false;
+
   useEffect(() => {
     if (!isOpen) return;
     const load = async () => {
@@ -75,6 +80,10 @@ export default function ScheduleModal({
 
   const validate = (): boolean => {
     const errs: string[] = [];
+    if (isReadOnly) {
+      setErrors(errs);
+      return false;
+    }
     const val = parseFloat(newValue);
 
     if (isNaN(val)) errs.push("Value must be a number.");
@@ -139,6 +148,7 @@ export default function ScheduleModal({
     "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text placeholder:text-theme-muted shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none";
   const selectCls =
     "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none cursor-pointer";
+  const disabledCls = " opacity-60 cursor-not-allowed hover:border-transparent";
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => currentYear + i);
 
@@ -149,17 +159,24 @@ export default function ScheduleModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={editSchedule ? "Edit Schedule" : "Add Schedule"}
+      title={isReadOnly ? "Schedule Details" : editSchedule ? "Edit Schedule" : "Add Schedule"}
       className="max-w-md w-[92vw]"
     >
       <div className="space-y-4">
+        {isReadOnly && (
+          <div className="rounded-lg bg-theme-primary/10 border border-theme-primary/20 px-3 py-2 text-xs text-theme-primary">
+            This schedule has already taken effect and cannot be edited.
+          </div>
+        )}
+
         {/* Type */}
         <div className="space-y-1.5">
           <label className="text-sm font-semibold text-theme-text">Type</label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value as "income" | "savingsRate" | "fixedExpense")}
-            className={`${selectCls} w-full`}
+            className={`${selectCls} w-full${isReadOnly ? disabledCls : ""}`}
+            disabled={isReadOnly}
           >
             {SCHEDULE_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -178,7 +195,8 @@ export default function ScheduleModal({
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              className={`${selectCls} w-full`}
+              className={`${selectCls} w-full${isReadOnly ? disabledCls : ""}`}
+              disabled={isReadOnly}
             >
               <option value="">Select…</option>
               {fixedExpenses.map((f) => (
@@ -206,7 +224,8 @@ export default function ScheduleModal({
                   setEffectiveMonth(currentMonth);
                 }
               }}
-              className={`${selectCls} w-28`}
+              className={`${selectCls} w-28${isReadOnly ? disabledCls : ""}`}
+              disabled={isReadOnly}
             >
               {yearOptions.map((y) => (
                 <option key={y} value={y}>
@@ -217,7 +236,8 @@ export default function ScheduleModal({
             <select
               value={Math.max(effectiveMonth, minMonth)}
               onChange={(e) => setEffectiveMonth(parseInt(e.target.value, 10))}
-              className={`${selectCls} w-28`}
+              className={`${selectCls} w-28${isReadOnly ? disabledCls : ""}`}
+              disabled={isReadOnly}
             >
               {MONTHS.map((m, i) => {
                 const monthNum = i + 1;
@@ -249,7 +269,8 @@ export default function ScheduleModal({
               type === "savingsRate" ? "e.g. 25" : "e.g. 6000"
             }
             step={type === "savingsRate" ? "0.1" : "0.01"}
-            className={`${inputCls} w-full`}
+            className={`${inputCls} w-full${isReadOnly ? disabledCls : ""}`}
+            disabled={isReadOnly}
           />
         </div>
 
@@ -262,7 +283,8 @@ export default function ScheduleModal({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Annual salary review"
-            className={`${inputCls} w-full`}
+            className={`${inputCls} w-full${isReadOnly ? disabledCls : ""}`}
+            disabled={isReadOnly}
           />
         </div>
 
@@ -283,15 +305,17 @@ export default function ScheduleModal({
             onClick={handleClose}
             className="bg-theme-background hover:bg-theme-border/40 text-theme-text font-medium px-4 py-2 rounded-lg border border-theme-border transition-all text-sm"
           >
-            Cancel
+            {isReadOnly ? "Close" : "Cancel"}
           </button>
-          <button
-            onClick={handleSave}
-            className="bg-theme-primary hover:brightness-110 text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all text-sm"
-            disabled={saving}
-          >
-            {saving ? "Saving…" : editSchedule ? "Update" : "Save Schedule"}
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={handleSave}
+              className="bg-theme-primary hover:brightness-110 text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all text-sm"
+              disabled={saving}
+            >
+              {saving ? "Saving…" : editSchedule ? "Update" : "Save Schedule"}
+            </button>
+          )}
         </div>
       </div>
     </Modal>

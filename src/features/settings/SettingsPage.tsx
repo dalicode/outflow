@@ -808,18 +808,8 @@ export default function SettingsPage({
         ) : (
           <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
             {(() => {
-              const now = new Date();
-              const currentY = now.getFullYear();
-              const currentM = now.getMonth() + 1;
-
               const upcoming = schedules
                 .filter((s) => s.isActive)
-                .filter(
-                  (s) =>
-                    s.effectiveYear > currentY ||
-                    (s.effectiveYear === currentY &&
-                      s.effectiveMonth >= currentM),
-                )
                 .sort(
                   (a, b) =>
                     a.effectiveYear - b.effectiveYear ||
@@ -827,13 +817,7 @@ export default function SettingsPage({
                 );
 
               const past = schedules
-                .filter((s) => s.isActive)
-                .filter(
-                  (s) =>
-                    s.effectiveYear < currentY ||
-                    (s.effectiveYear === currentY &&
-                      s.effectiveMonth < currentM),
-                )
+                .filter((s) => !s.isActive)
                 .sort(
                   (a, b) =>
                     b.effectiveYear - a.effectiveYear ||
@@ -904,7 +888,7 @@ export default function SettingsPage({
                   {past.length > 0 && (
                     <div className="space-y-1 mt-2">
                       <p className="text-[10px] font-semibold text-theme-muted uppercase tracking-wide">
-                        Past
+                        Archived
                       </p>
                       {past.map((s) => (
                         <div
