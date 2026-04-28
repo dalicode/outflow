@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import { isEncryptedEnvelope, decryptBackup } from '../utils/backupCrypto'
 import type {
   Expense,
   Category,
@@ -394,6 +395,17 @@ export const StorageService = {
     settings: await db.settings.toArray(),
     syncQueue: await db.syncQueue.toArray(),
   }),
+
+  importBackup: async (data: Record<string, unknown>, password: string | null, { replace = false } = {}) => {
+    if (isEncryptedEnvelope(data)) {
+      if (!password) {
+        throw new Error('This backup is encrypted. Please enter the password.')
+      }
+      const decrypted = await decryptBackup(data, password)
+      return StorageService.importAllData(decrypted, { replace })
+    }
+    return StorageService.importAllData(data, { replace })
+  },
 
   importAllData: async (data: Record<string, unknown>, { replace = false } = {}) => {
     if (!data || typeof data !== 'object') {

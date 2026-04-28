@@ -107,7 +107,7 @@ export default function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-theme-background flex">
         {!isReady ? (
-          <div className="flex-1 p-10" style={{ fontFamily: "system-ui, sans-serif" }}>
+          <div className="flex-1 p-10" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif' }}>
             <p className="text-lg font-bold mb-3">Loading…</p>
             <p>Auth loading: {String(loading)}</p>
             <p>Settings loaded: {String(settingsLoaded)}</p>

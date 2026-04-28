@@ -72,6 +72,28 @@ The backfill modal (`BackfillHistoricalDataModal`) lets users batch-configure pa
 
 Backfill only writes **snapshots** (not the old `yearlyIncomeOverrides` / `yearlySavingsOverrides` settings, which have been removed).
 
+### Encrypted Backup Export/Import
+
+Backups are exported as **`.ofb` files** (Outflow Backup) with the following pipeline:
+
+```
+JSON string → gzip (CompressionStream) → AES-256-GCM encryption → envelope
+```
+
+Key derivation: PBKDF2 with SHA-256, 100K iterations, 16-byte random salt.  
+Envelope format: `{ version: 1, format: "gzip+aes", salt, iv, ciphertext }` (all base64).
+
+**Auto-password (Supabase users):**
+- When logged in, the app checks `profiles.backup_password` in Supabase
+- If found → auto-uses it for silent export
+- If not found → prompts user with "Remember for future backups" checkbox
+- Logged-out users always get the password prompt
+
+**Import backward compatibility:**
+- `.ofb` encrypted files → password modal → decrypt → import
+- Legacy plain `.json` files → import directly (no password needed)
+- Unrecognized format → error
+
 ### Fixed Expenses
 
 - `fixedExpenses` table = live definitions

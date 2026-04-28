@@ -3,15 +3,22 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 
+function renderNavbar(props: Parameters<typeof Navbar>[0]) {
+  return render(
+    <MemoryRouter>
+      <Navbar {...props} />
+    </MemoryRouter>,
+  )
+}
+
 describe('Navbar', () => {
   it('renders navigation links in desktop sidebar', () => {
-    render(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} />
-      </MemoryRouter>,
-    )
+    renderNavbar({ onAddExpense: vi.fn() })
 
     const sidebar = document.querySelector('aside')!
+    const expandButton = within(sidebar).getByTitle('Expand')
+    fireEvent.click(expandButton)
+
     expect(within(sidebar).getByText('Dashboard')).toBeInTheDocument()
     expect(within(sidebar).getByText('Summary')).toBeInTheDocument()
     expect(within(sidebar).getByText('Analytics')).toBeInTheDocument()
@@ -20,11 +27,7 @@ describe('Navbar', () => {
 
   it('calls onAddExpense when desktop Add button is clicked', () => {
     const onAddExpense = vi.fn()
-    render(
-      <MemoryRouter>
-        <Navbar onAddExpense={onAddExpense} />
-      </MemoryRouter>,
-    )
+    renderNavbar({ onAddExpense })
 
     const sidebar = document.querySelector('aside')!
     fireEvent.click(within(sidebar).getByLabelText('Add expense'))
@@ -32,26 +35,24 @@ describe('Navbar', () => {
   })
 
   it('renders sign out button when onSignOut provided', () => {
-    render(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} onSignOut={vi.fn()} userEmail="test@example.com" />
-      </MemoryRouter>,
-    )
+    renderNavbar({ onAddExpense: vi.fn(), onSignOut: vi.fn(), userEmail: 'test@example.com' })
 
     const sidebar = document.querySelector('aside')!
+    const expandButton = within(sidebar).getByTitle('Expand')
+    fireEvent.click(expandButton)
+
     expect(within(sidebar).getByText('Sign out')).toBeInTheDocument()
     expect(within(sidebar).getByText('test@example.com')).toBeInTheDocument()
   })
 
   it('calls onSignOut when sign out clicked', () => {
     const onSignOut = vi.fn()
-    render(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} onSignOut={onSignOut} />
-      </MemoryRouter>,
-    )
+    renderNavbar({ onAddExpense: vi.fn(), onSignOut })
 
     const sidebar = document.querySelector('aside')!
+    const expandButton = within(sidebar).getByTitle('Expand')
+    fireEvent.click(expandButton)
+
     fireEvent.click(within(sidebar).getByText('Sign out'))
     expect(onSignOut).toHaveBeenCalledTimes(1)
   })
@@ -64,6 +65,9 @@ describe('Navbar', () => {
     )
 
     const sidebar = document.querySelector('aside')!
+    const expandButton = within(sidebar).getByTitle('Expand')
+    fireEvent.click(expandButton)
+
     const dashboardLink = within(sidebar).getByText('Dashboard').closest('a')
     expect(dashboardLink).toHaveClass('text-theme-primary')
   })
@@ -76,35 +80,36 @@ describe('Navbar', () => {
     )
 
     const sidebar = document.querySelector('aside')!
+    const expandButton = within(sidebar).getByTitle('Expand')
+    fireEvent.click(expandButton)
+
     const analyticsLink = within(sidebar).getByText('Analytics').closest('a')
     expect(analyticsLink).toHaveClass('text-theme-primary')
   })
 
   it('renders syncDot when provided', () => {
-    render(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} syncDot={<span data-testid="sync">syncing</span>} />
-      </MemoryRouter>,
-    )
+    renderNavbar({ onAddExpense: vi.fn(), syncDot: <span data-testid="sync">syncing</span> })
 
     expect(screen.getByTestId('sync')).toBeInTheDocument()
   })
 
-  it('collapses and expands sidebar', () => {
-    render(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} />
-      </MemoryRouter>,
-    )
+  it('expands and collapses sidebar', () => {
+    renderNavbar({ onAddExpense: vi.fn() })
 
     const sidebar = document.querySelector('aside')!
-    // Initially expanded - desktop link text is visible
+    // Initially collapsed - desktop link text is hidden
+    expect(within(sidebar).queryByText('Dashboard')).not.toBeInTheDocument()
+
+    const expandButton = within(sidebar).getByTitle('Expand')
+    fireEvent.click(expandButton)
+
+    // After expand, desktop sidebar link text should be visible
     expect(within(sidebar).getByText('Dashboard')).toBeInTheDocument()
 
     const collapseButton = within(sidebar).getByTitle('Collapse')
     fireEvent.click(collapseButton)
 
-    // After collapse, desktop sidebar link text should be hidden
+    // After collapse, text hidden again
     expect(within(sidebar).queryByText('Dashboard')).not.toBeInTheDocument()
   })
 })

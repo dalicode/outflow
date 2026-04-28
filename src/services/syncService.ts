@@ -202,6 +202,31 @@ export async function fetchThemeFromProfile(userId: string): Promise<string | nu
   }
 }
 
+// ── Backup password sync ──────────────────────────────────────────────────────
+export async function syncBackupPasswordToProfile(userId: string, backupPassword: string): Promise<void> {
+  if (!supabase || !userId) return
+  try {
+    await supabase.from('profiles').upsert(
+      { id: userId, backup_password: backupPassword, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    )
+  } catch (err) {
+    console.warn('Profile backup password sync error:', err)
+  }
+}
+
+export async function fetchBackupPasswordFromProfile(userId: string): Promise<string | null> {
+  if (!supabase || !userId) return null
+  try {
+    const { data, error } = await supabase.from('profiles').select('backup_password').eq('id', userId).single()
+    if (error) return null
+    return (data as Record<string, unknown> | null)?.backup_password as string | null ?? null
+  } catch (err) {
+    console.warn('Profile backup password fetch error:', err)
+    return null
+  }
+}
+
 // ── Initial migration: push all local data to Supabase once ──────────────────
 export async function migrateLocalToSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return

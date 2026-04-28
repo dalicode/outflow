@@ -32,3 +32,10 @@ body {
   background-color: color-mix(in srgb, var(--theme-primary) 30%, transparent);
   color: var(--theme-text);
 }
+
+/* Numeric alignment utilities */
+.money,
+.number,
+.analytics-table {
+  font-variant-numeric: tabular-nums;
+}

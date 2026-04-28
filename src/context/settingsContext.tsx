@@ -16,10 +16,13 @@ const DEFAULTS: AppSettings = {
 }
 
 const FONT_MAP: Record<string, string> = {
-  system: 'inherit',
+  system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif',
   sans: 'ui-sans-serif, system-ui, sans-serif',
   serif: 'ui-serif, Georgia, serif',
   mono: 'ui-monospace, monospace',
+  roboto: 'Roboto, "Helvetica Neue", Arial, sans-serif',
+  georgia: 'Georgia, Cambria, "Times New Roman", serif',
+  financeMono: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
 }
 
 interface SettingsContextValue {

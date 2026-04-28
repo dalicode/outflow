@@ -340,11 +340,12 @@ export default function AnalyticsTable({ data, goToMonth, formatAmount, getNumbe
                     <td
                       key={cell.id}
                       className={`
-                        px-3 py-2.5 whitespace-nowrap text-sm tabular-nums
+                        px-3 py-2.5 whitespace-nowrap text-sm
                         border-b border-theme-muted/10
                         transition-colors duration-150
                         ${isSticky ? "sticky left-0 bg-theme-surface z-10 border-r border-theme-border text-left" : "text-right"}
                         ${isYearTotal ? "bg-theme-primary/[0.03] font-semibold" : ""}
+                        ${monthIndex != null || isYearTotal ? "number" : ""}
                       `}
                     >
                       {cellContent}

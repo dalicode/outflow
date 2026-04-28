@@ -1,7 +1,16 @@
 import { useRef, useState, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
+import { useAuth } from "../../context/authContext";
 import { StorageService } from "../../services/storageService";
 import { THEMES } from "../../utils/themeConfig";
+import {
+  encryptBackup,
+  isEncryptedEnvelope,
+} from "../../utils/backupCrypto";
+import {
+  syncBackupPasswordToProfile,
+  fetchBackupPasswordFromProfile,
+} from "../../services/syncService";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
 import BackfillHistoricalDataModal from "./BackfillHistoricalDataModal";
@@ -9,8 +18,18 @@ import ScheduleModal from "./ScheduleModal";
 import type { Expense, Schedule, ThemeConfig } from "../../types";
 
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 interface RowProps {
@@ -22,7 +41,7 @@ interface RowProps {
 
 function Row({ label, value, onChange, options }: RowProps) {
   return (
-    <div className="flex items-center justify-between py-1.5">
+    <div className="flex items-center justify-between py-1">
       <span className="text-sm text-theme-muted">{label}</span>
       <select
         value={value}
@@ -39,7 +58,16 @@ function Row({ label, value, onChange, options }: RowProps) {
   );
 }
 
-const themePreviews: Record<string, { background: string; border: string; primary: string; text: string; isDark: boolean }> = {
+const themePreviews: Record<
+  string,
+  {
+    background: string;
+    border: string;
+    primary: string;
+    text: string;
+    isDark: boolean;
+  }
+> = {
   default: {
     background: "#f1f5f9",
     border: "#cbd5e1",
@@ -194,7 +222,10 @@ const CSV_HEADERS = [
   "Year",
 ];
 
-function expenseToRow(exp: Expense, formatDate: (iso: string) => string): (string | number)[] {
+function expenseToRow(
+  exp: Expense,
+  formatDate: (iso: string) => string,
+): (string | number)[] {
   const d = exp.date || "";
   const [y, m] = d.split("-");
   return [
@@ -219,7 +250,7 @@ const downloadCSV = (rows: (string | number)[][], filename: string) => {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
+};
 
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.trim().split("\n");
@@ -264,6 +295,16 @@ export default function SettingsPage({
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+
+  const { user } = useAuth();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordModalMode, setPasswordModalMode] = useState<
+    "export" | "import"
+  >("export");
+  const [backupPassword, setBackupPassword] = useState("");
+  const [rememberBackupPassword, setRememberBackupPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -312,7 +353,10 @@ export default function SettingsPage({
     return null;
   }
 
-  function getField(row: Record<string, string>, keys: string[]): string | undefined {
+  function getField(
+    row: Record<string, string>,
+    keys: string[],
+  ): string | undefined {
     for (const k of keys) {
       if (row[k] != null && row[k] !== "") return row[k];
     }
@@ -337,7 +381,12 @@ export default function SettingsPage({
         return;
       }
 
-      const valid: Array<{ date: string; category: string; description: string; amount: number }> = [];
+      const valid: Array<{
+        date: string;
+        category: string;
+        description: string;
+        amount: number;
+      }> = [];
       const errors: string[] = [];
       parsed.forEach((row, i) => {
         const rawDate = getField(row, ["date", "timestamp"]);
@@ -389,9 +438,13 @@ export default function SettingsPage({
 
       const existing = await StorageService.getAll();
       const existingKeys = new Set(
-        (existing as Array<{ date: string; amount: number; description?: string }>).map(
-          (e) => `${e.date}|${e.amount}|${e.description}`
-        ),
+        (
+          existing as Array<{
+            date: string;
+            amount: number;
+            description?: string;
+          }>
+        ).map((e) => `${e.date}|${e.amount}|${e.description}`),
       );
 
       let toAdd = replaceMode
@@ -419,25 +472,77 @@ export default function SettingsPage({
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const handleJsonExport = async () => {
+  const doExport = async (password: string) => {
     try {
-      setImportStatus("Exporting JSON backup…");
+      setImportStatus("Exporting encrypted backup…");
       const data = await StorageService.exportAllData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
+      const envelope = await encryptBackup(data, password);
+      const blob = new Blob([JSON.stringify(envelope, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `outflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `outflow-backup-${new Date().toISOString().slice(0, 10)}.ofb`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setImportStatus("JSON backup exported successfully.");
+      setImportStatus("Encrypted backup exported successfully.");
     } catch (err) {
-      console.error("JSON export failed:", err);
-      setImportStatus(`JSON export failed: ${(err as Error).message}`);
+      console.error("Export failed:", err);
+      setImportStatus(`Export failed: ${(err as Error).message}`);
+    }
+  };
+
+  const handleJsonExport = async () => {
+    if (user?.id) {
+      const saved = await fetchBackupPasswordFromProfile(user.id);
+      if (saved) {
+        await doExport(saved);
+        return;
+      }
+    }
+    setPasswordModalMode("export");
+    setBackupPassword("");
+    setRememberBackupPassword(false);
+    setPasswordError("");
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = async () => {
+    setPasswordError("");
+    if (!backupPassword) {
+      setPasswordError("Password is required.");
+      return;
+    }
+    if (passwordModalMode === "export") {
+      if (user?.id && rememberBackupPassword) {
+        await syncBackupPasswordToProfile(user.id, backupPassword);
+      }
+      setShowPasswordModal(false);
+      await doExport(backupPassword);
+    } else {
+      if (!pendingFile) return;
+      try {
+        const text = await pendingFile.text();
+        const parsed = JSON.parse(text);
+        await StorageService.importBackup(
+          parsed,
+          backupPassword,
+          { replace: jsonReplaceMode },
+        );
+        await onRefreshAll?.();
+        triggerSync?.();
+        setImportStatus(
+          `Backup imported successfully.${jsonReplaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
+        );
+      } catch (err) {
+        setPasswordError((err as Error).message);
+        return;
+      }
+      setShowPasswordModal(false);
+      setPendingFile(null);
     }
   };
 
@@ -445,7 +550,7 @@ export default function SettingsPage({
     e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file) return;
-    setImportStatus("Reading JSON backup…");
+    setImportStatus("Reading backup…");
     setImportErrors([]);
     try {
       const text = await file.text();
@@ -453,13 +558,23 @@ export default function SettingsPage({
       try {
         parsed = JSON.parse(text);
       } catch {
-        setImportStatus("Invalid JSON file.");
+        setImportStatus("Invalid backup file.");
         if (jsonFileRef.current) jsonFileRef.current.value = "";
         return;
       }
 
       if (!parsed || typeof parsed !== "object") {
         setImportStatus("Invalid data: must be an object.");
+        if (jsonFileRef.current) jsonFileRef.current.value = "";
+        return;
+      }
+
+      if (isEncryptedEnvelope(parsed)) {
+        setPendingFile(file);
+        setPasswordModalMode("import");
+        setBackupPassword("");
+        setPasswordError("");
+        setShowPasswordModal(true);
         if (jsonFileRef.current) jsonFileRef.current.value = "";
         return;
       }
@@ -481,16 +596,18 @@ export default function SettingsPage({
         return;
       }
 
-      await StorageService.importAllData(parsed as Record<string, unknown>, { replace: jsonReplaceMode });
+      await StorageService.importAllData(parsed as Record<string, unknown>, {
+        replace: jsonReplaceMode,
+      });
       await onRefreshAll?.();
       triggerSync?.();
 
       setImportStatus(
-        `JSON backup imported successfully.${jsonReplaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
+        `Backup imported successfully.${jsonReplaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
       );
     } catch (err) {
-      console.error("JSON import failed:", err);
-      setImportStatus(`JSON import failed: ${(err as Error).message}`);
+      console.error("Import failed:", err);
+      setImportStatus(`Import failed: ${(err as Error).message}`);
     }
     if (jsonFileRef.current) jsonFileRef.current.value = "";
   };
@@ -498,7 +615,9 @@ export default function SettingsPage({
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-bold text-theme-text tracking-tight">
+          Settings
+        </h1>
       </div>
       <Card title="Visual Theme">
         <p className="text-xs text-theme-muted mb-2">
@@ -527,15 +646,21 @@ export default function SettingsPage({
 
       <div className="grid sm:grid-cols-2 gap-3">
         <Card title="Typography">
+          <p className="text-xs text-theme-muted mb-1.5">
+            Choose the font family and size for the app interface.
+          </p>
           <Row
             label="Font"
             value={settings.font}
             onChange={(v) => save({ font: v })}
             options={[
-              ["system", "System default"],
+              ["system", "System UI"],
               ["sans", "Sans-serif"],
               ["serif", "Serif"],
               ["mono", "Monospace"],
+              ["roboto", "Roboto"],
+              ["georgia", "Georgia"],
+              ["financeMono", "Data Mono"],
             ]}
           />
           <Row
@@ -552,6 +677,9 @@ export default function SettingsPage({
         </Card>
 
         <Card title="Number Format">
+          <p className="text-xs text-theme-muted mb-1.5">
+            Set how currency amounts are displayed across the app.
+          </p>
           <Row
             label="Currency"
             value={settings.currencySymbol}
@@ -584,7 +712,7 @@ export default function SettingsPage({
               [" ", "1 000"],
             ]}
           />
-          <p className="text-xs text-theme-muted pt-1">
+          <p className="text-xs text-theme-muted pt-0.5">
             Preview:{" "}
             <span
               dangerouslySetInnerHTML={{ __html: formatAmount(1234567.89) }}
@@ -594,6 +722,9 @@ export default function SettingsPage({
       </div>
 
       <Card title="Date Format">
+        <p className="text-xs text-theme-muted mb-1.5">
+          Choose how dates are shown throughout the app.
+        </p>
         <Row
           label="Format"
           value={settings.dateFormat}
@@ -604,13 +735,16 @@ export default function SettingsPage({
             ["YYYY-MM-DD", "YYYY-MM-DD"],
           ]}
         />
-        <p className="text-xs text-theme-muted pt-1">
+        <p className="text-xs text-theme-muted pt-0.5">
           Preview: {formatDate(new Date().toISOString().slice(0, 10))}
         </p>
       </Card>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Card title="Export CSV" className="flex-1">
+          <p className="text-xs text-theme-muted mb-2">
+            Download your expenses as a CSV file for a selected date range.
+          </p>
           <div className="flex items-end gap-2">
             <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
               <span className="truncate">From</span>
@@ -644,6 +778,10 @@ export default function SettingsPage({
         </Card>
 
         <Card title="Import CSV" className="flex-1">
+          <p className="text-xs text-theme-muted mb-2">
+            Import expenses from a CSV file. Supports date, category,
+            description, and amount columns.
+          </p>
           <label className="flex items-center gap-1.5 text-xs text-theme-text mb-1.5 cursor-pointer">
             <input
               type="checkbox"
@@ -653,33 +791,41 @@ export default function SettingsPage({
             />
             Replace mode
           </label>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv"
-            onChange={handleImport}
-            className="block w-full text-xs text-theme-muted file:mr-2 file:py-1 file:px-2 file:rounded-theme-small file:border-0 file:text-xs file:font-medium file:bg-theme-primary/10 file:text-theme-primary hover:file:bg-theme-primary/20 truncate"
-          />
+          <label className="relative inline-flex cursor-pointer shrink-0">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv"
+              onChange={handleImport}
+              className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+            />
+            <span className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity">
+              Choose File
+            </span>
+          </label>
         </Card>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <Card title="Data Backup (JSON)" className="flex-1">
+        <Card title="Export Backup" className="flex-1">
           <p className="text-xs text-theme-muted mb-2">
-            Export or import your complete dataset including expenses,
-            categories, fixed expenses, and settings.
+            Export your complete dataset as a password-encrypted .ofb backup
+            file. Secure and compact.
           </p>
           <div className="flex gap-2">
             <button
               onClick={handleJsonExport}
               className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity"
             >
-              Export JSON
+              Export Backup
             </button>
           </div>
         </Card>
 
-        <Card title="Import JSON Backup" className="flex-1">
+        <Card title="Import Backup" className="flex-1">
+          <p className="text-xs text-theme-muted mb-2">
+            Restore from an encrypted .ofb backup or a legacy plain JSON file.
+          </p>
           <label className="flex items-center gap-1.5 text-xs text-theme-text mb-1.5 cursor-pointer">
             <input
               type="checkbox"
@@ -689,13 +835,18 @@ export default function SettingsPage({
             />
             Replace existing data
           </label>
-          <input
-            ref={jsonFileRef}
-            type="file"
-            accept=".json"
-            onChange={handleJsonImport}
-            className="block w-full text-xs text-theme-muted file:mr-2 file:py-1 file:px-2 file:rounded-theme-small file:border-0 file:text-xs file:font-medium file:bg-theme-primary/10 file:text-theme-primary hover:file:bg-theme-primary/20 truncate"
-          />
+          <label className="relative inline-flex cursor-pointer shrink-0">
+            <input
+              ref={jsonFileRef}
+              type="file"
+              accept=".ofb,.json"
+              onChange={handleJsonImport}
+              className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+            />
+            <span className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity">
+              Choose File
+            </span>
+          </label>
         </Card>
       </div>
 
@@ -857,7 +1008,9 @@ export default function SettingsPage({
                             </button>
                             <button
                               onClick={async () => {
-                                await StorageService.deleteSchedule(s.id as number);
+                                await StorageService.deleteSchedule(
+                                  s.id as number,
+                                );
                                 loadSchedules();
                               }}
                               className="text-theme-danger hover:opacity-80 text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
@@ -1001,6 +1154,80 @@ export default function SettingsPage({
               onClick={() => {
                 setShowClearModal(false);
                 setDeleteConfirm("");
+              }}
+              className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Backup Password Modal */}
+      <Modal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPasswordError("");
+          setPendingFile(null);
+        }}
+        title={
+          passwordModalMode === "export"
+            ? "Encrypt Backup"
+            : "Decrypt Backup"
+        }
+        className="max-w-sm"
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-theme-muted">
+            {passwordModalMode === "export"
+              ? "Enter a password to encrypt this backup. You will need this same password to restore it later."
+              : "This backup is password-protected. Enter the password to decrypt and restore it."}
+          </p>
+          <label className="flex flex-col gap-1 text-xs text-theme-muted">
+            Password
+            <input
+              type="password"
+              value={backupPassword}
+              onChange={(e) => setBackupPassword(e.target.value)}
+              placeholder="Enter password"
+              className="input-theme px-3 py-2 text-sm"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handlePasswordSubmit();
+              }}
+            />
+          </label>
+          {passwordModalMode === "export" && user?.id && (
+            <label className="flex items-center gap-1.5 text-xs text-theme-text cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rememberBackupPassword}
+                onChange={(e) =>
+                  setRememberBackupPassword(e.target.checked)
+                }
+                className="rounded-theme-small"
+              />
+              Remember for future backups
+            </label>
+          )}
+          {passwordError && (
+            <p className="text-xs text-theme-danger">{passwordError}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={handlePasswordSubmit}
+              className="flex-1 bg-theme-primary hover:opacity-90 text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
+            >
+              {passwordModalMode === "export"
+                ? "Encrypt & Export"
+                : "Decrypt & Import"}
+            </button>
+            <button
+              onClick={() => {
+                setShowPasswordModal(false);
+                setPasswordError("");
+                setPendingFile(null);
               }}
               className="flex-1 bg-theme-background hover:bg-theme-border text-theme-text text-xs font-medium py-2 rounded-theme-small transition-colors border border-theme-border"
             >

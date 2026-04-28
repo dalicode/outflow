@@ -240,7 +240,7 @@ export default function Navbar({
   onSignOut,
   userEmail,
 }: NavbarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
 
   const sidebarWidth = collapsed ? "w-14" : "w-44";

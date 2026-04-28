@@ -88,9 +88,41 @@ create table settings (
 alter table settings enable row level security;
 create policy "users own settings" on settings
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- profiles (theme sync + backup password storage)
+create table profiles (
+  id              uuid primary key references auth.users on delete cascade,
+  selected_theme  text,
+  backup_password text,
+  updated_at      timestamptz default now()
+);
+alter table profiles enable row level security;
+create policy "users own profile" on profiles
+  using (auth.uid() = id) with check (auth.uid() = id);
+
+-- auto-create profile row on signup
+create function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id)
+  values (new.id)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 ```
 
-## 4. Enable Google OAuth (optional)
+## 4. Profiles table
+
+The `profiles` table stores:
+- `selected_theme` — synced visual theme preference across devices
+- `backup_password` — optional password for encrypted `.ofb` backup files (stored in plaintext; the user must trust their Supabase instance)
+
+## 5. Enable Google OAuth (optional)
 
 In Supabase dashboard → **Authentication → Providers → Google**:
 - Enable Google provider
@@ -98,7 +130,7 @@ In Supabase dashboard → **Authentication → Providers → Google**:
 - Set the redirect URL in Google Cloud Console to:
   `https://your-project.supabase.co/auth/v1/callback`
 
-## 5. Run the app
+## 6. Run the app
 
 ```bash
 npm run dev
