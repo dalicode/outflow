@@ -101,6 +101,17 @@ Envelope format: `{ version: 1, format: "gzip+aes", salt, iv, ciphertext }` (all
 - `dbVersion` is checked on import. If backup DB version > current app DB version, a **blocking warning modal** is shown before proceeding.
 - Legacy flat-format backups (no `meta`/`data` wrapper) are still supported for backward compatibility.
 
+**Version bumping (package.json):**
+
+The `appVersion` in backup metadata is auto-synced from `package.json`. Bump the version when the backup format changes:
+
+| Change | Bump | Example |
+|--------|------|---------|
+| New backup field / new table in export | Minor (`1.0.0` → `1.1.0`) | Added `userEmail` to metadata |
+| Backup structure change / breaking table schema change | Major (`1.0.0` → `2.0.0`) | Changed from flat JSON to `{ meta, data }` |
+| Bug fix, no format change | Patch (`1.0.0` → `1.0.1`) | Fixed export filename |
+| Pure UI changes | No bump | Button styling only |
+
 **Auto-password (Supabase users):**
 - When logged in, the app checks `profiles.backup_password` in Supabase
 - If found → auto-uses it for silent export
