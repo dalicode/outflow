@@ -99,7 +99,7 @@ function resolveMonthlyValues(
  * Snapshots are pre-augmented with virtual entries for current/future months
  * so this function just reads them directly.
  */
-function buildYearFixedRows(year: number, snapshots: FixedExpenseSnapshot[], fixedDefinitions: FixedExpense[]) {
+const buildYearFixedRows = (year: number, snapshots: FixedExpenseSnapshot[], fixedDefinitions: FixedExpense[]) => {
   const rows: Record<string, { name: string; amounts: number[] }> = {};
 
   snapshots.forEach((s) => {
@@ -192,7 +192,7 @@ function getFixedExpensesForMonth(
 /**
  * Get variable expenses for a specific month.
  */
-function getVariableExpensesForMonth(year: number, month: number, expenses: Expense[]) {
+const getVariableExpensesForMonth = (year: number, month: number, expenses: Expense[]) => {
   const monthStr = String(month + 1).padStart(2, "0");
   const prefix = `${year}-${monthStr}`;
   return (expenses || [])

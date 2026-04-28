@@ -5,7 +5,7 @@ import { useSettings } from '../../context/settingsContext'
 const today = () => new Date().toISOString().slice(0, 10)
 const EMPTY_FORM = { date: today(), categoryId: '', description: '', amount: '' }
 
-function CategoryModal({ categories, onCategoriesChange, onClose }) {
+const CategoryModal = ({ categories, onCategoriesChange, onClose }) => {
   const [newName, setNewName] = useState('')
   const [newError, setNewError] = useState('')
   const [editId, setEditId] = useState(null)

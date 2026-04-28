@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { THEMES, getTheme, getCSSVariables, LIGHT_THEME_DEFAULTS, DARK_THEME_DEFAULTS } from './themeConfig'
+import { THEMES, getTheme, getCSSVariables, LIGHT_THEME_DEFAULTS, DARK_THEME_DEFAULTS } from '../utils/themeConfig'
 
 describe('THEMES', () => {
   it('contains all expected theme IDs', () => {

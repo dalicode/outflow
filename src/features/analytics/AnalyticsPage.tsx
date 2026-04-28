@@ -137,7 +137,7 @@ interface SummaryCardProps {
   tone: "success" | "danger" | "neutral";
 }
 
-function SummaryCard({ label, value, tone }: SummaryCardProps) {
+const SummaryCard = ({ label, value, tone }: SummaryCardProps) => {
   const toneClass =
     tone === "success"
       ? "text-theme-success"

@@ -2,7 +2,7 @@
 import React from "react";
 import { useSettings } from "../../context/settingsContext";
 
-function Card({ label, value, colorClass = "text-theme-text" }) {
+const Card = ({ label, value, colorClass = "text-theme-text" }) => {
   return (
     <div className="bg-theme-surface rounded-xl shadow-sm px-4 py-3 flex flex-col gap-0.5 border border-theme-border">
       <span className="text-xs text-theme-muted uppercase tracking-widest mb-2">

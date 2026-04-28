@@ -223,7 +223,7 @@ function expenseToRow(exp: Expense, formatDate: (iso: string) => string): (strin
   ];
 }
 
-function downloadCSV(rows: (string | number)[][], filename: string) {
+const downloadCSV = (rows: (string | number)[][], filename: string) => {
   const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const csv = [CSV_HEADERS, ...rows]
     .map((r) => r.map(escape).join(","))

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from "react";
 import { useSettings } from "../../context/settingsContext";
 
-function EditableCell({ editing, value, onChange, type = "text", children }) {
+const EditableCell = ({ editing, value, onChange, type = "text", children }) => {
   if (!editing) return <span>{children ?? value}</span>;
   if (type === "select") return children;
   return (

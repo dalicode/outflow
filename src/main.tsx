@@ -5,7 +5,7 @@ import App from './App'
 import './index.css'
 
 const errorDiv = document.getElementById('boot-error')
-function showError(msg: string) {
+const showError = (msg: string) => {
   if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = msg; }
 }
 

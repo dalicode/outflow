@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TEXT } from './textStyles'
+import { TEXT } from '../utils/textStyles'
 
 describe('TEXT styles', () => {
   it('exports all expected text style keys', () => {

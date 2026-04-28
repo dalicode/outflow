@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { StorageService } from "../services/storageService";
 import { Expense, Category } from "../types";
 
-export function useExpenses() {
+export const useExpenses = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export function useExpenses() {
   return { expenses, setExpenses, refresh };
 }
 
-export function useCategories() {
+export const useCategories = () => {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {

@@ -102,7 +102,7 @@ interface CustomTooltipProps {
   formatter?: (value: any, name: string) => [string, string] | string;
 }
 
-function CustomTooltip({ active, payload, label, formatter, colors }: CustomTooltipProps) {
+const CustomTooltip = ({ active, payload, label, formatter, colors }: CustomTooltipProps) => {
   if (!active || !payload || payload.length === 0) return null;
 
   return (
@@ -152,7 +152,7 @@ interface MetricCardProps {
   colors: ThemeColors;
 }
 
-function MetricCard({ label, value, subValue, accentColor, colors }: MetricCardProps) {
+const MetricCard = ({ label, value, subValue, accentColor, colors }: MetricCardProps) => {
   return (
     <div
       className="rounded-xl border p-4 text-center"
@@ -184,7 +184,7 @@ interface ChartProps {
   monthCount: number;
 }
 
-function MonthlyTrendChart({ data, colors, monthCount }: ChartProps) {
+const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
   const chartData = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => ({
       month: m,
@@ -255,7 +255,7 @@ interface CategoryBreakdownChartProps extends ChartProps {
   selectedMonth: number | null;
 }
 
-function CategoryBreakdownChart({ data, colors, monthCount, selectedMonth }: CategoryBreakdownChartProps) {
+const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: CategoryBreakdownChartProps) => {
   const pieData = useMemo(() => {
     const items: { name: string; value: number }[] = [];
     if (selectedMonth === null) {
@@ -328,7 +328,7 @@ function CategoryBreakdownChart({ data, colors, monthCount, selectedMonth }: Cat
 
 // ── 3. Savings Rate Trend ────────────────────────────────────────────────────
 
-function SavingsRateChart({ data, colors, monthCount }: ChartProps) {
+const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
   const chartData = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => ({
       month: m,
@@ -368,7 +368,7 @@ function SavingsRateChart({ data, colors, monthCount }: ChartProps) {
 
 // ── 4. Monthly Total Savings ─────────────────────────────────────────────────
 
-function MonthlyTotalSavingsChart({ data, colors, monthCount }: ChartProps) {
+const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProps) => {
   const chartData = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => ({
       month: m,
@@ -409,7 +409,7 @@ function MonthlyTotalSavingsChart({ data, colors, monthCount }: ChartProps) {
 
 // ── 5. Income vs. Expenses ───────────────────────────────────────────────────
 
-function IncomeVsExpensesChart({ data, colors, monthCount, selectedMonth }: CategoryBreakdownChartProps) {
+const IncomeVsExpensesChart = ({ data, colors, monthCount, selectedMonth }: CategoryBreakdownChartProps) => {
   const chartData = useMemo(() => {
     if (selectedMonth !== null) {
       const m = selectedMonth;
@@ -469,7 +469,7 @@ interface MonthMetricCardsProps {
   colors: ThemeColors;
 }
 
-function MonthMetricCards({ data, selectedMonth, colors }: MonthMetricCardsProps) {
+const MonthMetricCards = ({ data, selectedMonth, colors }: MonthMetricCardsProps) => {
   const m = selectedMonth;
   const expenses = data.monthlyTotals[m] || 0;
   const income = data.monthlyIncome[m] || 0;
@@ -512,7 +512,7 @@ function MonthMetricCards({ data, selectedMonth, colors }: MonthMetricCardsProps
 
 // ── Empty State ──────────────────────────────────────────────────────────────
 
-function EmptyState({ label }: { label: string }) {
+const EmptyState = ({ label }: { label: string }) => {
   return (
     <div className="h-[200px] md:h-[260px] flex items-center justify-center">
       <span className="text-xs text-theme-muted">{label}</span>
@@ -522,7 +522,7 @@ function EmptyState({ label }: { label: string }) {
 
 // ── Chart Card Wrapper ───────────────────────────────────────────────────────
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+const ChartCard = ({ title, children }: { title: string; children: React.ReactNode }) => {
   return (
     <div className="rounded-xl bg-theme-surface shadow-sm p-4">
       <h3 className="text-sm font-semibold text-theme-text mb-3">{title}</h3>
@@ -539,7 +539,7 @@ interface ViewProps {
   monthCount: number;
 }
 
-function YearView({ data, colors, monthCount }: ViewProps) {
+const YearView = ({ data, colors, monthCount }: ViewProps) => {
   return (
     <div className="space-y-4">
       {/* Row 1: Monthly Trend (full width) */}
@@ -578,7 +578,7 @@ interface MonthViewProps {
   selectedMonth: number;
 }
 
-function MonthView({ data, colors, selectedMonth }: MonthViewProps) {
+const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
   return (
     <div className="space-y-4">
       {/* Row 1: Metric cards */}

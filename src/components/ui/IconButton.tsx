@@ -4,7 +4,7 @@ interface IconProps {
   className?: string;
 }
 
-export function PencilIcon({ className = "w-4 h-4" }: IconProps) {
+export const PencilIcon = ({ className = "w-4 h-4" }: IconProps) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -21,7 +21,7 @@ export function PencilIcon({ className = "w-4 h-4" }: IconProps) {
   );
 }
 
-export function CheckIcon({ className = "w-4 h-4" }: IconProps) {
+export const CheckIcon = ({ className = "w-4 h-4" }: IconProps) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -38,7 +38,7 @@ export function CheckIcon({ className = "w-4 h-4" }: IconProps) {
   );
 }
 
-export function TrashIcon({ className = "w-4 h-4" }: IconProps) {
+export const TrashIcon = ({ className = "w-4 h-4" }: IconProps) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

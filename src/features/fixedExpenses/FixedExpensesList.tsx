@@ -4,7 +4,7 @@ import { useSettings } from "../../context/settingsContext";
 
 const EMPTY = { name: "", amount: "" };
 
-function PencilIcon({ className = "w-4 h-4" }) {
+const PencilIcon = ({ className = "w-4 h-4" }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -21,7 +21,7 @@ function PencilIcon({ className = "w-4 h-4" }) {
   );
 }
 
-function CheckIcon({ className = "w-4 h-4" }) {
+const CheckIcon = ({ className = "w-4 h-4" }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

@@ -5,7 +5,7 @@ import { useSettings } from "../../context/settingsContext";
 const FREQUENCIES = ["monthly", "biweekly", "weekly"];
 const MULTIPLIERS = { monthly: 1, biweekly: 2.17, weekly: 4.33 };
 
-function PencilIcon({ className = "w-4 h-4" }) {
+const PencilIcon = ({ className = "w-4 h-4" }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

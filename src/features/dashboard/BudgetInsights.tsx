@@ -2,7 +2,7 @@
 import React from "react";
 import { useSettings } from "../../context/settingsContext";
 
-function InsightTile({ label, value, tone, subValue }) {
+const InsightTile = ({ label, value, tone, subValue }) => {
   const { getNumberColorClass } = useSettings();
 
   const toneClass =

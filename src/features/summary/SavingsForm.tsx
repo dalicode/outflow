@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
 
-function PencilIcon({ className = "w-4 h-4" }) {
+const PencilIcon = ({ className = "w-4 h-4" }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

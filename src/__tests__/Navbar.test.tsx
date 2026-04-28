@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import Navbar from './Navbar'
+import Navbar from '../components/layout/Navbar'
 
 describe('Navbar', () => {
   it('renders navigation links in desktop sidebar', () => {

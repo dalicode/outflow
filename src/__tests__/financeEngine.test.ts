@@ -5,7 +5,7 @@ import {
   getYearVariableGrid,
   getBackfillPreviewTimeline,
   MONTHS,
-} from './financeEngine'
+} from '../utils/financeEngine'
 import type { FinanceEngineData, Expense, FixedExpense, FixedExpenseSnapshot, Schedule } from '../types'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
