@@ -1,0 +1,27 @@
+import ReactDOM from 'react-dom/client'
+import { AuthProvider } from './context/authContext'
+import { SettingsProvider } from './context/settingsContext'
+import App from './App'
+import './index.css'
+
+const errorDiv = document.getElementById('boot-error')
+function showError(msg: string) {
+  if (errorDiv) { errorDiv.style.display = 'block'; errorDiv.textContent = msg; }
+}
+
+try {
+  const root = document.getElementById('root')
+  if (!root) { showError('Fatal: #root not found'); }
+  else {
+    ReactDOM.createRoot(root).render(
+      <AuthProvider>
+        <SettingsProvider>
+          <App />
+        </SettingsProvider>
+      </AuthProvider>
+    )
+  }
+} catch (e: unknown) {
+  const err = e instanceof Error ? e : new Error(String(e))
+  showError('Fatal render error: ' + err.message + '\n' + err.stack)
+}
