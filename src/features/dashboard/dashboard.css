@@ -205,3 +205,24 @@
     padding-bottom: 0;
   }
 }
+
+/* Dashboard view toggle tabs */
+.dashboard-tab {
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-small);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-muted);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.dashboard-tab:hover:not(.dashboard-tab-active) {
+  color: var(--theme-text);
+}
+.dashboard-tab-active {
+  background-color: var(--theme-surface);
+  color: var(--theme-text);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}

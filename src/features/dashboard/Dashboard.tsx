@@ -41,6 +41,9 @@ export default function Dashboard({
     new Set(),
   );
   const [manageMode, setManageMode] = useState(false);
+  const [viewMode, setViewMode] = useState<"expenses" | "categories">(
+    "expenses",
+  );
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
   const [financialSummary, setFinancialSummary] =
@@ -108,13 +111,10 @@ export default function Dashboard({
     loadData();
   }, [selectedYear, selectedMonth, expenses]);
 
-  const navigateToMonth = useCallback(
-    (year: number, month: number) => {
-      setSelectedYear(year);
-      setSelectedMonth(month);
-    },
-    [],
-  );
+  const navigateToMonth = useCallback((year: number, month: number) => {
+    setSelectedYear(year);
+    setSelectedMonth(month);
+  }, []);
 
   const prevMonth = () => {
     if (selectedMonth === 0) {
@@ -157,9 +157,7 @@ export default function Dashboard({
     [categories],
   );
   const resolveName = (exp: Expense) =>
-    catMap[exp.categoryId as number]?.name ??
-    exp.category ??
-    "Uncategorized";
+    catMap[exp.categoryId as number]?.name ?? exp.category ?? "Uncategorized";
 
   const monthlyExpenses = useMemo(
     () => expenses.filter((e) => e.date.startsWith(selectedKey)),
@@ -170,9 +168,7 @@ export default function Dashboard({
     () =>
       selectedCategories.size === 0
         ? monthlyExpenses
-        : monthlyExpenses.filter((e) =>
-            selectedCategories.has(resolveName(e)),
-          ),
+        : monthlyExpenses.filter((e) => selectedCategories.has(resolveName(e))),
     [monthlyExpenses, selectedCategories, catMap],
   );
 
@@ -213,13 +209,21 @@ export default function Dashboard({
     setShowConfirm(false);
   }, [selectedIds, onBulkDelete]);
 
-  const categoryTotals = useMemo(() => {
-    const map: Record<string, number> = {};
+  const categoryRows = useMemo(() => {
+    const totals: Record<string, number> = {};
+    const counts: Record<string, number> = {};
     monthlyExpenses.forEach((e) => {
       const n = resolveName(e);
-      map[n] = (map[n] || 0) + e.amount;
+      totals[n] = (totals[n] || 0) + e.amount;
+      counts[n] = (counts[n] || 0) + 1;
     });
-    return Object.entries(map).sort(([, a], [, b]) => b - a);
+    return Object.entries(totals)
+      .map(([name, total]) => ({
+        name,
+        count: counts[name] || 0,
+        total,
+      }))
+      .sort((a, b) => b.total - a.total);
   }, [monthlyExpenses, catMap]);
 
   return (
@@ -233,7 +237,7 @@ export default function Dashboard({
       {financialSummary && <BudgetInsights summary={financialSummary} />}
 
       {/* Category filter chips */}
-      {categoryTotals.length > 0 && (
+      {viewMode === "expenses" && categoryRows.length > 0 && false && (
         <div>
           <h2 className="text-sm font-semibold text-theme-text tracking-tight mb-3">
             Filter by Category
@@ -245,35 +249,33 @@ export default function Dashboard({
                 "category-chip",
                 selectedCategories.size === 0
                   ? "category-chip-active"
-                  : "category-chip-inactive"
+                  : "category-chip-inactive",
               )}
             >
               All
             </button>
-            {categoryTotals.map(([cat, total]) => {
-              const isSelected = selectedCategories.has(cat);
+            {categoryRows.map(({ name, total }) => {
+              const isSelected = selectedCategories.has(name);
               return (
                 <button
-                  key={cat}
+                  key={name}
                   onClick={() => {
                     const next = new Set(selectedCategories);
-                    if (next.has(cat)) next.delete(cat);
-                    else next.add(cat);
+                    if (next.has(name)) next.delete(name);
+                    else next.add(name);
                     setSelectedCategories(next);
                   }}
                   className={cn(
                     "category-chip",
                     isSelected
                       ? "category-chip-active"
-                      : "category-chip-inactive"
+                      : "category-chip-inactive",
                   )}
                 >
-                  <span>{cat}</span>
+                  <span>{name}</span>
                   <span
                     className={
-                      isSelected
-                        ? "text-white/80"
-                        : getNumberColorClass(total)
+                      isSelected ? "text-white/80" : getNumberColorClass(total)
                     }
                   >
                     {formatAmount(total)}
@@ -378,41 +380,43 @@ export default function Dashboard({
             </div>
 
             {/* Manage button */}
-            <button
-              onClick={toggleManageMode}
-              aria-label={manageMode ? "Done" : "Manage"}
-              aria-pressed={manageMode}
-              className={cn(
-                "dashboard-manage-btn shrink-0",
-                manageMode
-                  ? "bg-theme-primary text-white"
-                  : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
-              )}
-            >
-              {manageMode ? (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                </svg>
-              )}
-            </button>
+            {viewMode === "expenses" && (
+              <button
+                onClick={toggleManageMode}
+                aria-label={manageMode ? "Done" : "Manage"}
+                aria-pressed={manageMode}
+                className={cn(
+                  "dashboard-manage-btn shrink-0",
+                  manageMode
+                    ? "bg-theme-primary text-white"
+                    : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
+                )}
+              >
+                {manageMode ? (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  </svg>
+                )}
+              </button>
+            )}
 
-            {manageMode && selectedIds.size > 0 && (
+            {viewMode === "expenses" && manageMode && selectedIds.size > 0 && (
               <button
                 onClick={handleBulkDeleteClick}
                 className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-theme-danger text-white hover:opacity-90 transition-opacity"
@@ -422,17 +426,39 @@ export default function Dashboard({
             )}
           </div>
 
-          <p className="text-center text-sm text-theme-muted">
-            {monthlyExpenses.length} transaction
-            {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
-            <span
-              className={getNumberColorClass(
-                financialSummary?.variableExpenses ?? 0,
-              )}
-            >
-              {formatAmount(financialSummary?.variableExpenses ?? 0)}
-            </span>
-          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode("expenses")}
+                className={cn(
+                  "dashboard-tab",
+                  viewMode === "expenses" && "dashboard-tab-active",
+                )}
+              >
+                Expenses
+              </button>
+              <button
+                onClick={() => setViewMode("categories")}
+                className={cn(
+                  "dashboard-tab",
+                  viewMode === "categories" && "dashboard-tab-active",
+                )}
+              >
+                Categories
+              </button>
+            </div>
+            <p className="text-sm text-theme-muted">
+              {monthlyExpenses.length} transaction
+              {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
+              <span
+                className={getNumberColorClass(
+                  financialSummary?.variableExpenses ?? 0,
+                )}
+              >
+                {formatAmount(financialSummary?.variableExpenses ?? 0)}
+              </span>
+            </p>
+          </div>
         </div>
 
         {/* Confirm delete modal */}
@@ -448,10 +474,7 @@ export default function Dashboard({
             expense{selectedIds.size !== 1 ? "s" : ""}?
           </p>
           <div className="flex gap-3">
-            <button
-              onClick={confirmDelete}
-              className="confirm-delete-btn"
-            >
+            <button onClick={confirmDelete} className="confirm-delete-btn">
               Delete
             </button>
             <button
@@ -463,16 +486,76 @@ export default function Dashboard({
           </div>
         </Modal>
 
-        <ExpenseTable
-          expenses={filtered}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          categories={categories}
-          manageMode={manageMode}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          onToggleSelectAll={toggleSelectAll}
-        />
+        {viewMode === "categories" ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-separate border-spacing-0">
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  <th className="table-header-cell text-left">Category</th>
+                  <th className="table-header-cell text-right tabular-nums">
+                    Transactions
+                  </th>
+                  <th className="table-header-cell text-right tabular-nums">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="px-3 py-12 text-center text-theme-muted"
+                    >
+                      No expenses yet. Hit{" "}
+                      <strong className="text-theme-primary">+</strong> to add
+                      one.
+                    </td>
+                  </tr>
+                ) : (
+                  categoryRows.map(({ name, count, total }) => (
+                    <tr
+                      key={name}
+                      className="border-b border-theme-muted/10 transition-colors duration-150 hover:bg-theme-primary/[0.03]"
+                    >
+                      <td className="px-3 py-2.5 text-theme-text whitespace-nowrap font-medium">
+                        {name}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-theme-muted tabular-nums">
+                        {count}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        <button
+                          onClick={() => {
+                            setSelectedCategories(new Set([name]));
+                            setViewMode("expenses");
+                          }}
+                          className={cn(
+                            "font-semibold hover:underline",
+                            getNumberColorClass(total),
+                          )}
+                        >
+                          {formatAmount(total)}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <ExpenseTable
+            expenses={filtered}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            categories={categories}
+            manageMode={manageMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
+          />
+        )}
       </section>
     </main>
   );
