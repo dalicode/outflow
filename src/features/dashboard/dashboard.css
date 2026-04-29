@@ -29,11 +29,12 @@
   padding: 0.375rem;
   border-radius: var(--radius-small);
   color: var(--theme-muted);
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .month-nav-btn:hover {
   color: var(--theme-text);
   background-color: var(--theme-background);
+  transform: translateY(-1px);
 }
 
 /* Current month badge (next to month label) */
@@ -161,10 +162,11 @@
   background-color: transparent;
   border: none;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .month-pill:hover:not(.month-pill-selected) {
   background-color: var(--theme-background);
+  transform: translateY(-1px);
 }
 .month-pill-selected {
   background-color: var(--theme-primary);

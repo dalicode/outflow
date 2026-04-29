@@ -6,6 +6,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { cn } from "../../utils/cn";
+import { getSavingsGradientColor } from "../../utils/colorHelpers";
 import type { AnalyticsData } from "../../types";
 
 declare module "@tanstack/react-table" {
@@ -91,17 +92,6 @@ function buildTableRows(data: AnalyticsData): TableRow[] {
   rows.push({ id: "sum-pct", kind: "summary", label: "Savings %", amounts: data.monthlySavingsPct, yearTotal: data.avgSavingsPct, isPct: true });
 
   return rows;
-}
-
-function getSavingsGradientColor(ratioPct: number, savingsRate: number): string {
-  if (ratioPct <= 0) return "var(--theme-danger)";
-  const upperBound = savingsRate * 1.5;
-  if (ratioPct >= upperBound) return "var(--theme-success)";
-  const stepped = Math.round((ratioPct / upperBound) * 20) / 20;
-  const normalized = Math.max(0, Math.min(1, stepped));
-  const dangerPct = Math.round((1 - normalized) * 100);
-  const successPct = Math.round(normalized * 100);
-  return `color-mix(in hsl, var(--theme-danger) ${dangerPct}%, var(--theme-success) ${successPct}%)`;
 }
 
 interface AnalyticsTableProps {
