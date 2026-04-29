@@ -292,10 +292,8 @@ function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }: 
   const presets = ["Rent", "Utilities", "Insurance", "Internet", "Phone"];
 
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  const isCurrentYear = year === currentYear;
-  const maxMonth = isCurrentYear ? currentMonth - 1 : 12;
+  const isCurrentYear = year === now.getFullYear();
+  const maxMonth = isCurrentYear ? now.getMonth() + 1 : 12;
 
   return (
     <SectionCard title="Fixed Expenses">
@@ -303,38 +301,41 @@ function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }: 
         <p className="text-xs text-theme-muted italic">No fixed expenses configured.</p>
       )}
       <div className="space-y-2">
-        {items.map((item) => (
-          <div key={item.id} className="flex items-center gap-2 flex-wrap">
-            <input
-              value={item.name}
-              onChange={(e) => onUpdate(item.id, { name: e.target.value })}
-              placeholder="Name"
-              className={`${ghostInputCls} w-36`}
-            />
-            <input
-              type="number"
-              value={item.amount}
-              onChange={(e) => onUpdate(item.id, { amount: e.target.value })}
-              placeholder="Amount"
-              step="0.01"
-              className={`${ghostInputCls} w-28`}
-            />
-            <MonthSelect
-              value={item.startMonth}
-              onChange={(e) => onUpdate(item.id, { startMonth: parseInt(e.target.value, 10) })}
-              maxMonth={maxMonth}
-              cls={`${ghostSelectCls} w-18`}
-            />
-            <span className="text-theme-muted text-xs">→</span>
-            <MonthSelect
-              value={Math.min(item.endMonth, maxMonth)}
-              onChange={(e) => onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })}
-              maxMonth={maxMonth}
-              cls={`${ghostSelectCls} w-18`}
-            />
-            <RemoveBtn onClick={() => onRemove(item.id)} />
-          </div>
-        ))}
+        {items.map((item) => {
+          const displayEndMonth = Math.min(item.endMonth, maxMonth);
+          return (
+            <div key={item.id} className="flex items-center gap-2 flex-wrap">
+              <input
+                value={item.name}
+                onChange={(e) => onUpdate(item.id, { name: e.target.value })}
+                placeholder="Name"
+                className={`${ghostInputCls} w-36`}
+              />
+              <input
+                type="number"
+                value={item.amount}
+                onChange={(e) => onUpdate(item.id, { amount: e.target.value })}
+                placeholder="Amount"
+                step="0.01"
+                className={`${ghostInputCls} w-28`}
+              />
+              <MonthSelect
+                value={item.startMonth}
+                onChange={(e) => onUpdate(item.id, { startMonth: parseInt(e.target.value, 10) })}
+                maxMonth={maxMonth}
+                cls={`${ghostSelectCls} w-18`}
+              />
+              <span className="text-theme-muted text-xs">→</span>
+              <MonthSelect
+                value={displayEndMonth}
+                onChange={(e) => onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })}
+                maxMonth={maxMonth}
+                cls={`${ghostSelectCls} w-18`}
+              />
+              <RemoveBtn onClick={() => onRemove(item.id)} />
+            </div>
+          );
+        })}
       </div>
       <div className="flex items-center gap-3 flex-wrap">
         <button
@@ -662,10 +663,18 @@ export default function BackfillHistoricalDataModal({
             // Archived and last snapshot was in an earlier year → not active
             if (def.isArchived && latest && year > latest.year) continue;
 
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+
             const startMonth = year === earliest.year ? earliest.month : 1;
             let endMonth = 12;
             if (def.isArchived && latest && year === latest.year) {
               endMonth = latest.month;
+            }
+            // Don't allow backfill past current month in current year
+            if (year === currentYear && endMonth > currentMonth) {
+              endMonth = currentMonth;
             }
 
             fixedItems.push({

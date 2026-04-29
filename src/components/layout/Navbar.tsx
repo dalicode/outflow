@@ -250,7 +250,7 @@ export default function Navbar({
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={cn("navbar-desktop", sidebarWidth)}
+        className={cn("navbar-desktop group", sidebarWidth)}
       >
         {/* Brand + Collapse toggle */}
         <div className="px-3 pt-4 pb-2 flex items-center justify-between">
@@ -270,7 +270,7 @@ export default function Navbar({
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}
-              className="navbar-toggle-btn nav-item-hover"
+              className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               aria-label="Collapse sidebar"
               title="Collapse"
             >
@@ -292,7 +292,7 @@ export default function Navbar({
           <div className="flex justify-center pb-2">
             <button
               onClick={() => setCollapsed(false)}
-              className="navbar-toggle-btn nav-item-hover"
+              className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               aria-label="Expand sidebar"
               title="Expand"
             >

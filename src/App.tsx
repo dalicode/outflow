@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StorageService } from "./services/storageService";
 import { useAuth } from "./context/authContext";
 import { useSettings } from "./context/settingsContext";
 import { supabase } from "./services/supabase";
 import { useExpenses, useCategories } from "./hooks/useLocalData";
+import { cn } from "./utils/cn";
 import Navbar from "./components/layout/Navbar";
 import ExpenseForm from "./features/expenses/ExpenseForm";
 import Dashboard from "./features/dashboard/Dashboard";
@@ -14,6 +15,23 @@ import AuthPage from "./features/auth/AuthPage";
 import SettingsPage from "./features/settings/SettingsPage";
 import type { SyncStatus } from "./types";
 import type { Expense } from "./types";
+
+function useScrollVisibility() {
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleScroll = useCallback(() => {
+    setIsScrolling(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrolling(false);
+    }, 800);
+  }, []);
+
+  return { isScrolling, handleScroll };
+}
 
 function SyncDot({ status }: { status: SyncStatus }) {
   if (!supabase) return null;
@@ -52,6 +70,7 @@ export default function App() {
     refresh: refreshCategories,
   } = useCategories();
   const [showForm, setShowForm] = useState(false);
+  const { isScrolling, handleScroll } = useScrollVisibility();
 
   useEffect(() => {
     if (syncStatus === "idle") {
@@ -135,7 +154,13 @@ export default function App() {
               onSignOut={supabase ? signOut : undefined}
               userEmail={user?.email}
             />
-            <main className="flex-1 min-w-0 pb-24 sm:pb-0">
+            <main
+              className={cn(
+                "flex-1 min-w-0 pb-24 sm:pb-0 overflow-y-auto scrollbar-auto-hide",
+                isScrolling && "is-scrolling"
+              )}
+              onScroll={handleScroll}
+            >
               <Routes>
                 <Route
                   path="/"

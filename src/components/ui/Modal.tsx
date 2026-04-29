@@ -1,4 +1,4 @@
-import { useEffect, useCallback, type ReactNode, useRef } from "react";
+import { useEffect, useCallback, useState, type ReactNode, useRef } from "react";
 import { cn } from "../../utils/cn";
 
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
@@ -45,6 +45,18 @@ export default function Modal({
   size = "md",
 }: ModalProps) {
   const pushedRef = useRef(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleScroll = useCallback(() => {
+    setIsScrolling(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrolling(false);
+    }, 800);
+  }, []);
 
   // Push history state when opening so native back button closes the modal
   useEffect(() => {
@@ -175,9 +187,11 @@ export default function Modal({
         <div
           className={cn(
             "flex-1 overflow-y-auto scrollbar-auto-hide",
+            isScrolling && "is-scrolling",
             isFullScreenMobile ? "p-4 sm:p-0" : "",
             (title || isFullScreenMobile) && "mt-4 sm:mt-4",
           )}
+          onScroll={handleScroll}
         >
           {children}
         </div>
