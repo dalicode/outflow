@@ -83,6 +83,10 @@
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
+.input-theme::placeholder {
+  color: var(--theme-muted);
+  opacity: 0.7;
+}
 .input-theme:focus {
   outline: none;
   border-color: var(--theme-primary);

@@ -195,11 +195,9 @@ export default function ScheduleModal({
     onClose();
   };
 
-  const inputCls =
-    "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text placeholder:text-theme-muted shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none";
-  const selectCls =
-    "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none cursor-pointer";
-  const disabledCls = " opacity-60 cursor-not-allowed hover:border-transparent";
+  const inputCls = "input-theme px-3 py-2 text-sm w-full";
+  const selectCls = "input-theme px-3 py-2 text-sm w-full cursor-pointer";
+  const disabledCls = " opacity-60 cursor-not-allowed";
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => currentYear + i);
 

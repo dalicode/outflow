@@ -56,12 +56,10 @@ interface YearConfig {
 
 // ── Reusable sub-components (defined inside same file for cohesion) ──────────
 
-// ── Modern Ghost Input Style ────────────────────────────────────────────────
-const ghostInputCls =
-  "bg-theme-background border border-transparent rounded-lg px-3 py-2 text-sm text-theme-text placeholder:text-theme-muted shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none";
+// ── Reusable input style (uses global .input-theme) ─────────────────────────
+const ghostInputCls = "input-theme px-3 py-2 text-sm";
 
-const ghostSelectCls =
-  "bg-theme-background border border-transparent rounded-lg px-2 py-2 text-sm text-theme-text shadow-sm hover:border-theme-border focus:bg-theme-surface focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 focus:shadow-md transition-all outline-none cursor-pointer";
+const ghostSelectCls = "input-theme px-2 py-2 text-sm cursor-pointer";
 
 function RemoveBtn({ onClick }: { onClick: () => void }) {
   return (
