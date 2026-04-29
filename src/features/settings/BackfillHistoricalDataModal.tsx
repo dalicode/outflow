@@ -582,13 +582,30 @@ export default function BackfillHistoricalDataModal({
           fixedDefs,
           incSnaps,
           savSnaps,
+          allFixedSnaps,
         ] = await Promise.all([
           StorageService.getFixedExpenses(),
           StorageService.getAllIncomeSnapshots(),
           StorageService.getAllSavingsSnapshots(),
+          StorageService.getAllFixedExpenseSnapshots(),
         ]);
 
         const defMap = new Map((fixedDefs as Array<{ id?: number; name: string }>).map((f) => [f.id, f]));
+
+        // Compute earliest and latest snapshot per fixed-expense definition
+        const earliestByDef = new Map<number, { year: number; month: number }>();
+        const latestByDef = new Map<number, { year: number; month: number }>();
+        for (const s of allFixedSnaps) {
+          const ex = earliestByDef.get(s.fixedExpenseId);
+          if (!ex || s.year < ex.year || (s.year === ex.year && s.month < ex.month)) {
+            earliestByDef.set(s.fixedExpenseId, { year: s.year, month: s.month });
+          }
+          const lx = latestByDef.get(s.fixedExpenseId);
+          if (!lx || s.year > lx.year || (s.year === lx.year && s.month > lx.month)) {
+            latestByDef.set(s.fixedExpenseId, { year: s.year, month: s.month });
+          }
+        }
+
         const configs: Record<number, YearConfig> = {};
 
         for (const year of years) {
@@ -627,6 +644,38 @@ export default function BackfillHistoricalDataModal({
                 existingFixedExpenseId: defId,
               });
             }
+          }
+
+          // Backfill active fixed expenses that have no snapshots for this year
+          for (const def of fixedDefs) {
+            if (!def.id) continue;
+            if (byDef.has(def.id)) continue; // already has explicit snapshots
+
+            const earliest = earliestByDef.get(def.id);
+            if (!earliest) continue; // never had snapshots → not a real tracked expense
+
+            const latest = latestByDef.get(def.id);
+
+            // Expense didn't exist yet in this year
+            if (year < earliest.year) continue;
+
+            // Archived and last snapshot was in an earlier year → not active
+            if (def.isArchived && latest && year > latest.year) continue;
+
+            const startMonth = year === earliest.year ? earliest.month : 1;
+            let endMonth = 12;
+            if (def.isArchived && latest && year === latest.year) {
+              endMonth = latest.month;
+            }
+
+            fixedItems.push({
+              id: nextId(),
+              name: def.name,
+              amount: def.amount,
+              startMonth,
+              endMonth,
+              existingFixedExpenseId: def.id,
+            });
           }
 
           configs[year] = { incomeRanges, savingsRanges, fixedItems };

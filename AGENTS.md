@@ -74,6 +74,19 @@ The backfill modal (`BackfillHistoricalDataModal`) lets users batch-configure pa
 
 Backfill only writes **snapshots** (not the old `yearlyIncomeOverrides` / `yearlySavingsOverrides` settings, which have been removed).
 
+**Fixed expense auto-display:**
+When opening the backfill modal, fixed expenses are automatically shown for every year tab where they were active — even if no explicit snapshots exist for that year yet. The display logic:
+
+| Scenario | Range shown |
+|----------|-------------|
+| First snapshot in Mar 2024, viewing 2024 | Mar → Dec |
+| First snapshot in Mar 2024, viewing 2025 | Jan → Dec ("since January") |
+| First snapshot in Mar 2024, viewing 2023 | Hidden (didn't exist yet) |
+| Archived Jun 2025, viewing 2025 | Jan → Jun |
+| Archived Jun 2025, viewing 2026 | Hidden (no longer active) |
+
+The earliest and latest snapshots per definition determine the active range. This uses the live `fixedExpenses` definition `name` and `amount` for auto-generated entries.
+
 ### Encrypted Backup Export/Import
 
 Backups are exported as **`.ofb` files** (Outflow Backup) with the following pipeline:
