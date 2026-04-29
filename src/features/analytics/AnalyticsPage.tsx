@@ -204,6 +204,14 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
     setSelectedMonth(null);
   };
 
+  const yearStrip = useMemo(() => {
+    const years = [];
+    for (let i = -3; i <= 1; i++) {
+      years.push(year + i);
+    }
+    return years;
+  }, [year]);
+
   const summaryCards = [
     {
       label: "Total Income",
@@ -233,28 +241,43 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">Analytics</h1>
 
-        <div className="flex items-center gap-2">
+        <div className="year-strip-scroll">
           <button
             onClick={() => handleYearChange(year - 1)}
-            className="p-2 rounded-lg hover:bg-theme-surface text-theme-muted hover:text-theme-text transition-colors"
+            className="year-nav-btn"
             aria-label="Previous year"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className="text-lg font-semibold text-theme-text tabular-nums w-12 text-center">
-            {year}
-          </span>
+
+          {yearStrip.map((y) => {
+            const isSelected = y === year;
+            const isFuture = y > currentYear;
+            const isCurrent = y === currentYear;
+            return (
+              <button
+                key={y}
+                onClick={() => !isFuture && handleYearChange(y)}
+                disabled={isFuture}
+                className={cn(
+                  "year-pill",
+                  isSelected && "year-pill-selected",
+                  !isSelected && isCurrent && "year-pill-current",
+                )}
+                aria-label={String(y)}
+                aria-current={isSelected ? "date" : undefined}
+              >
+                {y}
+              </button>
+            );
+          })}
+
           <button
             onClick={() => canGoForward && handleYearChange(year + 1)}
             disabled={!canGoForward}
-            className={cn(
-              "p-2 rounded-lg transition-colors",
-              canGoForward
-                ? "hover:bg-theme-surface text-theme-muted hover:text-theme-text"
-                : "text-theme-muted cursor-not-allowed"
-            )}
+            className={cn("year-nav-btn", !canGoForward && "opacity-40 cursor-not-allowed")}
             aria-label="Next year"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

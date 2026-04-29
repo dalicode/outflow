@@ -345,19 +345,12 @@ export default function Dashboard({
                       className={cn(
                         "month-pill",
                         isSelected && "month-pill-selected",
+                        !isSelected && isRealCurrent && "month-pill-current",
                       )}
                       aria-label={`${monthName} ${year}`}
                       aria-current={isSelected ? "date" : undefined}
                     >
                       <span>{monthName}</span>
-                      {isRealCurrent && (
-                        <span
-                          className={cn(
-                            "month-pill-current-dot",
-                            isSelected && "bg-white",
-                          )}
-                        />
-                      )}
                     </button>
                   </div>
                 );

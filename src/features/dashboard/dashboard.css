@@ -186,14 +186,8 @@
   background-color: var(--theme-primary);
   color: #ffffff;
 }
-
-/* Current month dot indicator inside pill */
-.month-pill-current-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 9999px;
-  margin-top: 2px;
-  background-color: var(--theme-primary);
+.month-pill-current {
+  background-color: color-mix(in srgb, var(--theme-text) 12%, transparent);
 }
 
 /* Horizontal scroll container for insight tiles */

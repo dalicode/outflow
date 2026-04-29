@@ -165,15 +165,30 @@
   border-radius: 0 2px 2px 0;
 }
 
-/* Nav-item hover expansion */
+/* Nav-item hover — muted vertical line on the left (desktop only) */
 .nav-item-hover {
+  position: relative;
   transition:
-    transform 0.15s ease,
     background-color 0.15s ease,
     color 0.15s ease;
 }
-.nav-item-hover:hover {
-  transform: scale(1.2);
+@media (min-width: 640px) {
+  .nav-item-hover:hover::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 50%;
+    background-color: var(--theme-muted);
+    border-radius: 0 2px 2px 0;
+  }
+}
+
+/* Active indicator overrides hover line color */
+.nav-item-indicator.nav-item-indicator::before {
+  background-color: var(--theme-primary);
 }
 
 /* ── Global Component Primitives ─────────────────────────────────────── */
@@ -419,11 +434,15 @@
   flex-shrink: 0;
   transition:
     color 0.15s ease,
-    background-color 0.15s ease;
+    transform 0.15s ease;
 }
 .navbar-toggle-btn:hover {
   color: var(--theme-text);
-  background-color: var(--theme-background);
+  transform: scale(1.2);
+}
+/* Remove left line and background from toggle buttons */
+.navbar-toggle-btn.nav-item-hover:hover::before {
+  display: none;
 }
 
 /* Mobile bottom navigation container — solid, full-width, finance-inspired */
