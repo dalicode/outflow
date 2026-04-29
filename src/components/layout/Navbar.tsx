@@ -8,7 +8,7 @@ interface NavIconProps {
 }
 
 const DashboardIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
     <path
       d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
@@ -25,7 +25,7 @@ const DashboardIcon = ({ active }: NavIconProps) => (
 );
 
 const SummaryIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
     <rect
       x="4"
       y="2"
@@ -70,7 +70,7 @@ const SummaryIcon = ({ active }: NavIconProps) => (
 );
 
 const AnalyticsIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
     <rect
       x="3"
       y="14"
@@ -106,7 +106,7 @@ const AnalyticsIcon = ({ active }: NavIconProps) => (
 );
 
 const SettingsIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
     <circle
       cx="12"
       cy="12"
@@ -208,7 +208,7 @@ const PlusIcon = () => (
 const SignOutIcon = () => (
   <svg
     viewBox="0 0 24 24"
-    className="w-5 h-5 shrink-0"
+    className="w-7 h-7 shrink-0"
     fill="none"
     stroke="currentColor"
     strokeWidth="2"
@@ -233,6 +233,7 @@ interface NavbarProps {
   syncDot?: ReactNode;
   onSignOut?: MouseEventHandler<HTMLButtonElement>;
   userEmail?: string;
+  scrollDirection?: "up" | "down" | null;
 }
 
 export default function Navbar({
@@ -240,6 +241,7 @@ export default function Navbar({
   syncDot,
   onSignOut,
   userEmail,
+  scrollDirection,
 }: NavbarProps) {
   const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
@@ -390,22 +392,27 @@ export default function Navbar({
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="sm:hidden fixed bottom-4 left-4 right-4 z-30">
+      <nav
+        className={cn(
+          "sm:hidden fixed bottom-0 left-0 right-0 z-30",
+          "transition-transform duration-150 ease-out",
+          scrollDirection === "down" && "translate-y-full"
+        )}
+      >
         <div className="mobile-nav-container">
-          {links.slice(0, 2).map(({ to, label, icon: Icon }) => (
+          {links.slice(0, 2).map(({ to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col items-center justify-center flex-1 py-1 nav-item-hover",
+                  "flex items-center justify-center w-14 h-16 nav-item-hover",
                   isActive ? "text-theme-primary" : "text-theme-muted"
                 )
               }
             >
               <Icon active={location.pathname === to} />
-              <span className="text-[10px] mt-0.5 font-medium">{label}</span>
             </NavLink>
           ))}
 
@@ -417,20 +424,19 @@ export default function Navbar({
             <PlusIcon />
           </button>
 
-          {links.slice(2).map(({ to, label, icon: Icon }) => (
+          {links.slice(2).map(({ to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col items-center justify-center flex-1 py-1 nav-item-hover",
+                  "flex items-center justify-center w-14 h-16 nav-item-hover",
                   isActive ? "text-theme-primary" : "text-theme-muted"
                 )
               }
             >
               <Icon active={location.pathname === to} />
-              <span className="text-[10px] mt-0.5 font-medium">{label}</span>
             </NavLink>
           ))}
         </div>

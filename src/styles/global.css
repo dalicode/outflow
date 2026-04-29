@@ -11,19 +11,23 @@ body {
   color: var(--theme-primary);
 }
 
-/* Scrollbar theming for webkit */
-::-webkit-scrollbar {
+/* Themed scrollbar — apply explicitly where visible scrollbars are desired */
+.scrollbar-themed {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border) var(--theme-background);
+}
+.scrollbar-themed::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-::-webkit-scrollbar-track {
+.scrollbar-themed::-webkit-scrollbar-track {
   background: var(--theme-background);
 }
-::-webkit-scrollbar-thumb {
+.scrollbar-themed::-webkit-scrollbar-thumb {
   background: var(--theme-border);
   border-radius: var(--radius-small);
 }
-::-webkit-scrollbar-thumb:hover {
+.scrollbar-themed::-webkit-scrollbar-thumb:hover {
   background: var(--theme-muted);
 }
 

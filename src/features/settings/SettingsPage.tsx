@@ -683,7 +683,7 @@ export default function SettingsPage({
               <summary className="text-xs text-theme-danger cursor-pointer select-none">
                 View all {importErrors.length} error(s)
               </summary>
-              <ul className="mt-1.5 max-h-32 overflow-y-auto space-y-0.5 text-xs text-theme-danger font-mono">
+              <ul className="mt-1.5 max-h-32 overflow-y-auto scrollbar-themed space-y-0.5 text-xs text-theme-danger font-mono">
                 {importErrors.map((err, i) => (
                   <li key={i} className="break-all">
                     {err}
@@ -757,7 +757,7 @@ export default function SettingsPage({
             No scheduled changes yet.
           </p>
         ) : (
-          <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
+          <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto scrollbar-themed">
             {(() => {
               const upcoming = schedules
                 .filter((s) => s.isActive)

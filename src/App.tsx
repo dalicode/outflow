@@ -33,6 +33,37 @@ function useScrollVisibility() {
   return { isScrolling, handleScroll };
 }
 
+function useScrollDirection() {
+  const [direction, setDirection] = useState<"up" | "down" | null>(null);
+  const lastScrollY = useRef(0);
+  const ticking = useRef(false);
+
+  const onScroll = useCallback(() => {
+    if (ticking.current) return;
+    ticking.current = true;
+
+    requestAnimationFrame(() => {
+      const currentY = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = document.documentElement.clientHeight;
+      const atBottom = currentY + clientHeight >= scrollHeight - 10;
+
+      if (atBottom) {
+        setDirection("up");
+      } else if (currentY > lastScrollY.current && currentY > 10) {
+        setDirection("down");
+      } else if (currentY < lastScrollY.current) {
+        setDirection("up");
+      }
+
+      lastScrollY.current = currentY;
+      ticking.current = false;
+    });
+  }, []);
+
+  return { direction, onScroll };
+}
+
 function SyncDot({ status }: { status: SyncStatus }) {
   if (!supabase) return null;
   const styles: Record<string, string> = {
@@ -71,6 +102,7 @@ export default function App() {
   } = useCategories();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
+  const { direction, onScroll: handleScrollDirection } = useScrollDirection();
 
   useEffect(() => {
     if (syncStatus === "idle") {
@@ -153,13 +185,17 @@ export default function App() {
               syncDot={<SyncDot status={syncStatus} />}
               onSignOut={supabase ? signOut : undefined}
               userEmail={user?.email}
+              scrollDirection={direction}
             />
             <main
               className={cn(
                 "flex-1 min-w-0 pb-24 sm:pb-0 overflow-y-auto scrollbar-auto-hide",
                 isScrolling && "is-scrolling"
               )}
-              onScroll={handleScroll}
+              onScroll={() => {
+                handleScroll();
+                handleScrollDirection();
+              }}
             >
               <Routes>
                 <Route

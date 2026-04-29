@@ -51,7 +51,7 @@ function CategoryModal({ categories, onCategoriesChange, onClose }: CategoryModa
         <button type="submit"             className="btn-primary-sm">Add</button>
       </form>
       {newError && <p className="text-theme-danger text-xs -mt-2">{newError}</p>}
-      <ul className="space-y-1 max-h-64 overflow-y-auto">
+      <ul className="space-y-1 max-h-64 overflow-y-auto scrollbar-themed">
         {active.map((cat) => (
           <li key={cat.id} className="flex items-center gap-2 text-sm">
             {editId === cat.id ? (

@@ -426,39 +426,30 @@
   background-color: var(--theme-background);
 }
 
-/* Mobile bottom navigation container */
+/* Mobile bottom navigation container — solid, full-width, finance-inspired */
 .mobile-nav-container {
   display: flex;
   align-items: center;
-  height: 3.5rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  background-color: color-mix(in srgb, var(--theme-surface) 95%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border-radius: 1rem;
-  box-shadow:
-    0 10px 15px -3px rgb(0 0 0 / 0.1),
-    0 4px 6px -4px rgb(0 0 0 / 0.1);
-  border: 1px solid var(--theme-border);
+  justify-content: space-evenly;
+  height: 4rem;
+  padding: 0 1rem env(safe-area-inset-bottom);
+  background-color: var(--theme-surface);
+  border-top: 1px solid var(--theme-border);
 }
 
-/* Mobile floating add button */
+/* Mobile floating add button — raised above the bar */
 .mobile-add-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 3.5rem;
-  height: 3.5rem;
-  margin-top: -1rem;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
+  width: 3rem;
+  height: 3rem;
+  margin-top: -0.75rem;
   border-radius: 9999px;
   background-color: var(--theme-primary);
   color: #ffffff;
-  box-shadow: 0 10px 15px -3px
-    color-mix(in srgb, var(--theme-primary) 30%, transparent);
+  box-shadow: 0 2px 8px
+    color-mix(in srgb, var(--theme-primary) 40%, transparent);
   flex-shrink: 0;
   z-index: 10;
   transition: transform 0.15s ease;
@@ -472,24 +463,26 @@
 
 /* Scrollbar hidden by default, visible only while scrolling */
 .scrollbar-auto-hide {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .scrollbar-auto-hide::-webkit-scrollbar {
-  width: 6px;
-}
-.scrollbar-auto-hide::-webkit-scrollbar-track {
-  background: transparent;
-}
-.scrollbar-auto-hide::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 3px;
+  display: none;
 }
 
 /* Show scrollbar while actively scrolling */
 .scrollbar-auto-hide.is-scrolling {
+  scrollbar-width: thin;
   scrollbar-color: var(--theme-muted) transparent;
+}
+.scrollbar-auto-hide.is-scrolling::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+.scrollbar-auto-hide.is-scrolling::-webkit-scrollbar-track {
+  background: transparent;
 }
 .scrollbar-auto-hide.is-scrolling::-webkit-scrollbar-thumb {
   background: var(--theme-muted);
+  border-radius: 3px;
 }
