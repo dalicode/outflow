@@ -289,6 +289,7 @@ export const StorageService = {
   // ── Fixed Expense Snapshots ───────────────────────────────
   // Returns all snapshots for a given year
   getSnapshotsForYear: (year: number) => db.fixedExpenseSnapshots.where('year').equals(year).toArray(),
+  getAllFixedExpenseSnapshots: () => db.fixedExpenseSnapshots.toArray(),
   bulkUpsertSnapshots: (rows: FixedExpenseSnapshot[]) => db.fixedExpenseSnapshots.bulkPut(rows),
   deleteSnapshotsForYear: (year: number) => db.fixedExpenseSnapshots.where('year').equals(year).delete(),
 

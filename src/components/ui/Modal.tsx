@@ -174,7 +174,7 @@ export default function Modal({
         {/* Content */}
         <div
           className={cn(
-            "flex-1 overflow-y-auto",
+            "flex-1 overflow-y-auto scrollbar-auto-hide",
             isFullScreenMobile ? "p-4 sm:p-0" : "",
             (title || isFullScreenMobile) && "mt-4 sm:mt-4",
           )}
