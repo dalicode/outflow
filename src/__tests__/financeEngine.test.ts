@@ -3,7 +3,7 @@ import {
   getMonthlyFinancialSummary,
   getYearFinancialSummary,
   getYearVariableGrid,
-  getBackfillPreviewTimeline,
+  getEditHistoricalDataPreviewTimeline,
   MONTHS,
 } from '../utils/financeEngine'
 import type { FinanceEngineData, Expense, FixedExpense, FixedExpenseSnapshot, Schedule } from '../types'
@@ -460,11 +460,11 @@ describe('getYearVariableGrid', () => {
   })
 })
 
-// ── getBackfillPreviewTimeline ──────────────────────────────────────────────
+// ── getEditHistoricalDataPreviewTimeline ──────────────────────────────────────────────
 
-describe('getBackfillPreviewTimeline', () => {
+describe('getEditHistoricalDataPreviewTimeline', () => {
   it('generates 12 months', () => {
-    const result = getBackfillPreviewTimeline([], null, null)
+    const result = getEditHistoricalDataPreviewTimeline([], null, null)
     expect(result).toHaveLength(12)
     expect(result[0].month).toBe(1)
     expect(result[11].month).toBe(12)
@@ -476,7 +476,7 @@ describe('getBackfillPreviewTimeline', () => {
       { name: 'Gym', amount: 50, startMonth: 3, endMonth: 12 },
     ]
 
-    const result = getBackfillPreviewTimeline(items, null, null)
+    const result = getEditHistoricalDataPreviewTimeline(items, null, null)
 
     expect(result[0].fixedTotal).toBe(1000) // Jan: Rent only
     expect(result[0].fixedItems).toHaveLength(1)
@@ -490,7 +490,7 @@ describe('getBackfillPreviewTimeline', () => {
 
   it('applies income config across range', () => {
     const incomeConfig = { amount: 5000, startMonth: 1, endMonth: 6 }
-    const result = getBackfillPreviewTimeline([], incomeConfig, null)
+    const result = getEditHistoricalDataPreviewTimeline([], incomeConfig, null)
 
     expect(result[0].income).toBe(5000)
     expect(result[5].income).toBe(5000)
@@ -500,7 +500,7 @@ describe('getBackfillPreviewTimeline', () => {
 
   it('applies savings rate config across range', () => {
     const savingsConfig = { rate: 20, startMonth: 1, endMonth: 3 }
-    const result = getBackfillPreviewTimeline([], null, savingsConfig)
+    const result = getEditHistoricalDataPreviewTimeline([], null, savingsConfig)
 
     expect(result[0].savingsRate).toBe(20)
     expect(result[2].savingsRate).toBe(20)
@@ -512,7 +512,7 @@ describe('getBackfillPreviewTimeline', () => {
     const incomeConfig = { amount: 5000, startMonth: 1, endMonth: 12 }
     const savingsConfig = { rate: 20, startMonth: 1, endMonth: 12 }
 
-    const result = getBackfillPreviewTimeline(items, incomeConfig, savingsConfig)
+    const result = getEditHistoricalDataPreviewTimeline(items, incomeConfig, savingsConfig)
 
     expect(result[0].autoSavings).toBe(1000) // 5000 * 0.20
     expect(result[0].remaining).toBe(3000) // 5000 - 1000 - 1000
@@ -524,7 +524,7 @@ describe('getBackfillPreviewTimeline', () => {
       { name: 'Valid', amount: 200, startMonth: 1, endMonth: 12 },
     ]
 
-    const result = getBackfillPreviewTimeline(items, null, null)
+    const result = getEditHistoricalDataPreviewTimeline(items, null, null)
     expect(result[0].fixedItems).toHaveLength(1)
     expect(result[0].fixedItems[0].name).toBe('Valid')
   })
@@ -535,7 +535,7 @@ describe('getBackfillPreviewTimeline', () => {
       { name: 'Good', amount: 100, startMonth: 1, endMonth: 12 },
     ]
 
-    const result = getBackfillPreviewTimeline(items, null, null)
+    const result = getEditHistoricalDataPreviewTimeline(items, null, null)
     expect(result[0].fixedItems).toHaveLength(1)
     expect(result[0].fixedItems[0].name).toBe('Good')
   })
@@ -545,19 +545,19 @@ describe('getBackfillPreviewTimeline', () => {
       { name: 'Rent', amount: 1000, startMonth: -5, endMonth: 15 },
     ]
 
-    const result = getBackfillPreviewTimeline(items, null, null)
+    const result = getEditHistoricalDataPreviewTimeline(items, null, null)
     expect(result[0].fixedTotal).toBe(1000) // clamped to 1-12
     expect(result[11].fixedTotal).toBe(1000)
   })
 
   it('handles null configs gracefully', () => {
-    const result = getBackfillPreviewTimeline([], null, null)
+    const result = getEditHistoricalDataPreviewTimeline([], null, null)
     expect(result.every((r) => r.income === 0 && r.savingsRate === 0)).toBe(true)
   })
 
   it('handles zero income correctly', () => {
     const items = [{ name: 'Rent', amount: 1000, startMonth: 1, endMonth: 12 }]
-    const result = getBackfillPreviewTimeline(items, null, null)
+    const result = getEditHistoricalDataPreviewTimeline(items, null, null)
     expect(result[0].autoSavings).toBe(0)
     expect(result[0].remaining).toBe(-1000)
   })

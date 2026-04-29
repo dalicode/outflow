@@ -541,7 +541,7 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-interface BackfillHistoricalDataModalProps {
+interface EditHistoricalDataModalProps {
   isOpen: boolean;
   onClose: () => void;
   years: number[];
@@ -551,7 +551,7 @@ interface BackfillHistoricalDataModalProps {
   defaultSavingsRate?: string;
 }
 
-export default function BackfillHistoricalDataModal({
+export default function EditHistoricalDataModal({
   isOpen,
   onClose,
   years,
@@ -559,7 +559,7 @@ export default function BackfillHistoricalDataModal({
   onComplete,
   defaultIncome = "",
   defaultSavingsRate = "",
-}: BackfillHistoricalDataModalProps) {
+}: EditHistoricalDataModalProps) {
   const [activeYear, setActiveYear] = useState<number | null>(() =>
     years.length > 0 ? years[0] : null,
   );
@@ -647,7 +647,7 @@ export default function BackfillHistoricalDataModal({
             }
           }
 
-          // Backfill active fixed expenses that have no snapshots for this year
+          // Auto-fill active fixed expenses that have no snapshots for this year
           for (const def of fixedDefs) {
             if (!def.id) continue;
             if (byDef.has(def.id)) continue; // already has explicit snapshots
@@ -672,7 +672,7 @@ export default function BackfillHistoricalDataModal({
             if (def.isArchived && latest && year === latest.year) {
               endMonth = latest.month;
             }
-            // Don't allow backfill past current month in current year
+            // Don't allow edit past current month in current year
             if (year === currentYear && endMonth > currentMonth) {
               endMonth = currentMonth;
             }
@@ -699,7 +699,7 @@ export default function BackfillHistoricalDataModal({
           setSaveMode("merge");
         }
       } catch (err) {
-        console.error("Failed to load backfill data:", err);
+        console.error("Failed to load historical data:", err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -993,7 +993,7 @@ export default function BackfillHistoricalDataModal({
       setResultMsg(`Created/updated ${totalSnapshots} snapshot(s).`);
       onComplete?.();
     } catch (err) {
-      console.error("Backfill failed:", err);
+      console.error("Edit historical data failed:", err);
       setResultMsg(`Error: ${(err as Error).message}`);
     } finally {
       setSaving(false);
@@ -1020,7 +1020,7 @@ export default function BackfillHistoricalDataModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Backfill Historical Data"
+      title="Edit Historical Data"
       size="full"
     >
       {loading ? (
@@ -1176,7 +1176,7 @@ export default function BackfillHistoricalDataModal({
               className="btn-modal-primary"
               disabled={saving}
             >
-              {saving ? "Saving…" : "Confirm Backfill"}
+              {saving ? "Saving…" : "Confirm Save"}
             </button>
           </div>
         </>

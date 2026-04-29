@@ -249,7 +249,7 @@ export const StorageService = {
 
   // ── Fixed Expenses ────────────────────────────────────────
   getFixedExpenses: () => db.fixedExpenses.toArray(),
-  // Active fixed expenses only (excludes archived / backfilled entries)
+  // Active fixed expenses only (excludes archived / historical entries)
   getActiveFixedExpenses: () =>
     db.fixedExpenses.toArray().then((all) => all.filter((f) => f.isArchived !== true)),
   addFixedExpense: async (item: Omit<FixedExpense, 'id'>) => {
@@ -259,8 +259,8 @@ export const StorageService = {
     await enqueue('fixedExpenses', 'insert', row as unknown as Record<string, unknown>)
     return id
   },
-  // Creates an archived fixed-expense definition for historical backfill.
-  // Does NOT snapshot the current month — backfill snapshots are written separately.
+  // Creates an archived fixed-expense definition for historical data editing.
+  // Does NOT snapshot the current month — historical snapshots are written separately.
   addArchivedFixedExpense: async (item: Omit<FixedExpense, 'id'>) => {
     const payload = {
       ...item,

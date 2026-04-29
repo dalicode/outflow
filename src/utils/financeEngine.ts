@@ -405,15 +405,15 @@ export function getYearVariableGrid(year: number, expenses: Expense[], categorie
 }
 
 /**
- * Generate a backfill preview timeline from modal form state.
+ * Generate a historical data preview timeline from modal form state.
  * Returns a 12-month financial grid for live preview.
  *
  * @param items
  * @param incomeConfig
  * @param savingsConfig
- * @returns {BackfillMonthResult[]}
+ * @returns {EditHistoricalDataMonthResult[]}
  */
-export function getBackfillPreviewTimeline(
+export function getEditHistoricalDataPreviewTimeline(
   items: Array<{ name: string; amount: number; startMonth: number; endMonth: number }>,
   incomeConfig: { amount: number; startMonth: number; endMonth: number } | null | undefined,
   savingsConfig: { rate: number; startMonth: number; endMonth: number } | null | undefined,

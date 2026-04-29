@@ -6,7 +6,7 @@ import { THEMES } from "../../utils/themeConfig";
 import { cn } from "../../utils/cn";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
-import BackfillHistoricalDataModal from "./BackfillHistoricalDataModal";
+import EditHistoricalDataModal from "./EditHistoricalDataModal";
 import ScheduleModal from "./ScheduleModal";
 import BackupSection from "./BackupSection";
 import type { Expense, Schedule, ThemeConfig } from "../../types";
@@ -280,8 +280,8 @@ export default function SettingsPage({
   const [importStatus, setImportStatus] = useState("");
   const [replaceMode, setReplaceMode] = useState(false);
   const [exportRange, setExportRange] = useState({ from: "", to: "" });
-  const [showBackfillModal, setShowBackfillModal] = useState(false);
-  const [backfillYears, setBackfillYears] = useState<number[]>([]);
+  const [showEditHistoricalDataModal, setShowEditHistoricalDataModal] = useState(false);
+  const [editHistoricalDataYears, setEditHistoricalDataYears] = useState<number[]>([]);
   const [monthlyIncome, setMonthlyIncome] = useState("");
   const [savingsRate, setSavingsRate] = useState("");
   const [showClearModal, setShowClearModal] = useState(false);
@@ -446,7 +446,7 @@ export default function SettingsPage({
       const importedYears = [
         ...new Set(toAdd.map((r) => parseInt(r.date.slice(0, 4), 10))),
       ].sort((a, b) => a - b);
-      setBackfillYears(importedYears);
+      setEditHistoricalDataYears(importedYears);
 
       setImportStatus(
         `Imported ${toAdd.length} row(s)${skipped ? `, skipped ${skipped} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
@@ -695,17 +695,17 @@ export default function SettingsPage({
         </div>
       )}
 
-      {backfillYears.length > 0 && (
-        <Card title="Backfill Fixed Expenses">
+      {editHistoricalDataYears.length > 0 && (
+        <Card title="Edit Historical Fixed Expenses">
           <p className="text-xs text-theme-muted mb-2">
-            You imported data for {backfillYears.join(", ")}. Add fixed expenses
+            You imported data for {editHistoricalDataYears.join(", ")}. Add fixed expenses
             retroactively to those years for accurate analytics.
           </p>
           <button
-            onClick={() => setShowBackfillModal(true)}
+            onClick={() => setShowEditHistoricalDataModal(true)}
             className="btn-primary-sm"
           >
-            Backfill Fixed Expenses
+            Edit Fixed Expenses
           </button>
         </Card>
       )}
@@ -717,19 +717,19 @@ export default function SettingsPage({
           and years.
         </p>
         <button
-          onClick={() => setShowBackfillModal(true)}
+          onClick={() => setShowEditHistoricalDataModal(true)}
           className="bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
         >
           Edit Historical Data
         </button>
       </Card>
 
-      <BackfillHistoricalDataModal
-        isOpen={showBackfillModal}
-        onClose={() => setShowBackfillModal(false)}
+      <EditHistoricalDataModal
+        isOpen={showEditHistoricalDataModal}
+        onClose={() => setShowEditHistoricalDataModal(false)}
         years={
-          backfillYears.length > 0
-            ? backfillYears
+          editHistoricalDataYears.length > 0
+            ? editHistoricalDataYears
             : [
                 ...new Set(
                   expenses.map((e) => parseInt(e.date.slice(0, 4), 10)),
@@ -740,7 +740,7 @@ export default function SettingsPage({
         defaultIncome={monthlyIncome}
         defaultSavingsRate={savingsRate}
         onComplete={() => {
-          setBackfillYears([]);
+          setEditHistoricalDataYears([]);
           onRefreshAll?.();
           triggerSync?.();
         }}

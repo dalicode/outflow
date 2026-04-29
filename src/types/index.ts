@@ -187,7 +187,7 @@ export interface AnalyticsData {
   maxPerMonth: number[]
 }
 
-export interface BackfillMonthResult {
+export interface EditHistoricalDataMonthResult {
   month: number
   income: number
   fixedTotal: number

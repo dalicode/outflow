@@ -44,9 +44,9 @@ There are three snapshot tables:
 
 | Table | Stores | Created By |
 |-------|--------|------------|
-| `fixedExpenseSnapshots` | Per-expense, per-month frozen amounts | User adds/updates fixed expense; backfill; schedule materialization |
-| `incomeSnapshots` | Per-month frozen income | User saves income; backfill; schedule materialization |
-| `savingsSnapshots` | Per-month frozen savings rate | User saves savings rate; backfill; schedule materialization |
+| `fixedExpenseSnapshots` | Per-expense, per-month frozen amounts | User adds/updates fixed expense; edit historical data; schedule materialization |
+| `incomeSnapshots` | Per-month frozen income | User saves income; edit historical data; schedule materialization |
+| `savingsSnapshots` | Per-month frozen savings rate | User saves savings rate; edit historical data; schedule materialization |
 
 Snapshots are **first-write-wins** (idempotent). Current month is overwritable; past months are frozen.
 
@@ -64,18 +64,18 @@ Schedules (`schedules` table) automate future changes to income, savings rate, a
 
 `StorageService.materializePendingSnapshots()` runs once on app startup (called in `App.tsx`). It iterates all active schedules, writes snapshots for effective months, updates global settings/definitions, and archives the schedule (`isActive: 0`).
 
-### Backfill Historical Data
+### Edit Historical Data
 
-The backfill modal (`BackfillHistoricalDataModal`) lets users batch-configure past years:
+The edit historical data modal (`EditHistoricalDataModal`) lets users batch-configure past years:
 - Per-year income/savings ranges (e.g. Jan-Mar: $5000, Apr-Dec: $5500)
 - Per-year fixed expense definitions
 - **Replace** mode: clears all snapshots for year, writes new ones
-- **Merge** mode: upserts snapshots for months in backfill range, leaves others untouched
+- **Merge** mode: upserts snapshots for months in edit range, leaves others untouched
 
-Backfill only writes **snapshots** (not the old `yearlyIncomeOverrides` / `yearlySavingsOverrides` settings, which have been removed).
+Edit historical data only writes **snapshots** (not the old `yearlyIncomeOverrides` / `yearlySavingsOverrides` settings, which have been removed).
 
 **Fixed expense auto-display:**
-When opening the backfill modal, fixed expenses are automatically shown for every year tab where they were active — even if no explicit snapshots exist for that year yet. The display logic:
+When opening the edit historical data modal, fixed expenses are automatically shown for every year tab where they were active — even if no explicit snapshots exist for that year yet. The display logic:
 
 | Scenario | Range shown |
 |----------|-------------|
@@ -148,7 +148,7 @@ The `appVersion` in backup metadata is auto-synced from `package.json`. Bump the
 
 | File | Purpose |
 |------|---------|
-| `src/utils/financeEngine.ts` | Pure financial engine: `getMonthlyFinancialSummary`, `getYearFinancialSummary`, `getYearVariableGrid`, `getBackfillPreviewTimeline`, `applySchedules`, `resolveMonthlyValues` |
+| `src/utils/financeEngine.ts` | Pure financial engine: `getMonthlyFinancialSummary`, `getYearFinancialSummary`, `getYearVariableGrid`, `getEditHistoricalDataPreviewTimeline`, `applySchedules`, `resolveMonthlyValues` |
 | `src/services/storageService.ts` | Dexie DB layer, all CRUD, snapshot helpers, schedule materialization, export/import |
 | `src/types/index.ts` | Domain types: `Expense`, `FixedExpense`, `FixedExpenseSnapshot`, `IncomeSnapshot`, `SavingsSnapshot`, `Schedule`, `FinanceEngineData`, etc. |
 | `src/context/settingsContext.tsx` | Theme, currency formatting, settings persistence |
@@ -157,8 +157,8 @@ The `appVersion` in backup metadata is auto-synced from `package.json`. Bump the
 | `src/features/summary/SummaryPage.tsx` | Monthly budget view: income form, savings form, fixed expenses, pie chart with click breakdown |
 | `src/features/analytics/AnalyticsPage.tsx` | Year analytics: summary strip, charts, data table |
 | `src/features/dashboard/Dashboard.tsx` | Month-by-month expense tracker with financial summary |
-| `src/features/settings/SettingsPage.tsx` | Settings: theme, currency, backfill trigger, schedule list (active + archived) |
-| `src/features/settings/BackfillHistoricalDataModal.tsx` | Multi-year backfill config modal |
+| `src/features/settings/SettingsPage.tsx` | Settings: theme, currency, edit historical data trigger, schedule list (active + archived) |
+| `src/features/settings/EditHistoricalDataModal.tsx` | Multi-year historical data config modal |
 | `src/features/settings/ScheduleModal.tsx` | Add/edit schedule modal. Past-effective schedules are read-only. |
 | `src/components/charts/ChartComponent.tsx` | Reusable pie chart with `onSliceClick` |
 | `src/components/ui/Card.tsx` | 3-variant card system |
