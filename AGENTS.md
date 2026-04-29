@@ -346,6 +346,25 @@ syncQueue: ++id, table, timestamp
 - `monthlyIncomeSetAt` and `savingsRateSetAt` settings track when globals were first established
 - Past schedules are read-only; to change future values, create a new schedule
 
+## Dashboard Multi-Month View
+
+The Dashboard supports month spans: **1M | 2M | 3M | 6M | 12M**. Larger spans are **viewport-gated** (thresholds assume the Total column is visible — the widest possible table state):
+
+| Max Available | Min Viewport | Rationale |
+|---------------|-------------|-----------|
+| 3M | < 1280px | Fits on tablets and smaller laptops |
+| 6M | ≥ 1280px | Fits on standard laptops (13–15") |
+| 12M | ≥ 1920px | Fits on large / ultra-wide monitors |
+
+When the window is resized below the threshold for the current span, it **auto-downgrades** to the largest available span.
+
+**Container widths:**
+- `1M–3M`: main `max-w-7xl`, card `md:max-w-3xl`
+- `6M`: main `max-w-7xl`, card `md:max-w-6xl`
+- `12M`: main `max-w-none` (full viewport), card `md:max-w-none`
+
+Month columns display **chronologically** (oldest → newest, left → right) even though `monthKeys` is stored `[current, prev1, prev2, …]` internally.
+
 ## What To Do Next
 
 If starting a new session:

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
 import {
@@ -8,7 +8,6 @@ import {
 } from "../../utils/financeEngine";
 import { cn } from "../../utils/cn";
 import AnalyticsCharts from "./AnalyticsCharts";
-import AnalyticsTable from "./AnalyticsTable";
 import type { AnalyticsData, Expense, Category, YearSummary, VariableGridResult } from "../../types";
 import "./analytics.css";
 
@@ -182,18 +181,11 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
   const currentMonth = now.getMonth();
   const [year, setYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "grid">("overview");
-  const { formatAmount, getNumberColorClass } = useSettings();
+  const { formatAmount } = useSettings();
 
   const data = useAnalyticsData({ expenses, categories, year });
 
-  const navigate = useNavigate();
-  const goToMonth = (m: number) => navigate(`/?month=${m}&year=${year}`);
 
-  const tabs = [
-    { id: "overview" as const, label: "Overview" },
-    { id: "grid" as const, label: "Grid" },
-  ];
 
   const canGoForward = year < currentYear;
   const monthCount = year === currentYear ? currentMonth + 1 : year < currentYear ? 12 : 0;
@@ -323,51 +315,15 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
         ))}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-theme-border">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "relative px-5 py-2.5 text-sm font-semibold transition-colors",
-                isActive
-                  ? "text-theme-primary"
-                  : "text-theme-muted hover:text-theme-text"
-              )}
-            >
-              {tab.label}
-              {isActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-theme-primary rounded-full" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Content */}
       <div className="rounded-xl bg-theme-surface shadow-sm overflow-hidden">
-        {activeTab === "overview" ? (
-          <AnalyticsCharts
-            data={data}
-            year={year}
-            currentYear={currentYear}
-            currentMonth={currentMonth}
-            selectedMonth={selectedMonth}
-          />
-        ) : (
-          <div className="p-0">
-            <AnalyticsTable
-              data={data}
-              year={year}
-              goToMonth={goToMonth}
-              formatAmount={formatAmount}
-              getNumberColorClass={getNumberColorClass}
-            />
-          </div>
-        )}
+        <AnalyticsCharts
+          data={data}
+          year={year}
+          currentYear={currentYear}
+          currentMonth={currentMonth}
+          selectedMonth={selectedMonth}
+        />
       </div>
     </main>
   );

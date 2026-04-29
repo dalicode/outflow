@@ -74,7 +74,40 @@ export default function Dashboard({
 
   const [editingMonthIndex, setEditingMonthIndex] = useState<number>(0);
 
-  const [monthSpan, setMonthSpan] = useState<1 | 2 | 3>(1);
+  const [monthSpan, setMonthSpan] = useState<1 | 2 | 3 | 6 | 12>(1);
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1920,
+  );
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const SPAN_THRESHOLDS: Record<number, number> = {
+    1: 640,
+    2: 768,
+    3: 896,
+    6: 1280,
+    12: 1920,
+  };
+
+  const showSpanSelector = viewportWidth >= SPAN_THRESHOLDS[1];
+
+  const maxAvailableSpan = useMemo(() => {
+    const allowed = [1, 2, 3, 6, 12].filter(
+      (n) => viewportWidth >= SPAN_THRESHOLDS[n],
+    );
+    return allowed.length > 0 ? allowed[allowed.length - 1] : 1;
+  }, [viewportWidth, SPAN_THRESHOLDS]);
+
+  useEffect(() => {
+    const target = showSpanSelector ? maxAvailableSpan : 1;
+    if (monthSpan > target) {
+      setMonthSpan(target as 1 | 2 | 3 | 6 | 12);
+    }
+  }, [monthSpan, maxAvailableSpan, showSpanSelector]);
   const [showGrandTotal, setShowGrandTotal] = useState(false);
   const [monthSummaries, setMonthSummaries] = useState<MonthlySummary[]>([]);
   const [drilldownCategory, setDrilldownCategory] = useState<string | null>(
@@ -315,13 +348,20 @@ export default function Dashboard({
   const monthStrip = useMemo(() => {
     const months = [];
     const center = new Date(selectedYear, selectedMonth);
-    for (let i = -6; i <= 6; i++) {
+    const baseHalf = monthSpan >= 12 ? 12 : monthSpan >= 6 ? 9 : 6;
+    const half =
+      viewportWidth < 640
+        ? Math.min(baseHalf, 4)
+        : viewportWidth < 1024
+          ? Math.min(baseHalf, 6)
+          : baseHalf;
+    for (let i = -half; i <= half; i++) {
       const d = new Date(center);
       d.setMonth(d.getMonth() + i);
       months.push({ year: d.getFullYear(), month: d.getMonth(), offset: i });
     }
     return months;
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, monthSpan, viewportWidth]);
 
   const yearFirstIndices = useMemo(() => {
     const map = new Map<number, number>();
@@ -464,7 +504,12 @@ export default function Dashboard({
   }, [monthlyExpenses, catMap]);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <main
+      className={cn(
+        "mx-auto px-4 py-6 space-y-6",
+        monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+      )}
+    >
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">
           Dashboard
@@ -521,34 +566,39 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Month span selector */}
-      <div className="flex justify-center">
-        <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
-          {[1, 2, 3].map((n) => (
-            <button
-              key={n}
-              onClick={() => setMonthSpan(n as 1 | 2 | 3)}
-              className={cn(
-                "dashboard-tab",
-                monthSpan === n && "dashboard-tab-active",
-              )}
-            >
-              {n}M
-            </button>
-          ))}
-          {monthSpan > 1 && (
-            <button
-              onClick={() => setShowGrandTotal((prev) => !prev)}
-              className={cn(
-                "dashboard-tab",
-                showGrandTotal && "dashboard-tab-active",
-              )}
-            >
-              Total
-            </button>
-          )}
+      {showSpanSelector && (
+        <div className="flex justify-center">
+          <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
+            {[1, 2, 3, 6, 12]
+              .filter((n) => viewportWidth >= SPAN_THRESHOLDS[n])
+              .map((n) => (
+                <button
+                  key={n}
+                  onClick={() =>
+                    setMonthSpan(n as 1 | 2 | 3 | 6 | 12)
+                  }
+                  className={cn(
+                    "dashboard-tab",
+                    monthSpan === n && "dashboard-tab-active",
+                  )}
+                >
+                  {n}M
+                </button>
+              ))}
+            {monthSpan > 1 && (
+              <button
+                onClick={() => setShowGrandTotal((prev) => !prev)}
+                className={cn(
+                  "dashboard-tab",
+                  showGrandTotal && "dashboard-tab-active",
+                )}
+              >
+                Total
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Month strip — outside table, centered */}
       <div className="flex items-center justify-center">
@@ -643,7 +693,14 @@ export default function Dashboard({
 
       {/* Expenses Table Card */}
       <div className="flex justify-center">
-        <section className="rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 space-y-4 w-full md:max-w-3xl">
+        <section
+          className={cn(
+            "rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 space-y-4 w-full",
+            monthSpan <= 3 && "md:max-w-3xl",
+            monthSpan === 6 && "md:max-w-6xl",
+            monthSpan === 12 && "md:max-w-none",
+          )}
+        >
           {/* Action buttons + tabs header */}
           <div className="space-y-3">
             {/* Action buttons row */}

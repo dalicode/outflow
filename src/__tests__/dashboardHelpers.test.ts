@@ -59,6 +59,20 @@ describe("getMonthKeys", () => {
     expect(result[1].key).toBe("2026-01");
     expect(result[2].key).toBe("2025-12");
   });
+
+  it("returns 6 months for span=6", () => {
+    const result = getMonthKeys(2026, 4, 6); // May 2026 back to Dec 2025
+    expect(result).toHaveLength(6);
+    expect(result[0].key).toBe("2026-05");
+    expect(result[5].key).toBe("2025-12");
+  });
+
+  it("returns 12 months for span=12", () => {
+    const result = getMonthKeys(2026, 4, 12); // May 2026 back to Jun 2025
+    expect(result).toHaveLength(12);
+    expect(result[0].key).toBe("2026-05");
+    expect(result[11].key).toBe("2025-06");
+  });
 });
 
 describe("computeMultiMonthCategoryRows", () => {
