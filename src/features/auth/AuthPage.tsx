@@ -1,44 +1,47 @@
-import { useState, useRef, type FormEvent } from 'react'
-import { supabase } from '../../services/supabase'
-import { useSettings } from '../../context/settingsContext'
-import OutflowWordmark from '../../components/ui/OutflowWordmark'
-import './auth.css'
+import { useState } from "react";
+import { supabase } from "../../services/supabase";
+import OutflowWordmark from "../../components/ui/OutflowWordmark";
+import "./auth.css";
 
-type AuthMode = 'login' | 'signup'
+type AuthMode = "login" | "signup";
 
 export default function AuthPage() {
-  const { currentTheme } = useSettings()
-  const [mode, setMode] = useState<AuthMode>('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setError('')
-    setMessage('')
-    setLoading(true)
-    const fn =
-      mode === 'login'
-        ? supabase.auth.signInWithPassword({ email, password })
-        : supabase.auth.signUp({ email, password })
-    const { error: err } = await fn
-    setLoading(false)
-    if (err) {
-      setError(err.message)
-      return
+  const submit = async (e: React.SubmitEvent) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
+    if (!supabase) {
+      setError("Authentication service is not available.");
+      setLoading(false);
+      return;
     }
-    if (mode === 'signup')
-      setMessage('Check your email to confirm your account.')
-  }
+    const fn =
+      mode === "login"
+        ? supabase.auth.signInWithPassword({ email, password })
+        : supabase.auth.signUp({ email, password });
+    const { error: err } = await fn;
+    setLoading(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    if (mode === "signup")
+      setMessage("Check your email to confirm your account.");
+  };
 
   const signInWithGoogle = () =>
-    supabase.auth.signInWithOAuth({
-      provider: 'google',
+    supabase?.auth.signInWithOAuth({
+      provider: "google",
       options: { redirectTo: window.location.origin },
-    })
+    });
 
   return (
     <div className="min-h-screen bg-theme-background flex items-center justify-center px-4">
@@ -47,9 +50,9 @@ export default function AuthPage() {
           <OutflowWordmark className="h-8 w-auto mx-auto mb-2 text-theme-primary" />
           <h1 className="text-lg font-semibold text-theme-text">Outflow</h1>
           <p className="text-sm text-theme-muted mt-1">
-            {mode === 'login'
-              ? 'Sign in to sync your data'
-              : 'Create an account'}
+            {mode === "login"
+              ? "Sign in to sync your data"
+              : "Create an account"}
           </p>
         </div>
 
@@ -78,16 +81,12 @@ export default function AuthPage() {
             required
             className="input-theme w-full px-3 py-2.5 text-sm"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-submit-btn"
-          >
+          <button type="submit" disabled={loading} className="auth-submit-btn">
             {loading
-              ? 'Please wait…'
-              : mode === 'login'
-                ? 'Sign In'
-                : 'Sign Up'}
+              ? "Please wait…"
+              : mode === "login"
+                ? "Sign In"
+                : "Sign Up"}
           </button>
         </form>
 
@@ -96,10 +95,7 @@ export default function AuthPage() {
           <div className="absolute inset-x-0 top-1/2 border-t border-theme-border" />
         </div>
 
-        <button
-          onClick={signInWithGoogle}
-          className="auth-secondary-btn"
-        >
+        <button onClick={signInWithGoogle} className="auth-secondary-btn">
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
@@ -122,21 +118,21 @@ export default function AuthPage() {
         </button>
 
         <p className="text-center text-sm text-theme-muted">
-          {mode === 'login'
+          {mode === "login"
             ? "Don't have an account? "
-            : 'Already have an account? '}
+            : "Already have an account? "}
           <button
             onClick={() => {
-              setMode(mode === 'login' ? 'signup' : 'login')
-              setError('')
-              setMessage('')
+              setMode(mode === "login" ? "signup" : "login");
+              setError("");
+              setMessage("");
             }}
             className="text-theme-primary hover:underline font-medium"
           >
-            {mode === 'login' ? 'Sign up' : 'Sign in'}
+            {mode === "login" ? "Sign up" : "Sign in"}
           </button>
         </p>
       </div>
     </div>
-  )
+  );
 }

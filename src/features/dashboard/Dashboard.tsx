@@ -108,21 +108,49 @@ export default function Dashboard({
     loadData();
   }, [selectedYear, selectedMonth, expenses]);
 
+  const navigateToMonth = useCallback(
+    (year: number, month: number) => {
+      setSelectedYear(year);
+      setSelectedMonth(month);
+    },
+    [],
+  );
+
   const prevMonth = () => {
     if (selectedMonth === 0) {
-      setSelectedMonth(11);
-      setSelectedYear((y) => y - 1);
-    } else setSelectedMonth((m) => m - 1);
+      navigateToMonth(selectedYear - 1, 11);
+    } else {
+      navigateToMonth(selectedYear, selectedMonth - 1);
+    }
   };
   const nextMonth = () => {
     if (selectedMonth === 11) {
-      setSelectedMonth(0);
-      setSelectedYear((y) => y + 1);
-    } else setSelectedMonth((m) => m + 1);
+      navigateToMonth(selectedYear + 1, 0);
+    } else {
+      navigateToMonth(selectedYear, selectedMonth + 1);
+    }
   };
 
   const selectedKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
-  const isCurrentMonth = selectedKey === currentMonthKey();
+
+  const monthStrip = useMemo(() => {
+    const months = [];
+    const center = new Date(selectedYear, selectedMonth);
+    for (let i = -6; i <= 6; i++) {
+      const d = new Date(center);
+      d.setMonth(d.getMonth() + i);
+      months.push({ year: d.getFullYear(), month: d.getMonth(), offset: i });
+    }
+    return months;
+  }, [selectedYear, selectedMonth]);
+
+  const yearFirstIndices = useMemo(() => {
+    const map = new Map<number, number>();
+    monthStrip.forEach((m, i) => {
+      if (!map.has(m.year)) map.set(m.year, i);
+    });
+    return map;
+  }, [monthStrip]);
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
@@ -194,14 +222,6 @@ export default function Dashboard({
     return Object.entries(map).sort(([, a], [, b]) => b - a);
   }, [monthlyExpenses, catMap]);
 
-  const label = new Date(selectedYear, selectedMonth).toLocaleString(
-    "default",
-    {
-      month: "long",
-      year: "numeric",
-    },
-  );
-
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -268,117 +288,158 @@ export default function Dashboard({
       {/* Expenses Table Card */}
       <section className="rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 space-y-4">
         {/* Month nav header */}
-        <div className="relative flex items-center justify-center">
-          <div className="flex items-center gap-3">
-          <button
-            onClick={prevMonth}
-            className="month-nav-btn"
-            aria-label="Previous month"
-          >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="month-strip-scroll flex-1">
+              <button
+                onClick={prevMonth}
+                className="month-nav-btn"
+                aria-label="Previous month"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <div className="text-center">
-              <span
-                className={cn(
-                  "text-lg font-semibold",
-                  isCurrentMonth ? "text-theme-primary" : "text-theme-text"
-                )}
-              >
-                {label}
-              </span>
-              {isCurrentMonth && (
-                <span className="current-badge">
-                  current
-                </span>
-              )}
-              <p className="text-sm text-theme-muted mt-0.5">
-                {monthlyExpenses.length} transaction
-                {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
-                <span
-                  className={getNumberColorClass(
-                    financialSummary?.variableExpenses ?? 0,
-                  )}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
                 >
-                  {formatAmount(financialSummary?.variableExpenses ?? 0)}
-                </span>
-              </p>
-            </div>
-            <button
-            onClick={nextMonth}
-            className="month-nav-btn"
-            aria-label="Next month"
-          >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+
+              {monthStrip.map(({ year, month }, index) => {
+                const isSelected =
+                  year === selectedYear && month === selectedMonth;
+                const isRealCurrent =
+                  `${year}-${String(month + 1).padStart(2, "0")}` ===
+                  currentMonthKey();
+                const monthName = new Date(year, month).toLocaleString(
+                  "default",
+                  { month: "short" },
+                );
+                const isFirstOfYear = yearFirstIndices.get(year) === index;
+
+                const handleClick = () => {
+                  if (!isSelected) {
+                    setSelectedYear(year);
+                    setSelectedMonth(month);
+                  }
+                };
+
+                return (
+                  <div key={`${year}-${month}`} className="month-strip-item">
+                    <span
+                      className={cn(
+                        "year-label",
+                        !isFirstOfYear && "invisible",
+                      )}
+                    >
+                      {year}
+                    </span>
+                    <button
+                      onClick={handleClick}
+                      className={cn(
+                        "month-pill",
+                        isSelected && "month-pill-selected",
+                      )}
+                      aria-label={`${monthName} ${year}`}
+                      aria-current={isSelected ? "date" : undefined}
+                    >
+                      <span>{monthName}</span>
+                      {isRealCurrent && (
+                        <span
+                          className={cn(
+                            "month-pill-current-dot",
+                            isSelected && "bg-white",
+                          )}
+                        />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+
+              <button
+                onClick={nextMonth}
+                className="month-nav-btn"
+                aria-label="Next month"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Manage button */}
+            <button
+              onClick={toggleManageMode}
+              aria-label={manageMode ? "Done" : "Manage"}
+              aria-pressed={manageMode}
+              className={cn(
+                "dashboard-manage-btn shrink-0",
+                manageMode
+                  ? "bg-theme-primary text-white"
+                  : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
+              )}
+            >
+              {manageMode ? (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                </svg>
+              )}
             </button>
+
+            {manageMode && selectedIds.size > 0 && (
+              <button
+                onClick={handleBulkDeleteClick}
+                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-theme-danger text-white hover:opacity-90 transition-opacity"
+              >
+                Delete {selectedIds.size}
+              </button>
+            )}
           </div>
 
-          {/* Manage button */}
-          <button
-            onClick={toggleManageMode}
-            aria-label={manageMode ? "Done" : "Manage"}
-            aria-pressed={manageMode}
-            className={cn(
-              "dashboard-manage-btn",
-              manageMode
-                ? "bg-theme-primary text-white"
-                : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
-            )}
-          >
-            {manageMode ? (
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-              </svg>
-            )}
-          </button>
-
-          {manageMode && selectedIds.size > 0 && (
-            <button
-              onClick={handleBulkDeleteClick}
-              className="bulk-delete-btn"
+          <p className="text-center text-sm text-theme-muted">
+            {monthlyExpenses.length} transaction
+            {monthlyExpenses.length !== 1 ? "s" : ""} ·{" "}
+            <span
+              className={getNumberColorClass(
+                financialSummary?.variableExpenses ?? 0,
+              )}
             >
-              Delete {selectedIds.size}
-            </button>
-          )}
+              {formatAmount(financialSummary?.variableExpenses ?? 0)}
+            </span>
+          </p>
         </div>
 
         {/* Confirm delete modal */}
