@@ -9,6 +9,9 @@ import {
   monthMapToRanges,
   flattenRangesToMonthMap,
   getYearlyVariableTotals,
+  toISODate,
+  parseISODate,
+  shouldMaterializeNow,
 } from '../utils/historicalDataHelpers'
 import type { RangeItem } from '../utils/historicalDataHelpers'
 
@@ -311,5 +314,46 @@ describe('getYearlyVariableTotals', () => {
     const result = getYearlyVariableTotals(2024, expenses)
     expect(result[0]).toBe(0)
     expect(result[1]).toBe(50)
+  })
+})
+
+describe('toISODate', () => {
+  it('formats single-digit month and day with leading zeros', () => {
+    expect(toISODate(2026, 3, 5)).toBe('2026-03-05')
+  })
+
+  it('formats double-digit month and day as-is', () => {
+    expect(toISODate(2026, 12, 25)).toBe('2026-12-25')
+  })
+})
+
+describe('parseISODate', () => {
+  it('parses valid ISO date string', () => {
+    expect(parseISODate('2026-05-15')).toEqual({ year: 2026, month: 5, day: 15 })
+  })
+
+  it('returns null for invalid format', () => {
+    expect(parseISODate('05-15-2026')).toBeNull()
+    expect(parseISODate('2026/05/15')).toBeNull()
+    expect(parseISODate('')).toBeNull()
+  })
+})
+
+describe('shouldMaterializeNow', () => {
+  it('returns true when schedule year is in the past', () => {
+    expect(shouldMaterializeNow(2024, 6, 2025, 3)).toBe(true)
+  })
+
+  it('returns true when schedule month is current or past in same year', () => {
+    expect(shouldMaterializeNow(2025, 3, 2025, 3)).toBe(true)
+    expect(shouldMaterializeNow(2025, 2, 2025, 3)).toBe(true)
+  })
+
+  it('returns false when schedule month is in the future', () => {
+    expect(shouldMaterializeNow(2025, 4, 2025, 3)).toBe(false)
+  })
+
+  it('returns false when schedule year is in the future', () => {
+    expect(shouldMaterializeNow(2026, 1, 2025, 12)).toBe(false)
   })
 })

@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import Modal from "../../components/ui/Modal";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
-import type { Schedule, FixedExpense } from "../../types";
+import { toISODate, parseISODate } from "../../utils/historicalDataHelpers";
+import type { Schedule, FixedExpense, Category } from "../../types";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -13,6 +14,7 @@ const SCHEDULE_TYPES = [
   { value: "income", label: "Monthly Income" },
   { value: "savingsRate", label: "Auto Savings %" },
   { value: "fixedExpense", label: "Fixed Expense" },
+  { value: "expense", label: "Expense" },
 ];
 
 interface ScheduleModalProps {
@@ -28,19 +30,24 @@ export default function ScheduleModal({
   onComplete,
   editSchedule = null,
 }: ScheduleModalProps) {
-  const [type, setType] = useState<"income" | "savingsRate" | "fixedExpense">("income");
+  const [type, setType] = useState<Schedule["type"]>("income");
   const [targetId, setTargetId] = useState("");
   const [effectiveYear, setEffectiveYear] = useState(new Date().getFullYear());
   const [effectiveMonth, setEffectiveMonth] = useState(new Date().getMonth() + 1);
+  const [effectiveDay, setEffectiveDay] = useState(1);
+  const [effectiveDate, setEffectiveDate] = useState("");
   const [newValue, setNewValue] = useState("");
   const [note, setNote] = useState("");
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [category, setCategory] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+  const todayStr = toISODate(currentYear, currentMonth, now.getDate());
 
   const isReadOnly = editSchedule
     ? editSchedule.effectiveYear < currentYear ||
@@ -52,6 +59,8 @@ export default function ScheduleModal({
     const load = async () => {
       const defs = await StorageService.getActiveFixedExpenses();
       setFixedExpenses(defs);
+      const cats = await StorageService.getCategories();
+      setCategories(cats);
     };
     load();
   }, [isOpen]);
@@ -62,8 +71,11 @@ export default function ScheduleModal({
       setTargetId(editSchedule.targetId ? String(editSchedule.targetId) : "");
       setEffectiveYear(editSchedule.effectiveYear);
       setEffectiveMonth(editSchedule.effectiveMonth);
+      setEffectiveDay(editSchedule.day ?? 1);
+      setEffectiveDate(toISODate(editSchedule.effectiveYear, editSchedule.effectiveMonth, editSchedule.day ?? 1));
       setNewValue(String(editSchedule.newValue));
       setNote(editSchedule.note || "");
+      setCategory(editSchedule.category || "");
     } else {
       reset();
     }
@@ -74,8 +86,11 @@ export default function ScheduleModal({
     setTargetId("");
     setEffectiveYear(currentYear);
     setEffectiveMonth(currentMonth);
+    setEffectiveDay(1);
+    setEffectiveDate(todayStr);
     setNewValue("");
     setNote("");
+    setCategory("");
     setErrors([]);
   };
 
@@ -93,12 +108,31 @@ export default function ScheduleModal({
       errs.push("Savings rate must be between 0 and 100.");
     else if (type === "fixedExpense" && val === 0)
       errs.push("Fixed expense amount cannot be zero.");
+    else if (type === "expense" && val <= 0)
+      errs.push("Expense amount must be greater than 0.");
 
     if (type === "fixedExpense" && !targetId)
       errs.push("Please select a fixed expense.");
 
-    // Effective date must be in the future (for new schedules)
-    if (!editSchedule) {
+    if (type === "expense") {
+      if (!category) errs.push("Please select a category.");
+      if (!effectiveDate) errs.push("Please select a date.");
+      else {
+        const parsed = parseISODate(effectiveDate);
+        if (!parsed) {
+          errs.push("Invalid date format.");
+        } else if (
+          parsed.year < currentYear ||
+          (parsed.year === currentYear && parsed.month < currentMonth) ||
+          (parsed.year === currentYear && parsed.month === currentMonth && parsed.day < now.getDate())
+        ) {
+          errs.push("Date must be today or in the future.");
+        }
+      }
+    }
+
+    // Effective date must be in the future (for new schedules of non-expense types)
+    if (!editSchedule && type !== "expense") {
       if (
         effectiveYear < currentYear ||
         (effectiveYear === currentYear && effectiveMonth < currentMonth)
@@ -115,14 +149,30 @@ export default function ScheduleModal({
     if (!validate()) return;
     setSaving(true);
     try {
-      const payload = {
-        type,
-        targetId: type === "fixedExpense" ? parseInt(targetId, 10) : null,
-        effectiveYear,
-        effectiveMonth,
-        newValue: parseFloat(newValue),
-        note: note.trim(),
-      };
+      let payload: Omit<Schedule, "id" | "isActive" | "createdAt">;
+
+      if (type === "expense") {
+        const parsed = parseISODate(effectiveDate)!;
+        payload = {
+          type,
+          targetId: null,
+          effectiveYear: parsed.year,
+          effectiveMonth: parsed.month,
+          day: parsed.day,
+          newValue: parseFloat(newValue),
+          note: note.trim(),
+          category,
+        };
+      } else {
+        payload = {
+          type,
+          targetId: type === "fixedExpense" ? parseInt(targetId, 10) : null,
+          effectiveYear,
+          effectiveMonth,
+          newValue: parseFloat(newValue),
+          note: note.trim(),
+        };
+      }
 
       if (editSchedule && editSchedule.id != null) {
         await StorageService.updateSchedule(editSchedule.id, payload);
@@ -175,7 +225,7 @@ export default function ScheduleModal({
           <label className="text-sm font-semibold text-theme-text">Type</label>
           <select
             value={type}
-            onChange={(e) => setType(e.target.value as "income" | "savingsRate" | "fixedExpense")}
+            onChange={(e) => setType(e.target.value as Schedule["type"])}
             className={cn(selectCls, "w-full", isReadOnly && disabledCls)}
             disabled={isReadOnly}
           >
@@ -209,48 +259,80 @@ export default function ScheduleModal({
           </div>
         )}
 
-        {/* Effective Date */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-theme-text">
-            Effective Date
-          </label>
-          <div className="flex items-center gap-2">
+        {/* Category (conditional for expense) */}
+        {type === "expense" && (
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-theme-text">
+              Category
+            </label>
             <select
-              value={effectiveYear}
-              onChange={(e) => {
-                const newYear = parseInt(e.target.value, 10);
-                setEffectiveYear(newYear);
-                // If switching to current year and selected month is now in the past, reset to current month
-                if (newYear === currentYear && effectiveMonth < currentMonth) {
-                  setEffectiveMonth(currentMonth);
-                }
-              }}
-              className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={cn(selectCls, "w-full", isReadOnly && disabledCls)}
               disabled={isReadOnly}
             >
-              {yearOptions.map((y) => (
-                <option key={y} value={y}>
-                  {y}
+              <option value="">Select…</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
                 </option>
               ))}
             </select>
-            <select
-              value={Math.max(effectiveMonth, minMonth)}
-              onChange={(e) => setEffectiveMonth(parseInt(e.target.value, 10))}
-              className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
-              disabled={isReadOnly}
-            >
-              {MONTHS.map((m, i) => {
-                const monthNum = i + 1;
-                if (monthNum < minMonth) return null;
-                return (
-                  <option key={m} value={monthNum}>
-                    {m}
-                  </option>
-                );
-              })}
-            </select>
           </div>
+        )}
+
+        {/* Effective Date */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-semibold text-theme-text">
+            {type === "expense" ? "Date" : "Effective Date"}
+          </label>
+          {type === "expense" ? (
+            <input
+              type="date"
+              value={effectiveDate}
+              min={todayStr}
+              onChange={(e) => setEffectiveDate(e.target.value)}
+              className={cn(inputCls, "w-full", "date-input-theme", isReadOnly && disabledCls)}
+              disabled={isReadOnly}
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              <select
+                value={effectiveYear}
+                onChange={(e) => {
+                  const newYear = parseInt(e.target.value, 10);
+                  setEffectiveYear(newYear);
+                  if (newYear === currentYear && effectiveMonth < currentMonth) {
+                    setEffectiveMonth(currentMonth);
+                  }
+                }}
+                className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
+                disabled={isReadOnly}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={Math.max(effectiveMonth, minMonth)}
+                onChange={(e) => setEffectiveMonth(parseInt(e.target.value, 10))}
+                className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
+                disabled={isReadOnly}
+              >
+                {MONTHS.map((m, i) => {
+                  const monthNum = i + 1;
+                  if (monthNum < minMonth) return null;
+                  return (
+                    <option key={m} value={monthNum}>
+                      {m}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Value */}
@@ -260,7 +342,9 @@ export default function ScheduleModal({
               ? "New Rate (%)"
               : type === "income"
                 ? "New Monthly Income"
-                : "New Amount"}
+                : type === "expense"
+                  ? "Amount"
+                  : "New Amount"}
           </label>
           <input
             type="number"

@@ -220,3 +220,40 @@ export function isFullyCovered(ranges: RangeItem[], maxMonth: number): boolean {
 
   return sorted[sorted.length - 1].endMonth === maxMonth;
 }
+
+/**
+ * Format year/month/day as YYYY-MM-DD string.
+ */
+export function toISODate(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * Parse a YYYY-MM-DD string into year/month/day components.
+ * Returns null if the string is not a valid ISO date.
+ */
+export function parseISODate(dateStr: string): { year: number; month: number; day: number } | null {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return {
+    year: parseInt(m[1], 10),
+    month: parseInt(m[2], 10),
+    day: parseInt(m[3], 10),
+  };
+}
+
+/**
+ * Determine whether a scheduled date (year/month) has arrived relative to now.
+ * Used by materializePendingSnapshots to know when to execute a schedule.
+ */
+export function shouldMaterializeNow(
+  scheduleYear: number,
+  scheduleMonth: number,
+  currentYear: number,
+  currentMonth: number,
+): boolean {
+  return (
+    scheduleYear < currentYear ||
+    (scheduleYear === currentYear && scheduleMonth <= currentMonth)
+  );
+}

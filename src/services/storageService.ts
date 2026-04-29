@@ -199,10 +199,20 @@ async function materializePendingSnapshots() {
       if (def) {
         await db.fixedExpenses.update(schedule.targetId, { amount: schedule.newValue })
       }
+    } else if (schedule.type === 'expense') {
+      const day = schedule.day ?? 1
+      const date = `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      await db.expenses.add({
+        date,
+        amount: schedule.newValue,
+        category: schedule.category,
+        description: schedule.note,
+        createdAt: now.toISOString(),
+      })
     }
 
     // Archive the schedule
-    await db.schedules.update(schedule.id as number, { isActive: false })
+    await db.schedules.update(schedule.id as number, { isActive: 0 })
   }
 }
 

@@ -64,7 +64,7 @@ export interface SavingsSnapshot {
 
 // ── Schedules ───────────────────────────────────────────────────────────────
 
-export type ScheduleType = 'income' | 'savingsRate' | 'fixedExpense'
+export type ScheduleType = 'income' | 'savingsRate' | 'fixedExpense' | 'expense'
 
 export interface Schedule {
   id?: number
@@ -76,6 +76,8 @@ export interface Schedule {
   isActive: number  // IndexedDB cannot index booleans; stored as 1/0
   note?: string
   createdAt?: string
+  day?: number        // 1–31, used by expense schedules
+  category?: string   // used by expense schedules
 }
 
 // ── Settings ────────────────────────────────────────────────────────────────

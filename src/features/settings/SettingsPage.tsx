@@ -602,7 +602,7 @@ export default function SettingsPage({
                 onChange={(e) =>
                   setExportRange((r) => ({ ...r, from: e.target.value }))
                 }
-                className="input-sm"
+                className="input-sm date-input-theme"
               />
             </label>
             <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
@@ -613,7 +613,7 @@ export default function SettingsPage({
                 onChange={(e) =>
                   setExportRange((r) => ({ ...r, to: e.target.value }))
                 }
-                className="input-sm"
+                className="input-sm date-input-theme"
               />
             </label>
             <button
@@ -749,7 +749,7 @@ export default function SettingsPage({
       {/* Scheduled Changes */}
       <Card title="Scheduled Changes">
         <p className="text-xs text-theme-muted mb-2">
-          Plan future changes to income, savings rate, and fixed expenses.
+          Plan future changes to income, savings rate, fixed expenses, and expenses.
         </p>
 
         {schedules.length === 0 ? (
@@ -796,7 +796,9 @@ export default function SettingsPage({
                                 ? "Income"
                                 : s.type === "savingsRate"
                                   ? "Savings %"
-                                  : "Fixed Exp."}
+                                  : s.type === "expense"
+                                    ? "Expense"
+                                    : "Fixed Exp."}
                             </span>
                             <span className="text-theme-muted mx-1">
                               &rarr;
@@ -807,8 +809,15 @@ export default function SettingsPage({
                                 : `$${s.newValue}`}
                             </span>
                             <span className="text-theme-muted ml-2">
-                              {MONTHS[s.effectiveMonth - 1]} {s.effectiveYear}
+                              {s.type === "expense" && s.day
+                                ? `${MONTHS[s.effectiveMonth - 1]} ${s.day}, ${s.effectiveYear}`
+                                : `${MONTHS[s.effectiveMonth - 1]} ${s.effectiveYear}`}
                             </span>
+                            {s.category && (
+                              <span className="text-theme-muted ml-1">
+                                ({s.category})
+                              </span>
+                            )}
                             {s.note && (
                               <span className="text-theme-muted ml-1">
                                 ({s.note})
@@ -860,7 +869,9 @@ export default function SettingsPage({
                                 ? "Income"
                                 : s.type === "savingsRate"
                                   ? "Savings %"
-                                  : "Fixed Exp."}
+                                  : s.type === "expense"
+                                    ? "Expense"
+                                    : "Fixed Exp."}
                             </span>
                             <span className="text-theme-muted mx-1">
                               &rarr;
@@ -871,8 +882,15 @@ export default function SettingsPage({
                                 : `$${s.newValue}`}
                             </span>
                             <span className="text-theme-muted ml-2">
-                              {MONTHS[s.effectiveMonth - 1]} {s.effectiveYear}
+                              {s.type === "expense" && s.day
+                                ? `${MONTHS[s.effectiveMonth - 1]} ${s.day}, ${s.effectiveYear}`
+                                : `${MONTHS[s.effectiveMonth - 1]} ${s.effectiveYear}`}
                             </span>
+                            {s.category && (
+                              <span className="text-theme-muted ml-1">
+                                ({s.category})
+                              </span>
+                            )}
                             <span className="text-theme-success ml-1.5 text-[10px]">
                               &#10003;
                             </span>
