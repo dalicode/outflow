@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { supabase } from "../../services/supabase";
-import OutflowWordmark from "../../components/ui/OutflowWordmark";
 import "./auth.css";
 
 type AuthMode = "login" | "signup";
@@ -47,9 +46,15 @@ export default function AuthPage() {
     <div className="min-h-screen bg-theme-background flex items-center justify-center px-4">
       <div className="modal-theme p-8 w-full max-w-sm space-y-5 shadow-xl">
         <div className="text-center">
-          <OutflowWordmark className="h-8 w-auto mx-auto mb-2 text-theme-primary" />
-          <h1 className="text-lg font-semibold text-theme-text">Outflow</h1>
-          <p className="text-sm text-theme-muted mt-1">
+          <div className="flex items-center justify-center mb-2">
+            <div className="relative flex items-center">
+              <img src="/icon.svg" alt="" className="w-7 h-7 shrink-0 absolute right-full mr-2" />
+              <span className="text-lg font-bold text-theme-primary tracking-tight">
+                Outflow
+              </span>
+            </div>
+          </div>
+          <p className="text-sm text-theme-muted">
             {mode === "login"
               ? "Sign in to sync your data"
               : "Create an account"}
