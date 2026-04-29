@@ -112,4 +112,19 @@ describe('Navbar', () => {
     // After collapse, text hidden again
     expect(within(sidebar).queryByText('Dashboard')).not.toBeInTheDocument()
   })
+
+  it('toggle buttons have hover-only opacity classes', () => {
+    renderNavbar({ onAddExpense: vi.fn() })
+
+    const sidebar = document.querySelector('aside')!
+    const expandButton = within(sidebar).getByTitle('Expand')
+    expect(expandButton).toHaveClass('opacity-0')
+    expect(expandButton).toHaveClass('group-hover:opacity-100')
+
+    fireEvent.click(expandButton)
+
+    const collapseButton = within(sidebar).getByTitle('Collapse')
+    expect(collapseButton).toHaveClass('opacity-0')
+    expect(collapseButton).toHaveClass('group-hover:opacity-100')
+  })
 })

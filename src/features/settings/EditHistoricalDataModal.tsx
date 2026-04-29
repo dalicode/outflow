@@ -1,6 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
 import Modal from "../../components/ui/Modal";
 import { StorageService } from "../../services/storageService";
+import { cn } from "../../utils/cn";
+import {
+  getMaxMonthForYear,
+  findGapToFill,
+  removeRangeAndMerge,
+  updateRangeEndAndCascade,
+  checkRangeOverlaps,
+  isFullyCovered,
+  monthMapToRanges,
+  flattenRangesToMonthMap,
+  getYearlyVariableTotals,
+} from "../../utils/historicalDataHelpers";
 import type { Expense, FixedExpenseSnapshot } from "../../types";
 
 const MONTHS = [
@@ -27,17 +39,6 @@ function formatAmount(amount: string | number, symbol = "$", decimals = 2): stri
   return `${symbol}${n.toFixed(decimals)}`;
 }
 
-function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
-}
-
-interface RangeItem {
-  id: string;
-  amount: string | number;
-  startMonth: number;
-  endMonth: number;
-}
-
 interface FixedItem {
   id: string;
   name: string;
@@ -48,71 +49,9 @@ interface FixedItem {
 }
 
 interface YearConfig {
-  incomeRanges: RangeItem[];
-  savingsRanges: RangeItem[];
+  incomeRanges: import("../../utils/historicalDataHelpers").RangeItem[];
+  savingsRanges: import("../../utils/historicalDataHelpers").RangeItem[];
   fixedItems: FixedItem[];
-}
-
-/**
- * Convert a { month: value } map into an array of contiguous ranges.
- * Months with no entry or null/undefined are treated as gaps.
- */
-function monthMapToRanges(monthMap: Record<number, number | null | undefined>): RangeItem[] {
-  const ranges: RangeItem[] = [];
-  let current: RangeItem | null = null;
-  for (let m = 1; m <= 12; m++) {
-    const val = monthMap?.[m];
-    if (val != null && val !== 0) {
-      if (current && current.amount === val) {
-        current.endMonth = m;
-      } else {
-        if (current) ranges.push(current);
-        current = { id: nextId(), amount: val, startMonth: m, endMonth: m };
-      }
-    } else {
-      if (current) {
-        ranges.push(current);
-        current = null;
-      }
-    }
-  }
-  if (current) ranges.push(current);
-  return ranges;
-}
-
-/**
- * Compute monthly variable expense totals for a given year from raw expenses.
- * Returns an array of 12 numbers (index 0 = Jan).
- */
-function getYearlyVariableTotals(year: number, expenses: Expense[]): number[] {
-  const totals = Array(12).fill(0);
-  const prefix = `${year}-`;
-  for (const e of expenses || []) {
-    if (!e.date || !e.date.startsWith(prefix)) continue;
-    const month = parseInt(e.date.slice(5, 7), 10) - 1;
-    if (month >= 0 && month < 12) {
-      totals[month] += e.amount || 0;
-    }
-  }
-  return totals;
-}
-
-/**
- * Flatten an array of ranges into a { month: value } map.
- * Later ranges overwrite earlier ones for overlapping months.
- */
-function flattenRangesToMonthMap(ranges: RangeItem[]): Record<number, number> {
-  const map: Record<number, number> = {};
-  for (const range of ranges) {
-    const val = parseFloat(String(range.amount));
-    if (isNaN(val)) continue;
-    const sm = clamp(range.startMonth || 1, 1, 12);
-    const em = clamp(range.endMonth || 12, 1, 12);
-    for (let m = sm; m <= em; m++) {
-      map[m] = val;
-    }
-  }
-  return map;
 }
 
 // ── Reusable sub-components (defined inside same file for cohesion) ──────────
@@ -188,16 +127,17 @@ function YearTabBar({ years, activeYear, dirtyYears, onSelect }: YearTabBarProps
 interface MonthSelectProps {
   value: number;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  minMonth?: number;
   maxMonth?: number;
   cls?: string;
 }
 
-function MonthSelect({ value, onChange, maxMonth = 12, cls }: MonthSelectProps) {
+function MonthSelect({ value, onChange, minMonth = 1, maxMonth = 12, cls }: MonthSelectProps) {
   return (
     <select value={value} onChange={onChange} className={cls}>
       {MONTHS.map((m, i) => {
         const monthNum = i + 1;
-        if (monthNum > maxMonth) return null;
+        if (monthNum < minMonth || monthNum > maxMonth) return null;
         return (
           <option key={m} value={monthNum}>
             {m}
@@ -224,11 +164,13 @@ function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }: Multi
   const step = isIncome ? "0.01" : "0.1";
   const inputWidth = isIncome ? "w-36" : "w-28";
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  const isCurrentYear = year === currentYear;
-  const maxMonth = isCurrentYear ? currentMonth - 1 : 12;
+  const maxMonth = getMaxMonthForYear(year);
+
+  // Sort by startMonth for display and cascade logic
+  const sortedRanges = [...ranges].sort((a, b) => a.startMonth - b.startMonth);
+
+  // Determine if the year is fully covered (no gaps)
+  const fullyCovered = isFullyCovered(sortedRanges, maxMonth);
 
   return (
     <SectionCard title={label}>
@@ -238,40 +180,47 @@ function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }: Multi
         </p>
       )}
       <div className="space-y-2">
-        {ranges.map((range) => (
-          <div key={range.id} className="flex items-center gap-2 flex-wrap">
-            <input
-              type="number"
-              value={range.amount}
-              onChange={(e) => onUpdate(range.id, { amount: e.target.value })}
-              placeholder={placeholder}
-              step={step}
-              className={`${ghostInputCls} ${inputWidth}`}
-            />
-            <MonthSelect
-              value={range.startMonth}
-              onChange={(e) =>
-                onUpdate(range.id, { startMonth: parseInt(e.target.value, 10) })
-              }
-              maxMonth={maxMonth}
-              cls={`${ghostSelectCls} w-18`}
-            />
-            <span className="text-theme-muted text-xs">→</span>
-            <MonthSelect
-              value={Math.min(range.endMonth, maxMonth)}
-              onChange={(e) =>
-                onUpdate(range.id, { endMonth: parseInt(e.target.value, 10) })
-              }
-              maxMonth={maxMonth}
-              cls={`${ghostSelectCls} w-18`}
-            />
-            <RemoveBtn onClick={() => onRemove(range.id)} />
-          </div>
-        ))}
+        {sortedRanges.map((range, idx) => {
+          const nextRange = sortedRanges[idx + 1];
+          const endMonthMax = nextRange ? nextRange.startMonth - 1 : maxMonth;
+          return (
+            <div key={range.id} className="flex items-center gap-2 flex-wrap">
+              <input
+                type="number"
+                value={range.amount}
+                onChange={(e) => onUpdate(range.id, { amount: e.target.value })}
+                placeholder={placeholder}
+                step={step}
+                className={`${ghostInputCls} ${inputWidth}`}
+              />
+              {/* Start month is read-only — controlled by cascade logic */}
+              <span className={`${ghostSelectCls} w-18 inline-block text-center select-none`}>
+                {MONTHS[range.startMonth - 1]}
+              </span>
+              <span className="text-theme-muted text-xs">→</span>
+              <MonthSelect
+                value={Math.min(range.endMonth, maxMonth)}
+                onChange={(e) =>
+                  onUpdate(range.id, { endMonth: parseInt(e.target.value, 10) })
+                }
+                minMonth={range.startMonth}
+                maxMonth={endMonthMax}
+                cls={`${ghostSelectCls} w-18`}
+              />
+              <RemoveBtn onClick={() => onRemove(range.id)} />
+            </div>
+          );
+        })}
       </div>
       <button
         onClick={onAdd}
-        className="text-sm text-theme-primary hover:text-theme-primary font-medium transition-colors"
+        disabled={fullyCovered}
+        className={cn(
+          "text-sm font-medium transition-colors",
+          fullyCovered
+            ? "text-theme-muted cursor-not-allowed"
+            : "text-theme-primary hover:text-theme-primary"
+        )}
       >
         + Add {isIncome ? "income" : "savings"} range
       </button>
@@ -725,51 +674,61 @@ export default function EditHistoricalDataModal({
   };
 
   const addIncomeRange = (year: number) => {
-    const ranges = yearConfigs[year]?.incomeRanges || [];
+    const ranges = [...(yearConfigs[year]?.incomeRanges || [])];
+    const gap = findGapToFill(ranges, getMaxMonthForYear(year));
+    if (!gap) return;
     updateYearConfig(year, {
-      incomeRanges: [
-        ...ranges,
-        { id: nextId(), amount: "", startMonth: 1, endMonth: 12 },
-      ],
+      incomeRanges: [...ranges, { id: nextId(), amount: "", ...gap }],
     });
   };
 
   const removeIncomeRange = (year: number, id: string) => {
     const ranges = yearConfigs[year]?.incomeRanges || [];
     updateYearConfig(year, {
-      incomeRanges: ranges.filter((r) => r.id !== id),
+      incomeRanges: removeRangeAndMerge(ranges, id),
     });
   };
 
   const updateIncomeRange = (year: number, id: string, patch: Partial<RangeItem>) => {
     const ranges = yearConfigs[year]?.incomeRanges || [];
-    updateYearConfig(year, {
-      incomeRanges: ranges.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    });
+    if (patch.endMonth != null) {
+      updateYearConfig(year, {
+        incomeRanges: updateRangeEndAndCascade(ranges, id, patch.endMonth),
+      });
+    } else {
+      updateYearConfig(year, {
+        incomeRanges: ranges.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      });
+    }
   };
 
   const addSavingsRange = (year: number) => {
-    const ranges = yearConfigs[year]?.savingsRanges || [];
+    const ranges = [...(yearConfigs[year]?.savingsRanges || [])];
+    const gap = findGapToFill(ranges, getMaxMonthForYear(year));
+    if (!gap) return;
     updateYearConfig(year, {
-      savingsRanges: [
-        ...ranges,
-        { id: nextId(), amount: "", startMonth: 1, endMonth: 12 },
-      ],
+      savingsRanges: [...ranges, { id: nextId(), amount: "", ...gap }],
     });
   };
 
   const removeSavingsRange = (year: number, id: string) => {
     const ranges = yearConfigs[year]?.savingsRanges || [];
     updateYearConfig(year, {
-      savingsRanges: ranges.filter((r) => r.id !== id),
+      savingsRanges: removeRangeAndMerge(ranges, id),
     });
   };
 
   const updateSavingsRange = (year: number, id: string, patch: Partial<RangeItem>) => {
     const ranges = yearConfigs[year]?.savingsRanges || [];
-    updateYearConfig(year, {
-      savingsRanges: ranges.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    });
+    if (patch.endMonth != null) {
+      updateYearConfig(year, {
+        savingsRanges: updateRangeEndAndCascade(ranges, id, patch.endMonth),
+      });
+    } else {
+      updateYearConfig(year, {
+        savingsRanges: ranges.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      });
+    }
   };
 
   const addFixedItem = (year: number) => {
@@ -822,9 +781,8 @@ export default function EditHistoricalDataModal({
         const amt = parseFloat(String(range.amount));
         if (isNaN(amt)) yearErrors.push("Income amount must be a number.");
         else if (amt <= 0) yearErrors.push("Income amount must be > 0.");
-        if (range.startMonth > range.endMonth)
-          yearErrors.push("Income start month must be ≤ end month.");
       }
+      yearErrors.push(...checkRangeOverlaps(config.incomeRanges, "Income"));
 
       // Validate savings ranges
       for (const range of config.savingsRanges) {
@@ -832,9 +790,8 @@ export default function EditHistoricalDataModal({
         if (isNaN(rate)) yearErrors.push("Savings rate must be a number.");
         else if (rate < 0 || rate > 100)
           yearErrors.push("Savings rate must be 0–100.");
-        if (range.startMonth > range.endMonth)
-          yearErrors.push("Savings start month must be ≤ end month.");
       }
+      yearErrors.push(...checkRangeOverlaps(config.savingsRanges, "Savings"));
 
       // Validate fixed items
       for (const item of config.fixedItems) {

@@ -283,6 +283,47 @@ import Modal from "../../components/ui/Modal";
 | `xl` | `w-[92vw]` | `max-w-xl` (576px) | **Full-screen** |
 | `full` | `w-[95vw]` | `max-w-3xl` (768px) | **Full-screen** |
 
+## Testing Conventions
+
+### Test Runner
+
+- **Vitest** with `@testing-library/react` and `happy-dom`
+- Run all tests: `npx vitest run`
+- Watch mode: `npx vitest`
+
+### What to test
+
+| Category | When to add tests | Example |
+|----------|-------------------|---------|
+| **Pure utilities** | Always | `financeEngine.ts`, `historicalDataHelpers.ts`, `cn.ts` |
+| **Reusable components** | Always | `Modal`, `Card`, `Navbar` |
+| **Feature pages** | For complex user flows | `EditHistoricalDataModal` range partition logic |
+| **CSS-only changes** | Optional / visual regression | Hover effects, scrollbar behavior |
+
+### Rules
+
+1. **Extract pure logic from components** into `src/utils/*.ts` files so it can be unit-tested without React/DOM setup. Example: `historicalDataHelpers.ts` contains all range manipulation logic extracted from `EditHistoricalDataModal.tsx`.
+2. **Test behavior, not markup** — use `screen.getByRole`, `getByLabelText`, `getByText` instead of querying CSS classes or DOM structure.
+3. **Mock browser APIs** (e.g., `history.pushState`, `window.addEventListener`) with `vi.fn()` or `vi.useFakeTimers()`.
+4. **Test files live next to source** in `src/__tests__/*.test.{ts,tsx}`.
+5. **Naming**: `describe('ComponentName', () => { it('does something', () => {}) })`.
+6. **Coverage targets**: 100% of exported utility functions; key component interactions (open/close, click handlers, keyboard events).
+
+### Example test structure
+
+```ts
+// src/__tests__/historicalDataHelpers.test.ts
+import { describe, it, expect } from 'vitest'
+import { findGapToFill, isFullyCovered } from '../utils/historicalDataHelpers'
+
+describe('findGapToFill', () => {
+  it('fills front gap first', () => {
+    const ranges = [{ id: 'a', amount: '100', startMonth: 4, endMonth: 12 }]
+    expect(findGapToFill(ranges, 12)).toEqual({ startMonth: 1, endMonth: 3 })
+  })
+})
+```
+
 ## Database Schema (Dexie v7)
 
 ```
