@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
@@ -7,7 +7,6 @@ import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
 import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
 import ExpenseTable from "../expenses/ExpenseTable";
-import BudgetInsights from "./BudgetInsights";
 import type { Expense, Category, MonthlySummary } from "../../types";
 
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -42,12 +41,82 @@ export default function Dashboard({
   );
   const [manageMode, setManageMode] = useState(false);
   const [viewMode, setViewMode] = useState<"expenses" | "categories">(
-    "expenses",
+    "categories",
   );
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
   const [financialSummary, setFinancialSummary] =
     useState<MonthlySummary | null>(null);
+  const [incomeRaw, setIncomeRaw] = useState("");
+  const [incomeFreq, setIncomeFreq] = useState("monthly");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const [showIncomeModal, setShowIncomeModal] = useState(false);
+  const [incomeDraft, setIncomeDraft] = useState("");
+  const [incomeFreqDraft, setIncomeFreqDraft] = useState("monthly");
+  const [incomeError, setIncomeError] = useState("");
+
+  const [showSavingsModal, setShowSavingsModal] = useState(false);
+  const [savingsDraft, setSavingsDraft] = useState("");
+  const [savingsError, setSavingsError] = useState("");
+
+  const FREQUENCIES = ["monthly", "biweekly", "weekly"] as const;
+  const MULTIPLIERS: Record<string, number> = {
+    monthly: 1,
+    biweekly: 2.17,
+    weekly: 4.33,
+  };
+
+  const openIncomeModal = () => {
+    setIncomeDraft(incomeRaw ? String(incomeRaw) : "");
+    setIncomeFreqDraft(incomeFreq || "monthly");
+    setIncomeError("");
+    setShowIncomeModal(true);
+  };
+
+  const closeIncomeModal = () => {
+    setShowIncomeModal(false);
+    setIncomeError("");
+  };
+
+  const submitIncome = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const parsed = parseFloat(incomeDraft);
+    if (!incomeDraft || isNaN(parsed) || parsed <= 0) {
+      setIncomeError("Enter a positive amount.");
+      return;
+    }
+    setIncomeError("");
+    handleIncomeSave({
+      income: parsed,
+      frequency: incomeFreqDraft,
+      monthlyIncome: parsed * MULTIPLIERS[incomeFreqDraft],
+    });
+    setShowIncomeModal(false);
+  };
+
+  const openSavingsModal = () => {
+    setSavingsDraft(String(financialSummary?.savingsRate ?? 0));
+    setSavingsError("");
+    setShowSavingsModal(true);
+  };
+
+  const closeSavingsModal = () => {
+    setShowSavingsModal(false);
+    setSavingsError("");
+  };
+
+  const submitSavings = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const n = Number(savingsDraft);
+    if (isNaN(n) || n < 0 || n > 100) {
+      setSavingsError("Enter a value between 0 and 100.");
+      return;
+    }
+    setSavingsError("");
+    handleSavingsRateSave(n);
+    setShowSavingsModal(false);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -64,6 +133,8 @@ export default function Dashboard({
         schedules,
         incomeSnaps,
         savingsSnaps,
+        incomeAmount,
+        incomeFrequency,
       ] = await Promise.all([
         StorageService.getFixedExpenses(),
         StorageService.getSnapshotsForYear(selectedYear),
@@ -72,7 +143,12 @@ export default function Dashboard({
         StorageService.getActiveSchedules(),
         StorageService.getIncomeSnapshotsForYear(selectedYear),
         StorageService.getSavingsSnapshotsForYear(selectedYear),
+        StorageService.getSetting("incomeAmount", ""),
+        StorageService.getSetting("incomeFrequency", "monthly"),
       ]);
+
+      setIncomeRaw(incomeAmount as string);
+      setIncomeFreq(incomeFrequency as string);
 
       let monthSnapshots;
       if (isCurrentOrFuture) {
@@ -109,7 +185,51 @@ export default function Dashboard({
       setFinancialSummary(summary);
     };
     loadData();
-  }, [selectedYear, selectedMonth, expenses]);
+  }, [selectedYear, selectedMonth, expenses, reloadKey]);
+
+  const handleIncomeSave = async ({
+    income,
+    frequency,
+    monthlyIncome,
+  }: {
+    income: number;
+    frequency: string;
+    monthlyIncome: number;
+  }) => {
+    await StorageService.setIncomeSnapshot(
+      selectedYear,
+      selectedMonth + 1,
+      monthlyIncome,
+    );
+    const now = new Date();
+    const isCurrentOrFuture =
+      selectedYear > now.getFullYear() ||
+      (selectedYear === now.getFullYear() && selectedMonth >= now.getMonth());
+    if (isCurrentOrFuture) {
+      await Promise.all([
+        StorageService.setSetting("incomeAmount", income),
+        StorageService.setSetting("incomeFrequency", frequency),
+        StorageService.setSetting("monthlyIncome", monthlyIncome),
+      ]);
+    }
+    setReloadKey((k) => k + 1);
+  };
+
+  const handleSavingsRateSave = async (rate: number) => {
+    await StorageService.setSavingsSnapshot(
+      selectedYear,
+      selectedMonth + 1,
+      rate,
+    );
+    const now = new Date();
+    const isCurrentOrFuture =
+      selectedYear > now.getFullYear() ||
+      (selectedYear === now.getFullYear() && selectedMonth >= now.getMonth());
+    if (isCurrentOrFuture) {
+      await StorageService.setSetting("savingsRate", rate);
+    }
+    setReloadKey((k) => k + 1);
+  };
 
   const navigateToMonth = useCallback((year: number, month: number) => {
     setSelectedYear(year);
@@ -227,15 +347,12 @@ export default function Dashboard({
   }, [monthlyExpenses, catMap]);
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">
           Dashboard
         </h1>
       </div>
-      {/* Budget Insights */}
-      {financialSummary && <BudgetInsights summary={financialSummary} />}
-
       {/* Category filter chips */}
       {viewMode === "expenses" && categoryRows.length > 0 && false && (
         <div>
@@ -287,106 +404,126 @@ export default function Dashboard({
         </div>
       )}
 
+      {/* Month strip — outside table, centered */}
+      <div className="flex items-center justify-center">
+        <div className="month-strip-scroll">
+          <button
+            onClick={prevMonth}
+            className="month-nav-btn"
+            aria-label="Previous month"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+
+          {monthStrip.map(({ year, month }, index) => {
+            const isSelected =
+              year === selectedYear && month === selectedMonth;
+            const isRealCurrent =
+              `${year}-${String(month + 1).padStart(2, "0")}` ===
+              currentMonthKey();
+            const monthName = new Date(year, month).toLocaleString(
+              "default",
+              { month: "short" },
+            );
+            const isFirstOfYear = yearFirstIndices.get(year) === index;
+
+            const handleClick = () => {
+              if (!isSelected) {
+                setSelectedYear(year);
+                setSelectedMonth(month);
+              }
+            };
+
+            return (
+              <div key={`${year}-${month}`} className="month-strip-item">
+                <span
+                  className={cn(
+                    "year-label",
+                    !isFirstOfYear && "invisible",
+                  )}
+                >
+                  {year}
+                </span>
+                <button
+                  onClick={handleClick}
+                  className={cn(
+                    "month-pill",
+                    isSelected && "month-pill-selected",
+                    !isSelected && isRealCurrent && "month-pill-current",
+                  )}
+                  aria-label={`${monthName} ${year}`}
+                  aria-current={isSelected ? "date" : undefined}
+                >
+                  <span>{monthName}</span>
+                </button>
+              </div>
+            );
+          })}
+
+          <button
+            onClick={nextMonth}
+            className="month-nav-btn"
+            aria-label="Next month"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       {/* Expenses Table Card */}
-      <section className="rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 space-y-4">
-        {/* Month nav header */}
+      <div className="flex justify-center">
+        <section className="rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 space-y-4 w-full md:max-w-3xl">
+        {/* Action buttons + tabs header */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="month-strip-scroll flex-1">
-              <button
-                onClick={prevMonth}
-                className="month-nav-btn"
-                aria-label="Previous month"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
+          {/* Action buttons row */}
+          {viewMode === "expenses" && (
+            <div className="flex justify-end items-center gap-1.5">
+              {selectedCategories.size > 0 && (
+                <button
+                  onClick={() => setSelectedCategories(new Set())}
+                  className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-
-              {monthStrip.map(({ year, month }, index) => {
-                const isSelected =
-                  year === selectedYear && month === selectedMonth;
-                const isRealCurrent =
-                  `${year}-${String(month + 1).padStart(2, "0")}` ===
-                  currentMonthKey();
-                const monthName = new Date(year, month).toLocaleString(
-                  "default",
-                  { month: "short" },
-                );
-                const isFirstOfYear = yearFirstIndices.get(year) === index;
-
-                const handleClick = () => {
-                  if (!isSelected) {
-                    setSelectedYear(year);
-                    setSelectedMonth(month);
-                  }
-                };
-
-                return (
-                  <div key={`${year}-${month}`} className="month-strip-item">
-                    <span
-                      className={cn(
-                        "year-label",
-                        !isFirstOfYear && "invisible",
-                      )}
-                    >
-                      {year}
-                    </span>
-                    <button
-                      onClick={handleClick}
-                      className={cn(
-                        "month-pill",
-                        isSelected && "month-pill-selected",
-                        !isSelected && isRealCurrent && "month-pill-current",
-                      )}
-                      aria-label={`${monthName} ${year}`}
-                      aria-current={isSelected ? "date" : undefined}
-                    >
-                      <span>{monthName}</span>
-                    </button>
-                  </div>
-                );
-              })}
-
-              <button
-                onClick={nextMonth}
-                className="month-nav-btn"
-                aria-label="Next month"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
+                  Reset Filter
+                </button>
+              )}
+              {manageMode && selectedIds.size > 0 && (
+                <button
+                  onClick={handleBulkDeleteClick}
+                  className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-danger text-white hover:opacity-90 transition-opacity"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Manage button */}
-            {viewMode === "expenses" && (
+                  Delete {selectedIds.size}
+                </button>
+              )}
               <button
                 onClick={toggleManageMode}
                 aria-label={manageMode ? "Done" : "Manage"}
                 aria-pressed={manageMode}
                 className={cn(
-                  "dashboard-manage-btn shrink-0",
+                  "flex items-center justify-center w-7 h-7 rounded-md transition-colors",
                   manageMode
                     ? "bg-theme-primary text-white"
                     : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
@@ -394,7 +531,7 @@ export default function Dashboard({
               >
                 {manageMode ? (
                   <svg
-                    className="w-4 h-4"
+                    className="w-3.5 h-3.5"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -404,7 +541,7 @@ export default function Dashboard({
                   </svg>
                 ) : (
                   <svg
-                    className="w-4 h-4"
+                    className="w-3.5 h-3.5"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -414,29 +551,11 @@ export default function Dashboard({
                   </svg>
                 )}
               </button>
-            )}
-
-            {viewMode === "expenses" && manageMode && selectedIds.size > 0 && (
-              <button
-                onClick={handleBulkDeleteClick}
-                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-theme-danger text-white hover:opacity-90 transition-opacity"
-              >
-                Delete {selectedIds.size}
-              </button>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
-              <button
-                onClick={() => setViewMode("expenses")}
-                className={cn(
-                  "dashboard-tab",
-                  viewMode === "expenses" && "dashboard-tab-active",
-                )}
-              >
-                Expenses
-              </button>
               <button
                 onClick={() => setViewMode("categories")}
                 className={cn(
@@ -445,6 +564,15 @@ export default function Dashboard({
                 )}
               >
                 Categories
+              </button>
+              <button
+                onClick={() => setViewMode("expenses")}
+                className={cn(
+                  "dashboard-tab",
+                  viewMode === "expenses" && "dashboard-tab-active",
+                )}
+              >
+                Expenses
               </button>
             </div>
             <p className="text-sm text-theme-muted">
@@ -541,6 +669,132 @@ export default function Dashboard({
                     </tr>
                   ))
                 )}
+                {financialSummary &&
+                  financialSummary.fixedExpensesTotal > 0 && (
+                    <>
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="table-header-cell whitespace-nowrap"
+                        >
+                          Fixed Expenses
+                        </td>
+                      </tr>
+                      {financialSummary.fixedExpenses.map((fe) => (
+                        <tr key={fe.id}>
+                          <td className="px-3 py-2.5 text-theme-text whitespace-nowrap">
+                            {fe.name}
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-theme-muted tabular-nums">
+                            —
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-medium text-theme-text">
+                            {formatAmount(fe.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
+                {financialSummary && (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="table-header-cell whitespace-nowrap"
+                      >
+                        Budget Summary
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                        Income
+                        <svg
+                          className="w-3 h-3 text-theme-muted"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        </svg>
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-theme-muted tabular-nums">
+                        —
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        <button
+                          onClick={openIncomeModal}
+                          className="font-semibold hover:underline text-theme-text"
+                        >
+                          {formatAmount(financialSummary.income)}
+                        </button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                        Auto Savings
+                        <svg
+                          className="w-3 h-3 text-theme-muted"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        </svg>
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-theme-muted tabular-nums">
+                        —
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        <button
+                          onClick={openSavingsModal}
+                          className="font-semibold hover:underline text-theme-text"
+                        >
+                          {formatAmount(financialSummary.autoSavings)}
+                        </button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2.5 text-theme-text whitespace-nowrap font-medium">
+                        Remaining
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-theme-muted tabular-nums">
+                        —
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2.5 text-right tabular-nums font-semibold",
+                          getNumberColorClass(financialSummary.remaining),
+                        )}
+                      >
+                        {formatAmount(financialSummary.remaining)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2.5 text-theme-text whitespace-nowrap font-medium">
+                        Total Savings
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-theme-muted tabular-nums">
+                        —
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2.5 text-right tabular-nums font-semibold",
+                          getNumberColorClass(
+                            financialSummary.autoSavings +
+                              financialSummary.remaining,
+                          ),
+                        )}
+                      >
+                        {formatAmount(
+                          financialSummary.autoSavings +
+                            financialSummary.remaining,
+                        )}
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -556,7 +810,97 @@ export default function Dashboard({
             onToggleSelectAll={toggleSelectAll}
           />
         )}
-      </section>
+        </section>
+      </div>
+
+      {/* Income edit modal */}
+      <Modal
+        isOpen={showIncomeModal}
+        onClose={closeIncomeModal}
+        title="Edit Income"
+        size="sm"
+      >
+        <form onSubmit={submitIncome} className="space-y-4">
+          {incomeError && (
+            <p className="text-theme-danger text-xs">{incomeError}</p>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={incomeDraft}
+              onChange={(e) => setIncomeDraft(e.target.value)}
+              placeholder="Amount"
+              min="0.01"
+              step="0.01"
+              autoFocus
+              className="input-theme px-3 py-2 text-sm flex-1"
+            />
+            <select
+              value={incomeFreqDraft}
+              onChange={(e) => setIncomeFreqDraft(e.target.value)}
+              className="input-theme px-3 py-2 text-sm"
+            >
+              {FREQUENCIES.map((f) => (
+                <option key={f} value={f}>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="summary-save-btn">
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={closeIncomeModal}
+              className="summary-cancel-btn rounded-theme-small"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Savings rate edit modal */}
+      <Modal
+        isOpen={showSavingsModal}
+        onClose={closeSavingsModal}
+        title="Edit Savings Rate"
+        size="sm"
+      >
+        <form onSubmit={submitSavings} className="space-y-4">
+          {savingsError && (
+            <p className="text-theme-danger text-xs">{savingsError}</p>
+          )}
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              value={savingsDraft}
+              onChange={(e) => setSavingsDraft(e.target.value)}
+              placeholder="e.g. 20"
+              min="0"
+              max="100"
+              step="0.1"
+              autoFocus
+              className="input-theme px-3 py-2 text-sm w-28"
+            />
+            <span className="text-sm text-theme-muted">%</span>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="summary-save-btn">
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={closeSavingsModal}
+              className="summary-cancel-btn rounded-theme-small"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
     </main>
   );
 }
