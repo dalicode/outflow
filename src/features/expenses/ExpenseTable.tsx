@@ -5,7 +5,6 @@ import { useContextMenu } from "../../hooks/useContextMenu";
 import { useLongPress } from "../../hooks/useLongPress";
 import ContextMenu from "../../components/ui/ContextMenu";
 import Modal from "../../components/ui/Modal";
-import ExpenseTableFilters from "./ExpenseTableFilters";
 import type { Expense, Category } from "../../types";
 
 interface ExpenseTableProps {
@@ -38,16 +37,6 @@ export default function ExpenseTable({
   const { formatAmount, formatDate, getNumberColorClass } = useSettings();
   const { menu, open: openContextMenu, close: closeContextMenu, menuRef } = useContextMenu();
 
-  // Filters
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [columnFilters, setColumnFilters] = useState({
-    dateFrom: "",
-    dateTo: "",
-    category: "",
-    description: "",
-    amount: "",
-  });
-
   // Editing
   const [editingCell, setEditingCell] = useState<{ id: number; field: keyof Expense } | null>(null);
   const [draft, setDraft] = useState<Partial<Expense>>({});
@@ -78,48 +67,17 @@ export default function ExpenseTable({
     [catMap],
   );
 
-  const visibleExpenses = useMemo(() => {
-    return expenses.filter((e) => {
-      // Global filter
-      if (globalFilter) {
-        const search = globalFilter.toLowerCase();
-        const match =
-          e.date.toLowerCase().includes(search) ||
-          resolveName(e).toLowerCase().includes(search) ||
-          (e.description || "").toLowerCase().includes(search) ||
-          formatAmount(e.amount).toLowerCase().includes(search);
-        if (!match) return false;
-      }
-      // Date range
-      if (columnFilters.dateFrom && e.date < columnFilters.dateFrom) return false;
-      if (columnFilters.dateTo && e.date > columnFilters.dateTo) return false;
-      // Category
-      if (columnFilters.category && resolveName(e) !== columnFilters.category) return false;
-      // Description
-      if (columnFilters.description && !(e.description || "").toLowerCase().includes(columnFilters.description.toLowerCase()))
-        return false;
-      // Amount (matches raw or formatted)
-      if (columnFilters.amount) {
-        const search = columnFilters.amount.toLowerCase();
-        const rawMatch = String(e.amount).toLowerCase().includes(search);
-        const fmtMatch = formatAmount(e.amount).toLowerCase().includes(search);
-        if (!rawMatch && !fmtMatch) return false;
-      }
-      return true;
-    });
-  }, [expenses, globalFilter, columnFilters, resolveName, formatAmount]);
-
   const groupedExpenses = useMemo(() => {
     const groups: Record<string, Expense[]> = {};
-    visibleExpenses.forEach((exp) => {
+    expenses.forEach((exp) => {
       if (!groups[exp.date]) groups[exp.date] = [];
       groups[exp.date].push(exp);
     });
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [visibleExpenses]);
+  }, [expenses]);
 
   const allSelected =
-    visibleExpenses.length > 0 && visibleExpenses.every((e) => selectedIds.has(e.id as number));
+    expenses.length > 0 && expenses.every((e) => selectedIds.has(e.id as number));
 
   // Long press for mobile
   const { onTouchStart, onTouchMove, onTouchEnd } = useLongPress({
@@ -337,16 +295,6 @@ export default function ExpenseTable({
 
   return (
     <div className="space-y-3">
-      <ExpenseTableFilters
-        categories={activeCategories}
-        globalFilter={globalFilter}
-        onGlobalFilterChange={setGlobalFilter}
-        columnFilters={columnFilters}
-        onColumnFilterChange={(field, val) =>
-          setColumnFilters((prev) => ({ ...prev, [field]: val }))
-        }
-      />
-
       {isMobile ? (
         <div className="divide-y divide-theme-border">
           {groupedExpenses.map(([date, items]) => (
@@ -417,7 +365,7 @@ export default function ExpenseTable({
               </tr>
             </thead>
             <tbody>
-              {visibleExpenses.map((exp) => {
+              {expenses.map((exp) => {
                 const isSelected = selectedIds.has(exp.id as number);
                 const amountColor =
                   exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
@@ -492,7 +440,7 @@ export default function ExpenseTable({
         </div>
       )}
 
-      {visibleExpenses.length === 0 && (
+      {expenses.length === 0 && (
         <p className="text-sm text-theme-muted text-center py-8">
           No expenses match the current filters.
         </p>

@@ -1,6 +1,14 @@
 /* App background */
 body {
   background-color: var(--theme-background);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Scale text and spacing down on mobile for denser layouts */
+@media (max-width: 639px) {
+  html {
+    font-size: 87.5%;
+  }
 }
 
 /* Hover states */

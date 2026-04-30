@@ -30,7 +30,9 @@
   transition: box-shadow 0.2s ease;
 }
 .summary-card:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 /* Analytics table cells */
@@ -42,7 +44,8 @@
   letter-spacing: 0.05em;
   color: var(--theme-muted);
   white-space: nowrap;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--theme-muted) 10%, transparent);
 }
 
 .analytics-empty-cell {
@@ -51,26 +54,33 @@
   font-style: italic;
   color: var(--theme-muted);
   white-space: nowrap;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--theme-muted) 10%, transparent);
 }
 
 .analytics-data-cell {
   padding: 0.625rem 0.75rem;
   font-size: 0.875rem;
   white-space: nowrap;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
-  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--theme-muted) 10%, transparent);
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 /* Year strip scroll container */
 .year-strip-scroll {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  justify-content: center;
+  align-items: flex-end;
+  gap: 0;
   overflow-x: auto;
+  scroll-snap-type: x proximity;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 .year-strip-scroll::-webkit-scrollbar {
   display: none;
@@ -81,19 +91,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 56px;
-  padding: 0.375rem 0.625rem;
+  min-width: 36px;
+  padding: 0.25rem 0.375rem;
   border-radius: var(--radius-small);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--theme-text);
   background-color: transparent;
   border: none;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  scroll-snap-align: center;
+  flex-shrink: 0;
+  transition:
+    background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .year-pill:hover:not(.year-pill-selected):not(:disabled) {
   background-color: var(--theme-background);
+  transform: translateY(-1px);
 }
 .year-pill-selected {
   background-color: var(--theme-primary);
@@ -110,17 +126,21 @@
 
 /* Year navigation button (chevrons) */
 .year-nav-btn {
-  padding: 0.5rem;
+  padding: 0.375rem;
   border-radius: var(--radius-small);
   color: var(--theme-muted);
   background-color: transparent;
   border: none;
   cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .year-nav-btn:hover:not(:disabled) {
   color: var(--theme-text);
   background-color: var(--theme-background);
+  transform: translateY(-1px);
 }
 .year-nav-btn:disabled {
   opacity: 0.4;

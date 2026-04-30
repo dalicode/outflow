@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
@@ -72,6 +72,7 @@ export default function Dashboard({
   const [viewportWidth, setViewportWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1920,
   );
+  const monthStripRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth);
@@ -344,16 +345,20 @@ export default function Dashboard({
   const monthStrip = useMemo(() => {
     const months = [];
     const center = new Date(selectedYear, selectedMonth);
-    const baseHalf = monthSpan >= 12 ? 12 : monthSpan >= 6 ? 9 : 6;
-    const scaled = Math.max(2, Math.floor((viewportWidth - 80) / 130));
-    const half = Math.min(baseHalf, scaled);
+    const half = 100;
     for (let i = -half; i <= half; i++) {
       const d = new Date(center);
       d.setMonth(d.getMonth() + i);
       months.push({ year: d.getFullYear(), month: d.getMonth(), offset: i });
     }
     return months;
-  }, [selectedYear, selectedMonth, monthSpan, viewportWidth]);
+  }, [selectedYear, selectedMonth]);
+
+  const maxVisible = useMemo(() => {
+    const scaled = Math.max(2, Math.floor((viewportWidth - 80) / 130));
+    const half = Math.min(6, scaled);
+    return 2 * half + 1;
+  }, [viewportWidth]);
 
   const yearFirstIndices = useMemo(() => {
     const map = new Map<number, number>();
@@ -362,6 +367,15 @@ export default function Dashboard({
     });
     return map;
   }, [monthStrip]);
+
+  useLayoutEffect(() => {
+    const container = monthStripRef.current;
+    if (!container) return;
+    const target = container.querySelector('[data-selected="true"]') as HTMLElement | null;
+    if (target) {
+      target.scrollIntoView({ inline: "center", behavior: "auto" });
+    }
+  }, [selectedYear, selectedMonth]);
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
@@ -491,6 +505,14 @@ export default function Dashboard({
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">
           Dashboard
         </h1>
+        <button
+          className="text-sm font-medium px-3 py-1.5 rounded-lg bg-theme-background text-theme-muted hover:text-theme-text border border-theme-border transition-colors"
+          onClick={() => {
+            /* TODO: open filter modal */
+          }}
+        >
+          Filters
+        </button>
       </div>
       {/* Category filter chips */}
       {viewMode === "expenses" && categoryRows.length > 0 && false && (
@@ -577,27 +599,27 @@ export default function Dashboard({
 
       {/* Month strip — outside table, centered */}
       <div className="flex items-center justify-center">
-        <div className="month-strip-scroll">
-          <button
-            onClick={prevMonth}
-            className="month-nav-btn"
-            aria-label="Previous month"
+        <button
+          onClick={prevMonth}
+          className="month-nav-btn"
+          aria-label="Previous month"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
 
+        <div className="month-strip-scroll" ref={monthStripRef} style={{ maxWidth: `${maxVisible * 44}px` }}>
           {monthStrip.map(({ year, month }, index) => {
             const isSelected = year === selectedYear && month === selectedMonth;
             const pillKey = `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -617,7 +639,7 @@ export default function Dashboard({
             };
 
             return (
-              <div key={`${year}-${month}`} className="month-strip-item">
+              <div key={`${year}-${month}`} className="month-strip-item" data-selected={isSelected || undefined}>
                 <span
                   className={cn("year-label", !isFirstOfYear && "invisible")}
                 >
@@ -643,27 +665,27 @@ export default function Dashboard({
               </div>
             );
           })}
-
-          <button
-            onClick={nextMonth}
-            className="month-nav-btn"
-            aria-label="Next month"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
         </div>
+
+        <button
+          onClick={nextMonth}
+          className="month-nav-btn"
+          aria-label="Next month"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Expenses Table Card */}
@@ -702,26 +724,22 @@ export default function Dashboard({
             </button>
           </div>
 
-          {/* Action buttons row */}
-          {viewMode === "expenses" && (
-            <div className="flex justify-end items-center gap-1.5">
-              {selectedCategories.size > 0 && (
-                <button
-                  onClick={() => setSelectedCategories(new Set())}
-                  className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
-                >
-                  Reset Filter
-                </button>
-              )}
-              <p className="text-sm text-theme-muted">
-                {spanExpenses.length} transaction
-                {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
-                <span className={getNumberColorClass(spanVariableTotal)}>
-                  {formatAmount(spanVariableTotal)}
-                </span>
-              </p>
-            </div>
-          )}
+          {/* Action / count row */}
+          <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
+            {viewMode === "expenses" && selectedCategories.size > 0 && (
+              <button
+                onClick={() => setSelectedCategories(new Set())}
+                className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
+              >
+                Reset Filter
+              </button>
+            )}
+            <p className="text-sm text-theme-muted tabular-nums">
+              {spanExpenses.length} transaction
+              {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
+              {formatAmount(spanVariableTotal)}
+            </p>
+          </div>
 
           {/* Confirm delete modal */}
           <Modal

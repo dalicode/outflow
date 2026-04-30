@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
@@ -8,13 +8,14 @@ import {
 } from "../../utils/financeEngine";
 import { cn } from "../../utils/cn";
 import AnalyticsCharts from "./AnalyticsCharts";
-import type { AnalyticsData, Expense, Category, YearSummary, VariableGridResult } from "../../types";
+import type {
+  AnalyticsData,
+  Expense,
+  Category,
+  YearSummary,
+  VariableGridResult,
+} from "../../types";
 import "./analytics.css";
-
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
 interface UseAnalyticsDataParams {
   expenses: Expense[];
@@ -22,10 +23,16 @@ interface UseAnalyticsDataParams {
   year: number;
 }
 
-function useAnalyticsData({ expenses, categories, year }: UseAnalyticsDataParams): AnalyticsData {
+function useAnalyticsData({
+  expenses,
+  categories,
+  year,
+}: UseAnalyticsDataParams): AnalyticsData {
   const now = new Date();
   const [financials, setFinancials] = useState<YearSummary | null>(null);
-  const [variableGrid, setVariableGrid] = useState<VariableGridResult | null>(null);
+  const [variableGrid, setVariableGrid] = useState<VariableGridResult | null>(
+    null,
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -114,10 +121,16 @@ function useAnalyticsData({ expenses, categories, year }: UseAnalyticsDataParams
       : financials.months;
 
     const yearTotalIncome = monthsToCount.reduce((s, m) => s + m.income, 0);
-    const yearFixedTotal = monthsToCount.reduce((s, m) => s + m.fixedExpensesTotal, 0);
+    const yearFixedTotal = monthsToCount.reduce(
+      (s, m) => s + m.fixedExpensesTotal,
+      0,
+    );
     const yearSavings = monthsToCount.reduce((s, m) => s + m.autoSavings, 0);
     const yearRemaining = monthsToCount.reduce((s, m) => s + m.remaining, 0);
-    const yearVariableTotal = monthsToCount.reduce((s, m) => s + m.variableExpenses, 0);
+    const yearVariableTotal = monthsToCount.reduce(
+      (s, m) => s + m.variableExpenses,
+      0,
+    );
 
     return {
       year,
@@ -162,39 +175,93 @@ const SummaryCard = ({ label, value, tone }: SummaryCardProps) => {
 
   return (
     <div className="summary-card">
-      <div className={`text-xl md:text-2xl font-bold tabular-nums ${toneClass}`}>
+      <div
+        className={`text-xl md:text-2xl font-bold tabular-nums ${toneClass}`}
+      >
         {value}
       </div>
       <div className="text-sm text-theme-muted mt-1 font-medium">{label}</div>
     </div>
   );
-}
+};
 
 interface AnalyticsPageProps {
   expenses: Expense[];
   categories: Category[];
 }
 
-export default function AnalyticsPage({ expenses, categories }: AnalyticsPageProps) {
+export default function AnalyticsPage({
+  expenses,
+  categories,
+}: AnalyticsPageProps) {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
   const [year, setYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1920,
+  );
+  const monthStripRef = useRef<HTMLDivElement>(null);
+  const yearStripRef = useRef<HTMLDivElement>(null);
   const { formatAmount } = useSettings();
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const data = useAnalyticsData({ expenses, categories, year });
 
-
-
   const canGoForward = year < currentYear;
-  const monthCount = year === currentYear ? currentMonth + 1 : year < currentYear ? 12 : 0;
-  const visibleMonths = MONTHS.slice(0, monthCount);
+  const lastMonth = year === currentYear ? currentMonth : year < currentYear ? 11 : -1;
+  const availableMonths = useMemo(
+    () => (lastMonth >= 0 ? Array.from({ length: lastMonth + 1 }, (_, i) => i) : []),
+    [lastMonth],
+  );
+
+  const maxVisible = useMemo(() => {
+    const scaled = Math.max(2, Math.floor((viewportWidth - 80) / 130));
+    const half = Math.min(6, scaled);
+    return 2 * half + 1;
+  }, [viewportWidth]);
 
   const handleYearChange = (newYear: number) => {
     setYear(newYear);
     setSelectedMonth(null);
   };
+
+  const prevMonth = () => {
+    if (selectedMonth === null) {
+      if (lastMonth >= 0) setSelectedMonth(0);
+    } else if (selectedMonth > 0) {
+      setSelectedMonth(selectedMonth - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (selectedMonth === null) {
+      if (lastMonth >= 0) setSelectedMonth(0);
+    } else if (lastMonth >= 0 && selectedMonth < lastMonth) {
+      setSelectedMonth(selectedMonth + 1);
+    }
+  };
+
+  const canPrevMonth = selectedMonth === null ? lastMonth >= 0 : selectedMonth > 0;
+  const canNextMonth = selectedMonth === null
+    ? lastMonth >= 0
+    : lastMonth >= 0 && selectedMonth < lastMonth;
+
+  useLayoutEffect(() => {
+    const container = monthStripRef.current;
+    if (!container) return;
+    const anchorMonth = selectedMonth ?? (year === currentYear ? currentMonth : 0);
+    const target = container.querySelector(`[data-month="${anchorMonth}"]`) as HTMLElement | null;
+    if (target) {
+      target.scrollIntoView({ inline: "center", behavior: "auto" });
+    }
+  }, [selectedMonth, year, currentMonth, currentYear]);
 
   const yearStrip = useMemo(() => {
     const years = [];
@@ -202,6 +269,15 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
       years.push(year + i);
     }
     return years;
+  }, [year]);
+
+  useLayoutEffect(() => {
+    const container = yearStripRef.current;
+    if (!container) return;
+    const target = container.querySelector('[data-selected="true"]') as HTMLElement | null;
+    if (target) {
+      target.scrollIntoView({ inline: "center", behavior: "auto" });
+    }
   }, [year]);
 
   const summaryCards = [
@@ -223,36 +299,60 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
     {
       label: "Total Remaining",
       value: formatAmount(data.yearRemaining),
-      tone: data.yearRemaining >= 0 ? ("success" as const) : ("danger" as const),
+      tone:
+        data.yearRemaining >= 0 ? ("success" as const) : ("danger" as const),
     },
   ];
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Analytics</h1>
+      <h1 className="text-2xl font-bold text-theme-text tracking-tight">
+        Analytics
+      </h1>
 
-        <div className="year-strip-scroll">
-          <button
-            onClick={() => handleYearChange(year - 3)}
-            className="year-nav-btn"
-            aria-label="Previous 3 years"
+      {/* Year strip */}
+      <div className="flex items-center justify-center">
+        <button
+          onClick={() => handleYearChange(year - 3)}
+          className="year-nav-btn"
+          aria-label="Previous 3 years"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 19l-7-7 7-7M11 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={() => handleYearChange(year - 1)}
-            className="year-nav-btn"
-            aria-label="Previous year"
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
+        <button
+          onClick={() => handleYearChange(year - 1)}
+          className="year-nav-btn"
+          aria-label="Previous year"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
 
+        <div className="year-strip-scroll" ref={yearStripRef} style={{ maxWidth: `${maxVisible * 44}px` }}>
           {yearStrip.map((y) => {
             const isSelected = y === year;
             const isFuture = y > currentYear;
@@ -267,6 +367,7 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
                   isSelected && "year-pill-selected",
                   !isSelected && isCurrent && "year-pill-current",
                 )}
+                data-selected={isSelected || undefined}
                 aria-label={String(y)}
                 aria-current={isSelected ? "date" : undefined}
               >
@@ -274,57 +375,156 @@ export default function AnalyticsPage({ expenses, categories }: AnalyticsPagePro
               </button>
             );
           })}
-
-          <button
-            onClick={() => canGoForward && handleYearChange(year + 1)}
-            disabled={!canGoForward}
-            className={cn("year-nav-btn", !canGoForward && "opacity-40 cursor-not-allowed")}
-            aria-label="Next year"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <button
-            onClick={() => year !== currentYear && handleYearChange(currentYear)}
-            disabled={year === currentYear}
-            className={cn("year-nav-btn", year === currentYear && "opacity-40 cursor-not-allowed")}
-            aria-label="Go to current year"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M6 5l7 7-7 7" />
-            </svg>
-          </button>
         </div>
+
+        <button
+          onClick={() => canGoForward && handleYearChange(year + 1)}
+          disabled={!canGoForward}
+          className={cn(
+            "year-nav-btn",
+            !canGoForward && "opacity-40 cursor-not-allowed",
+          )}
+          aria-label="Next year"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
+        <button
+          onClick={() =>
+            year !== currentYear && handleYearChange(currentYear)
+          }
+          disabled={year === currentYear}
+          className={cn(
+            "year-nav-btn",
+            year === currentYear && "opacity-40 cursor-not-allowed",
+          )}
+          aria-label="Go to current year"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13 5l7 7-7 7M6 5l7 7-7 7"
+            />
+          </svg>
+        </button>
       </div>
 
-      {/* Month selector */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          <button
-          onClick={() => setSelectedMonth(null)}
+      {/* Month strip */}
+      <div className="flex items-center justify-center">
+        <button
+          onClick={prevMonth}
           className={cn(
-            "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
-            selectedMonth === null
-              ? "bg-theme-primary text-white"
-              : "bg-theme-surface text-theme-muted hover:text-theme-text shadow-sm"
+            "month-nav-btn",
+            !canPrevMonth && "opacity-40 cursor-not-allowed",
           )}
+          disabled={!canPrevMonth}
+          aria-label="Previous month"
         >
-          Year
-        </button>
-        {visibleMonths.map((m, i) => (
-          <button
-            key={m}
-            onClick={() => setSelectedMonth(i)}
-            className={cn(
-              "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
-              selectedMonth === i
-                ? "bg-theme-primary text-white"
-                : "bg-theme-surface text-theme-muted hover:text-theme-text shadow-sm"
-            )}
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
           >
-            {m}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
+
+        <div className="month-strip-item" data-month="yr">
+          <span className="year-label">{year}</span>
+          <button
+            onClick={() => setSelectedMonth(null)}
+            className={cn(
+              "month-pill",
+              selectedMonth === null && "month-pill-selected",
+            )}
+            aria-label="Year overview"
+          >
+            Yr
           </button>
-        ))}
+        </div>
+
+        <div
+          className="month-strip-scroll"
+          ref={monthStripRef}
+          style={{ maxWidth: `${maxVisible * 44}px` }}
+        >
+          {availableMonths.map((monthIdx) => {
+              const isSelected = selectedMonth === monthIdx;
+              const isRealCurrent = year === currentYear && monthIdx === currentMonth;
+              const monthName = new Date(year, monthIdx).toLocaleString("default", {
+                month: "short",
+              });
+              return (
+                <div
+                  key={monthIdx}
+                  className="month-strip-item"
+                  data-month={monthIdx}
+                >
+                  <span className="year-label invisible">{year}</span>
+                  <button
+                    onClick={() => setSelectedMonth(monthIdx)}
+                    className={cn(
+                      "month-pill",
+                      isSelected && "month-pill-selected",
+                      !isSelected && isRealCurrent && "month-pill-current",
+                    )}
+                    aria-label={`${monthName} ${year}`}
+                    aria-current={isSelected ? "date" : undefined}
+                  >
+                    {monthName}
+                  </button>
+                </div>
+              );
+            })}
+        </div>
+
+        <button
+          onClick={nextMonth}
+          className={cn(
+            "month-nav-btn",
+            !canNextMonth && "opacity-40 cursor-not-allowed",
+          )}
+          disabled={!canNextMonth}
+          aria-label="Next month"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Summary strip */}
