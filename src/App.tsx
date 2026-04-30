@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { StorageService } from "./services/storageService";
 import { useAuth } from "./context/authContext";
 import { useSettings } from "./context/settingsContext";
@@ -64,6 +64,16 @@ function useScrollDirection() {
   return { direction, onScroll };
 }
 
+function ScrollToTop({ containerRef }: { containerRef: React.RefObject<HTMLDivElement> }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    containerRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [location.pathname, containerRef]);
+
+  return null;
+}
+
 function SyncDot({ status }: { status: SyncStatus }) {
   if (!supabase) return null;
   const styles: Record<string, string> = {
@@ -102,6 +112,7 @@ export default function App() {
   } = useCategories();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
+  const mainRef = useRef<HTMLDivElement>(null);
   const { direction, onScroll: handleScrollDirection } = useScrollDirection();
 
   useEffect(() => {
@@ -161,6 +172,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop containerRef={mainRef} />
       <div className="min-h-screen bg-theme-background flex">
         {!isReady ? (
           <div
@@ -188,6 +200,7 @@ export default function App() {
               scrollDirection={direction}
             />
             <main
+              ref={mainRef}
               className={cn(
                 "flex-1 min-w-0 pb-24 sm:pb-0 overflow-y-auto scrollbar-auto-hide",
                 isScrolling && "is-scrolling"

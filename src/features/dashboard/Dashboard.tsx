@@ -373,7 +373,7 @@ export default function Dashboard({
     if (!container) return;
     const target = container.querySelector('[data-selected="true"]') as HTMLElement | null;
     if (target) {
-      target.scrollIntoView({ inline: "center", behavior: "auto" });
+      target.scrollIntoView({ inline: "center", block: "nearest", behavior: "auto" });
     }
   }, [selectedYear, selectedMonth]);
 
@@ -598,7 +598,7 @@ export default function Dashboard({
       )}
 
       {/* Month strip — outside table, centered */}
-      <div className="flex items-center justify-center">
+      <div className="flex items-end justify-center">
         <button
           onClick={prevMonth}
           className="month-nav-btn"

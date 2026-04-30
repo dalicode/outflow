@@ -259,13 +259,13 @@ export default function AnalyticsPage({
     const anchorMonth = selectedMonth ?? (year === currentYear ? currentMonth : 0);
     const target = container.querySelector(`[data-month="${anchorMonth}"]`) as HTMLElement | null;
     if (target) {
-      target.scrollIntoView({ inline: "center", behavior: "auto" });
+      target.scrollIntoView({ inline: "center", block: "nearest", behavior: "auto" });
     }
   }, [selectedMonth, year, currentMonth, currentYear]);
 
   const yearStrip = useMemo(() => {
     const years = [];
-    for (let i = -3; i <= 1; i++) {
+    for (let i = -50; i <= 1; i++) {
       years.push(year + i);
     }
     return years;
@@ -276,7 +276,7 @@ export default function AnalyticsPage({
     if (!container) return;
     const target = container.querySelector('[data-selected="true"]') as HTMLElement | null;
     if (target) {
-      target.scrollIntoView({ inline: "center", behavior: "auto" });
+      target.scrollIntoView({ inline: "center", block: "nearest", behavior: "auto" });
     }
   }, [year]);
 
@@ -428,7 +428,7 @@ export default function AnalyticsPage({
       </div>
 
       {/* Month strip */}
-      <div className="flex items-center justify-center">
+      <div className="flex items-end justify-center">
         <button
           onClick={prevMonth}
           className={cn(
