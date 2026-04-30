@@ -259,28 +259,22 @@ export default function SummaryPage({ expenses }) {
     setSelectedSlice((prev) => (prev === slice ? null : slice));
   };
 
-  const sliceTitle = {
-    fixed: "Fixed Breakdown",
-    variable: "Variable Breakdown",
-    savings: "Savings Breakdown",
-  };
-
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">Summary</h1>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
-        <Card title="Income">
+        <Card>
           <IncomeForm income={incomeRaw} frequency={incomeFreq} onSave={handleIncomeSave} />
         </Card>
-        <Card title="Savings Rate">
+        <Card>
           <SavingsForm savingsRate={savingsRate} onSave={handleSavingsRateSave} />
         </Card>
       </div>
 
-      <Card title="Fixed Expenses">
+      <Card>
         <FixedExpensesList
           items={fixedExpenses}
           onAdd={handleAddFixed}
@@ -290,13 +284,13 @@ export default function SummaryPage({ expenses }) {
       </Card>
 
       {financialSummary && (
-        <Card title="Monthly Overview">
+        <Card>
           <SummarySection summary={financialSummary} />
         </Card>
       )}
 
       {financialSummary && (
-        <Card title="Spending Breakdown">
+        <Card>
           <ChartComponent
             totalFixed={financialSummary.fixedExpensesTotal}
             variableExpenses={financialSummary.variableExpenses}
@@ -308,7 +302,7 @@ export default function SummaryPage({ expenses }) {
       )}
 
       {financialSummary && selectedSlice && (
-        <Card title={sliceTitle[selectedSlice]}>
+        <Card>
           <BreakdownPie
             type={selectedSlice}
             financialSummary={financialSummary}

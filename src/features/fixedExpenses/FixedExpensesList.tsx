@@ -125,9 +125,9 @@ export default function FixedExpensesList({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
+        <span className="text-sm font-semibold text-theme-text tracking-tight">
           Fixed Expenses
-        </h3>
+        </span>
         <div className="flex items-center gap-2">
           {manageMode && (
             <button
@@ -144,7 +144,7 @@ export default function FixedExpensesList({
             aria-pressed={manageMode}
             className={cn(
               "manage-toggle-btn",
-              manageMode ? "text-white" : "text-theme-muted"
+              manageMode ? "text-white" : "text-theme-muted",
             )}
           >
             {manageMode ? <CheckIcon /> : <PencilIcon />}
@@ -153,18 +153,14 @@ export default function FixedExpensesList({
       </div>
 
       {items.length === 0 && (
-        <p className="text-sm text-theme-muted">
-          No fixed expenses added yet.
-        </p>
+        <p className="text-sm text-theme-muted">No fixed expenses added yet.</p>
       )}
 
       <ul className="space-y-1 divide-y divide-theme-border">
         {items.map((item) => (
           <li key={item.id} className="flex items-center gap-2 text-sm">
-            <span className="flex-1 text-theme-text">{item.name}</span>
-            <span
-              className={`text-theme-muted font-medium text-theme-primary`}
-            >
+            <span className="flex-1 text-theme-muted">{item.name}</span>
+            <span className="text-theme-muted font-medium">
               {formatAmount(item.amount)}
             </span>
             {manageMode && (
@@ -199,9 +195,7 @@ export default function FixedExpensesList({
             Name
             <input
               value={form.name}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, name: e.target.value }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Rent"
               autoFocus
               className={inputCls}
@@ -221,10 +215,7 @@ export default function FixedExpensesList({
               className={inputCls}
             />
           </label>
-          <button
-            type="submit"
-            className="btn-submit-fixed"
-          >
+          <button type="submit" className="btn-submit-fixed">
             {modalMode === "add" ? "Add" : "Save"}
           </button>
         </form>

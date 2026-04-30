@@ -85,9 +85,7 @@ export default function IncomeForm({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
-          Income
-        </h3>
+        <span className="text-sm font-semibold text-theme-text tracking-tight">Income</span>
         <button
           onClick={openModal}
           aria-label="Edit income"

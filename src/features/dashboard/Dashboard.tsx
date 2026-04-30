@@ -1,10 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  type FormEvent,
-} from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
@@ -136,7 +130,7 @@ export default function Dashboard({
     setIncomeError("");
   };
 
-  const submitIncome = (e: FormEvent<HTMLFormElement>) => {
+  const submitIncome = (e: React.SubmitEvent) => {
     e.preventDefault();
     const parsed = parseFloat(incomeDraft);
     if (!incomeDraft || isNaN(parsed) || parsed <= 0) {
@@ -168,7 +162,7 @@ export default function Dashboard({
     setSavingsError("");
   };
 
-  const submitSavings = (e: FormEvent<HTMLFormElement>) => {
+  const submitSavings = (e: React.SubmitEvent) => {
     e.preventDefault();
     const n = Number(savingsDraft);
     if (isNaN(n) || n < 0 || n > 100) {
@@ -504,12 +498,7 @@ export default function Dashboard({
   }, [monthlyExpenses, catMap]);
 
   return (
-    <main
-      className={cn(
-        "mx-auto px-4 py-6 space-y-6",
-        monthSpan === 12 ? "max-w-none" : "max-w-7xl",
-      )}
-    >
+    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">
           Dashboard
@@ -574,9 +563,7 @@ export default function Dashboard({
               .map((n) => (
                 <button
                   key={n}
-                  onClick={() =>
-                    setMonthSpan(n as 1 | 2 | 3 | 6 | 12)
-                  }
+                  onClick={() => setMonthSpan(n as 1 | 2 | 3 | 6 | 12)}
                   className={cn(
                     "dashboard-tab",
                     monthSpan === n && "dashboard-tab-active",
@@ -782,9 +769,7 @@ export default function Dashboard({
               <p className="text-sm text-theme-muted">
                 {spanExpenses.length} transaction
                 {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
-                <span
-                  className={getNumberColorClass(spanVariableTotal)}
-                >
+                <span className={getNumberColorClass(spanVariableTotal)}>
                   {formatAmount(spanVariableTotal)}
                 </span>
               </p>
@@ -833,7 +818,8 @@ export default function Dashboard({
                               key={mk.key}
                               className={cn(
                                 "table-header-cell text-right tabular-nums",
-                                displayIdx === 0 && "border-l border-theme-border",
+                                displayIdx === 0 &&
+                                  "border-l border-theme-border",
                               )}
                             >
                               {mk.name}
@@ -898,7 +884,8 @@ export default function Dashboard({
                                         key={displayIdx}
                                         className={cn(
                                           "px-3 py-1.5 text-right tabular-nums",
-                                          displayIdx === 0 && "border-l border-theme-border",
+                                          displayIdx === 0 &&
+                                            "border-l border-theme-border",
                                         )}
                                       >
                                         {amount !== 0 ? (
@@ -926,7 +913,10 @@ export default function Dashboard({
                                     className={cn(
                                       "px-3 py-1.5 text-right tabular-nums font-semibold",
                                       getNumberColorClass(
-                                        monthlyAmounts.reduce((s, v) => s + v, 0),
+                                        monthlyAmounts.reduce(
+                                          (s, v) => s + v,
+                                          0,
+                                        ),
                                       ),
                                     )}
                                   >
@@ -980,7 +970,7 @@ export default function Dashboard({
                         </tr>
                         {multiFixedRows.map((fe) => {
                           const fixedGrandTotal = fe.monthlyAmounts.reduce(
-                            (s, v) => s + (v ?? 0),
+                            (s, v) => (s ?? 0) + (v ?? 0),
                             0,
                           );
                           return (
@@ -1000,7 +990,8 @@ export default function Dashboard({
                                         key={displayIdx}
                                         className={cn(
                                           "px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
-                                          displayIdx === 0 && "border-l border-theme-border",
+                                          displayIdx === 0 &&
+                                            "border-l border-theme-border",
                                         )}
                                       >
                                         {amount !== null ? (
@@ -1078,7 +1069,8 @@ export default function Dashboard({
                                       key={displayIdx}
                                       className={cn(
                                         "px-3 py-1.5 text-right tabular-nums",
-                                        displayIdx === 0 && "border-l border-theme-border",
+                                        displayIdx === 0 &&
+                                          "border-l border-theme-border",
                                       )}
                                     >
                                       <button
@@ -1146,7 +1138,8 @@ export default function Dashboard({
                                       key={displayIdx}
                                       className={cn(
                                         "px-3 py-1.5 text-right tabular-nums",
-                                        displayIdx === 0 && "border-l border-theme-border",
+                                        displayIdx === 0 &&
+                                          "border-l border-theme-border",
                                       )}
                                     >
                                       <button
@@ -1337,8 +1330,7 @@ export default function Dashboard({
                                 >
                                   {formatAmount(
                                     monthSummaries.reduce(
-                                      (s, m) =>
-                                        s + m.autoSavings + m.remaining,
+                                      (s, m) => s + m.autoSavings + m.remaining,
                                       0,
                                     ),
                                   )}

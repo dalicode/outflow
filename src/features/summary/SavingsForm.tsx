@@ -59,9 +59,7 @@ export default function SavingsForm({ savingsRate, onSave }: SavingsFormProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-widest mb-2">
-          Savings Goal
-        </h3>
+        <span className="text-sm font-semibold text-theme-text tracking-tight">Savings Goal</span>
         <button
           onClick={openModal}
           aria-label="Edit savings goal"

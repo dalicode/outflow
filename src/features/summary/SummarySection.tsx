@@ -38,9 +38,7 @@ export default function SummarySection({ summary }: SummarySectionProps) {
 
   return (
     <div className="space-y-2">
-      <h3 className="summary-label font-semibold">
-        Financial Summary
-      </h3>
+      <span className="text-sm font-semibold text-theme-text tracking-tight">Financial Summary</span>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card
           label="Monthly Income"

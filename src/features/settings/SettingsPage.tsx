@@ -461,7 +461,7 @@ export default function SettingsPage({
 
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">
           Settings
