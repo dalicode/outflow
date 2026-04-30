@@ -13,6 +13,7 @@ import {
 } from "../../utils/dashboardHelpers";
 import { getSavingsGradientColor } from "../../utils/colorHelpers";
 import ExpenseTable from "../expenses/ExpenseTable";
+import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
 import type { Expense, Category, MonthlySummary } from "../../types";
 
 const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -45,7 +46,6 @@ export default function Dashboard({
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set(),
   );
-  const [manageMode, setManageMode] = useState(false);
   const [viewMode, setViewMode] = useState<"expenses" | "categories">(
     "categories",
   );
@@ -78,6 +78,8 @@ export default function Dashboard({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const isMobile = viewportWidth < 640;
 
   const SPAN_THRESHOLDS: Record<number, number> = {
     1: 640,
@@ -398,16 +400,6 @@ export default function Dashboard({
     [spanExpenses, selectedCategories, resolveName],
   );
 
-  const toggleManageMode = useCallback(() => {
-    setManageMode((prev) => {
-      if (prev) {
-        setSelectedIds(new Set());
-        setShowConfirm(false);
-      }
-      return !prev;
-    });
-  }, []);
-
   const toggleSelect = useCallback((id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -701,47 +693,7 @@ export default function Dashboard({
                     Reset Filter
                   </button>
                 )}
-                {manageMode && selectedIds.size > 0 && (
-                  <button
-                    onClick={handleBulkDeleteClick}
-                    className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-danger text-white hover:opacity-90 transition-opacity"
-                  >
-                    Delete {selectedIds.size}
-                  </button>
-                )}
-                <button
-                  onClick={toggleManageMode}
-                  aria-label={manageMode ? "Done" : "Manage"}
-                  aria-pressed={manageMode}
-                  className={cn(
-                    "flex items-center justify-center w-7 h-7 rounded-md transition-colors",
-                    manageMode
-                      ? "bg-theme-primary text-white"
-                      : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
-                  )}
-                >
-                  {manageMode ? (
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                    </svg>
-                  )}
-                </button>
+
               </div>
             )}
 
@@ -1438,15 +1390,29 @@ export default function Dashboard({
               expenses={filtered}
               onUpdate={onUpdate}
               onDelete={onDelete}
+              onBulkDelete={onBulkDelete}
               categories={categories}
-              manageMode={manageMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
+              isMobile={isMobile}
             />
           )}
         </section>
       </div>
+
+      {/* Mobile selection banner */}
+      {isMobile && selectedIds.size > 0 && (
+        <MobileSelectionBanner
+          count={selectedIds.size}
+          onEdit={() => {
+            // Edit is handled by tapping a cell directly
+            // This is only called when count === 1 (button disabled otherwise)
+          }}
+          onDelete={handleBulkDeleteClick}
+          onDeselectAll={() => setSelectedIds(new Set())}
+        />
+      )}
 
       {/* Income edit modal */}
       <Modal

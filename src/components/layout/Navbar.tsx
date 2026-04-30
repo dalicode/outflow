@@ -234,6 +234,7 @@ interface NavbarProps {
   onSignOut?: MouseEventHandler<HTMLButtonElement>;
   userEmail?: string;
   scrollDirection?: "up" | "down" | null;
+  hidden?: boolean;
 }
 
 export default function Navbar({
@@ -242,6 +243,7 @@ export default function Navbar({
   onSignOut,
   userEmail,
   scrollDirection,
+  hidden = false,
 }: NavbarProps) {
   const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
@@ -396,7 +398,8 @@ export default function Navbar({
         className={cn(
           "sm:hidden fixed bottom-0 left-0 right-0 z-30",
           "transition-transform duration-150 ease-out",
-          scrollDirection === "down" && "translate-y-full"
+          scrollDirection === "down" && "translate-y-full",
+          hidden && "translate-y-full",
         )}
       >
         <div className="mobile-nav-container">
