@@ -505,3 +505,11 @@
   background: var(--theme-muted);
   border-radius: 3px;
 }
+
+/* Neutral row hover — darkens on light themes, lightens on dark themes */
+.row-hover {
+  transition: background-color 0.15s ease;
+}
+.row-hover:hover {
+  background-color: color-mix(in srgb, var(--theme-text) 5%, transparent);
+}

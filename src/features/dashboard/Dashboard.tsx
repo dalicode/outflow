@@ -864,7 +864,7 @@ export default function Dashboard({
                         ({ name, totalTransactions, monthlyAmounts }) => (
                           <tr
                             key={name}
-                            className="border-b border-theme-muted/10 transition-colors duration-150 hover:bg-theme-primary/[0.03]"
+                            className="border-b border-theme-muted/10 row-hover"
                           >
                             <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                               {name}
@@ -974,7 +974,7 @@ export default function Dashboard({
                             0,
                           );
                           return (
-                            <tr key={fe.id}>
+                            <tr key={fe.id} className="row-hover">
                               <td className="px-3 py-1.5 text-theme-text whitespace-nowrap">
                                 {fe.name}
                               </td>
@@ -1041,7 +1041,7 @@ export default function Dashboard({
                           </td>
                         </tr>
                         {/* Income */}
-                        <tr>
+                        <tr className="row-hover">
                           <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
                             Income
                             <svg
@@ -1110,7 +1110,7 @@ export default function Dashboard({
                           )}
                         </tr>
                         {/* Auto Savings */}
-                        <tr>
+                        <tr className="row-hover">
                           <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
                             Auto Savings
                             <svg
@@ -1181,7 +1181,7 @@ export default function Dashboard({
                           )}
                         </tr>
                         {/* Remaining */}
-                        <tr>
+                        <tr className="row-hover">
                           <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                             Remaining
                           </td>
@@ -1262,7 +1262,7 @@ export default function Dashboard({
                           )}
                         </tr>
                         {/* Total Savings */}
-                        <tr>
+                        <tr className="row-hover">
                           <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                             Total Savings
                           </td>
@@ -1407,7 +1407,7 @@ export default function Dashboard({
                         {drilldownExpenses.map((exp) => (
                           <tr
                             key={exp.id}
-                            className="border-b border-theme-muted/10"
+                            className="border-b border-theme-muted/10 row-hover"
                           >
                             <td className="px-3 py-1 text-theme-text whitespace-nowrap">
                               {formatDate(exp.date)}

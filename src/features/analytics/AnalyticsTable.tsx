@@ -222,7 +222,7 @@ export default function AnalyticsTable({ data, goToMonth, formatAmount, getNumbe
               <tr
                 key={row.id}
                 className={cn(
-                  "border-b border-theme-muted/10 transition-colors duration-150 hover:bg-theme-primary/[0.03]",
+                  "border-b border-theme-muted/10 row-hover",
                   rowBg,
                   isArchived && "italic text-theme-muted"
                 )}
