@@ -109,6 +109,15 @@ export default function ExpenseTable({
     });
   }, [expenses, globalFilter, columnFilters, resolveName, formatAmount]);
 
+  const groupedExpenses = useMemo(() => {
+    const groups: Record<string, Expense[]> = {};
+    visibleExpenses.forEach((exp) => {
+      if (!groups[exp.date]) groups[exp.date] = [];
+      groups[exp.date].push(exp);
+    });
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [visibleExpenses]);
+
   const allSelected =
     visibleExpenses.length > 0 && visibleExpenses.every((e) => selectedIds.has(e.id as number));
 
@@ -338,11 +347,56 @@ export default function ExpenseTable({
         }
       />
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-separate border-spacing-0">
-          <thead className="sticky top-0 z-10">
-            <tr>
-              {!isMobile && (
+      {isMobile ? (
+        <div className="divide-y divide-theme-border">
+          {groupedExpenses.map(([date, items]) => (
+            <div key={date}>
+              <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background/50">
+                {formatDate(date)}
+              </div>
+              {items.map((exp) => {
+                const isSelected = selectedIds.has(exp.id as number);
+                const amountColor =
+                  exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
+                return (
+                  <div
+                    key={exp.id}
+                    className={cn(
+                      "flex items-center justify-between py-2 px-3",
+                      isSelected && "bg-theme-primary/[0.04] border-l-4 border-theme-primary",
+                      !isSelected && "row-hover",
+                    )}
+                    onTouchStart={(e) => onTouchStart(e, exp.id as number)}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={(e) => onTouchEnd(e, exp.id as number)}
+                    onClick={() => {
+                      if (selectedIds.size > 0) {
+                        onToggleSelect(exp.id as number);
+                      } else {
+                        startCellEdit(exp, "description");
+                      }
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-theme-text truncate">
+                        {exp.description || "—"}
+                      </p>
+                      <p className="text-xs text-theme-muted">{resolveName(exp)}</p>
+                    </div>
+                    <span className={cn("text-sm font-semibold tabular-nums", amountColor)}>
+                      {formatAmount(exp.amount)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead className="sticky top-0 z-10">
+              <tr>
                 <th className="table-header-cell text-center w-10">
                   <input
                     type="checkbox"
@@ -356,33 +410,31 @@ export default function ExpenseTable({
                     aria-label="Select all"
                   />
                 </th>
-              )}
-              <th className="table-header-cell text-left">Date</th>
-              <th className="table-header-cell text-left">Category</th>
-              <th className="table-header-cell text-left">Description</th>
-              <th className="table-header-cell text-right tabular-nums">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleExpenses.map((exp) => {
-              const isSelected = selectedIds.has(exp.id as number);
-              const amountColor =
-                exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
+                <th className="table-header-cell text-left">Date</th>
+                <th className="table-header-cell text-left">Category</th>
+                <th className="table-header-cell text-left">Description</th>
+                <th className="table-header-cell text-right tabular-nums">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleExpenses.map((exp) => {
+                const isSelected = selectedIds.has(exp.id as number);
+                const amountColor =
+                  exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
 
-              return (
-                <tr
-                  key={exp.id}
-                  className={cn(
-                    "border-b border-theme-muted/10",
-                    isSelected && "bg-theme-primary/[0.04]",
-                    !isSelected && "row-hover",
-                  )}
-                  onContextMenu={(e) => handleContextMenu(e, exp)}
-                  onTouchStart={(e) => onTouchStart(e, exp.id as number)}
-                  onTouchMove={onTouchMove}
-                  onTouchEnd={(e) => onTouchEnd(e, exp.id as number)}
-                >
-                  {!isMobile && (
+                return (
+                  <tr
+                    key={exp.id}
+                    className={cn(
+                      "border-b border-theme-muted/10",
+                      isSelected && "bg-theme-primary/[0.04]",
+                      !isSelected && "row-hover",
+                    )}
+                    onContextMenu={(e) => handleContextMenu(e, exp)}
+                    onTouchStart={(e) => onTouchStart(e, exp.id as number)}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={(e) => onTouchEnd(e, exp.id as number)}
+                  >
                     <td className="px-3 py-2.5 text-center">
                       <input
                         type="checkbox"
@@ -399,51 +451,46 @@ export default function ExpenseTable({
                         aria-label={`Select ${exp.description || "expense"}`}
                       />
                     </td>
-                  )}
-                  <td
-                    className={cn(
-                      "px-3 py-2.5 text-theme-text whitespace-nowrap",
-                      isMobile && isSelected && "border-l-4 border-theme-primary",
-                    )}
-                  >
-                    {renderCell(exp, "date", formatDate(exp.date))}
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    {renderCell(
-                      exp,
-                      "categoryId",
-                      <span
-                        className={cn(
-                          catMap[exp.categoryId as number]?.isDeleted
-                            ? "text-theme-muted italic"
-                            : "text-theme-text font-medium",
-                        )}
-                      >
-                        {resolveName(exp)}
-                      </span>,
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-theme-text max-w-[200px] truncate">
-                    {renderCell(
-                      exp,
-                      "description",
-                      exp.description || <span className="text-theme-muted">—</span>,
-                    )}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-3 py-2.5 text-right tabular-nums font-semibold",
-                      amountColor,
-                    )}
-                  >
-                    {renderCell(exp, "amount", formatAmount(exp.amount))}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    <td className="px-3 py-2.5 text-theme-text whitespace-nowrap">
+                      {renderCell(exp, "date", formatDate(exp.date))}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {renderCell(
+                        exp,
+                        "categoryId",
+                        <span
+                          className={cn(
+                            catMap[exp.categoryId as number]?.isDeleted
+                              ? "text-theme-muted italic"
+                              : "text-theme-text font-medium",
+                          )}
+                        >
+                          {resolveName(exp)}
+                        </span>,
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-theme-text max-w-[200px] truncate">
+                      {renderCell(
+                        exp,
+                        "description",
+                        exp.description || <span className="text-theme-muted">—</span>,
+                      )}
+                    </td>
+                    <td
+                      className={cn(
+                        "px-3 py-2.5 text-right tabular-nums font-semibold",
+                        amountColor,
+                      )}
+                    >
+                      {renderCell(exp, "amount", formatAmount(exp.amount))}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {visibleExpenses.length === 0 && (
         <p className="text-sm text-theme-muted text-center py-8">

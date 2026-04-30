@@ -345,12 +345,8 @@ export default function Dashboard({
     const months = [];
     const center = new Date(selectedYear, selectedMonth);
     const baseHalf = monthSpan >= 12 ? 12 : monthSpan >= 6 ? 9 : 6;
-    const half =
-      viewportWidth < 640
-        ? Math.min(baseHalf, 4)
-        : viewportWidth < 1024
-          ? Math.min(baseHalf, 6)
-          : baseHalf;
+    const scaled = Math.max(2, Math.floor((viewportWidth - 80) / 130));
+    const half = Math.min(baseHalf, scaled);
     for (let i = -half; i <= half; i++) {
       const d = new Date(center);
       d.setMonth(d.getMonth() + i);
@@ -674,50 +670,49 @@ export default function Dashboard({
       <div className="flex justify-center">
         <section
           className={cn(
-            "rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 space-y-4 w-full",
+            "relative rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 pt-6 w-full mt-[1.625rem]",
             monthSpan <= 3 && "md:max-w-3xl",
             monthSpan === 6 && "md:max-w-6xl",
             monthSpan === 12 && "md:max-w-none",
           )}
         >
-          {/* Action buttons + tabs header */}
-          <div className="space-y-3">
-            {/* Action buttons row */}
-            {viewMode === "expenses" && (
-              <div className="flex justify-end items-center gap-1.5">
-                {selectedCategories.size > 0 && (
-                  <button
-                    onClick={() => setSelectedCategories(new Set())}
-                    className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
-                  >
-                    Reset Filter
-                  </button>
-                )}
+          {/* Folder tabs */}
+          <div className="absolute -top-[1.625rem] left-3 flex gap-0.5">
+            <button
+              onClick={() => setViewMode("categories")}
+              className={cn(
+                "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+                viewMode === "categories"
+                  ? "bg-theme-surface text-theme-text"
+                  : "bg-theme-background text-theme-muted hover:text-theme-text",
+              )}
+            >
+              Categories
+            </button>
+            <button
+              onClick={() => setViewMode("expenses")}
+              className={cn(
+                "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+                viewMode === "expenses"
+                  ? "bg-theme-surface text-theme-text"
+                  : "bg-theme-background text-theme-muted hover:text-theme-text",
+              )}
+            >
+              Expenses
+            </button>
+          </div>
 
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
+          {/* Action buttons row */}
+          {viewMode === "expenses" && (
+            <div className="flex justify-end items-center gap-1.5">
+              {selectedCategories.size > 0 && (
                 <button
-                  onClick={() => setViewMode("categories")}
-                  className={cn(
-                    "dashboard-tab",
-                    viewMode === "categories" && "dashboard-tab-active",
-                  )}
+                  onClick={() => setSelectedCategories(new Set())}
+                  className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
                 >
-                  Categories
+                  Reset Filter
                 </button>
-                <button
-                  onClick={() => setViewMode("expenses")}
-                  className={cn(
-                    "dashboard-tab",
-                    viewMode === "expenses" && "dashboard-tab-active",
-                  )}
-                >
-                  Expenses
-                </button>
-              </div>
+              )}
               <p className="text-sm text-theme-muted">
                 {spanExpenses.length} transaction
                 {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
@@ -726,7 +721,7 @@ export default function Dashboard({
                 </span>
               </p>
             </div>
-          </div>
+          )}
 
           {/* Confirm delete modal */}
           <Modal
