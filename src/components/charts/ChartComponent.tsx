@@ -62,10 +62,6 @@ export default function ChartComponent({
             cx="50%"
             cy="50%"
             outerRadius={90}
-            label={({ name, percent }) =>
-              `${name} ${(percent * 100).toFixed(0)}%`
-            }
-            labelLine={false}
             cursor={onSliceClick ? "pointer" : "default"}
             onClick={(_, index) => {
               if (!onSliceClick) return;

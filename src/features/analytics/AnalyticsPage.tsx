@@ -209,9 +209,11 @@ export default function AnalyticsPage({
   const data = useAnalyticsData({ expenses, categories, year });
 
   const canGoForward = year < currentYear;
-  const lastMonth = year === currentYear ? currentMonth : year < currentYear ? 11 : -1;
+  const lastMonth =
+    year === currentYear ? currentMonth : year < currentYear ? 11 : -1;
   const availableMonths = useMemo(
-    () => (lastMonth >= 0 ? Array.from({ length: lastMonth + 1 }, (_, i) => i) : []),
+    () =>
+      lastMonth >= 0 ? Array.from({ length: lastMonth + 1 }, (_, i) => i) : [],
     [lastMonth],
   );
 
@@ -236,10 +238,24 @@ export default function AnalyticsPage({
     }
   };
 
-  const canPrevMonth = selectedMonth === null ? lastMonth >= 0 : selectedMonth > 0;
-  const canNextMonth = selectedMonth === null
-    ? lastMonth >= 0
-    : lastMonth >= 0 && selectedMonth < lastMonth;
+  const jumpBackMonths = () => {
+    setSelectedMonth(0);
+  };
+
+  const jumpToCurrentMonth = () => {
+    setYear(currentYear);
+    setSelectedMonth(currentMonth);
+  };
+
+  const isAtCurrentMonth =
+    year === currentYear && selectedMonth === currentMonth;
+
+  const canPrevMonth =
+    selectedMonth === null ? lastMonth >= 0 : selectedMonth > 0;
+  const canNextMonth =
+    selectedMonth === null
+      ? lastMonth >= 0
+      : lastMonth >= 0 && selectedMonth < lastMonth;
 
   const yearStrip = useMemo(() => {
     const years = [];
@@ -287,15 +303,26 @@ export default function AnalyticsPage({
         maxVisible={Math.min(maxVisible, 5)}
         scrollClass="year-strip-scroll"
         scrollSelector="[data-selected='true']"
+        selectedKey={year}
         navLeft={
           <>
             <button
-              onClick={() => handleYearChange(year - 3)}
+              onClick={() => handleYearChange(year - Math.min(maxVisible, 5))}
               className="year-nav-btn"
-              aria-label="Previous 3 years"
+              aria-label="Back"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18 19l-7-7 7-7M11 19l-7-7 7-7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
+                />
               </svg>
             </button>
             <button
@@ -303,8 +330,18 @@ export default function AnalyticsPage({
               className="year-nav-btn"
               aria-label="Previous year"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
           </>
@@ -314,21 +351,49 @@ export default function AnalyticsPage({
             <button
               onClick={() => canGoForward && handleYearChange(year + 1)}
               disabled={!canGoForward}
-              className={cn("year-nav-btn", !canGoForward && "opacity-40 cursor-not-allowed")}
+              className={cn(
+                "year-nav-btn",
+                !canGoForward && "opacity-40 cursor-not-allowed",
+              )}
               aria-label="Next year"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </button>
             <button
-              onClick={() => year !== currentYear && handleYearChange(currentYear)}
+              onClick={() =>
+                year !== currentYear && handleYearChange(currentYear)
+              }
               disabled={year === currentYear}
-              className={cn("year-nav-btn", year === currentYear && "opacity-40 cursor-not-allowed")}
+              className={cn(
+                "year-nav-btn",
+                year === currentYear && "opacity-40 cursor-not-allowed",
+              )}
               aria-label="Go to current year"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M6 5l7 7-7 7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13 5l7 7-7 7M6 5l7 7-7 7"
+                />
               </svg>
             </button>
           </>
@@ -363,25 +428,69 @@ export default function AnalyticsPage({
         maxVisible={maxVisible}
         scrollClass="month-strip-scroll"
         scrollSelector={monthScrollSelector}
+        selectedKey={selectedMonth ?? "yr"}
         align="end"
         navLeft={
-          <button
-            onClick={prevMonth}
-            className={cn("month-nav-btn", !canPrevMonth && "opacity-40 cursor-not-allowed")}
-            disabled={!canPrevMonth}
-            aria-label="Previous month"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+          <>
+            <button
+              onClick={jumpBackMonths}
+              disabled={selectedMonth === null}
+              className={cn(
+                "month-nav-btn",
+                (selectedMonth === null || !canPrevMonth) &&
+                  "opacity-40 cursor-not-allowed",
+              )}
+              aria-label="Back"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={prevMonth}
+              className={cn(
+                "month-nav-btn",
+                (!canPrevMonth || selectedMonth === null) &&
+                  "opacity-40 cursor-not-allowed",
+              )}
+              disabled={!canPrevMonth || selectedMonth === null}
+              aria-label="Previous month"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          </>
         }
         beforeScroll={
           <div className="month-strip-item" data-month="yr">
             <span className="year-label">{year}</span>
             <button
               onClick={() => setSelectedMonth(null)}
-              className={cn("month-pill", selectedMonth === null && "month-pill-selected")}
+              className={cn(
+                "month-pill",
+                selectedMonth === null && "month-pill-selected",
+              )}
               aria-label="Year overview"
             >
               Yr
@@ -389,24 +498,69 @@ export default function AnalyticsPage({
           </div>
         }
         navRight={
-          <button
-            onClick={nextMonth}
-            className={cn("month-nav-btn", !canNextMonth && "opacity-40 cursor-not-allowed")}
-            disabled={!canNextMonth}
-            aria-label="Next month"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+          <>
+            <button
+              onClick={nextMonth}
+              className={cn(
+                "month-nav-btn",
+                !canNextMonth && "opacity-40 cursor-not-allowed",
+              )}
+              disabled={!canNextMonth}
+              aria-label="Next month"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={jumpToCurrentMonth}
+              disabled={isAtCurrentMonth}
+              className={cn(
+                "month-nav-btn",
+                isAtCurrentMonth && "opacity-40 cursor-not-allowed",
+              )}
+              aria-label="Current month"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13 5l7 7-7 7M6 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </>
         }
       >
         {availableMonths.map((monthIdx) => {
           const isSelected = selectedMonth === monthIdx;
-          const isRealCurrent = year === currentYear && monthIdx === currentMonth;
-          const monthName = new Date(year, monthIdx).toLocaleString("default", { month: "short" });
+          const isRealCurrent =
+            year === currentYear && monthIdx === currentMonth;
+          const monthName = new Date(year, monthIdx).toLocaleString("default", {
+            month: "short",
+          });
           return (
-            <div key={monthIdx} className="month-strip-item" data-month={monthIdx}>
+            <div
+              key={monthIdx}
+              className="month-strip-item"
+              data-month={monthIdx}
+            >
               <span className="year-label invisible">{year}</span>
               <button
                 onClick={() => setSelectedMonth(monthIdx)}

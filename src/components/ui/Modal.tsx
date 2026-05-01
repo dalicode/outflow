@@ -113,10 +113,10 @@ export default function Modal({
     <div
       className={cn(
         "fixed left-0 top-0 right-0 bottom-0 z-50",
-        "flex items-center justify-center",
+        "flex items-start justify-center",
         isFullScreenMobile
-          ? "bg-theme-surface sm:bg-black/40"
-          : "bg-black/40 p-4",
+          ? "bg-theme-surface sm:bg-black/40 sm:pt-[10vh]"
+          : "bg-black/40 p-4 pt-[20vh]",
       )}
       onClick={handleBackdropClick}
       role="dialog"
@@ -126,7 +126,7 @@ export default function Modal({
         className={cn(
           "m-0 flex flex-col overflow-hidden bg-theme-surface",
           isFullScreenMobile
-            ? "h-[100dvh] w-screen rounded-none sm:h-auto sm:max-h-[90vh] sm:w-full sm:rounded-xl sm:border sm:border-theme-border sm:shadow-xl"
+            ? "h-[100dvh] w-screen rounded-none sm:h-auto sm:max-h-[80vh] sm:w-full sm:rounded-xl sm:border border-theme-border sm:shadow-xl"
             : "h-auto max-h-[85vh] w-full rounded-xl border border-theme-border shadow-lg",
           sizeMap[size],
         )}
@@ -196,7 +196,7 @@ export default function Modal({
         {/* Content */}
         <div
           className={cn(
-            "flex-1 overflow-x-hidden overflow-y-auto scrollbar-auto-hide",
+            "flex-1 overflow-x-hidden overflow-y-auto scrollbar-auto-hide min-h-0",
             isScrolling && "is-scrolling",
             isFullScreenMobile ? "p-4" : "p-5",
             title && "pt-4",

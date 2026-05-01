@@ -67,6 +67,17 @@ export default function Dashboard({
   const [showConfirm, setShowConfirm] = useState(false);
   const [financialSummary, setFinancialSummary] =
     useState<MonthlySummary | null>(null);
+
+  const daysLeft = useMemo(() => {
+    const today = new Date();
+    const daysInMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      0,
+    ).getDate();
+    return Math.max(0, daysInMonth - today.getDate());
+  }, []);
+
   const [incomeRaw, setIncomeRaw] = useState("");
   const [incomeFreq, setIncomeFreq] = useState("monthly");
   const [reloadKey, setReloadKey] = useState(0);
@@ -97,6 +108,7 @@ export default function Dashboard({
   const [filterAmount, setFilterAmount] = useState("");
   const viewportWidth = useViewportWidth();
   const maxVisible = useMaxVisible(viewportWidth);
+  const stripMaxVisible = maxVisible + (monthSpan > 3 ? monthSpan * 2 : 0);
 
   const isMobile = viewportWidth < 640;
 
@@ -345,10 +357,61 @@ export default function Dashboard({
       });
 
       setMonthSummaries(summaries);
-      setFinancialSummary(summaries[0]);
     };
     loadData();
   }, [selectedYear, selectedMonth, expenses, reloadKey, monthSpan]);
+
+  useEffect(() => {
+    const loadCurrentMonthSummary = async () => {
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth();
+
+      const [allFixed, globalIncome, globalRate, schedules] = await Promise.all(
+        [
+          StorageService.getFixedExpenses(),
+          StorageService.getSetting("monthlyIncome", 0),
+          StorageService.getSetting("savingsRate", 0),
+          StorageService.getActiveSchedules(),
+        ],
+      );
+
+      const [snaps, incSnaps, savSnaps] = await Promise.all([
+        StorageService.getSnapshotsForYear(currentYear),
+        StorageService.getIncomeSnapshotsForYear(currentYear),
+        StorageService.getSavingsSnapshotsForYear(currentYear),
+      ]);
+
+      const monthSnapshots = allFixed
+        .filter((f) => f.isArchived !== true)
+        .map((f) => ({
+          fixedExpenseId: f.id as number,
+          year: currentYear,
+          month: currentMonth + 1,
+          amountSnapshot: f.amount,
+          nameSnapshot: f.name,
+        }));
+
+      const data = {
+        expenses,
+        snapshots: monthSnapshots,
+        fixedExpenses: allFixed,
+        globalIncome: globalIncome as number,
+        globalSavingsRate: globalRate as number,
+        schedules,
+        incomeSnapshots: incSnaps,
+        savingsSnapshots: savSnaps,
+      };
+
+      const summary = getMonthlyFinancialSummary(
+        currentYear,
+        currentMonth,
+        data,
+      );
+      setFinancialSummary(summary);
+    };
+    loadCurrentMonthSummary();
+  }, [expenses, reloadKey]);
 
   const handleIncomeSave = async (
     {
@@ -417,6 +480,20 @@ export default function Dashboard({
       navigateToMonth(selectedYear, selectedMonth + 1);
     }
   };
+
+  const jumpBackMonths = () => {
+    const d = new Date(selectedYear, selectedMonth);
+    d.setMonth(d.getMonth() - stripMaxVisible);
+    navigateToMonth(d.getFullYear(), d.getMonth());
+  };
+
+  const jumpToCurrentMonth = () => {
+    const today = new Date();
+    navigateToMonth(today.getFullYear(), today.getMonth());
+  };
+
+  const isAtCurrentMonth =
+    selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
 
   const selectedKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
 
@@ -596,23 +673,6 @@ export default function Dashboard({
     [monthSummaries],
   );
 
-  const categoryRows = useMemo(() => {
-    const totals: Record<string, number> = {};
-    const counts: Record<string, number> = {};
-    monthlyExpenses.forEach((e) => {
-      const n = resolveName(e);
-      totals[n] = (totals[n] || 0) + e.amount;
-      counts[n] = (counts[n] || 0) + 1;
-    });
-    return Object.entries(totals)
-      .map(([name, total]) => ({
-        name,
-        count: counts[name] || 0,
-        total,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [monthlyExpenses, catMap]);
-
   const activeFilterCount = [
     filterGlobal,
     filterDateFrom,
@@ -626,40 +686,34 @@ export default function Dashboard({
     <div className="flex flex-col h-full">
       {/* Top section — shrink-0 */}
       <div className="shrink-0">
-        <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-          <div className="flex items-center justify-between">
+        <div
+          className={cn(
+            "mx-auto px-4 py-6 space-y-6",
+            monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+          )}
+        >
+          <div className="flex items-start justify-between">
             <h1 className="text-2xl font-bold text-theme-text tracking-tight">
               Dashboard
             </h1>
-            <button
-              className={cn(
-                "text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5",
-                activeFilterCount > 0
-                  ? "bg-theme-primary/10 text-theme-primary border-theme-primary/20"
-                  : "bg-theme-background text-theme-muted hover:text-theme-text border-theme-border",
-              )}
-              onClick={() => setShowFilterModal(true)}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                />
-              </svg>
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-theme-primary text-white text-[0.6875rem] font-semibold">
-                  {activeFilterCount}
+            {financialSummary && (
+              <div className="flex flex-col items-end text-right pt-0.5">
+                <span
+                  className={cn(
+                    "text-2xl font-bold tabular-nums leading-none",
+                    financialSummary.remaining >= 0
+                      ? "text-theme-success"
+                      : "text-theme-danger",
+                  )}
+                >
+                  {formatAmount(financialSummary.remaining)}
                 </span>
-              )}
-            </button>
+                <span className="text-xs text-theme-muted mt-0.5">
+                  Remaining
+                  {daysLeft !== null && daysLeft > 0 && ` · T - ${daysLeft}`}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Span selector */}
@@ -697,51 +751,98 @@ export default function Dashboard({
 
           {/* Month strip */}
           <Strip
-            maxVisible={maxVisible}
+            maxVisible={stripMaxVisible}
             scrollClass="month-strip-scroll"
             scrollSelector="[data-selected='true']"
+            selectedKey={`${selectedYear}-${selectedMonth}`}
             align="end"
             navLeft={
-              <button
-                onClick={prevMonth}
-                className="month-nav-btn"
-                aria-label="Previous month"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
+              <>
+                <button
+                  onClick={jumpBackMonths}
+                  className="month-nav-btn"
+                  aria-label="Back"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={prevMonth}
+                  className="month-nav-btn"
+                  aria-label="Previous month"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+              </>
             }
             navRight={
-              <button
-                onClick={nextMonth}
-                className="month-nav-btn"
-                aria-label="Next month"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
+              <>
+                <button
+                  onClick={nextMonth}
+                  className="month-nav-btn"
+                  aria-label="Next month"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={jumpToCurrentMonth}
+                  disabled={isAtCurrentMonth}
+                  className={cn(
+                    "month-nav-btn",
+                    isAtCurrentMonth && "opacity-40 cursor-not-allowed",
+                  )}
+                  aria-label="Current month"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 5l7 7-7 7M6 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </>
             }
           >
             {monthStrip.map(({ year, month }, index) => {
@@ -801,41 +902,86 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Tabs — shrink-0 */}
-      <div className="shrink-0 max-w-7xl mx-auto px-4 ml-3 w-full">
-        <div className="flex gap-0.5">
-          <button
-            onClick={() => {
-              if (viewMode !== "categories") {
-                setViewAnimation("slide-left");
-                setViewMode("categories");
-              }
-            }}
-            className={cn(
-              "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
-              viewMode === "categories"
-                ? "bg-theme-surface text-theme-text"
-                : "bg-theme-background text-theme-muted hover:text-theme-text",
-            )}
-          >
-            Categories
-          </button>
-          <button
-            onClick={() => {
-              if (viewMode !== "expenses") {
-                setViewAnimation("slide-right");
-                setViewMode("expenses");
-              }
-            }}
-            className={cn(
-              "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
-              viewMode === "expenses"
-                ? "bg-theme-surface text-theme-text"
-                : "bg-theme-background text-theme-muted hover:text-theme-text",
-            )}
-          >
-            Expenses
-          </button>
+      {/* Tabs + Filters — fixed above scrollable area, aligned to card corners */}
+      <div
+        className={cn(
+          "shrink-0 mx-auto px-4 w-full",
+          monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+        )}
+      >
+        <div
+          className={cn(
+            "w-full mx-auto",
+            monthSpan <= 3 && "md:max-w-3xl",
+            monthSpan === 6 && "md:max-w-6xl",
+            monthSpan === 12 && "md:max-w-none",
+          )}
+        >
+          <div className="flex items-end justify-between px-6">
+            <div className="flex gap-0.5">
+              <button
+                onClick={() => {
+                  if (viewMode !== "categories") {
+                    setViewAnimation("slide-left");
+                    setViewMode("categories");
+                  }
+                }}
+                className={cn(
+                  "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+                  viewMode === "categories"
+                    ? "bg-theme-surface text-theme-text"
+                    : "bg-theme-background text-theme-muted hover:text-theme-text",
+                )}
+              >
+                Categories
+              </button>
+              <button
+                onClick={() => {
+                  if (viewMode !== "expenses") {
+                    setViewAnimation("slide-right");
+                    setViewMode("expenses");
+                  }
+                }}
+                className={cn(
+                  "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+                  viewMode === "expenses"
+                    ? "bg-theme-surface text-theme-text"
+                    : "bg-theme-background text-theme-muted hover:text-theme-text",
+                )}
+              >
+                Expenses
+              </button>
+            </div>
+            <button
+              className={cn(
+                "text-xs font-medium px-3 py-1 rounded-t-md transition-colors flex items-center gap-1.5",
+                activeFilterCount > 0
+                  ? "bg-theme-primary/10 text-theme-primary"
+                  : "bg-theme-background text-theme-muted hover:text-theme-text",
+              )}
+              onClick={() => setShowFilterModal(true)}
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-4 px-1 rounded-full bg-theme-primary text-white text-[0.625rem] font-semibold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -845,146 +991,356 @@ export default function Dashboard({
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
         onScroll={onScroll}
       >
-        <div className="max-w-7xl mx-auto px-4 pb-24">
-          <section
-            ref={contentRef}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
+        <div
+          className={cn(
+            "mx-auto px-4 pb-24",
+            monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+          )}
+        >
+          <div
             className={cn(
-              "relativer rounded-md bg-theme-surface shadow-sm p-4 md:p-5 w-full",
+              "w-full mx-auto",
               monthSpan <= 3 && "md:max-w-3xl",
               monthSpan === 6 && "md:max-w-6xl",
               monthSpan === 12 && "md:max-w-none",
             )}
           >
-            {/* Action / count row */}
-            <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
-              {viewMode === "expenses" && selectedCategories.size > 0 && (
-                <button
-                  onClick={() => setSelectedCategories(new Set())}
-                  className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
-                >
-                  Reset Filter
-                </button>
-              )}
-              <p className="text-sm text-theme-muted tabular-nums">
-                {spanExpenses.length} transaction
-                {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
-                {formatAmount(spanVariableTotal)}
-              </p>
-            </div>
-
-            {/* Confirm delete modal */}
-            <Modal
-              isOpen={showConfirm}
-              onClose={() => setShowConfirm(false)}
-              title="Confirm Delete"
-              size="sm"
+            <section
+              ref={contentRef}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="relative rounded-md bg-theme-surface shadow-sm p-4 md:p-5"
             >
-              <p className="text-sm text-theme-muted">
-                Are you sure you want to delete{" "}
-                <strong className="text-theme-text">{selectedIds.size}</strong>{" "}
-                expense{selectedIds.size !== 1 ? "s" : ""}?
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={confirmDelete} className="confirm-delete-btn">
-                  Delete
-                </button>
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  className="confirm-cancel-btn"
-                >
-                  Cancel
-                </button>
-              </div>
-            </Modal>
-
-            {viewMode === "categories" ? (
-              <div
-                className={cn(
-                  "space-y-4",
-                  viewAnimation === "slide-left" && "view-slide-left",
-                  viewAnimation === "slide-right" && "view-slide-right",
+              {/* Action / count row */}
+              <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
+                {viewMode === "expenses" && selectedCategories.size > 0 && (
+                  <button
+                    onClick={() => setSelectedCategories(new Set())}
+                    className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
+                  >
+                    Reset Filter
+                  </button>
                 )}
+                <p className="text-sm text-theme-muted tabular-nums">
+                  {spanExpenses.length} transaction
+                  {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
+                  {formatAmount(spanVariableTotal)}
+                </p>
+              </div>
+
+              {/* Confirm delete modal */}
+              <Modal
+                isOpen={showConfirm}
+                onClose={() => setShowConfirm(false)}
+                title="Confirm Delete"
+                size="sm"
               >
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-separate border-spacing-0">
-                    <thead className="sticky top-0 z-10">
-                      <tr>
-                        <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
-                          Category
-                        </th>
-                        {monthSpan > 1 ? (
-                          <>
-                            <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                              Transactions
-                            </th>
-                            {[...monthKeys].reverse().map((mk, displayIdx) => (
-                              <th
-                                key={mk.key}
-                                className={cn(
-                                  "table-header-cell text-right tabular-nums",
-                                  displayIdx === 0 &&
-                                    "border-l border-theme-border",
-                                )}
-                              >
-                                {mk.name}
-                              </th>
-                            ))}
-                            {showGrandTotal && (
+                <p className="text-sm text-theme-muted">
+                  Are you sure you want to delete{" "}
+                  <strong className="text-theme-text">
+                    {selectedIds.size}
+                  </strong>{" "}
+                  expense{selectedIds.size !== 1 ? "s" : ""}?
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={confirmDelete}
+                    className="confirm-delete-btn"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="confirm-cancel-btn"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </Modal>
+
+              {viewMode === "categories" ? (
+                <div
+                  className={cn(
+                    "space-y-4",
+                    viewAnimation === "slide-left" && "view-slide-left",
+                    viewAnimation === "slide-right" && "view-slide-right",
+                  )}
+                >
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-separate border-spacing-0">
+                      <thead className="sticky top-0 z-10">
+                        <tr>
+                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
+                            Category
+                          </th>
+                          {monthSpan > 1 ? (
+                            <>
                               <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                                Total
+                                Transactions
                               </th>
-                            )}
-                          </>
+                              {[...monthKeys]
+                                .reverse()
+                                .map((mk, displayIdx) => (
+                                  <th
+                                    key={mk.key}
+                                    className={cn(
+                                      "table-header-cell text-right tabular-nums",
+                                      displayIdx === 0 &&
+                                        "border-l border-theme-border",
+                                    )}
+                                  >
+                                    {mk.name}
+                                  </th>
+                                ))}
+                              {showGrandTotal && (
+                                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
+                                  Total
+                                </th>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
+                                Transactions
+                              </th>
+                              <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
+                                Amount
+                              </th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {multiCategoryRows.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={
+                                monthSpan > 1
+                                  ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                  : 3
+                              }
+                              className="px-3 py-12 text-center text-theme-muted"
+                            >
+                              No expenses yet. Hit{" "}
+                              <strong className="text-theme-primary">+</strong>{" "}
+                              to add one.
+                            </td>
+                          </tr>
                         ) : (
+                          multiCategoryRows.map(
+                            ({ name, totalTransactions, monthlyAmounts }) => (
+                              <tr
+                                key={name}
+                                className="border-b border-theme-muted/10 row-hover"
+                              >
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                                  {name}
+                                </td>
+                                {monthSpan > 1 ? (
+                                  <>
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                      {totalTransactions}
+                                    </td>
+                                    {[...monthlyAmounts]
+                                      .reverse()
+                                      .map((amount, displayIdx) => {
+                                        const dataIdx =
+                                          monthKeys.length - 1 - displayIdx;
+                                        return (
+                                          <td
+                                            key={displayIdx}
+                                            className={cn(
+                                              "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
+                                              displayIdx === 0 &&
+                                                "border-l border-theme-border",
+                                            )}
+                                          >
+                                            {amount !== 0 ? (
+                                              <button
+                                                onClick={() =>
+                                                  handleCategoryClick(
+                                                    name,
+                                                    dataIdx,
+                                                  )
+                                                }
+                                                className={cn(
+                                                  "font-semibold hover:underline",
+                                                  getNumberColorClass(amount),
+                                                )}
+                                              >
+                                                {formatAmount(amount)}
+                                              </button>
+                                            ) : (
+                                              <span className="text-theme-muted">
+                                                —
+                                              </span>
+                                            )}
+                                          </td>
+                                        );
+                                      })}
+                                    {showGrandTotal && (
+                                      <td
+                                        className={cn(
+                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                          getNumberColorClass(
+                                            monthlyAmounts.reduce(
+                                              (s, v) => s + v,
+                                              0,
+                                            ),
+                                          ),
+                                        )}
+                                      >
+                                        {formatAmount(
+                                          monthlyAmounts.reduce(
+                                            (s, v) => s + v,
+                                            0,
+                                          ),
+                                        )}
+                                      </td>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                      {totalTransactions}
+                                    </td>
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
+                                      {monthlyAmounts[0] !== 0 ? (
+                                        <button
+                                          onClick={() =>
+                                            handleCategoryClick(name, 0)
+                                          }
+                                          className={cn(
+                                            "font-semibold hover:underline",
+                                            getNumberColorClass(
+                                              monthlyAmounts[0],
+                                            ),
+                                          )}
+                                        >
+                                          {formatAmount(monthlyAmounts[0])}
+                                        </button>
+                                      ) : (
+                                        <span className="text-theme-muted">
+                                          —
+                                        </span>
+                                      )}
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            ),
+                          )
+                        )}
+                        {multiFixedRows.length > 0 && (
                           <>
-                            <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                              Transactions
-                            </th>
-                            <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                              Amount
-                            </th>
+                            <tr>
+                              <td
+                                colSpan={
+                                  monthSpan > 1
+                                    ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                    : 3
+                                }
+                                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
+                              >
+                                Fixed Expenses
+                              </td>
+                            </tr>
+                            {multiFixedRows.map((fe) => {
+                              const fixedGrandTotal = fe.monthlyAmounts.reduce(
+                                (s, v) => (s ?? 0) + (v ?? 0),
+                                0,
+                              );
+                              return (
+                                <tr key={fe.id} className="row-hover">
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap">
+                                    {fe.name}
+                                  </td>
+                                  {monthSpan > 1 ? (
+                                    <>
+                                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                        —
+                                      </td>
+                                      {[...fe.monthlyAmounts]
+                                        .reverse()
+                                        .map((amount, displayIdx) => (
+                                          <td
+                                            key={displayIdx}
+                                            className={cn(
+                                              "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
+                                              displayIdx === 0 &&
+                                                "border-l border-theme-border",
+                                            )}
+                                          >
+                                            {amount !== null ? (
+                                              formatAmount(amount)
+                                            ) : (
+                                              <span className="text-theme-muted">
+                                                —
+                                              </span>
+                                            )}
+                                          </td>
+                                        ))}
+                                      {showGrandTotal && (
+                                        <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                                          {formatAmount(fixedGrandTotal)}
+                                        </td>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                        —
+                                      </td>
+                                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text">
+                                        {fe.monthlyAmounts[0] !== null
+                                          ? formatAmount(fe.monthlyAmounts[0])
+                                          : "—"}
+                                      </td>
+                                    </>
+                                  )}
+                                </tr>
+                              );
+                            })}
                           </>
                         )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {multiCategoryRows.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={
-                              monthSpan > 1
-                                ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
-                                : 3
-                            }
-                            className="px-3 py-12 text-center text-theme-muted"
-                          >
-                            No expenses yet. Hit{" "}
-                            <strong className="text-theme-primary">+</strong> to
-                            add one.
-                          </td>
-                        </tr>
-                      ) : (
-                        multiCategoryRows.map(
-                          ({ name, totalTransactions, monthlyAmounts }) => (
-                            <tr
-                              key={name}
-                              className="border-b border-theme-muted/10 row-hover"
-                            >
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
-                                {name}
+                        {monthSummaries.length > 0 && (
+                          <>
+                            <tr>
+                              <td
+                                colSpan={
+                                  monthSpan > 1
+                                    ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                    : 3
+                                }
+                                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
+                              >
+                                Budget Summary
+                              </td>
+                            </tr>
+                            {/* Income */}
+                            <tr className="row-hover">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                                Income
+                                <svg
+                                  className="w-3 h-3 text-theme-muted"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                </svg>
                               </td>
                               {monthSpan > 1 ? (
                                 <>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                    {totalTransactions}
+                                    —
                                   </td>
-                                  {[...monthlyAmounts]
+                                  {[...monthSummaries]
                                     .reverse()
-                                    .map((amount, displayIdx) => {
+                                    .map((summary, displayIdx) => {
                                       const dataIdx =
-                                        monthKeys.length - 1 - displayIdx;
+                                        monthSummaries.length - 1 - displayIdx;
                                       return (
                                         <td
                                           key={displayIdx}
@@ -994,44 +1350,22 @@ export default function Dashboard({
                                               "border-l border-theme-border",
                                           )}
                                         >
-                                          {amount !== 0 ? (
-                                            <button
-                                              onClick={() =>
-                                                handleCategoryClick(
-                                                  name,
-                                                  dataIdx,
-                                                )
-                                              }
-                                              className={cn(
-                                                "font-semibold hover:underline",
-                                                getNumberColorClass(amount),
-                                              )}
-                                            >
-                                              {formatAmount(amount)}
-                                            </button>
-                                          ) : (
-                                            <span className="text-theme-muted">
-                                              —
-                                            </span>
-                                          )}
+                                          <button
+                                            onClick={() =>
+                                              openIncomeModal(dataIdx)
+                                            }
+                                            className="font-semibold hover:underline text-theme-text"
+                                          >
+                                            {formatAmount(summary.income)}
+                                          </button>
                                         </td>
                                       );
                                     })}
                                   {showGrandTotal && (
-                                    <td
-                                      className={cn(
-                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                        getNumberColorClass(
-                                          monthlyAmounts.reduce(
-                                            (s, v) => s + v,
-                                            0,
-                                          ),
-                                        ),
-                                      )}
-                                    >
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                       {formatAmount(
-                                        monthlyAmounts.reduce(
-                                          (s, v) => s + v,
+                                        monthSummaries.reduce(
+                                          (s, m) => s + m.income,
                                           0,
                                         ),
                                       )}
@@ -1041,306 +1375,160 @@ export default function Dashboard({
                               ) : (
                                 <>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                    {totalTransactions}
+                                    —
                                   </td>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
-                                    {monthlyAmounts[0] !== 0 ? (
-                                      <button
-                                        onClick={() =>
-                                          handleCategoryClick(name, 0)
-                                        }
-                                        className={cn(
-                                          "font-semibold hover:underline",
-                                          getNumberColorClass(
-                                            monthlyAmounts[0],
-                                          ),
-                                        )}
-                                      >
-                                        {formatAmount(monthlyAmounts[0])}
-                                      </button>
-                                    ) : (
-                                      <span className="text-theme-muted">
-                                        —
-                                      </span>
-                                    )}
+                                    <button
+                                      onClick={() => openIncomeModal(0)}
+                                      className="font-semibold hover:underline text-theme-text"
+                                    >
+                                      {formatAmount(monthSummaries[0].income)}
+                                    </button>
                                   </td>
                                 </>
                               )}
                             </tr>
-                          ),
-                        )
-                      )}
-                      {multiFixedRows.length > 0 && (
-                        <>
-                          <tr>
-                            <td
-                              colSpan={
-                                monthSpan > 1
-                                  ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
-                                  : 3
-                              }
-                              className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
-                            >
-                              Fixed Expenses
-                            </td>
-                          </tr>
-                          {multiFixedRows.map((fe) => {
-                            const fixedGrandTotal = fe.monthlyAmounts.reduce(
-                              (s, v) => (s ?? 0) + (v ?? 0),
-                              0,
-                            );
-                            return (
-                              <tr key={fe.id} className="row-hover">
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap">
-                                  {fe.name}
-                                </td>
-                                {monthSpan > 1 ? (
-                                  <>
-                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                      —
-                                    </td>
-                                    {[...fe.monthlyAmounts]
-                                      .reverse()
-                                      .map((amount, displayIdx) => (
+                            {/* Auto Savings */}
+                            <tr className="row-hover">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                                Auto Savings
+                                <svg
+                                  className="w-3 h-3 text-theme-muted"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                </svg>
+                              </td>
+                              {monthSpan > 1 ? (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    —
+                                  </td>
+                                  {[...monthSummaries]
+                                    .reverse()
+                                    .map((summary, displayIdx) => {
+                                      const dataIdx =
+                                        monthSummaries.length - 1 - displayIdx;
+                                      return (
                                         <td
                                           key={displayIdx}
                                           className={cn(
-                                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
+                                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
                                             displayIdx === 0 &&
                                               "border-l border-theme-border",
                                           )}
                                         >
-                                          {amount !== null ? (
-                                            formatAmount(amount)
-                                          ) : (
-                                            <span className="text-theme-muted">
-                                              —
-                                            </span>
-                                          )}
+                                          <button
+                                            onClick={() =>
+                                              openSavingsModal(dataIdx)
+                                            }
+                                            className="font-semibold hover:underline text-theme-text"
+                                          >
+                                            {formatAmount(summary.autoSavings)}
+                                          </button>
                                         </td>
-                                      ))}
-                                    {showGrandTotal && (
-                                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
-                                        {formatAmount(fixedGrandTotal)}
-                                      </td>
-                                    )}
-                                  </>
-                                ) : (
-                                  <>
-                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                      —
+                                      );
+                                    })}
+                                  {showGrandTotal && (
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                                      {formatAmount(
+                                        monthSummaries.reduce(
+                                          (s, m) => s + m.autoSavings,
+                                          0,
+                                        ),
+                                      )}
                                     </td>
-                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text">
-                                      {fe.monthlyAmounts[0] !== null
-                                        ? formatAmount(fe.monthlyAmounts[0])
-                                        : "—"}
-                                    </td>
-                                  </>
-                                )}
-                              </tr>
-                            );
-                          })}
-                        </>
-                      )}
-                      {monthSummaries.length > 0 && (
-                        <>
-                          <tr>
-                            <td
-                              colSpan={
-                                monthSpan > 1
-                                  ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
-                                  : 3
-                              }
-                              className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
-                            >
-                              Budget Summary
-                            </td>
-                          </tr>
-                          {/* Income */}
-                          <tr className="row-hover">
-                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
-                              Income
-                              <svg
-                                className="w-3 h-3 text-theme-muted"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                              </svg>
-                            </td>
-                            {monthSpan > 1 ? (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                {[...monthSummaries]
-                                  .reverse()
-                                  .map((summary, displayIdx) => {
-                                    const dataIdx =
-                                      monthSummaries.length - 1 - displayIdx;
-                                    return (
-                                      <td
-                                        key={displayIdx}
-                                        className={cn(
-                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
-                                          displayIdx === 0 &&
-                                            "border-l border-theme-border",
-                                        )}
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            openIncomeModal(dataIdx)
-                                          }
-                                          className="font-semibold hover:underline text-theme-text"
-                                        >
-                                          {formatAmount(summary.income)}
-                                        </button>
-                                      </td>
-                                    );
-                                  })}
-                                {showGrandTotal && (
-                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
-                                    {formatAmount(
-                                      monthSummaries.reduce(
-                                        (s, m) => s + m.income,
-                                        0,
-                                      ),
-                                    )}
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    —
                                   </td>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
-                                  <button
-                                    onClick={() => openIncomeModal(0)}
-                                    className="font-semibold hover:underline text-theme-text"
-                                  >
-                                    {formatAmount(monthSummaries[0].income)}
-                                  </button>
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                          {/* Auto Savings */}
-                          <tr className="row-hover">
-                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
-                              Auto Savings
-                              <svg
-                                className="w-3 h-3 text-theme-muted"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                              </svg>
-                            </td>
-                            {monthSpan > 1 ? (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                {[...monthSummaries]
-                                  .reverse()
-                                  .map((summary, displayIdx) => {
-                                    const dataIdx =
-                                      monthSummaries.length - 1 - displayIdx;
-                                    return (
-                                      <td
-                                        key={displayIdx}
-                                        className={cn(
-                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
-                                          displayIdx === 0 &&
-                                            "border-l border-theme-border",
-                                        )}
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            openSavingsModal(dataIdx)
-                                          }
-                                          className="font-semibold hover:underline text-theme-text"
-                                        >
-                                          {formatAmount(summary.autoSavings)}
-                                        </button>
-                                      </td>
-                                    );
-                                  })}
-                                {showGrandTotal && (
-                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
-                                    {formatAmount(
-                                      monthSummaries.reduce(
-                                        (s, m) => s + m.autoSavings,
-                                        0,
-                                      ),
-                                    )}
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
+                                    <button
+                                      onClick={() => openSavingsModal(0)}
+                                      className="font-semibold hover:underline text-theme-text"
+                                    >
+                                      {formatAmount(
+                                        monthSummaries[0].autoSavings,
+                                      )}
+                                    </button>
                                   </td>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
-                                  <button
-                                    onClick={() => openSavingsModal(0)}
-                                    className="font-semibold hover:underline text-theme-text"
-                                  >
-                                    {formatAmount(
-                                      monthSummaries[0].autoSavings,
-                                    )}
-                                  </button>
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                          {/* Remaining */}
-                          <tr className="row-hover">
-                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
-                              Remaining
-                            </td>
-                            {monthSpan > 1 ? (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                {[...monthSummaries]
-                                  .reverse()
-                                  .map((summary, displayIdx) => {
-                                    const v = summary.remaining;
-                                    return (
-                                      <td
-                                        key={displayIdx}
-                                        className={cn(
-                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                          v > 0
+                                </>
+                              )}
+                            </tr>
+                            {/* Remaining */}
+                            <tr className="row-hover">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                                Remaining
+                              </td>
+                              {monthSpan > 1 ? (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    —
+                                  </td>
+                                  {[...monthSummaries]
+                                    .reverse()
+                                    .map((summary, displayIdx) => {
+                                      const v = summary.remaining;
+                                      return (
+                                        <td
+                                          key={displayIdx}
+                                          className={cn(
+                                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                            v > 0
+                                              ? "text-theme-success"
+                                              : v < 0
+                                                ? "text-theme-danger"
+                                                : "text-theme-text",
+                                            displayIdx === 0 &&
+                                              "border-l border-theme-border",
+                                          )}
+                                        >
+                                          {formatAmount(v)}
+                                        </td>
+                                      );
+                                    })}
+                                  {showGrandTotal && (
+                                    <td
+                                      className={cn(
+                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                        (() => {
+                                          const v = monthSummaries.reduce(
+                                            (s, m) => s + m.remaining,
+                                            0,
+                                          );
+                                          return v > 0
                                             ? "text-theme-success"
                                             : v < 0
                                               ? "text-theme-danger"
-                                              : "text-theme-text",
-                                          displayIdx === 0 &&
-                                            "border-l border-theme-border",
-                                        )}
-                                      >
-                                        {formatAmount(v)}
-                                      </td>
-                                    );
-                                  })}
-                                {showGrandTotal && (
+                                              : "text-theme-text";
+                                        })(),
+                                      )}
+                                    >
+                                      {formatAmount(
+                                        monthSummaries.reduce(
+                                          (s, m) => s + m.remaining,
+                                          0,
+                                        ),
+                                      )}
+                                    </td>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    —
+                                  </td>
                                   <td
                                     className={cn(
                                       "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                       (() => {
-                                        const v = monthSummaries.reduce(
-                                          (s, m) => s + m.remaining,
-                                          0,
-                                        );
+                                        const v = monthSummaries[0].remaining;
                                         return v > 0
                                           ? "text-theme-success"
                                           : v < 0
@@ -1349,127 +1537,24 @@ export default function Dashboard({
                                       })(),
                                     )}
                                   >
-                                    {formatAmount(
-                                      monthSummaries.reduce(
-                                        (s, m) => s + m.remaining,
-                                        0,
-                                      ),
-                                    )}
+                                    {formatAmount(monthSummaries[0].remaining)}
                                   </td>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                <td
-                                  className={cn(
-                                    "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                    (() => {
-                                      const v = monthSummaries[0].remaining;
-                                      return v > 0
-                                        ? "text-theme-success"
-                                        : v < 0
-                                          ? "text-theme-danger"
-                                          : "text-theme-text";
-                                    })(),
-                                  )}
-                                >
-                                  {formatAmount(monthSummaries[0].remaining)}
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                          {/* Total Savings */}
-                          <tr className="row-hover">
-                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
-                              Total Savings
-                            </td>
-                            {monthSpan > 1 ? (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                {[...monthSummaries]
-                                  .reverse()
-                                  .map((summary, displayIdx) => {
-                                    const totalSavings =
-                                      summary.autoSavings + summary.remaining;
-                                    const ratioPct =
-                                      summary.income > 0
-                                        ? (totalSavings / summary.income) * 100
-                                        : 0;
-                                    const color = getSavingsGradientColor(
-                                      ratioPct,
-                                      summary.savingsRate,
-                                    );
-                                    return (
-                                      <td
-                                        key={displayIdx}
-                                        className={cn(
-                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                          displayIdx === 0 &&
-                                            "border-l border-theme-border",
-                                        )}
-                                        style={{ color }}
-                                      >
-                                        {formatAmount(totalSavings)}
-                                      </td>
-                                    );
-                                  })}
-                                {showGrandTotal && (
-                                  <td
-                                    className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
-                                    style={{
-                                      color: (() => {
-                                        const grandTotal =
-                                          monthSummaries.reduce(
-                                            (s, m) =>
-                                              s + m.autoSavings + m.remaining,
-                                            0,
-                                          );
-                                        const totalIncome =
-                                          monthSummaries.reduce(
-                                            (s, m) => s + m.income,
-                                            0,
-                                          );
-                                        const avgRate =
-                                          monthSummaries.reduce(
-                                            (s, m) => s + m.savingsRate,
-                                            0,
-                                          ) / monthSummaries.length;
-                                        const ratioPct =
-                                          totalIncome > 0
-                                            ? (grandTotal / totalIncome) * 100
-                                            : 0;
-                                        return getSavingsGradientColor(
-                                          ratioPct,
-                                          avgRate,
-                                        );
-                                      })(),
-                                    }}
-                                  >
-                                    {formatAmount(
-                                      monthSummaries.reduce(
-                                        (s, m) =>
-                                          s + m.autoSavings + m.remaining,
-                                        0,
-                                      ),
-                                    )}
+                                </>
+                              )}
+                            </tr>
+                            {/* Total Savings */}
+                            <tr className="row-hover">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                                Total Savings
+                              </td>
+                              {monthSpan > 1 ? (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    —
                                   </td>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  —
-                                </td>
-                                <td
-                                  className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
-                                  style={{
-                                    color: (() => {
-                                      const summary = monthSummaries[0];
+                                  {[...monthSummaries]
+                                    .reverse()
+                                    .map((summary, displayIdx) => {
                                       const totalSavings =
                                         summary.autoSavings + summary.remaining;
                                       const ratioPct =
@@ -1477,327 +1562,406 @@ export default function Dashboard({
                                           ? (totalSavings / summary.income) *
                                             100
                                           : 0;
-                                      return getSavingsGradientColor(
+                                      const color = getSavingsGradientColor(
                                         ratioPct,
                                         summary.savingsRate,
                                       );
-                                    })(),
-                                  }}
-                                >
-                                  {formatAmount(
-                                    monthSummaries[0].autoSavings +
-                                      monthSummaries[0].remaining,
+                                      return (
+                                        <td
+                                          key={displayIdx}
+                                          className={cn(
+                                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                            displayIdx === 0 &&
+                                              "border-l border-theme-border",
+                                          )}
+                                          style={{ color }}
+                                        >
+                                          {formatAmount(totalSavings)}
+                                        </td>
+                                      );
+                                    })}
+                                  {showGrandTotal && (
+                                    <td
+                                      className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
+                                      style={{
+                                        color: (() => {
+                                          const grandTotal =
+                                            monthSummaries.reduce(
+                                              (s, m) =>
+                                                s + m.autoSavings + m.remaining,
+                                              0,
+                                            );
+                                          const totalIncome =
+                                            monthSummaries.reduce(
+                                              (s, m) => s + m.income,
+                                              0,
+                                            );
+                                          const avgRate =
+                                            monthSummaries.reduce(
+                                              (s, m) => s + m.savingsRate,
+                                              0,
+                                            ) / monthSummaries.length;
+                                          const ratioPct =
+                                            totalIncome > 0
+                                              ? (grandTotal / totalIncome) * 100
+                                              : 0;
+                                          return getSavingsGradientColor(
+                                            ratioPct,
+                                            avgRate,
+                                          );
+                                        })(),
+                                      }}
+                                    >
+                                      {formatAmount(
+                                        monthSummaries.reduce(
+                                          (s, m) =>
+                                            s + m.autoSavings + m.remaining,
+                                          0,
+                                        ),
+                                      )}
+                                    </td>
                                   )}
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                        </>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Drilldown */}
-                {drilldownCategory && drilldownExpenses.length > 0 && (
-                  <div
-                    ref={drilldownRef}
-                    className="space-y-2 border-t border-theme-border pt-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-theme-text">
-                        {drilldownCategory} —{" "}
-                        {monthKeys[drilldownMonthIndex].name}{" "}
-                        {monthKeys[drilldownMonthIndex].year}
-                      </h3>
-                      <button
-                        onClick={() => setDrilldownCategory(null)}
-                        className="text-xs font-medium text-theme-muted hover:text-theme-text transition-colors"
-                      >
-                        Close
-                      </button>
-                    </div>
-                    <div className="divide-y divide-theme-border">
-                      {groupedDrilldownExpenses.map(([date, items]) => (
-                        <div key={date}>
-                          <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background/50">
-                            {formatDate(date)}
-                          </div>
-                          {items.map((exp) => {
-                            const amountColor =
-                              exp.amount < 0
-                                ? "text-theme-success"
-                                : "text-theme-primary";
-                            return (
-                              <div
-                                key={exp.id}
-                                className="flex items-center justify-between py-2 px-3 row-hover"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium text-theme-text truncate">
-                                    {exp.description || "—"}
-                                  </p>
-                                </div>
-                                <span
-                                  className={cn(
-                                    "text-sm font-semibold tabular-nums",
-                                    amountColor,
-                                  )}
-                                >
-                                  {formatAmount(exp.amount)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    —
+                                  </td>
+                                  <td
+                                    className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
+                                    style={{
+                                      color: (() => {
+                                        const summary = monthSummaries[0];
+                                        const totalSavings =
+                                          summary.autoSavings +
+                                          summary.remaining;
+                                        const ratioPct =
+                                          summary.income > 0
+                                            ? (totalSavings / summary.income) *
+                                              100
+                                            : 0;
+                                        return getSavingsGradientColor(
+                                          ratioPct,
+                                          summary.savingsRate,
+                                        );
+                                      })(),
+                                    }}
+                                  >
+                                    {formatAmount(
+                                      monthSummaries[0].autoSavings +
+                                        monthSummaries[0].remaining,
+                                    )}
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div
-                className={cn(
-                  viewAnimation === "slide-left" && "view-slide-left",
-                  viewAnimation === "slide-right" && "view-slide-right",
-                )}
+
+                  {/* Drilldown */}
+                  {drilldownCategory && drilldownExpenses.length > 0 && (
+                    <div
+                      ref={drilldownRef}
+                      className="space-y-2 border-t border-theme-border pt-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-theme-text">
+                          {drilldownCategory} —{" "}
+                          {monthKeys[drilldownMonthIndex].name}{" "}
+                          {monthKeys[drilldownMonthIndex].year}
+                        </h3>
+                        <button
+                          onClick={() => setDrilldownCategory(null)}
+                          className="text-xs font-medium text-theme-muted hover:text-theme-text transition-colors"
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <div className="divide-y divide-theme-border">
+                        {groupedDrilldownExpenses.map(([date, items]) => (
+                          <div key={date}>
+                            <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background/50">
+                              {formatDate(date)}
+                            </div>
+                            {items.map((exp) => {
+                              const amountColor =
+                                exp.amount < 0
+                                  ? "text-theme-success"
+                                  : "text-theme-primary";
+                              return (
+                                <div
+                                  key={exp.id}
+                                  className="flex items-center justify-between py-2 px-3 row-hover"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-theme-text truncate">
+                                      {exp.description || "—"}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={cn(
+                                      "text-sm font-semibold tabular-nums",
+                                      amountColor,
+                                    )}
+                                  >
+                                    {formatAmount(exp.amount)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    viewAnimation === "slide-left" && "view-slide-left",
+                    viewAnimation === "slide-right" && "view-slide-right",
+                  )}
+                >
+                  <ExpenseTable
+                    expenses={filtered}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                    onBulkDelete={onBulkDelete}
+                    categories={categories}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onToggleSelectAll={toggleSelectAll}
+                    isMobile={isMobile}
+                    mobileEditTrigger={mobileEditTrigger}
+                  />
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+
+        {/* Mobile selection banner */}
+        {isMobile && selectedIds.size > 0 && (
+          <MobileSelectionBanner
+            count={selectedIds.size}
+            onEdit={() => {
+              const id = Array.from(selectedIds)[0];
+              if (id != null) {
+                setMobileEditTrigger(id);
+                requestAnimationFrame(() => setMobileEditTrigger(null));
+              }
+            }}
+            onDelete={handleBulkDeleteClick}
+            onDeselectAll={() => setSelectedIds(new Set())}
+          />
+        )}
+
+        {/* Income edit modal */}
+        <Modal
+          isOpen={showIncomeModal}
+          onClose={closeIncomeModal}
+          title={`Edit Income — ${monthKeys[editingMonthIndex]?.name ?? ""} ${monthKeys[editingMonthIndex]?.year ?? ""}`}
+          size="sm"
+        >
+          <form onSubmit={submitIncome} className="space-y-4">
+            {incomeError && (
+              <p className="text-theme-danger text-xs">{incomeError}</p>
+            )}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="number"
+                value={incomeDraft}
+                onChange={(e) => setIncomeDraft(e.target.value)}
+                placeholder="Amount"
+                min="0.01"
+                step="0.01"
+                autoFocus
+                className="input-theme px-3 py-2 text-sm w-full sm:flex-1 min-w-0"
+              />
+              <select
+                value={incomeFreqDraft}
+                onChange={(e) => setIncomeFreqDraft(e.target.value)}
+                className="input-theme px-3 py-2 text-sm w-full sm:w-auto min-w-0"
               >
-                <ExpenseTable
-                  expenses={filtered}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                  onBulkDelete={onBulkDelete}
-                  categories={categories}
-                  selectedIds={selectedIds}
-                  onToggleSelect={toggleSelect}
-                  onToggleSelectAll={toggleSelectAll}
-                  isMobile={isMobile}
-                  mobileEditTrigger={mobileEditTrigger}
+                {FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button type="submit" className="summary-save-btn">
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={closeIncomeModal}
+                className="summary-cancel-btn rounded-theme-small"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Savings rate edit modal */}
+        <Modal
+          isOpen={showSavingsModal}
+          onClose={closeSavingsModal}
+          title={`Edit Savings Rate — ${monthKeys[editingMonthIndex]?.name ?? ""} ${monthKeys[editingMonthIndex]?.year ?? ""}`}
+          size="sm"
+        >
+          <form onSubmit={submitSavings} className="space-y-4">
+            {savingsError && (
+              <p className="text-theme-danger text-xs">{savingsError}</p>
+            )}
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                value={savingsDraft}
+                onChange={(e) => setSavingsDraft(e.target.value)}
+                placeholder="e.g. 20"
+                min="0"
+                max="100"
+                step="0.1"
+                autoFocus
+                className="input-theme px-3 py-2 text-sm w-full sm:w-28 min-w-0"
+              />
+              <span className="text-sm text-theme-muted shrink-0">%</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button type="submit" className="summary-save-btn">
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={closeSavingsModal}
+                className="summary-cancel-btn rounded-theme-small"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Filter modal */}
+        <Modal
+          isOpen={showFilterModal}
+          onClose={() => setShowFilterModal(false)}
+          title="Filter Transactions"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-theme-muted mb-1">
+                Search
+              </label>
+              <input
+                type="text"
+                value={filterGlobal}
+                onChange={(e) => setFilterGlobal(e.target.value)}
+                placeholder="Description, category, or amount..."
+                className="input-theme w-full px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-theme-muted mb-1">
+                  Date from
+                </label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="input-theme w-full px-3 py-2 text-sm"
                 />
               </div>
-            )}
-          </section>
-        </div>
+              <div>
+                <label className="block text-xs font-medium text-theme-muted mb-1">
+                  Date to
+                </label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="input-theme w-full px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-theme-muted mb-1">
+                Category
+              </label>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="input-theme w-full px-3 py-2 text-sm"
+              >
+                <option value="">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-theme-muted mb-1">
+                Description
+              </label>
+              <input
+                type="text"
+                value={filterDescription}
+                onChange={(e) => setFilterDescription(e.target.value)}
+                placeholder="Contains..."
+                className="input-theme w-full px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-theme-muted mb-1">
+                Amount
+              </label>
+              <input
+                type="text"
+                value={filterAmount}
+                onChange={(e) => setFilterAmount(e.target.value)}
+                placeholder="e.g. 12.50"
+                className="input-theme w-full px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setFilterGlobal("");
+                  setFilterDateFrom("");
+                  setFilterDateTo("");
+                  setFilterCategory("");
+                  setFilterDescription("");
+                  setFilterAmount("");
+                }}
+                className="summary-cancel-btn rounded-theme-small"
+              >
+                Clear all
+              </button>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="summary-save-btn"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
-
-      {/* Mobile selection banner */}
-      {isMobile && selectedIds.size > 0 && (
-        <MobileSelectionBanner
-          count={selectedIds.size}
-          onEdit={() => {
-            const id = Array.from(selectedIds)[0];
-            if (id != null) {
-              setMobileEditTrigger(id);
-              requestAnimationFrame(() => setMobileEditTrigger(null));
-            }
-          }}
-          onDelete={handleBulkDeleteClick}
-          onDeselectAll={() => setSelectedIds(new Set())}
-        />
-      )}
-
-      {/* Income edit modal */}
-      <Modal
-        isOpen={showIncomeModal}
-        onClose={closeIncomeModal}
-        title={`Edit Income — ${monthKeys[editingMonthIndex]?.name ?? ""} ${monthKeys[editingMonthIndex]?.year ?? ""}`}
-        size="sm"
-      >
-        <form onSubmit={submitIncome} className="space-y-4">
-          {incomeError && (
-            <p className="text-theme-danger text-xs">{incomeError}</p>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="number"
-              value={incomeDraft}
-              onChange={(e) => setIncomeDraft(e.target.value)}
-              placeholder="Amount"
-              min="0.01"
-              step="0.01"
-              autoFocus
-              className="input-theme px-3 py-2 text-sm w-full sm:flex-1 min-w-0"
-            />
-            <select
-              value={incomeFreqDraft}
-              onChange={(e) => setIncomeFreqDraft(e.target.value)}
-              className="input-theme px-3 py-2 text-sm w-full sm:w-auto min-w-0"
-            >
-              {FREQUENCIES.map((f) => (
-                <option key={f} value={f}>
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button type="submit" className="summary-save-btn">
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={closeIncomeModal}
-              className="summary-cancel-btn rounded-theme-small"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Savings rate edit modal */}
-      <Modal
-        isOpen={showSavingsModal}
-        onClose={closeSavingsModal}
-        title={`Edit Savings Rate — ${monthKeys[editingMonthIndex]?.name ?? ""} ${monthKeys[editingMonthIndex]?.year ?? ""}`}
-        size="sm"
-      >
-        <form onSubmit={submitSavings} className="space-y-4">
-          {savingsError && (
-            <p className="text-theme-danger text-xs">{savingsError}</p>
-          )}
-          <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              value={savingsDraft}
-              onChange={(e) => setSavingsDraft(e.target.value)}
-              placeholder="e.g. 20"
-              min="0"
-              max="100"
-              step="0.1"
-              autoFocus
-              className="input-theme px-3 py-2 text-sm w-full sm:w-28 min-w-0"
-            />
-            <span className="text-sm text-theme-muted shrink-0">%</span>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button type="submit" className="summary-save-btn">
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={closeSavingsModal}
-              className="summary-cancel-btn rounded-theme-small"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Filter modal */}
-      <Modal
-        isOpen={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
-        title="Filter Transactions"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-theme-muted mb-1">
-              Search
-            </label>
-            <input
-              type="text"
-              value={filterGlobal}
-              onChange={(e) => setFilterGlobal(e.target.value)}
-              placeholder="Description, category, or amount..."
-              className="input-theme w-full px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Date from
-              </label>
-              <input
-                type="date"
-                value={filterDateFrom}
-                onChange={(e) => setFilterDateFrom(e.target.value)}
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Date to
-              </label>
-              <input
-                type="date"
-                value={filterDateTo}
-                onChange={(e) => setFilterDateTo(e.target.value)}
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-theme-muted mb-1">
-              Category
-            </label>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="input-theme w-full px-3 py-2 text-sm"
-            >
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-theme-muted mb-1">
-              Description
-            </label>
-            <input
-              type="text"
-              value={filterDescription}
-              onChange={(e) => setFilterDescription(e.target.value)}
-              placeholder="Contains..."
-              className="input-theme w-full px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-theme-muted mb-1">
-              Amount
-            </label>
-            <input
-              type="text"
-              value={filterAmount}
-              onChange={(e) => setFilterAmount(e.target.value)}
-              placeholder="e.g. 12.50"
-              className="input-theme w-full px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2 pt-2">
-            <button
-              onClick={() => {
-                setFilterGlobal("");
-                setFilterDateFrom("");
-                setFilterDateTo("");
-                setFilterCategory("");
-                setFilterDescription("");
-                setFilterAmount("");
-              }}
-              className="summary-cancel-btn rounded-theme-small"
-            >
-              Clear all
-            </button>
-            <button
-              onClick={() => setShowFilterModal(false)}
-              className="summary-save-btn"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

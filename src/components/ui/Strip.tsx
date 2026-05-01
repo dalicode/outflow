@@ -4,6 +4,7 @@ interface StripProps {
   maxVisible: number;
   scrollClass: string;
   scrollSelector: string;
+  selectedKey?: string | number;
   align?: "center" | "end";
   navLeft?: ReactNode;
   navRight?: ReactNode;
@@ -16,6 +17,7 @@ export default function Strip({
   maxVisible,
   scrollClass,
   scrollSelector,
+  selectedKey,
   align = "center",
   navLeft,
   navRight,
@@ -36,7 +38,7 @@ export default function Strip({
         behavior: "auto",
       });
     }
-  }, [scrollSelector]);
+  }, [scrollSelector, selectedKey]);
 
   return (
     <div

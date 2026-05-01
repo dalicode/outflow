@@ -5,11 +5,6 @@ import { cn } from "../../utils/cn";
 import { toISODate, parseISODate } from "../../utils/historicalDataHelpers";
 import type { Schedule, FixedExpense, Category } from "../../types";
 
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
 const SCHEDULE_TYPES = [
   { value: "income", label: "Monthly Income" },
   { value: "savingsRate", label: "Auto Savings %" },
@@ -32,9 +27,6 @@ export default function ScheduleModal({
 }: ScheduleModalProps) {
   const [type, setType] = useState<Schedule["type"]>("income");
   const [targetId, setTargetId] = useState("");
-  const [effectiveYear, setEffectiveYear] = useState(new Date().getFullYear());
-  const [effectiveMonth, setEffectiveMonth] = useState(new Date().getMonth() + 1);
-  const [effectiveDay, setEffectiveDay] = useState(1);
   const [effectiveDate, setEffectiveDate] = useState("");
   const [newValue, setNewValue] = useState("");
   const [note, setNote] = useState("");
@@ -48,6 +40,7 @@ export default function ScheduleModal({
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
   const todayStr = toISODate(currentYear, currentMonth, now.getDate());
+  const currentMonthStr = toISODate(currentYear, currentMonth, 1);
 
   const isReadOnly = editSchedule
     ? editSchedule.effectiveYear < currentYear ||
@@ -69,10 +62,13 @@ export default function ScheduleModal({
     if (editSchedule) {
       setType(editSchedule.type);
       setTargetId(editSchedule.targetId ? String(editSchedule.targetId) : "");
-      setEffectiveYear(editSchedule.effectiveYear);
-      setEffectiveMonth(editSchedule.effectiveMonth);
-      setEffectiveDay(editSchedule.day ?? 1);
-      setEffectiveDate(toISODate(editSchedule.effectiveYear, editSchedule.effectiveMonth, editSchedule.day ?? 1));
+      setEffectiveDate(
+        toISODate(
+          editSchedule.effectiveYear,
+          editSchedule.effectiveMonth,
+          editSchedule.day ?? 1,
+        ),
+      );
       setNewValue(String(editSchedule.newValue));
       setNote(editSchedule.note || "");
       setCategory(editSchedule.category || "");
@@ -84,10 +80,7 @@ export default function ScheduleModal({
   const reset = () => {
     setType("income");
     setTargetId("");
-    setEffectiveYear(currentYear);
-    setEffectiveMonth(currentMonth);
-    setEffectiveDay(1);
-    setEffectiveDate(todayStr);
+    setEffectiveDate(currentMonthStr);
     setNewValue("");
     setNote("");
     setCategory("");
@@ -114,30 +107,31 @@ export default function ScheduleModal({
     if (type === "fixedExpense" && !targetId)
       errs.push("Please select a fixed expense.");
 
-    if (type === "expense") {
-      if (!category) errs.push("Please select a category.");
-      if (!effectiveDate) errs.push("Please select a date.");
-      else {
-        const parsed = parseISODate(effectiveDate);
-        if (!parsed) {
-          errs.push("Invalid date format.");
-        } else if (
+    if (type === "expense" && !category)
+      errs.push("Please select a category.");
+
+    // Date validation for all types
+    if (!effectiveDate) {
+      errs.push("Please select a date.");
+    } else {
+      const parsed = parseISODate(effectiveDate);
+      if (!parsed) {
+        errs.push("Invalid date format.");
+      } else if (type === "expense") {
+        if (
           parsed.year < currentYear ||
           (parsed.year === currentYear && parsed.month < currentMonth) ||
           (parsed.year === currentYear && parsed.month === currentMonth && parsed.day < now.getDate())
         ) {
           errs.push("Date must be today or in the future.");
         }
-      }
-    }
-
-    // Effective date must be in the future (for new schedules of non-expense types)
-    if (!editSchedule && type !== "expense") {
-      if (
-        effectiveYear < currentYear ||
-        (effectiveYear === currentYear && effectiveMonth < currentMonth)
-      ) {
-        errs.push("Effective date must be in the current or a future month.");
+      } else {
+        if (
+          parsed.year < currentYear ||
+          (parsed.year === currentYear && parsed.month < currentMonth)
+        ) {
+          errs.push("Effective date must be in the current or a future month.");
+        }
       }
     }
 
@@ -149,30 +143,27 @@ export default function ScheduleModal({
     if (!validate()) return;
     setSaving(true);
     try {
-      let payload: Omit<Schedule, "id" | "isActive" | "createdAt">;
-
-      if (type === "expense") {
-        const parsed = parseISODate(effectiveDate)!;
-        payload = {
-          type,
-          targetId: null,
-          effectiveYear: parsed.year,
-          effectiveMonth: parsed.month,
-          day: parsed.day,
-          newValue: parseFloat(newValue),
-          note: note.trim(),
-          category,
-        };
-      } else {
-        payload = {
-          type,
-          targetId: type === "fixedExpense" ? parseInt(targetId, 10) : null,
-          effectiveYear,
-          effectiveMonth,
-          newValue: parseFloat(newValue),
-          note: note.trim(),
-        };
-      }
+      const parsed = parseISODate(effectiveDate)!;
+      const payload: Omit<Schedule, "id" | "isActive" | "createdAt"> =
+        type === "expense"
+          ? {
+              type,
+              targetId: null,
+              effectiveYear: parsed.year,
+              effectiveMonth: parsed.month,
+              day: parsed.day,
+              newValue: parseFloat(newValue),
+              note: note.trim(),
+              category,
+            }
+          : {
+              type,
+              targetId: type === "fixedExpense" ? parseInt(targetId, 10) : null,
+              effectiveYear: parsed.year,
+              effectiveMonth: parsed.month,
+              newValue: parseFloat(newValue),
+              note: note.trim(),
+            };
 
       if (editSchedule && editSchedule.id != null) {
         await StorageService.updateSchedule(editSchedule.id, payload);
@@ -198,11 +189,6 @@ export default function ScheduleModal({
   const inputCls = "input-theme px-3 py-2 text-sm w-full";
   const selectCls = "input-theme px-3 py-2 text-sm w-full cursor-pointer";
   const disabledCls = " opacity-60 cursor-not-allowed";
-
-  const yearOptions = Array.from({ length: 10 }, (_, i) => currentYear + i);
-
-  // Month filtering: for current year only show current month onwards
-  const minMonth = effectiveYear === currentYear ? currentMonth : 1;
 
   return (
     <Modal
@@ -284,53 +270,19 @@ export default function ScheduleModal({
           <label className="text-sm font-semibold text-theme-text">
             {type === "expense" ? "Date" : "Effective Date"}
           </label>
-          {type === "expense" ? (
-            <input
-              type="date"
-              value={effectiveDate}
-              min={todayStr}
-              onChange={(e) => setEffectiveDate(e.target.value)}
-              className={cn(inputCls, "w-full", "date-input-theme", isReadOnly && disabledCls)}
-              disabled={isReadOnly}
-            />
-          ) : (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <select
-                value={effectiveYear}
-                onChange={(e) => {
-                  const newYear = parseInt(e.target.value, 10);
-                  setEffectiveYear(newYear);
-                  if (newYear === currentYear && effectiveMonth < currentMonth) {
-                    setEffectiveMonth(currentMonth);
-                  }
-                }}
-                className={cn(selectCls, "w-full sm:w-28 min-w-0", isReadOnly && disabledCls)}
-                disabled={isReadOnly}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={Math.max(effectiveMonth, minMonth)}
-                onChange={(e) => setEffectiveMonth(parseInt(e.target.value, 10))}
-                className={cn(selectCls, "w-full sm:w-28 min-w-0", isReadOnly && disabledCls)}
-                disabled={isReadOnly}
-              >
-                {MONTHS.map((m, i) => {
-                  const monthNum = i + 1;
-                  if (monthNum < minMonth) return null;
-                  return (
-                    <option key={m} value={monthNum}>
-                      {m}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-          )}
+          <input
+            type="date"
+            value={effectiveDate}
+            min={type === "expense" ? todayStr : currentMonthStr}
+            onChange={(e) => setEffectiveDate(e.target.value)}
+            className={cn(
+              inputCls,
+              "w-full",
+              "date-input-theme",
+              isReadOnly && disabledCls,
+            )}
+            disabled={isReadOnly}
+          />
         </div>
 
         {/* Value */}

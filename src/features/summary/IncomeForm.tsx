@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
 import Modal from "../../components/ui/Modal";
 
@@ -43,18 +43,27 @@ export default function IncomeForm({
 }: IncomeFormProps) {
   const { formatAmount } = useSettings();
   const [showModal, setShowModal] = useState(false);
-  const [amt, setAmt] = useState<string>(income ? String(income) : "");
-  const [freq, setFreq] = useState(frequency || "monthly");
+  const [amt, setAmt] = useState<string>("");
+  const [freq, setFreq] = useState("monthly");
+  const [monthlyBase, setMonthlyBase] = useState<number>(0);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setAmt(income ? String(income) : "");
-    setFreq(frequency || "monthly");
-  }, [income, frequency]);
+  // Derive monthly base from current income + frequency
+  const getMonthlyBase = useCallback(
+    (val: number | string | null | undefined, f: string | null | undefined) => {
+      const parsed = parseFloat(String(val || 0));
+      const mult = MULTIPLIERS[f || "monthly"] || 1;
+      return parsed * mult;
+    },
+    [],
+  );
 
   const openModal = () => {
+    const currentFreq = frequency || "monthly";
+    const base = getMonthlyBase(income, currentFreq);
+    setMonthlyBase(base);
     setAmt(income ? String(income) : "");
-    setFreq(frequency || "monthly");
+    setFreq(currentFreq);
     setError("");
     setShowModal(true);
   };
@@ -62,6 +71,22 @@ export default function IncomeForm({
   const closeModal = () => {
     setShowModal(false);
     setError("");
+  };
+
+  const handleFreqChange = (newFreq: string) => {
+    setFreq(newFreq);
+    if (monthlyBase > 0) {
+      const newAmt = monthlyBase / MULTIPLIERS[newFreq];
+      setAmt(newAmt.toFixed(2));
+    }
+  };
+
+  const handleAmtChange = (value: string) => {
+    setAmt(value);
+    const parsed = parseFloat(value || "0");
+    if (!isNaN(parsed)) {
+      setMonthlyBase(parsed * MULTIPLIERS[freq]);
+    }
   };
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -82,10 +107,16 @@ export default function IncomeForm({
 
   const inputCls = "input-theme px-3 py-2 text-sm";
 
+  // Card always reflects the actual global values
+  const cardIncome = parseFloat(String(income || 0));
+  const cardFreq = frequency || "monthly";
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-theme-text tracking-tight">Income</span>
+        <span className="text-sm font-semibold text-theme-text tracking-tight">
+          Income
+        </span>
         <button
           onClick={openModal}
           aria-label="Edit income"
@@ -95,25 +126,20 @@ export default function IncomeForm({
         </button>
       </div>
       <p className="text-xl font-semibold text-theme-primary">
-        {formatAmount(parseFloat(amt) || 0)}
+        {formatAmount(cardIncome)}
       </p>
       <p className="text-sm text-theme-muted capitalize">
-        {freq} · {formatAmount((parseFloat(amt) || 0) * MULTIPLIERS[freq])}/mo
+        {cardFreq} · {formatAmount(cardIncome * MULTIPLIERS[cardFreq])}/mo
       </p>
 
-      <Modal
-        isOpen={showModal}
-        onClose={closeModal}
-        title="Edit Income"
-        size="md"
-      >
+      <Modal isOpen={showModal} onClose={closeModal} title="Edit Income" size="md">
         <form onSubmit={submit} className="space-y-4">
           {error && <p className="text-theme-danger text-xs">{error}</p>}
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="number"
               value={amt}
-              onChange={(e) => setAmt(e.target.value)}
+              onChange={(e) => handleAmtChange(e.target.value)}
               placeholder="Amount"
               min="0.01"
               step="0.01"
@@ -122,7 +148,7 @@ export default function IncomeForm({
             />
             <select
               value={freq}
-              onChange={(e) => setFreq(e.target.value)}
+              onChange={(e) => handleFreqChange(e.target.value)}
               className={`${inputCls} w-full sm:w-auto min-w-0`}
             >
               {FREQUENCIES.map((f) => (
@@ -133,10 +159,7 @@ export default function IncomeForm({
             </select>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              type="submit"
-              className="summary-save-btn"
-            >
+            <button type="submit" className="summary-save-btn">
               Save
             </button>
             <button

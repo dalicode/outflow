@@ -105,10 +105,6 @@ function BreakdownPie({ type, financialSummary, variableBreakdown }) {
             cx="50%"
             cy="50%"
             outerRadius={80}
-            label={({ name, percent }) =>
-              `${name} ${(percent * 100).toFixed(0)}%`
-            }
-            labelLine={false}
           >
             {positiveData.map((_, i) => (
               <Cell key={i} fill={baseColors[i % baseColors.length]} />
@@ -125,6 +121,7 @@ function BreakdownPie({ type, financialSummary, variableBreakdown }) {
 export default function SummaryPage({ expenses }) {
   const [incomeRaw, setIncomeRaw] = useState("");
   const [incomeFreq, setIncomeFreq] = useState("monthly");
+  const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [savingsRate, setSavingsRate] = useState(0);
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [financialSummary, setFinancialSummary] = useState(null);
@@ -164,6 +161,7 @@ export default function SummaryPage({ expenses }) {
 
       setIncomeRaw(amt);
       setIncomeFreq(freq);
+      setMonthlyIncome(monthly);
       setSavingsRate(rate);
       setFixedExpenses(activeFixed);
 
@@ -224,6 +222,7 @@ export default function SummaryPage({ expenses }) {
     ].filter(Boolean));
     setIncomeRaw(income);
     setIncomeFreq(frequency);
+    setMonthlyIncome(monthly);
     await StorageService.setIncomeSnapshot(now.getFullYear(), now.getMonth() + 1, monthly);
     const activeFixed = await StorageService.getActiveFixedExpenses();
     setFixedExpenses(activeFixed);
@@ -270,7 +269,7 @@ export default function SummaryPage({ expenses }) {
           <IncomeForm income={incomeRaw} frequency={incomeFreq} onSave={handleIncomeSave} />
         </Card>
         <Card>
-          <SavingsForm savingsRate={savingsRate} onSave={handleSavingsRateSave} />
+          <SavingsForm savingsRate={savingsRate} monthlyIncome={monthlyIncome} onSave={handleSavingsRateSave} />
         </Card>
       </div>
 

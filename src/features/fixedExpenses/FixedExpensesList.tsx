@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { cn } from "../../utils/cn";
 import { useSettings } from "../../context/settingsContext";
 import Modal from "../../components/ui/Modal";
@@ -55,6 +55,7 @@ export default function FixedExpensesList({
   onDelete,
 }: FixedExpensesListProps) {
   const { formatAmount } = useSettings();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [manageMode, setManageMode] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
@@ -120,10 +121,28 @@ export default function FixedExpensesList({
     closeModal();
   };
 
+  useEffect(() => {
+    if (!manageMode) return;
+    function handleDocDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target)
+      ) {
+        // Don't exit manage mode if clicking inside a modal (portal-rendered)
+        const el = e.target as HTMLElement | null;
+        if (el?.closest('[role="dialog"]')) return;
+        setManageMode(false);
+      }
+    }
+    document.addEventListener("mousedown", handleDocDown);
+    return () => document.removeEventListener("mousedown", handleDocDown);
+  }, [manageMode]);
+
   const inputCls = "input-theme px-3 py-2";
 
   return (
-    <div className="space-y-3">
+    <div ref={containerRef} className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-theme-text tracking-tight">
           Fixed Expenses

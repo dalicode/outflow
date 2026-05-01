@@ -168,7 +168,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 0.25rem 0.375rem;
+  padding: 0.2rem 0rem;
   border-radius: var(--radius-small);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -195,7 +195,7 @@
 
 /* Dashboard view toggle tabs */
 .dashboard-tab {
-  padding: 0.25rem 0.1rem;
+  padding: 0.1rem 0.375rem;
   border-radius: var(--radius-small);
   font-size: 0.875rem;
   font-weight: 500;

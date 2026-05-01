@@ -203,55 +203,51 @@ const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
   if (!hasData) return <EmptyState label="No spending data" />;
 
   return (
-    <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <div className="min-w-[600px] md:min-w-0">
-        <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={colors.primary} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-            <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
-            <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
-            <Tooltip
-              content={
-                <CustomTooltip
-                  colors={colors}
-                  formatter={(v: number, name: string) => [
-                    fmtCompact(v),
-                    name === "total" ? "Total Expenses" : "Total Savings",
-                  ]}
-                />
-              }
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={colors.primary} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
+        <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
+        <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
+        <Tooltip
+          content={
+            <CustomTooltip
+              colors={colors}
+              formatter={(v: number, name: string) => [
+                fmtCompact(v),
+                name === "total" ? "Total Expenses" : "Total Savings",
+              ]}
             />
-            <Legend
-              wrapperStyle={{ fontSize: "12px", color: colors.text }}
-              formatter={(v: string) => (v === "total" ? "Total Expenses" : "Total Savings")}
-            />
-            <Area
-              type="monotone"
-              dataKey="total"
-              stroke={colors.primary}
-              strokeWidth={2}
-              fill="url(#trendGrad)"
-              dot={{ r: 3, fill: colors.primary }}
-              activeDot={{ r: 5 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="savings"
-              stroke={colors.success}
-              strokeWidth={2}
-              dot={{ r: 3, fill: colors.success }}
-              activeDot={{ r: 5 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+          }
+        />
+        <Legend
+          wrapperStyle={{ fontSize: "12px", color: colors.text }}
+          formatter={(v: string) => (v === "total" ? "Total Expenses" : "Total Savings")}
+        />
+        <Area
+          type="monotone"
+          dataKey="total"
+          stroke={colors.primary}
+          strokeWidth={2}
+          fill="url(#trendGrad)"
+          dot={{ r: 3, fill: colors.primary }}
+          activeDot={{ r: 5 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="savings"
+          stroke={colors.success}
+          strokeWidth={2}
+          dot={{ r: 3, fill: colors.success }}
+          activeDot={{ r: 5 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -310,10 +306,6 @@ const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: Cat
           innerRadius={60}
           outerRadius={90}
           paddingAngle={2}
-          label={({ name, percent }: { name: string; percent: number }) =>
-            percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
-          }
-          labelLine={false}
         >
           {pieData.map((_, i) => (
             <Cell key={i} fill={colors.chartPalette[i % colors.chartPalette.length]} />
@@ -327,6 +319,7 @@ const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: Cat
             />
           }
         />
+        <Legend />
       </PieChart>
     </ResponsiveContainer>
   );
@@ -386,30 +379,26 @@ const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProps) => {
   if (!hasData) return <EmptyState label="No savings data" />;
 
   return (
-    <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <div className="min-w-[600px] md:min-w-0">
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-            <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
-            <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
-            <Tooltip
-              content={
-                <CustomTooltip
-                  colors={colors}
-                  formatter={(v: number) => [fmtCompact(v), "Total Savings"]}
-                />
-              }
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barGap={2}>
+        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
+        <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
+        <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
+        <Tooltip
+          content={
+            <CustomTooltip
+              colors={colors}
+              formatter={(v: number) => [fmtCompact(v), "Total Savings"]}
             />
-            <Bar dataKey="savings" radius={[3, 3, 0, 0]} maxBarSize={32}>
-              {chartData.map((entry, i) => (
-                <Cell key={i} fill={entry.savings >= 0 ? colors.success : colors.danger} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+          }
+        />
+        <Bar dataKey="savings" radius={[3, 3, 0, 0]} maxBarSize={32}>
+          {chartData.map((entry, i) => (
+            <Cell key={i} fill={entry.savings >= 0 ? colors.success : colors.danger} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -436,34 +425,30 @@ const IncomeVsExpensesChart = ({ data, colors, monthCount, selectedMonth }: Cate
   if (!hasData) return <EmptyState label="No income/expense data" />;
 
   return (
-    <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <div className="min-w-[600px] md:min-w-0">
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-            <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
-            <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
-            <Tooltip
-              content={
-                <CustomTooltip
-                  colors={colors}
-                  formatter={(v: number, name: string) => [
-                    fmtCompact(v),
-                    name === "income" ? "Income" : "Expenses",
-                  ]}
-                />
-              }
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barGap={2}>
+        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
+        <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
+        <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
+        <Tooltip
+          content={
+            <CustomTooltip
+              colors={colors}
+              formatter={(v: number, name: string) => [
+                fmtCompact(v),
+                name === "income" ? "Income" : "Expenses",
+              ]}
             />
-            <Legend
-              wrapperStyle={{ fontSize: "12px", color: colors.text }}
-              formatter={(v: string) => (v === "income" ? "Income" : "Expenses")}
-            />
-            <Bar dataKey="income" fill={colors.success} radius={[3, 3, 0, 0]} maxBarSize={24} />
-            <Bar dataKey="expenses" fill={colors.danger} radius={[3, 3, 0, 0]} maxBarSize={24} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+          }
+        />
+        <Legend
+          wrapperStyle={{ fontSize: "12px", color: colors.text }}
+          formatter={(v: string) => (v === "income" ? "Income" : "Expenses")}
+        />
+        <Bar dataKey="income" fill={colors.success} radius={[3, 3, 0, 0]} maxBarSize={24} />
+        <Bar dataKey="expenses" fill={colors.danger} radius={[3, 3, 0, 0]} maxBarSize={24} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
