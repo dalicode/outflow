@@ -35,8 +35,10 @@ function useScrollVisibility() {
 
 function useScrollDirection(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [direction, setDirection] = useState<"up" | "down" | null>(null);
+  const [settledDirection, setSettledDirection] = useState<"up" | "down" | null>(null);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onScroll = useCallback(() => {
     const el = containerRef.current;
@@ -45,16 +47,17 @@ function useScrollDirection(containerRef: React.RefObject<HTMLDivElement | null>
 
     requestAnimationFrame(() => {
       const currentY = el.scrollTop;
-      const scrollHeight = el.scrollHeight;
-      const clientHeight = el.clientHeight;
-      const atBottom = currentY + clientHeight >= scrollHeight - 10;
 
-      if (atBottom) {
-        setDirection("up");
-      } else if (currentY > lastScrollY.current && currentY > 10) {
+      if (currentY > lastScrollY.current && currentY > 10) {
         setDirection("down");
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+          setSettledDirection("down");
+        }, 150);
       } else if (currentY < lastScrollY.current) {
         setDirection("up");
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        setSettledDirection("up");
       }
 
       lastScrollY.current = currentY;
@@ -62,7 +65,7 @@ function useScrollDirection(containerRef: React.RefObject<HTMLDivElement | null>
     });
   }, [containerRef]);
 
-  return { direction, onScroll };
+  return { direction: settledDirection, onScroll };
 }
 
 function ScrollToTop({ containerRef }: { containerRef: React.RefObject<HTMLDivElement> }) {
@@ -205,7 +208,7 @@ export default function App() {
             <main
               ref={mainRef}
               className={cn(
-                "flex-1 min-w-0 pb-24 sm:pb-0 overflow-y-auto scrollbar-auto-hide",
+                "flex-1 min-w-0 pb-28 sm:pb-0 overflow-y-auto scrollbar-auto-hide",
                 isScrolling && "is-scrolling"
               )}
               onScroll={() => {

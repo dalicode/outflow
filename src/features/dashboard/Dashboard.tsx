@@ -166,6 +166,13 @@ export default function Dashboard({
     null,
   );
   const [drilldownMonthIndex, setDrilldownMonthIndex] = useState<number>(0);
+  const drilldownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (drilldownCategory && drilldownRef.current) {
+      drilldownRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [drilldownCategory, drilldownMonthIndex]);
 
   const FREQUENCIES = ["monthly", "biweekly", "weekly"] as const;
   const MULTIPLIERS: Record<string, number> = {
@@ -1425,7 +1432,7 @@ export default function Dashboard({
 
               {/* Drilldown */}
               {drilldownCategory && drilldownExpenses.length > 0 && (
-                <div className="space-y-2 border-t border-theme-border pt-4">
+                <div ref={drilldownRef} className="space-y-2 border-t border-theme-border pt-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-theme-text">
                       {drilldownCategory} —{" "}

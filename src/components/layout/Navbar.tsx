@@ -407,74 +407,80 @@ export default function Navbar({
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav
-        className={cn(
-          "sm:hidden fixed bottom-0 left-0 right-0 z-30",
-          "transition-transform duration-150 ease-out",
-          !peekExpanded && (scrollDirection === "down" || hidden) && "translate-y-[calc(100%-12px)] overflow-hidden",
-        )}
-      >
-        <div className="mobile-nav-container">
-          {links.slice(0, 2).map(({ to, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center justify-center w-14 h-16 nav-item-hover",
-                  isActive ? "text-theme-primary" : "text-theme-muted",
-                  !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
-                )
-              }
+      <div className="fixed inset-x-0 bottom-0 z-30 h-28 pointer-events-none sm:hidden">
+        {/* Static background coverage layer — never animates */}
+        <div className="absolute inset-x-0 bottom-0 h-full bg-theme-background" />
+
+        {/* Animated navbar UI */}
+        <nav
+          className={cn(
+            "pointer-events-auto absolute inset-x-0 bottom-0",
+            "mobile-nav-bounce",
+            !peekExpanded && (scrollDirection === "down" || hidden) && "translate-y-[calc(100%-12px)] overflow-hidden",
+          )}
+        >
+          <div className="mobile-nav-container">
+            {links.slice(0, 2).map(({ to, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center justify-center w-14 h-16 nav-item-hover",
+                    isActive ? "text-theme-primary" : "text-theme-muted",
+                    !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
+                  )
+                }
+              >
+                <Icon active={location.pathname === to} />
+              </NavLink>
+            ))}
+
+            <button
+              onClick={onAddExpense}
+              className={cn(
+                "mobile-add-btn",
+                !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
+              )}
+              aria-label="Add expense"
             >
-              <Icon active={location.pathname === to} />
-            </NavLink>
-          ))}
+              <PlusIcon />
+            </button>
 
-          <button
-            onClick={onAddExpense}
-            className={cn(
-              "mobile-add-btn",
-              !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
-            )}
-            aria-label="Add expense"
-          >
-            <PlusIcon />
-          </button>
+            {links.slice(2).map(({ to, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center justify-center w-14 h-16 nav-item-hover",
+                    isActive ? "text-theme-primary" : "text-theme-muted",
+                    !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
+                  )
+                }
+              >
+                <Icon active={location.pathname === to} />
+              </NavLink>
+            ))}
+          </div>
 
-          {links.slice(2).map(({ to, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center justify-center w-14 h-16 nav-item-hover",
-                  isActive ? "text-theme-primary" : "text-theme-muted",
-                  !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
-                )
-              }
+          {/* Peek handle — visible when nav is partially hidden */}
+          {!peekExpanded && (scrollDirection === "down" || hidden) && (
+            <button
+              onClick={() => setPeekExpanded(true)}
+              className="absolute top-0 left-0 right-0 h-3 flex items-center justify-center z-10"
+              aria-label="Show navigation"
             >
-              <Icon active={location.pathname === to} />
-            </NavLink>
-          ))}
-        </div>
-
-        {/* Peek handle — visible when nav is partially hidden */}
-        {!peekExpanded && (scrollDirection === "down" || hidden) && (
-          <button
-            onClick={() => setPeekExpanded(true)}
-            className="absolute top-0 left-0 right-0 h-3 flex items-center justify-center z-10"
-            aria-label="Show navigation"
-          >
-            <span
-              className="w-8 h-1 rounded-full"
-              style={{ backgroundColor: "var(--theme-muted)", opacity: 0.6 }}
-            />
-          </button>
-        )}
-      </nav>
+              <span
+                className="w-8 h-1 rounded-full"
+                style={{ backgroundColor: "var(--theme-muted)", opacity: 0.6 }}
+              />
+            </button>
+          )}
+        </nav>
+      </div>
     </>
   );
 }
