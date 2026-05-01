@@ -2,11 +2,11 @@ import { useState, useMemo, type FormEvent } from 'react'
 import { cn } from '../../utils/cn'
 import { useSettings } from '../../context/settingsContext'
 import Modal from '../../components/ui/Modal'
+import { getLocalToday } from '../../utils/historicalDataHelpers'
 import './expenses.css'
 import type { Expense, Category } from '../../types'
 
-const today = () => new Date().toISOString().slice(0, 10)
-const EMPTY_FORM = { date: today(), categoryId: '', description: '', amount: '' }
+const EMPTY_FORM = { date: getLocalToday(), categoryId: '', description: '', amount: '' }
 
 interface CategoryModalProps {
   categories: Category[];
@@ -116,7 +116,7 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
       <Modal isOpen={true} onClose={onClose} title="Add Expense" size="md">
         <form onSubmit={submit} className="space-y-4">
           {error && <p className="text-theme-danger text-sm">{error}</p>}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm text-theme-muted">
               Date
               <input type="date" value={form.date} onChange={set('date')} required className={inputCls} />

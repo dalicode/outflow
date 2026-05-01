@@ -977,6 +977,9 @@ export default function EditHistoricalDataModal({
       onClose={handleClose}
       title="Edit Historical Data"
       size="full"
+      mobileActionLabel="Save"
+      onMobileAction={handleConfirm}
+      mobileActionDisabled={saving || Object.keys(errors).length > 0}
     >
       {loading ? (
         <div className="py-8 text-center text-sm text-theme-muted">
@@ -995,8 +998,7 @@ export default function EditHistoricalDataModal({
           )}
 
           {/* Content */}
-          <div className="overflow-x-auto">
-            <div className="space-y-5">
+          <div className="space-y-5">
               {activeYear && (
                 <>
                   {/* Income ranges */}
@@ -1115,10 +1117,9 @@ export default function EditHistoricalDataModal({
                 </p>
               )}
             </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-4">
+          {/* Actions — desktop only */}
+          <div className="hidden sm:flex items-center justify-end gap-2 pt-4">
             <button
               onClick={handleClose}
               className="btn-modal-cancel"

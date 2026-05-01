@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
 import { useContextMenu } from "../../hooks/useContextMenu";
@@ -17,6 +17,7 @@ interface ExpenseTableProps {
   onToggleSelect: (id: number) => void;
   onToggleSelectAll: () => void;
   isMobile?: boolean;
+  mobileEditTrigger?: number | null;
 }
 
 function formatAmountPlain(n: number) {
@@ -33,6 +34,7 @@ export default function ExpenseTable({
   onToggleSelect,
   onToggleSelectAll,
   isMobile = false,
+  mobileEditTrigger,
 }: ExpenseTableProps) {
   const { formatAmount, formatDate, getNumberColorClass } = useSettings();
   const { menu, open: openContextMenu, close: closeContextMenu, menuRef } = useContextMenu();
@@ -57,6 +59,16 @@ export default function ExpenseTable({
     () => categories.filter((c) => !c.isDeleted),
     [categories],
   );
+
+  useEffect(() => {
+    if (mobileEditTrigger == null) return;
+    const expense = expenses.find((e) => e.id === mobileEditTrigger);
+    if (expense) {
+      setMobileEditExpense(expense);
+      setDraft({ ...expense });
+      setShowMobileEditModal(true);
+    }
+  }, [mobileEditTrigger, expenses]);
 
   const resolveName = useCallback(
     (exp: Expense) => {
@@ -533,7 +545,7 @@ export default function ExpenseTable({
           <strong className="text-theme-text">{deleteTargetIds.length}</strong>{" "}
           expense{deleteTargetIds.length !== 1 ? "s" : ""}?
         </p>
-        <div className="flex gap-3 mt-4">
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
           <button onClick={confirmDelete} className="confirm-delete-btn">
             Delete
           </button>

@@ -13,6 +13,7 @@ import {
 } from "../../services/syncService";
 import { APP_VERSION } from "../../utils/appVersion";
 import { cn } from "../../utils/cn";
+import { getLocalToday } from "../../utils/historicalDataHelpers";
 import type { User } from "@supabase/supabase-js";
 
 interface BackupSectionProps {
@@ -73,7 +74,7 @@ export default function BackupSection({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `outflow-backup-${new Date().toISOString().slice(0, 10)}.ofb`;
+      a.download = `outflow-backup-${getLocalToday()}.ofb`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -349,11 +350,11 @@ export default function BackupSection({
           {passwordError && (
             <p className="text-xs text-theme-danger">{passwordError}</p>
           )}
-          <div className="flex gap-2">
-          <button
-            onClick={handlePasswordSubmit}
-            className="btn-primary-sm w-full py-2.5"
-          >
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={handlePasswordSubmit}
+              className="btn-primary-sm w-full py-2.5"
+            >
               {passwordModalMode === "export"
                 ? "Encrypt & Export"
                 : "Decrypt & Import"}
@@ -364,7 +365,7 @@ export default function BackupSection({
                 setPasswordError("");
                 setPendingFile(null);
               }}
-              className="btn-cancel-sm py-2.5"
+              className="btn-cancel-sm w-full py-2.5"
             >
               Cancel
             </button>
@@ -418,7 +419,7 @@ export default function BackupSection({
               )}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={async () => {
                 if (!pendingImportPayload) return;

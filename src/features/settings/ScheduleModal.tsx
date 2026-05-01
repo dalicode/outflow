@@ -294,7 +294,7 @@ export default function ScheduleModal({
               disabled={isReadOnly}
             />
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <select
                 value={effectiveYear}
                 onChange={(e) => {
@@ -304,7 +304,7 @@ export default function ScheduleModal({
                     setEffectiveMonth(currentMonth);
                   }
                 }}
-                className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
+                className={cn(selectCls, "w-full sm:w-28 min-w-0", isReadOnly && disabledCls)}
                 disabled={isReadOnly}
               >
                 {yearOptions.map((y) => (
@@ -316,7 +316,7 @@ export default function ScheduleModal({
               <select
                 value={Math.max(effectiveMonth, minMonth)}
                 onChange={(e) => setEffectiveMonth(parseInt(e.target.value, 10))}
-                className={cn(selectCls, "w-28", isReadOnly && disabledCls)}
+                className={cn(selectCls, "w-full sm:w-28 min-w-0", isReadOnly && disabledCls)}
                 disabled={isReadOnly}
               >
                 {MONTHS.map((m, i) => {
@@ -383,7 +383,7 @@ export default function ScheduleModal({
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
           <button
             onClick={handleClose}
             className="btn-modal-cancel"

@@ -63,12 +63,12 @@ describe('Modal', () => {
   })
 
   it('applies size classes', () => {
-    const { container } = render(
+    render(
       <Modal isOpen={true} onClose={vi.fn()} title="Test" size="lg">
         Content
       </Modal>,
     )
-    expect(container.querySelector('.sm\\:max-w-lg')).toBeInTheDocument()
+    expect(document.body.querySelector('.sm\\:max-w-lg')).toBeInTheDocument()
   })
 
   it('calls onClose when pressing Escape', () => {
@@ -99,8 +99,8 @@ describe('Modal', () => {
         Content
       </Modal>,
     )
-    expect(screen.getByText('Back')).toBeInTheDocument()
-    expect(screen.getByText('Cancel')).toBeInTheDocument()
+    // Two Cancel buttons (left and right) when no action is provided
+    expect(screen.getAllByText('Cancel').length).toBe(2)
   })
 
   it('does not render mobile header for md size', () => {
@@ -109,40 +109,51 @@ describe('Modal', () => {
         Content
       </Modal>,
     )
-    expect(screen.queryByText('Back')).not.toBeInTheDocument()
-    expect(screen.queryByText('Cancel')).not.toBeInTheDocument()
+    // Mobile header has sm:hidden, so it shouldn't be visible
+    expect(screen.queryByLabelText('Cancel')).not.toBeInTheDocument()
   })
 
-  it('calls onClose when clicking mobile Back button', () => {
+  it('calls onClose when clicking mobile Cancel button', () => {
     const onClose = vi.fn()
     render(
       <Modal isOpen={true} onClose={onClose} title="Test" size="full">
         Content
       </Modal>,
     )
-    fireEvent.click(screen.getByLabelText('Go back'))
+    fireEvent.click(screen.getAllByText('Cancel')[0])
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onClose when clicking mobile Cancel button', () => {
-    const onClose = vi.fn()
+  it('renders mobile action button when onMobileAction is provided', () => {
+    const onAction = vi.fn()
     render(
-      <Modal isOpen={true} onClose={onClose} title="Test" size="xl">
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={onAction}>
         Content
       </Modal>,
     )
-    fireEvent.click(screen.getByText('Cancel'))
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Save')).toBeInTheDocument()
+    expect(screen.queryByText('Cancel')).toBeInTheDocument()
+  })
+
+  it('calls onMobileAction when clicking mobile action button', () => {
+    const onAction = vi.fn()
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={onAction}>
+        Content
+      </Modal>,
+    )
+    fireEvent.click(screen.getByText('Save'))
+    expect(onAction).toHaveBeenCalledTimes(1)
   })
 
   it('toggles scroll class on content scroll', () => {
-    const { container } = render(
+    render(
       <Modal isOpen={true} onClose={vi.fn()} title="Test" size="md">
         <div style={{ height: '2000px' }}>Tall content</div>
       </Modal>,
     )
 
-    const contentDiv = container.querySelector('.overflow-y-auto')
+    const contentDiv = document.body.querySelector('.overflow-y-auto')
     expect(contentDiv).not.toHaveClass('is-scrolling')
 
     if (contentDiv) {

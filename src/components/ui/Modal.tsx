@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState, type ReactNode, useRef } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
 
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
@@ -9,33 +10,18 @@ interface ModalProps {
   title?: string;
   children?: ReactNode;
   size?: ModalSize;
+  mobileActionLabel?: string;
+  onMobileAction?: () => void;
+  mobileActionDisabled?: boolean;
 }
 
 const sizeMap: Record<ModalSize, string> = {
-  sm: "w-[85vw] sm:max-w-sm",
-  md: "w-[90vw] sm:max-w-md",
-  lg: "w-[90vw] sm:max-w-lg",
-  xl: "w-[92vw] sm:max-w-xl",
-  full: "w-[95vw] sm:max-w-3xl",
+  sm: "sm:max-w-sm",
+  md: "sm:max-w-md",
+  lg: "sm:max-w-lg",
+  xl: "sm:max-w-xl",
+  full: "sm:max-w-3xl",
 };
-
-function BackArrowIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15 19l-7-7 7-7"
-      />
-    </svg>
-  );
-}
 
 export default function Modal({
   isOpen,
@@ -43,6 +29,9 @@ export default function Modal({
   title,
   children,
   size = "md",
+  mobileActionLabel,
+  onMobileAction,
+  mobileActionDisabled,
 }: ModalProps) {
   const pushedRef = useRef(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -114,13 +103,14 @@ export default function Modal({
 
   const isFullScreenMobile = size === "xl" || size === "full";
 
-  return (
+  const modalContent = (
     <div
       className={cn(
-        "fixed inset-0 z-30",
+        "fixed left-0 top-0 right-0 bottom-0 z-50",
+        "flex items-center justify-center",
         isFullScreenMobile
-          ? "sm:bg-black/40 sm:flex sm:items-center sm:justify-center"
-          : "bg-black/40 flex items-center justify-center",
+          ? "bg-theme-surface sm:bg-black/40"
+          : "bg-black/40 p-4",
       )}
       onClick={handleBackdropClick}
       role="dialog"
@@ -128,54 +118,68 @@ export default function Modal({
     >
       <div
         className={cn(
-          "bg-theme-surface flex flex-col",
+          "m-0 flex flex-col overflow-hidden bg-theme-surface",
           isFullScreenMobile
-            ? "h-full w-full sm:h-auto sm:max-h-[85vh] sm:rounded-xl sm:border border-theme-border sm:shadow-lg sm:p-5"
-            : "rounded-xl border border-theme-border shadow-lg p-5 max-h-[85vh]",
+            ? "h-[100dvh] w-screen rounded-none sm:h-auto sm:max-h-[90vh] sm:w-full sm:rounded-xl sm:border sm:border-theme-border sm:shadow-xl"
+            : "h-auto max-h-[85vh] w-full rounded-xl border border-theme-border shadow-lg p-5",
           sizeMap[size],
         )}
       >
         {/* Mobile full-screen header */}
         {isFullScreenMobile && (
-          <div className="flex sm:hidden items-center justify-between px-4 py-3 border-b border-theme-border shrink-0">
+          <div className="flex shrink-0 items-center justify-between border-b border-theme-border px-4 py-3 sm:hidden">
             <button
               type="button"
               onClick={onClose}
-              className="flex items-center gap-1 text-theme-primary font-medium text-sm"
-              aria-label="Go back"
-            >
-              <BackArrowIcon />
-              Back
-            </button>
-            {title && (
-              <h2 className="text-base font-semibold text-theme-text absolute left-1/2 -translate-x-1/2">
-                {title}
-              </h2>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-theme-muted hover:text-theme-text text-sm font-medium"
+              className="flex items-center gap-1 text-sm font-medium text-theme-primary"
+              aria-label="Cancel"
             >
               Cancel
             </button>
+            {title && (
+              <h2 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-theme-text">
+                {title}
+              </h2>
+            )}
+            {onMobileAction ? (
+              <button
+                type="button"
+                onClick={onMobileAction}
+                disabled={mobileActionDisabled}
+                className={cn(
+                  "text-sm font-semibold",
+                  mobileActionDisabled
+                    ? "text-theme-muted opacity-50 cursor-not-allowed"
+                    : "text-theme-primary",
+                )}
+              >
+                {mobileActionLabel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-sm font-medium text-theme-muted hover:text-theme-text"
+              >
+                Cancel
+              </button>
+            )}
           </div>
         )}
 
-        {/* Desktop (and mobile card) header */}
+        {/* Desktop header (and mobile card header for non-fullscreen) */}
         {title && (
           <div
             className={cn(
-              "flex justify-between items-center shrink-0",
+              "flex shrink-0 items-center justify-between p-5 pb-0",
               isFullScreenMobile && "hidden sm:flex",
-              !isFullScreenMobile && "",
             )}
           >
             <h3 className="text-base font-semibold text-theme-text">{title}</h3>
             <button
               type="button"
               onClick={onClose}
-              className="text-theme-muted hover:text-theme-text text-xl leading-none"
+              className="text-xl leading-none text-theme-muted hover:text-theme-text"
               aria-label="Close"
             >
               &times;
@@ -186,10 +190,10 @@ export default function Modal({
         {/* Content */}
         <div
           className={cn(
-            "flex-1 overflow-y-auto scrollbar-auto-hide",
+            "flex-1 overflow-x-hidden overflow-y-auto scrollbar-auto-hide",
             isScrolling && "is-scrolling",
-            isFullScreenMobile ? "p-4 sm:p-0" : "",
-            (title || isFullScreenMobile) && "mt-4 sm:mt-4",
+            isFullScreenMobile ? "p-4" : "p-5",
+            title && "pt-4",
           )}
           onScroll={handleScroll}
         >
@@ -198,4 +202,6 @@ export default function Modal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

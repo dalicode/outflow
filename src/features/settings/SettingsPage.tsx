@@ -4,6 +4,7 @@ import { useAuth } from "../../context/authContext";
 import { StorageService } from "../../services/storageService";
 import { THEMES } from "../../utils/themeConfig";
 import { cn } from "../../utils/cn";
+import { getLocalToday } from "../../utils/historicalDataHelpers";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
 import EditHistoricalDataModal from "./EditHistoricalDataModal";
@@ -318,7 +319,7 @@ export default function SettingsPage({
     const csvRows = rows.map((e) => expenseToRow(e, formatDate));
     downloadCSV(
       csvRows,
-      `expenses-${new Date().toISOString().slice(0, 10)}.csv`,
+      `expenses-${getLocalToday()}.csv`,
     );
   };
 
@@ -584,7 +585,7 @@ export default function SettingsPage({
           ]}
         />
         <p className="text-xs text-theme-muted pt-0.5">
-          Preview: {formatDate(new Date().toISOString().slice(0, 10))}
+          Preview: {formatDate(getLocalToday())}
         </p>
       </Card>
 
@@ -970,7 +971,7 @@ export default function SettingsPage({
               autoFocus
             />
           </label>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={async () => {
                 if (deleteConfirm !== "DELETE") return;

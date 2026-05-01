@@ -243,6 +243,22 @@ export function parseISODate(dateStr: string): { year: number; month: number; da
 }
 
 /**
+ * Get today's date in the user's local timezone as YYYY-MM-DD.
+ */
+export function getLocalToday(): string {
+  const now = new Date();
+  return toISODate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
+/**
+ * Get current year-month in the user's local timezone as YYYY-MM.
+ */
+export function getLocalMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
  * Determine whether a scheduled date (year/month) has arrived relative to now.
  * Used by materializePendingSnapshots to know when to execute a schedule.
  */

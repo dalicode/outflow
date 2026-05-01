@@ -1,8 +1,11 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
 import Modal from "../../components/ui/Modal";
+import Strip from "../../components/ui/Strip";
+import { useViewportWidth } from "../../hooks/useViewportWidth";
+import { useMaxVisible } from "../../hooks/useMaxVisible";
 import { StorageService } from "../../services/storageService";
 import { useSettings } from "../../context/settingsContext";
 import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
@@ -16,7 +19,7 @@ import ExpenseTable from "../expenses/ExpenseTable";
 import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
 import type { Expense, Category, MonthlySummary } from "../../types";
 
-const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+import { getLocalMonthKey } from "../../utils/historicalDataHelpers";
 
 interface DashboardProps {
   expenses: Expense[];
@@ -24,6 +27,7 @@ interface DashboardProps {
   onUpdate: (id: number, changes: Partial<Expense>) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onBulkDelete: (ids: number[]) => Promise<void>;
+  onSelectionChange?: (active: boolean) => void;
 }
 
 export default function Dashboard({
@@ -32,6 +36,7 @@ export default function Dashboard({
   onUpdate,
   onDelete,
   onBulkDelete,
+  onSelectionChange,
 }: DashboardProps) {
   const now = new Date();
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
@@ -49,6 +54,10 @@ export default function Dashboard({
   const [viewMode, setViewMode] = useState<"expenses" | "categories">(
     "categories",
   );
+  const [viewAnimation, setViewAnimation] = useState<"slide-left" | "slide-right" | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
   const [financialSummary, setFinancialSummary] =
@@ -69,16 +78,18 @@ export default function Dashboard({
   const [editingMonthIndex, setEditingMonthIndex] = useState<number>(0);
 
   const [monthSpan, setMonthSpan] = useState<1 | 2 | 3 | 6 | 12>(1);
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 1920,
-  );
-  const monthStripRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const [mobileEditTrigger, setMobileEditTrigger] = useState<number | null>(null);
+
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filterGlobal, setFilterGlobal] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterDescription, setFilterDescription] = useState("");
+  const [filterAmount, setFilterAmount] = useState("");
+  const viewportWidth = useViewportWidth();
+  const maxVisible = useMaxVisible(viewportWidth);
 
   const isMobile = viewportWidth < 640;
 
@@ -105,6 +116,50 @@ export default function Dashboard({
       setMonthSpan(target as 1 | 2 | 3 | 6 | 12);
     }
   }, [monthSpan, maxAvailableSpan, showSpanSelector]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedIds.size > 0);
+  }, [selectedIds, onSelectionChange]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const overflowEl = el.querySelector<HTMLDivElement>(".overflow-x-auto");
+    if (overflowEl) {
+      setHasHorizontalOverflow(overflowEl.scrollWidth > overflowEl.clientWidth);
+    }
+  }, [viewMode, monthSpan]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, select, textarea")) return;
+    setTouchStartX(e.touches[0].clientX);
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (touchStartX === null || hasHorizontalOverflow) return;
+      const deltaX = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(deltaX) < 80) return;
+
+      if (deltaX < 0 && viewMode === "categories") {
+        setViewAnimation("slide-right");
+        setViewMode("expenses");
+      } else if (deltaX > 0 && viewMode === "expenses") {
+        setViewAnimation("slide-left");
+        setViewMode("categories");
+      }
+      setTouchStartX(null);
+    },
+    [touchStartX, hasHorizontalOverflow, viewMode],
+  );
+
+  useEffect(() => {
+    if (!viewAnimation) return;
+    const timer = setTimeout(() => setViewAnimation(null), 250);
+    return () => clearTimeout(timer);
+  }, [viewAnimation]);
+
   const [showGrandTotal, setShowGrandTotal] = useState(false);
   const [monthSummaries, setMonthSummaries] = useState<MonthlySummary[]>([]);
   const [drilldownCategory, setDrilldownCategory] = useState<string | null>(
@@ -354,12 +409,6 @@ export default function Dashboard({
     return months;
   }, [selectedYear, selectedMonth]);
 
-  const maxVisible = useMemo(() => {
-    const scaled = Math.max(2, Math.floor((viewportWidth - 80) / 130));
-    const half = Math.min(6, scaled);
-    return 2 * half + 1;
-  }, [viewportWidth]);
-
   const yearFirstIndices = useMemo(() => {
     const map = new Map<number, number>();
     monthStrip.forEach((m, i) => {
@@ -367,15 +416,6 @@ export default function Dashboard({
     });
     return map;
   }, [monthStrip]);
-
-  useLayoutEffect(() => {
-    const container = monthStripRef.current;
-    if (!container) return;
-    const target = container.querySelector('[data-selected="true"]') as HTMLElement | null;
-    if (target) {
-      target.scrollIntoView({ inline: "center", block: "nearest", behavior: "auto" });
-    }
-  }, [selectedYear, selectedMonth]);
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
@@ -402,13 +442,55 @@ export default function Dashboard({
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [expenses, monthKeys]);
 
-  const filtered = useMemo(
-    () =>
-      selectedCategories.size === 0
-        ? spanExpenses
-        : spanExpenses.filter((e) => selectedCategories.has(resolveName(e))),
-    [spanExpenses, selectedCategories, resolveName],
-  );
+  const filtered = useMemo(() => {
+    let result = spanExpenses;
+
+    if (selectedCategories.size > 0) {
+      result = result.filter((e) => selectedCategories.has(resolveName(e)));
+    }
+
+    if (filterGlobal) {
+      const q = filterGlobal.toLowerCase();
+      result = result.filter(
+        (e) =>
+          e.description?.toLowerCase().includes(q) ||
+          resolveName(e).toLowerCase().includes(q) ||
+          String(e.amount).includes(q),
+      );
+    }
+
+    if (filterDateFrom) {
+      result = result.filter((e) => e.date >= filterDateFrom);
+    }
+    if (filterDateTo) {
+      result = result.filter((e) => e.date <= filterDateTo);
+    }
+
+    if (filterCategory) {
+      result = result.filter((e) => resolveName(e) === filterCategory);
+    }
+
+    if (filterDescription) {
+      const q = filterDescription.toLowerCase();
+      result = result.filter((e) => e.description?.toLowerCase().includes(q));
+    }
+
+    if (filterAmount) {
+      result = result.filter((e) => String(e.amount).includes(filterAmount));
+    }
+
+    return result;
+  }, [
+    spanExpenses,
+    selectedCategories,
+    resolveName,
+    filterGlobal,
+    filterDateFrom,
+    filterDateTo,
+    filterCategory,
+    filterDescription,
+    filterAmount,
+  ]);
 
   const toggleSelect = useCallback((id: number) => {
     setSelectedIds((prev) => {
@@ -438,8 +520,8 @@ export default function Dashboard({
   }, [selectedIds, onBulkDelete]);
 
   const multiCategoryRows = useMemo(
-    () => computeMultiMonthCategoryRows(expenses, monthKeys, resolveName),
-    [expenses, monthKeys, resolveName],
+    () => computeMultiMonthCategoryRows(filtered, monthKeys, resolveName),
+    [filtered, monthKeys, resolveName],
   );
 
   const multiFixedRows = useMemo(
@@ -462,7 +544,7 @@ export default function Dashboard({
   const drilldownExpenses = useMemo(() => {
     if (!drilldownCategory) return [];
     const mk = monthKeys[drilldownMonthIndex];
-    return expenses
+    return filtered
       .filter((e) => {
         const matchesMonth = e.date.startsWith(mk.key);
         const matchesCategory = resolveName(e) === drilldownCategory;
@@ -472,7 +554,7 @@ export default function Dashboard({
   }, [
     drilldownCategory,
     drilldownMonthIndex,
-    expenses,
+    filtered,
     monthKeys,
     resolveName,
   ]);
@@ -499,6 +581,15 @@ export default function Dashboard({
       .sort((a, b) => b.total - a.total);
   }, [monthlyExpenses, catMap]);
 
+  const activeFilterCount = [
+    filterGlobal,
+    filterDateFrom,
+    filterDateTo,
+    filterCategory,
+    filterDescription,
+    filterAmount,
+  ].filter(Boolean).length;
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -506,12 +597,23 @@ export default function Dashboard({
           Dashboard
         </h1>
         <button
-          className="text-sm font-medium px-3 py-1.5 rounded-lg bg-theme-background text-theme-muted hover:text-theme-text border border-theme-border transition-colors"
-          onClick={() => {
-            /* TODO: open filter modal */
-          }}
+          className={cn(
+            "text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5",
+            activeFilterCount > 0
+              ? "bg-theme-primary/10 text-theme-primary border-theme-primary/20"
+              : "bg-theme-background text-theme-muted hover:text-theme-text border-theme-border",
+          )}
+          onClick={() => setShowFilterModal(true)}
         >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
           Filters
+          {activeFilterCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-theme-primary text-white text-[0.6875rem] font-semibold">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
       </div>
       {/* Category filter chips */}
@@ -597,100 +699,72 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Month strip — outside table, centered */}
-      <div className="flex items-end justify-center">
-        <button
-          onClick={prevMonth}
-          className="month-nav-btn"
-          aria-label="Previous month"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-        </button>
+      {/* Month strip */}
+      <Strip
+        maxVisible={maxVisible}
+        scrollClass="month-strip-scroll"
+        scrollSelector="[data-selected='true']"
+        align="end"
+        navLeft={
+          <button onClick={prevMonth} className="month-nav-btn" aria-label="Previous month">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        }
+        navRight={
+          <button onClick={nextMonth} className="month-nav-btn" aria-label="Next month">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        }
+      >
+        {monthStrip.map(({ year, month }, index) => {
+          const isSelected = year === selectedYear && month === selectedMonth;
+          const pillKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+          const isRealCurrent = pillKey === getLocalMonthKey();
+          const isInSpan = monthSpan > 1 && monthKeys.some((mk) => mk.key === pillKey);
+          const monthName = new Date(year, month).toLocaleString("default", { month: "short" });
+          const isFirstOfYear = yearFirstIndices.get(year) === index;
 
-        <div className="month-strip-scroll" ref={monthStripRef} style={{ maxWidth: `${maxVisible * 44}px` }}>
-          {monthStrip.map(({ year, month }, index) => {
-            const isSelected = year === selectedYear && month === selectedMonth;
-            const pillKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-            const isRealCurrent = pillKey === currentMonthKey();
-            const isInSpan =
-              monthSpan > 1 && monthKeys.some((mk) => mk.key === pillKey);
-            const monthName = new Date(year, month).toLocaleString("default", {
-              month: "short",
-            });
-            const isFirstOfYear = yearFirstIndices.get(year) === index;
+          const handleClick = () => {
+            if (!isSelected) {
+              setSelectedYear(year);
+              setSelectedMonth(month);
+            }
+          };
 
-            const handleClick = () => {
-              if (!isSelected) {
-                setSelectedYear(year);
-                setSelectedMonth(month);
-              }
-            };
-
-            return (
-              <div key={`${year}-${month}`} className="month-strip-item" data-selected={isSelected || undefined}>
-                <span
-                  className={cn("year-label", !isFirstOfYear && "invisible")}
-                >
-                  {year}
+          return (
+            <div key={`${year}-${month}`} className="month-strip-item" data-selected={isSelected || undefined}>
+              <span className={cn("year-label", !isFirstOfYear && "invisible")}>
+                {year}
+              </span>
+              <button
+                onClick={handleClick}
+                className={cn(
+                  "month-pill",
+                  (isSelected || isInSpan) && "month-pill-selected",
+                  !isSelected && !isInSpan && isRealCurrent && "month-pill-current",
+                )}
+                aria-label={`${monthName} ${year}`}
+                aria-current={isSelected ? "date" : undefined}
+              >
+                <span className={cn(!isSelected && isInSpan && "opacity-70")}>
+                  {monthName}
                 </span>
-                <button
-                  onClick={handleClick}
-                  className={cn(
-                    "month-pill",
-                    (isSelected || isInSpan) && "month-pill-selected",
-                    !isSelected &&
-                      !isInSpan &&
-                      isRealCurrent &&
-                      "month-pill-current",
-                  )}
-                  aria-label={`${monthName} ${year}`}
-                  aria-current={isSelected ? "date" : undefined}
-                >
-                  <span className={cn(!isSelected && isInSpan && "opacity-70")}>
-                    {monthName}
-                  </span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={nextMonth}
-          className="month-nav-btn"
-          aria-label="Next month"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </button>
-      </div>
+              </button>
+            </div>
+          );
+        })}
+      </Strip>
 
       {/* Expenses Table Card */}
       <div className="flex justify-center">
         <section
+          ref={contentRef}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
           className={cn(
             "relative rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 pt-6 w-full mt-[1.625rem]",
             monthSpan <= 3 && "md:max-w-3xl",
@@ -701,7 +775,12 @@ export default function Dashboard({
           {/* Folder tabs */}
           <div className="absolute -top-[1.625rem] left-3 flex gap-0.5">
             <button
-              onClick={() => setViewMode("categories")}
+              onClick={() => {
+                if (viewMode !== "categories") {
+                  setViewAnimation("slide-left");
+                  setViewMode("categories");
+                }
+              }}
               className={cn(
                 "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
                 viewMode === "categories"
@@ -712,7 +791,12 @@ export default function Dashboard({
               Categories
             </button>
             <button
-              onClick={() => setViewMode("expenses")}
+              onClick={() => {
+                if (viewMode !== "expenses") {
+                  setViewAnimation("slide-right");
+                  setViewMode("expenses");
+                }
+              }}
               className={cn(
                 "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
                 viewMode === "expenses"
@@ -753,7 +837,7 @@ export default function Dashboard({
               <strong className="text-theme-text">{selectedIds.size}</strong>{" "}
               expense{selectedIds.size !== 1 ? "s" : ""}?
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button onClick={confirmDelete} className="confirm-delete-btn">
                 Delete
               </button>
@@ -767,15 +851,15 @@ export default function Dashboard({
           </Modal>
 
           {viewMode === "categories" ? (
-            <div className="space-y-4">
+            <div className={cn("space-y-4", viewAnimation === "slide-left" && "view-slide-left", viewAnimation === "slide-right" && "view-slide-right")}>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10">
                     <tr>
-                      <th className="table-header-cell text-left">Category</th>
+                      <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">Category</th>
                       {monthSpan > 1 ? (
                         <>
-                          <th className="table-header-cell text-right tabular-nums">
+                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                             Transactions
                           </th>
                           {[...monthKeys].reverse().map((mk, displayIdx) => (
@@ -791,17 +875,17 @@ export default function Dashboard({
                             </th>
                           ))}
                           {showGrandTotal && (
-                            <th className="table-header-cell text-right tabular-nums">
+                            <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                               Total
                             </th>
                           )}
                         </>
                       ) : (
                         <>
-                          <th className="table-header-cell text-right tabular-nums">
+                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                             Transactions
                           </th>
-                          <th className="table-header-cell text-right tabular-nums">
+                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                             Amount
                           </th>
                         </>
@@ -831,12 +915,12 @@ export default function Dashboard({
                             key={name}
                             className="border-b border-theme-muted/10 row-hover"
                           >
-                            <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                               {name}
                             </td>
                             {monthSpan > 1 ? (
                               <>
-                                <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                   {totalTransactions}
                                 </td>
                                 {[...monthlyAmounts]
@@ -848,7 +932,7 @@ export default function Dashboard({
                                       <td
                                         key={displayIdx}
                                         className={cn(
-                                          "px-3 py-1.5 text-right tabular-nums",
+                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
                                           displayIdx === 0 &&
                                             "border-l border-theme-border",
                                         )}
@@ -876,7 +960,7 @@ export default function Dashboard({
                                 {showGrandTotal && (
                                   <td
                                     className={cn(
-                                      "px-3 py-1.5 text-right tabular-nums font-semibold",
+                                      "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                       getNumberColorClass(
                                         monthlyAmounts.reduce(
                                           (s, v) => s + v,
@@ -893,10 +977,10 @@ export default function Dashboard({
                               </>
                             ) : (
                               <>
-                                <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                   {totalTransactions}
                                 </td>
-                                <td className="px-3 py-1.5 text-right tabular-nums">
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
                                   {monthlyAmounts[0] !== 0 ? (
                                     <button
                                       onClick={() =>
@@ -928,7 +1012,7 @@ export default function Dashboard({
                                 ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
                                 : 3
                             }
-                            className="table-header-cell whitespace-nowrap"
+                            className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
                           >
                             Fixed Expenses
                           </td>
@@ -940,12 +1024,12 @@ export default function Dashboard({
                           );
                           return (
                             <tr key={fe.id} className="row-hover">
-                              <td className="px-3 py-1.5 text-theme-text whitespace-nowrap">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap">
                                 {fe.name}
                               </td>
                               {monthSpan > 1 ? (
                                 <>
-                                  <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                     —
                                   </td>
                                   {[...fe.monthlyAmounts]
@@ -954,7 +1038,7 @@ export default function Dashboard({
                                       <td
                                         key={displayIdx}
                                         className={cn(
-                                          "px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
+                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
                                           displayIdx === 0 &&
                                             "border-l border-theme-border",
                                         )}
@@ -969,17 +1053,17 @@ export default function Dashboard({
                                       </td>
                                     ))}
                                   {showGrandTotal && (
-                                    <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                       {formatAmount(fixedGrandTotal)}
                                     </td>
                                   )}
                                 </>
                               ) : (
                                 <>
-                                  <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                     —
                                   </td>
-                                  <td className="px-3 py-1.5 text-right tabular-nums font-medium text-theme-text">
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text">
                                     {fe.monthlyAmounts[0] !== null
                                       ? formatAmount(fe.monthlyAmounts[0])
                                       : "—"}
@@ -1000,14 +1084,14 @@ export default function Dashboard({
                                 ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
                                 : 3
                             }
-                            className="table-header-cell whitespace-nowrap"
+                            className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
                           >
                             Budget Summary
                           </td>
                         </tr>
                         {/* Income */}
                         <tr className="row-hover">
-                          <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
                             Income
                             <svg
                               className="w-3 h-3 text-theme-muted"
@@ -1021,7 +1105,7 @@ export default function Dashboard({
                           </td>
                           {monthSpan > 1 ? (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
                               {[...monthSummaries]
@@ -1033,7 +1117,7 @@ export default function Dashboard({
                                     <td
                                       key={displayIdx}
                                       className={cn(
-                                        "px-3 py-1.5 text-right tabular-nums",
+                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
                                         displayIdx === 0 &&
                                           "border-l border-theme-border",
                                       )}
@@ -1048,7 +1132,7 @@ export default function Dashboard({
                                   );
                                 })}
                               {showGrandTotal && (
-                                <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                   {formatAmount(
                                     monthSummaries.reduce(
                                       (s, m) => s + m.income,
@@ -1060,10 +1144,10 @@ export default function Dashboard({
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
-                              <td className="px-3 py-1.5 text-right tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
                                 <button
                                   onClick={() => openIncomeModal(0)}
                                   className="font-semibold hover:underline text-theme-text"
@@ -1076,7 +1160,7 @@ export default function Dashboard({
                         </tr>
                         {/* Auto Savings */}
                         <tr className="row-hover">
-                          <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
                             Auto Savings
                             <svg
                               className="w-3 h-3 text-theme-muted"
@@ -1090,7 +1174,7 @@ export default function Dashboard({
                           </td>
                           {monthSpan > 1 ? (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
                               {[...monthSummaries]
@@ -1102,7 +1186,7 @@ export default function Dashboard({
                                     <td
                                       key={displayIdx}
                                       className={cn(
-                                        "px-3 py-1.5 text-right tabular-nums",
+                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
                                         displayIdx === 0 &&
                                           "border-l border-theme-border",
                                       )}
@@ -1119,7 +1203,7 @@ export default function Dashboard({
                                   );
                                 })}
                               {showGrandTotal && (
-                                <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                   {formatAmount(
                                     monthSummaries.reduce(
                                       (s, m) => s + m.autoSavings,
@@ -1131,10 +1215,10 @@ export default function Dashboard({
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
-                              <td className="px-3 py-1.5 text-right tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
                                 <button
                                   onClick={() => openSavingsModal(0)}
                                   className="font-semibold hover:underline text-theme-text"
@@ -1147,12 +1231,12 @@ export default function Dashboard({
                         </tr>
                         {/* Remaining */}
                         <tr className="row-hover">
-                          <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                             Remaining
                           </td>
                           {monthSpan > 1 ? (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
                               {[...monthSummaries]
@@ -1163,7 +1247,7 @@ export default function Dashboard({
                                     <td
                                       key={displayIdx}
                                       className={cn(
-                                        "px-3 py-1.5 text-right tabular-nums font-semibold",
+                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                         v > 0
                                           ? "text-theme-success"
                                           : v < 0
@@ -1180,7 +1264,7 @@ export default function Dashboard({
                               {showGrandTotal && (
                                 <td
                                   className={cn(
-                                    "px-3 py-1.5 text-right tabular-nums font-semibold",
+                                    "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                     (() => {
                                       const v = monthSummaries.reduce(
                                         (s, m) => s + m.remaining,
@@ -1205,12 +1289,12 @@ export default function Dashboard({
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
                               <td
                                 className={cn(
-                                  "px-3 py-1.5 text-right tabular-nums font-semibold",
+                                  "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                   (() => {
                                     const v = monthSummaries[0].remaining;
                                     return v > 0
@@ -1228,12 +1312,12 @@ export default function Dashboard({
                         </tr>
                         {/* Total Savings */}
                         <tr className="row-hover">
-                          <td className="px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                             Total Savings
                           </td>
                           {monthSpan > 1 ? (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
                               {[...monthSummaries]
@@ -1253,7 +1337,7 @@ export default function Dashboard({
                                     <td
                                       key={displayIdx}
                                       className={cn(
-                                        "px-3 py-1.5 text-right tabular-nums font-semibold",
+                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                         displayIdx === 0 &&
                                           "border-l border-theme-border",
                                       )}
@@ -1265,7 +1349,7 @@ export default function Dashboard({
                                 })}
                               {showGrandTotal && (
                                 <td
-                                  className="px-3 py-1.5 text-right tabular-nums font-semibold"
+                                  className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
                                   style={{
                                     color: (() => {
                                       const grandTotal = monthSummaries.reduce(
@@ -1304,11 +1388,11 @@ export default function Dashboard({
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                 —
                               </td>
                               <td
-                                className="px-3 py-1.5 text-right tabular-nums font-semibold"
+                                className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
                                 style={{
                                   color: (() => {
                                     const summary = monthSummaries[0];
@@ -1359,11 +1443,11 @@ export default function Dashboard({
                     <table className="w-full text-sm border-separate border-spacing-0">
                       <thead>
                         <tr>
-                          <th className="table-header-cell text-left">Date</th>
-                          <th className="table-header-cell text-left">
+                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">Date</th>
+                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
                             Description
                           </th>
-                          <th className="table-header-cell text-right tabular-nums">
+                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                             Amount
                           </th>
                         </tr>
@@ -1399,17 +1483,20 @@ export default function Dashboard({
               )}
             </div>
           ) : (
-            <ExpenseTable
-              expenses={filtered}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-              onBulkDelete={onBulkDelete}
-              categories={categories}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              isMobile={isMobile}
-            />
+            <div className={cn(viewAnimation === "slide-left" && "view-slide-left", viewAnimation === "slide-right" && "view-slide-right")}>
+              <ExpenseTable
+                expenses={filtered}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onBulkDelete={onBulkDelete}
+                categories={categories}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleSelectAll={toggleSelectAll}
+                isMobile={isMobile}
+                mobileEditTrigger={mobileEditTrigger}
+              />
+            </div>
           )}
         </section>
       </div>
@@ -1419,8 +1506,11 @@ export default function Dashboard({
         <MobileSelectionBanner
           count={selectedIds.size}
           onEdit={() => {
-            // Edit is handled by tapping a cell directly
-            // This is only called when count === 1 (button disabled otherwise)
+            const id = Array.from(selectedIds)[0];
+            if (id != null) {
+              setMobileEditTrigger(id);
+              requestAnimationFrame(() => setMobileEditTrigger(null));
+            }
           }}
           onDelete={handleBulkDeleteClick}
           onDeselectAll={() => setSelectedIds(new Set())}
@@ -1438,7 +1528,7 @@ export default function Dashboard({
           {incomeError && (
             <p className="text-theme-danger text-xs">{incomeError}</p>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="number"
               value={incomeDraft}
@@ -1447,12 +1537,12 @@ export default function Dashboard({
               min="0.01"
               step="0.01"
               autoFocus
-              className="input-theme px-3 py-2 text-sm flex-1"
+              className="input-theme px-3 py-2 text-sm w-full sm:flex-1 min-w-0"
             />
             <select
               value={incomeFreqDraft}
               onChange={(e) => setIncomeFreqDraft(e.target.value)}
-              className="input-theme px-3 py-2 text-sm"
+              className="input-theme px-3 py-2 text-sm w-full sm:w-auto min-w-0"
             >
               {FREQUENCIES.map((f) => (
                 <option key={f} value={f}>
@@ -1461,7 +1551,7 @@ export default function Dashboard({
               ))}
             </select>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button type="submit" className="summary-save-btn">
               Save
             </button>
@@ -1497,11 +1587,11 @@ export default function Dashboard({
               max="100"
               step="0.1"
               autoFocus
-              className="input-theme px-3 py-2 text-sm w-28"
+              className="input-theme px-3 py-2 text-sm w-full sm:w-28 min-w-0"
             />
-            <span className="text-sm text-theme-muted">%</span>
+            <span className="text-sm text-theme-muted shrink-0">%</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button type="submit" className="summary-save-btn">
               Save
             </button>
@@ -1514,6 +1604,120 @@ export default function Dashboard({
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Filter modal */}
+      <Modal
+        isOpen={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        title="Filter Transactions"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-theme-muted mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              value={filterGlobal}
+              onChange={(e) => setFilterGlobal(e.target.value)}
+              placeholder="Description, category, or amount..."
+              className="input-theme w-full px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-theme-muted mb-1">
+                Date from
+              </label>
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                className="input-theme w-full px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-theme-muted mb-1">
+                Date to
+              </label>
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                className="input-theme w-full px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-theme-muted mb-1">
+              Category
+            </label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="input-theme w-full px-3 py-2 text-sm"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-theme-muted mb-1">
+              Description
+            </label>
+            <input
+              type="text"
+              value={filterDescription}
+              onChange={(e) => setFilterDescription(e.target.value)}
+              placeholder="Contains..."
+              className="input-theme w-full px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-theme-muted mb-1">
+              Amount
+            </label>
+            <input
+              type="text"
+              value={filterAmount}
+              onChange={(e) => setFilterAmount(e.target.value)}
+              placeholder="e.g. 12.50"
+              className="input-theme w-full px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              onClick={() => {
+                setFilterGlobal("");
+                setFilterDateFrom("");
+                setFilterDateTo("");
+                setFilterCategory("");
+                setFilterDescription("");
+                setFilterAmount("");
+              }}
+              className="summary-cancel-btn rounded-theme-small"
+            >
+              Clear all
+            </button>
+            <button
+              onClick={() => setShowFilterModal(false)}
+              className="summary-save-btn"
+            >
+              Done
+            </button>
+          </div>
+        </div>
       </Modal>
     </main>
   );

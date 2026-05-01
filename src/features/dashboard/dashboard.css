@@ -215,3 +215,31 @@
   color: var(--theme-text);
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
+
+/* View slide animations */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.view-slide-right {
+  animation: slide-in-right 0.2s ease-out;
+}
+.view-slide-left {
+  animation: slide-in-left 0.2s ease-out;
+}

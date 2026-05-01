@@ -109,7 +109,7 @@ export default function IncomeForm({
       >
         <form onSubmit={submit} className="space-y-4">
           {error && <p className="text-theme-danger text-xs">{error}</p>}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="number"
               value={amt}
@@ -118,12 +118,12 @@ export default function IncomeForm({
               min="0.01"
               step="0.01"
               autoFocus
-              className={`${inputCls} flex-1`}
+              className={`${inputCls} w-full sm:flex-1 min-w-0`}
             />
             <select
               value={freq}
               onChange={(e) => setFreq(e.target.value)}
-              className={inputCls}
+              className={`${inputCls} w-full sm:w-auto min-w-0`}
             >
               {FREQUENCIES.map((f) => (
                 <option key={f} value={f}>
@@ -132,7 +132,7 @@ export default function IncomeForm({
               ))}
             </select>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="submit"
               className="summary-save-btn"

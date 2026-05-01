@@ -91,11 +91,11 @@ export default function SavingsForm({ savingsRate, onSave }: SavingsFormProps) {
               max="100"
               step="0.1"
               autoFocus
-              className="input-theme px-3 py-2 text-sm w-28"
+              className="input-theme px-3 py-2 text-sm w-full sm:w-28 min-w-0"
             />
-            <span className="text-sm text-theme-muted">%</span>
+            <span className="text-sm text-theme-muted shrink-0">%</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="submit"
               className="summary-save-btn"

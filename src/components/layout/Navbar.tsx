@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type MouseEventHandler } from "react";
+import { useState, useEffect, useRef, type ReactNode, type MouseEventHandler } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
 
@@ -246,7 +246,20 @@ export default function Navbar({
   hidden = false,
 }: NavbarProps) {
   const [collapsed, setCollapsed] = useState(true);
+  const [peekExpanded, setPeekExpanded] = useState(false);
+  const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
+
+  useEffect(() => {
+    if (!peekExpanded) return;
+    if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+    peekTimerRef.current = setTimeout(() => {
+      setPeekExpanded(false);
+    }, 3000);
+    return () => {
+      if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+    };
+  }, [peekExpanded]);
 
   const sidebarWidth = collapsed ? "w-14" : "w-44";
 
@@ -398,8 +411,7 @@ export default function Navbar({
         className={cn(
           "sm:hidden fixed bottom-0 left-0 right-0 z-30",
           "transition-transform duration-150 ease-out",
-          scrollDirection === "down" && "translate-y-full",
-          hidden && "translate-y-full",
+          !peekExpanded && (scrollDirection === "down" || hidden) && "translate-y-[calc(100%-12px)] overflow-hidden",
         )}
       >
         <div className="mobile-nav-container">
@@ -411,7 +423,8 @@ export default function Navbar({
               className={({ isActive }) =>
                 cn(
                   "flex items-center justify-center w-14 h-16 nav-item-hover",
-                  isActive ? "text-theme-primary" : "text-theme-muted"
+                  isActive ? "text-theme-primary" : "text-theme-muted",
+                  !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
                 )
               }
             >
@@ -421,7 +434,10 @@ export default function Navbar({
 
           <button
             onClick={onAddExpense}
-            className="mobile-add-btn"
+            className={cn(
+              "mobile-add-btn",
+              !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
+            )}
             aria-label="Add expense"
           >
             <PlusIcon />
@@ -435,7 +451,8 @@ export default function Navbar({
               className={({ isActive }) =>
                 cn(
                   "flex items-center justify-center w-14 h-16 nav-item-hover",
-                  isActive ? "text-theme-primary" : "text-theme-muted"
+                  isActive ? "text-theme-primary" : "text-theme-muted",
+                  !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
                 )
               }
             >
@@ -443,6 +460,20 @@ export default function Navbar({
             </NavLink>
           ))}
         </div>
+
+        {/* Peek handle — visible when nav is partially hidden */}
+        {!peekExpanded && (scrollDirection === "down" || hidden) && (
+          <button
+            onClick={() => setPeekExpanded(true)}
+            className="absolute top-0 left-0 right-0 h-3 flex items-center justify-center z-10"
+            aria-label="Show navigation"
+          >
+            <span
+              className="w-8 h-1 rounded-full"
+              style={{ backgroundColor: "var(--theme-muted)", opacity: 0.6 }}
+            />
+          </button>
+        )}
       </nav>
     </>
   );

@@ -33,19 +33,20 @@ function useScrollVisibility() {
   return { isScrolling, handleScroll };
 }
 
-function useScrollDirection() {
+function useScrollDirection(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [direction, setDirection] = useState<"up" | "down" | null>(null);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
   const onScroll = useCallback(() => {
-    if (ticking.current) return;
+    const el = containerRef.current;
+    if (!el || ticking.current) return;
     ticking.current = true;
 
     requestAnimationFrame(() => {
-      const currentY = window.scrollY || document.documentElement.scrollTop;
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = document.documentElement.clientHeight;
+      const currentY = el.scrollTop;
+      const scrollHeight = el.scrollHeight;
+      const clientHeight = el.clientHeight;
       const atBottom = currentY + clientHeight >= scrollHeight - 10;
 
       if (atBottom) {
@@ -59,7 +60,7 @@ function useScrollDirection() {
       lastScrollY.current = currentY;
       ticking.current = false;
     });
-  }, []);
+  }, [containerRef]);
 
   return { direction, onScroll };
 }
@@ -113,7 +114,8 @@ export default function App() {
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
   const mainRef = useRef<HTMLDivElement>(null);
-  const { direction, onScroll: handleScrollDirection } = useScrollDirection();
+  const { direction, onScroll: handleScrollDirection } = useScrollDirection(mainRef);
+  const [mobileSelectionActive, setMobileSelectionActive] = useState(false);
 
   useEffect(() => {
     if (syncStatus === "idle") {
@@ -173,7 +175,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop containerRef={mainRef} />
-      <div className="min-h-screen bg-theme-background flex">
+      <div className="h-dvh bg-theme-background flex">
         {!isReady ? (
           <div
             className="flex-1 p-10"
@@ -198,6 +200,7 @@ export default function App() {
               onSignOut={supabase ? signOut : undefined}
               userEmail={user?.email}
               scrollDirection={direction}
+              hidden={mobileSelectionActive}
             />
             <main
               ref={mainRef}
@@ -220,6 +223,7 @@ export default function App() {
                       onUpdate={handleUpdate}
                       onDelete={handleDelete}
                       onBulkDelete={handleBulkDelete}
+                      onSelectionChange={setMobileSelectionActive}
                     />
                   }
                 />
