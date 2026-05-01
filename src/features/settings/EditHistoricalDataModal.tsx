@@ -12,6 +12,8 @@ import {
   monthMapToRanges,
   flattenRangesToMonthMap,
   getYearlyVariableTotals,
+  clamp,
+  type RangeItem,
 } from "../../utils/historicalDataHelpers";
 import type { Expense, FixedExpenseSnapshot } from "../../types";
 

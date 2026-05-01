@@ -13,7 +13,7 @@ export interface RangeItem {
 let _idCounter = 0;
 const nextId = () => `tmp-${++_idCounter}`;
 
-function clamp(n: number, min: number, max: number): number {
+export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 

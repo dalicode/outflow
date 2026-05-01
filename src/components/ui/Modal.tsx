@@ -1,4 +1,10 @@
-import { useEffect, useCallback, useState, type ReactNode, useRef } from "react";
+import {
+  useEffect,
+  useCallback,
+  useState,
+  type ReactNode,
+  useRef,
+} from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
 
@@ -121,7 +127,7 @@ export default function Modal({
           "m-0 flex flex-col overflow-hidden bg-theme-surface",
           isFullScreenMobile
             ? "h-[100dvh] w-screen rounded-none sm:h-auto sm:max-h-[90vh] sm:w-full sm:rounded-xl sm:border sm:border-theme-border sm:shadow-xl"
-            : "h-auto max-h-[85vh] w-full rounded-xl border border-theme-border shadow-lg p-5",
+            : "h-auto max-h-[85vh] w-full rounded-xl border border-theme-border shadow-lg",
           sizeMap[size],
         )}
       >

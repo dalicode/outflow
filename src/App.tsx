@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+
 import { StorageService } from "./services/storageService";
 import { useAuth } from "./context/authContext";
 import { useSettings } from "./context/settingsContext";
@@ -33,16 +34,13 @@ function useScrollVisibility() {
   return { isScrolling, handleScroll };
 }
 
-function useScrollDirection(containerRef: React.RefObject<HTMLDivElement | null>) {
+function useScrollDirection() {
   const [direction, setDirection] = useState<"up" | "down" | null>(null);
-  const [settledDirection, setSettledDirection] = useState<"up" | "down" | null>(null);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onScroll = useCallback(() => {
-    const el = containerRef.current;
-    if (!el || ticking.current) return;
+  const onScroll = useCallback((el: HTMLDivElement) => {
+    if (ticking.current) return;
     ticking.current = true;
 
     requestAnimationFrame(() => {
@@ -50,32 +48,41 @@ function useScrollDirection(containerRef: React.RefObject<HTMLDivElement | null>
 
       if (currentY > lastScrollY.current && currentY > 10) {
         setDirection("down");
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(() => {
-          setSettledDirection("down");
-        }, 150);
       } else if (currentY < lastScrollY.current) {
         setDirection("up");
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        setSettledDirection("up");
       }
 
       lastScrollY.current = currentY;
       ticking.current = false;
     });
-  }, [containerRef]);
+  }, []);
 
-  return { direction: settledDirection, onScroll };
+  return { direction, onScroll };
 }
 
-function ScrollToTop({ containerRef }: { containerRef: React.RefObject<HTMLDivElement> }) {
+function ScrollablePage({
+  children,
+  onScroll,
+}: {
+  children: React.ReactNode;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+}) {
   const location = useLocation();
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    containerRef.current?.scrollTo({ top: 0, behavior: "auto" });
-  }, [location.pathname, containerRef]);
+    ref.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [location.pathname]);
 
-  return null;
+  return (
+    <div
+      ref={ref}
+      className="h-full overflow-y-auto scrollbar-auto-hide"
+      onScroll={onScroll}
+    >
+      {children}
+    </div>
+  );
 }
 
 function SyncDot({ status }: { status: SyncStatus }) {
@@ -116,9 +123,16 @@ export default function App() {
   } = useCategories();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
-  const mainRef = useRef<HTMLDivElement>(null);
-  const { direction, onScroll: handleScrollDirection } = useScrollDirection(mainRef);
+  const { direction, onScroll: handleScrollDirection } = useScrollDirection();
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false);
+
+  const handlePageScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      handleScroll();
+      handleScrollDirection(e.currentTarget);
+    },
+    [handleScroll, handleScrollDirection],
+  );
 
   useEffect(() => {
     if (syncStatus === "idle") {
@@ -177,7 +191,6 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <ScrollToTop containerRef={mainRef} />
       <div className="h-dvh bg-theme-background flex">
         {!isReady ? (
           <div
@@ -206,15 +219,10 @@ export default function App() {
               hidden={mobileSelectionActive}
             />
             <main
-              ref={mainRef}
               className={cn(
-                "flex-1 min-w-0 pb-28 sm:pb-0 overflow-y-auto scrollbar-auto-hide",
+                "flex-1 min-w-0 overflow-hidden",
                 isScrolling && "is-scrolling"
               )}
-              onScroll={() => {
-                handleScroll();
-                handleScrollDirection();
-              }}
             >
               <Routes>
                 <Route
@@ -227,36 +235,45 @@ export default function App() {
                       onDelete={handleDelete}
                       onBulkDelete={handleBulkDelete}
                       onSelectionChange={setMobileSelectionActive}
+                      onScroll={handlePageScroll}
                     />
                   }
                 />
                 <Route
                   path="/summary"
-                  element={<SummaryPage expenses={expenses} />}
+                  element={
+                    <ScrollablePage onScroll={handlePageScroll}>
+                      <SummaryPage expenses={expenses} />
+                    </ScrollablePage>
+                  }
                 />
                 <Route
                   path="/analytics"
                   element={
-                    <AnalyticsPage
-                      expenses={expenses}
-                      categories={categories}
-                    />
+                    <ScrollablePage onScroll={handlePageScroll}>
+                      <AnalyticsPage
+                        expenses={expenses}
+                        categories={categories}
+                      />
+                    </ScrollablePage>
                   }
                 />
                 <Route
                   path="/settings"
                   element={
-                    <SettingsPage
-                      expenses={expenses}
-                      onImport={async () =>
-                        setExpenses(await StorageService.getAll())
-                      }
-                      onRefreshAll={async () => {
-                        await refreshExpenses();
-                        await refreshCategories();
-                      }}
-                      triggerSync={triggerSync}
-                    />
+                    <ScrollablePage onScroll={handlePageScroll}>
+                      <SettingsPage
+                        expenses={expenses}
+                        onImport={async () =>
+                          setExpenses(await StorageService.getAll())
+                        }
+                        onRefreshAll={async () => {
+                          await refreshExpenses();
+                          await refreshCategories();
+                        }}
+                        triggerSync={triggerSync}
+                      />
+                    </ScrollablePage>
                   }
                 />
               </Routes>

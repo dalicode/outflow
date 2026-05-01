@@ -1,7 +1,12 @@
-import { useState, useEffect, useRef, type ReactNode, type MouseEventHandler } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type MouseEventHandler,
+} from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
-
 
 interface NavIconProps {
   active: boolean;
@@ -266,9 +271,7 @@ export default function Navbar({
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside
-        className={cn("navbar-desktop group", sidebarWidth)}
-      >
+      <aside className={cn("navbar-desktop group", sidebarWidth)}>
         {/* Brand + Collapse toggle */}
         <div className="px-3 pt-4 pb-2 flex items-center justify-between">
           {!collapsed && (
@@ -337,10 +340,12 @@ export default function Navbar({
                 end
                 className={cn(
                   "flex items-center rounded-lg nav-item-hover",
-                  collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2",
+                  collapsed
+                    ? "justify-center py-2.5 px-2"
+                    : "gap-3 py-2.5 px-3 mx-2",
                   isActive
                     ? "bg-theme-primary/5 text-theme-primary font-semibold nav-item-indicator"
-                    : "text-theme-muted hover:text-theme-text hover:bg-theme-background"
+                    : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
                 )}
               >
                 <Icon active={isActive} />
@@ -359,7 +364,9 @@ export default function Navbar({
             onClick={onAddExpense}
             className={cn(
               "w-full flex items-center rounded-lg text-theme-primary nav-item-hover hover:bg-theme-primary/5 active:scale-95",
-              collapsed ? "justify-center py-2.5 px-2" : "gap-3 py-2.5 px-3 mx-2"
+              collapsed
+                ? "justify-center py-2.5 px-2"
+                : "gap-3 py-2.5 px-3 mx-2",
             )}
             aria-label="Add expense"
           >
@@ -372,7 +379,7 @@ export default function Navbar({
           {syncDot && (
             <div
               className={cn(
-                collapsed ? "flex justify-center py-2" : "px-3 py-2 mx-2"
+                collapsed ? "flex justify-center py-2" : "px-3 py-2 mx-2",
               )}
             >
               {syncDot}
@@ -384,7 +391,9 @@ export default function Navbar({
               onClick={onSignOut}
               className={cn(
                 "w-full flex items-center rounded-lg nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5",
-                collapsed ? "justify-center py-2.5 px-2 mx-1" : "gap-3 py-2.5 px-3 mx-2"
+                collapsed
+                  ? "justify-center py-2.5 px-2 mx-1"
+                  : "gap-3 py-2.5 px-3 mx-2",
               )}
               title={userEmail}
             >
@@ -407,16 +416,18 @@ export default function Navbar({
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed inset-x-0 bottom-0 z-30 h-28 pointer-events-none sm:hidden">
-        {/* Static background coverage layer — never animates */}
-        <div className="absolute inset-x-0 bottom-0 h-full bg-theme-background" />
+      <div className="fixed inset-x-0 bottom-0 z-30 h-24 pointer-events-none sm:hidden">
+        {/* Static background coverage layer — only as tall as the nav */}
+        <div className="absolute inset-x-0 bottom-0 h-[calc(0.5rem+env(safe-area-inset-bottom))] bg-theme-background" />
 
         {/* Animated navbar UI */}
         <nav
           className={cn(
             "pointer-events-auto absolute inset-x-0 bottom-0",
             "mobile-nav-bounce",
-            !peekExpanded && (scrollDirection === "down" || hidden) && "translate-y-[calc(100%-12px)] overflow-hidden",
+            !peekExpanded &&
+              (scrollDirection === "down" || hidden) &&
+              "translate-y-[calc(100%-12px)] overflow-hidden",
           )}
         >
           <div className="mobile-nav-container">
@@ -429,7 +440,9 @@ export default function Navbar({
                   cn(
                     "flex items-center justify-center w-14 h-16 nav-item-hover",
                     isActive ? "text-theme-primary" : "text-theme-muted",
-                    !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
+                    !peekExpanded &&
+                      (scrollDirection === "down" || hidden) &&
+                      "opacity-0",
                   )
                 }
               >
@@ -441,7 +454,9 @@ export default function Navbar({
               onClick={onAddExpense}
               className={cn(
                 "mobile-add-btn",
-                !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
+                !peekExpanded &&
+                  (scrollDirection === "down" || hidden) &&
+                  "opacity-0",
               )}
               aria-label="Add expense"
             >
@@ -457,7 +472,9 @@ export default function Navbar({
                   cn(
                     "flex items-center justify-center w-14 h-16 nav-item-hover",
                     isActive ? "text-theme-primary" : "text-theme-muted",
-                    !peekExpanded && (scrollDirection === "down" || hidden) && "opacity-0",
+                    !peekExpanded &&
+                      (scrollDirection === "down" || hidden) &&
+                      "opacity-0",
                   )
                 }
               >

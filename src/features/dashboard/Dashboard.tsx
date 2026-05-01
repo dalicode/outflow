@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
 import Modal from "../../components/ui/Modal";
@@ -28,6 +28,7 @@ interface DashboardProps {
   onDelete: (id: number) => Promise<void>;
   onBulkDelete: (ids: number[]) => Promise<void>;
   onSelectionChange?: (active: boolean) => void;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 export default function Dashboard({
@@ -37,7 +38,9 @@ export default function Dashboard({
   onDelete,
   onBulkDelete,
   onSelectionChange,
+  onScroll,
 }: DashboardProps) {
+  const location = useLocation();
   const now = new Date();
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
   const [searchParams] = useSearchParams();
@@ -54,7 +57,9 @@ export default function Dashboard({
   const [viewMode, setViewMode] = useState<"expenses" | "categories">(
     "categories",
   );
-  const [viewAnimation, setViewAnimation] = useState<"slide-left" | "slide-right" | null>(null);
+  const [viewAnimation, setViewAnimation] = useState<
+    "slide-left" | "slide-right" | null
+  >(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -79,7 +84,9 @@ export default function Dashboard({
 
   const [monthSpan, setMonthSpan] = useState<1 | 2 | 3 | 6 | 12>(1);
 
-  const [mobileEditTrigger, setMobileEditTrigger] = useState<number | null>(null);
+  const [mobileEditTrigger, setMobileEditTrigger] = useState<number | null>(
+    null,
+  );
 
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterGlobal, setFilterGlobal] = useState("");
@@ -160,6 +167,12 @@ export default function Dashboard({
     return () => clearTimeout(timer);
   }, [viewAnimation]);
 
+  const scrollableRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollableRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [location.pathname]);
+
   const [showGrandTotal, setShowGrandTotal] = useState(false);
   const [monthSummaries, setMonthSummaries] = useState<MonthlySummary[]>([]);
   const [drilldownCategory, setDrilldownCategory] = useState<string | null>(
@@ -170,7 +183,10 @@ export default function Dashboard({
 
   useEffect(() => {
     if (drilldownCategory && drilldownRef.current) {
-      drilldownRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      drilldownRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
   }, [drilldownCategory, drilldownMonthIndex]);
 
@@ -566,6 +582,15 @@ export default function Dashboard({
     resolveName,
   ]);
 
+  const groupedDrilldownExpenses = useMemo(() => {
+    const groups: Record<string, Expense[]> = {};
+    drilldownExpenses.forEach((exp) => {
+      if (!groups[exp.date]) groups[exp.date] = [];
+      groups[exp.date].push(exp);
+    });
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [drilldownExpenses]);
+
   const spanVariableTotal = useMemo(
     () => monthSummaries.reduce((s, m) => s + m.variableExpenses, 0),
     [monthSummaries],
@@ -598,343 +623,563 @@ export default function Dashboard({
   ].filter(Boolean).length;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-theme-text tracking-tight">
-          Dashboard
-        </h1>
-        <button
-          className={cn(
-            "text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5",
-            activeFilterCount > 0
-              ? "bg-theme-primary/10 text-theme-primary border-theme-primary/20"
-              : "bg-theme-background text-theme-muted hover:text-theme-text border-theme-border",
-          )}
-          onClick={() => setShowFilterModal(true)}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          Filters
-          {activeFilterCount > 0 && (
-            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-theme-primary text-white text-[0.6875rem] font-semibold">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
-      </div>
-      {/* Category filter chips */}
-      {viewMode === "expenses" && categoryRows.length > 0 && false && (
-        <div>
-          <h2 className="text-sm font-semibold text-theme-text tracking-tight mb-3">
-            Filter by Category
-          </h2>
-          <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col h-full">
+      {/* Top section — shrink-0 */}
+      <div className="shrink-0">
+        <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-theme-text tracking-tight">
+              Dashboard
+            </h1>
             <button
-              onClick={() => setSelectedCategories(new Set())}
               className={cn(
-                "category-chip",
-                selectedCategories.size === 0
-                  ? "category-chip-active"
-                  : "category-chip-inactive",
+                "text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5",
+                activeFilterCount > 0
+                  ? "bg-theme-primary/10 text-theme-primary border-theme-primary/20"
+                  : "bg-theme-background text-theme-muted hover:text-theme-text border-theme-border",
               )}
+              onClick={() => setShowFilterModal(true)}
             >
-              All
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-theme-primary text-white text-[0.6875rem] font-semibold">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
-            {categoryRows.map(({ name, total }) => {
-              const isSelected = selectedCategories.has(name);
-              return (
-                <button
-                  key={name}
-                  onClick={() => {
-                    const next = new Set(selectedCategories);
-                    if (next.has(name)) next.delete(name);
-                    else next.add(name);
-                    setSelectedCategories(next);
-                  }}
-                  className={cn(
-                    "category-chip",
-                    isSelected
-                      ? "category-chip-active"
-                      : "category-chip-inactive",
-                  )}
-                >
-                  <span>{name}</span>
-                  <span
-                    className={
-                      isSelected ? "text-white/80" : getNumberColorClass(total)
-                    }
+          </div>
+
+          {/* Span selector */}
+          {showSpanSelector && (
+            <div className="flex justify-center">
+              <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
+                {[1, 2, 3, 6, 12]
+                  .filter((n) => viewportWidth >= SPAN_THRESHOLDS[n])
+                  .map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setMonthSpan(n as 1 | 2 | 3 | 6 | 12)}
+                      className={cn(
+                        "dashboard-tab",
+                        monthSpan === n && "dashboard-tab-active",
+                      )}
+                    >
+                      {n}M
+                    </button>
+                  ))}
+                {monthSpan > 1 && (
+                  <button
+                    onClick={() => setShowGrandTotal((prev) => !prev)}
+                    className={cn(
+                      "dashboard-tab",
+                      showGrandTotal && "dashboard-tab-active",
+                    )}
                   >
-                    {formatAmount(total)}
+                    Total
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Month strip */}
+          <Strip
+            maxVisible={maxVisible}
+            scrollClass="month-strip-scroll"
+            scrollSelector="[data-selected='true']"
+            align="end"
+            navLeft={
+              <button
+                onClick={prevMonth}
+                className="month-nav-btn"
+                aria-label="Previous month"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+            }
+            navRight={
+              <button
+                onClick={nextMonth}
+                className="month-nav-btn"
+                aria-label="Next month"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            }
+          >
+            {monthStrip.map(({ year, month }, index) => {
+              const isSelected =
+                year === selectedYear && month === selectedMonth;
+              const pillKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+              const isRealCurrent = pillKey === getLocalMonthKey();
+              const isInSpan =
+                monthSpan > 1 && monthKeys.some((mk) => mk.key === pillKey);
+              const monthName = new Date(year, month).toLocaleString(
+                "default",
+                { month: "short" },
+              );
+              const isFirstOfYear = yearFirstIndices.get(year) === index;
+
+              const handleClick = () => {
+                if (!isSelected) {
+                  setSelectedYear(year);
+                  setSelectedMonth(month);
+                }
+              };
+
+              return (
+                <div
+                  key={`${year}-${month}`}
+                  className="month-strip-item"
+                  data-selected={isSelected || undefined}
+                >
+                  <span
+                    className={cn("year-label", !isFirstOfYear && "invisible")}
+                  >
+                    {year}
                   </span>
-                </button>
+                  <button
+                    onClick={handleClick}
+                    className={cn(
+                      "month-pill",
+                      (isSelected || isInSpan) && "month-pill-selected",
+                      !isSelected &&
+                        !isInSpan &&
+                        isRealCurrent &&
+                        "month-pill-current",
+                    )}
+                    aria-label={`${monthName} ${year}`}
+                    aria-current={isSelected ? "date" : undefined}
+                  >
+                    <span
+                      className={cn(!isSelected && isInSpan && "opacity-70")}
+                    >
+                      {monthName}
+                    </span>
+                  </button>
+                </div>
               );
             })}
-          </div>
+          </Strip>
         </div>
-      )}
+      </div>
 
-      {showSpanSelector && (
-        <div className="flex justify-center">
-          <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
-            {[1, 2, 3, 6, 12]
-              .filter((n) => viewportWidth >= SPAN_THRESHOLDS[n])
-              .map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setMonthSpan(n as 1 | 2 | 3 | 6 | 12)}
-                  className={cn(
-                    "dashboard-tab",
-                    monthSpan === n && "dashboard-tab-active",
-                  )}
-                >
-                  {n}M
-                </button>
-              ))}
-            {monthSpan > 1 && (
-              <button
-                onClick={() => setShowGrandTotal((prev) => !prev)}
-                className={cn(
-                  "dashboard-tab",
-                  showGrandTotal && "dashboard-tab-active",
-                )}
-              >
-                Total
-              </button>
+      {/* Tabs — shrink-0 */}
+      <div className="shrink-0 max-w-7xl mx-auto px-4 ml-3 w-full">
+        <div className="flex gap-0.5">
+          <button
+            onClick={() => {
+              if (viewMode !== "categories") {
+                setViewAnimation("slide-left");
+                setViewMode("categories");
+              }
+            }}
+            className={cn(
+              "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+              viewMode === "categories"
+                ? "bg-theme-surface text-theme-text"
+                : "bg-theme-background text-theme-muted hover:text-theme-text",
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Month strip */}
-      <Strip
-        maxVisible={maxVisible}
-        scrollClass="month-strip-scroll"
-        scrollSelector="[data-selected='true']"
-        align="end"
-        navLeft={
-          <button onClick={prevMonth} className="month-nav-btn" aria-label="Previous month">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-        }
-        navRight={
-          <button onClick={nextMonth} className="month-nav-btn" aria-label="Next month">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        }
-      >
-        {monthStrip.map(({ year, month }, index) => {
-          const isSelected = year === selectedYear && month === selectedMonth;
-          const pillKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-          const isRealCurrent = pillKey === getLocalMonthKey();
-          const isInSpan = monthSpan > 1 && monthKeys.some((mk) => mk.key === pillKey);
-          const monthName = new Date(year, month).toLocaleString("default", { month: "short" });
-          const isFirstOfYear = yearFirstIndices.get(year) === index;
-
-          const handleClick = () => {
-            if (!isSelected) {
-              setSelectedYear(year);
-              setSelectedMonth(month);
-            }
-          };
-
-          return (
-            <div key={`${year}-${month}`} className="month-strip-item" data-selected={isSelected || undefined}>
-              <span className={cn("year-label", !isFirstOfYear && "invisible")}>
-                {year}
-              </span>
-              <button
-                onClick={handleClick}
-                className={cn(
-                  "month-pill",
-                  (isSelected || isInSpan) && "month-pill-selected",
-                  !isSelected && !isInSpan && isRealCurrent && "month-pill-current",
-                )}
-                aria-label={`${monthName} ${year}`}
-                aria-current={isSelected ? "date" : undefined}
-              >
-                <span className={cn(!isSelected && isInSpan && "opacity-70")}>
-                  {monthName}
-                </span>
-              </button>
-            </div>
-          );
-        })}
-      </Strip>
-
-      {/* Expenses Table Card */}
-      <div className="flex justify-center">
-        <section
-          ref={contentRef}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          className={cn(
-            "relative rounded-xl bg-theme-surface shadow-sm p-4 md:p-5 pt-6 w-full mt-[1.625rem]",
-            monthSpan <= 3 && "md:max-w-3xl",
-            monthSpan === 6 && "md:max-w-6xl",
-            monthSpan === 12 && "md:max-w-none",
-          )}
-        >
-          {/* Folder tabs */}
-          <div className="absolute -top-[1.625rem] left-3 flex gap-0.5">
-            <button
-              onClick={() => {
-                if (viewMode !== "categories") {
-                  setViewAnimation("slide-left");
-                  setViewMode("categories");
-                }
-              }}
-              className={cn(
-                "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
-                viewMode === "categories"
-                  ? "bg-theme-surface text-theme-text"
-                  : "bg-theme-background text-theme-muted hover:text-theme-text",
-              )}
-            >
-              Categories
-            </button>
-            <button
-              onClick={() => {
-                if (viewMode !== "expenses") {
-                  setViewAnimation("slide-right");
-                  setViewMode("expenses");
-                }
-              }}
-              className={cn(
-                "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
-                viewMode === "expenses"
-                  ? "bg-theme-surface text-theme-text"
-                  : "bg-theme-background text-theme-muted hover:text-theme-text",
-              )}
-            >
-              Expenses
-            </button>
-          </div>
-
-          {/* Action / count row */}
-          <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
-            {viewMode === "expenses" && selectedCategories.size > 0 && (
-              <button
-                onClick={() => setSelectedCategories(new Set())}
-                className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
-              >
-                Reset Filter
-              </button>
-            )}
-            <p className="text-sm text-theme-muted tabular-nums">
-              {spanExpenses.length} transaction
-              {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
-              {formatAmount(spanVariableTotal)}
-            </p>
-          </div>
-
-          {/* Confirm delete modal */}
-          <Modal
-            isOpen={showConfirm}
-            onClose={() => setShowConfirm(false)}
-            title="Confirm Delete"
-            size="sm"
           >
-            <p className="text-sm text-theme-muted">
-              Are you sure you want to delete{" "}
-              <strong className="text-theme-text">{selectedIds.size}</strong>{" "}
-              expense{selectedIds.size !== 1 ? "s" : ""}?
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={confirmDelete} className="confirm-delete-btn">
-                Delete
-              </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="confirm-cancel-btn"
-              >
-                Cancel
-              </button>
-            </div>
-          </Modal>
+            Categories
+          </button>
+          <button
+            onClick={() => {
+              if (viewMode !== "expenses") {
+                setViewAnimation("slide-right");
+                setViewMode("expenses");
+              }
+            }}
+            className={cn(
+              "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+              viewMode === "expenses"
+                ? "bg-theme-surface text-theme-text"
+                : "bg-theme-background text-theme-muted hover:text-theme-text",
+            )}
+          >
+            Expenses
+          </button>
+        </div>
+      </div>
 
-          {viewMode === "categories" ? (
-            <div className={cn("space-y-4", viewAnimation === "slide-left" && "view-slide-left", viewAnimation === "slide-right" && "view-slide-right")}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-separate border-spacing-0">
-                  <thead className="sticky top-0 z-10">
-                    <tr>
-                      <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">Category</th>
-                      {monthSpan > 1 ? (
-                        <>
-                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                            Transactions
-                          </th>
-                          {[...monthKeys].reverse().map((mk, displayIdx) => (
-                            <th
-                              key={mk.key}
-                              className={cn(
-                                "table-header-cell text-right tabular-nums",
-                                displayIdx === 0 &&
-                                  "border-l border-theme-border",
-                              )}
-                            >
-                              {mk.name}
-                            </th>
-                          ))}
-                          {showGrandTotal && (
+      {/* Scrollable content */}
+      <div
+        ref={scrollableRef}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+        onScroll={onScroll}
+      >
+        <div className="max-w-7xl mx-auto px-4 pb-24">
+          <section
+            ref={contentRef}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className={cn(
+              "relativer rounded-md bg-theme-surface shadow-sm p-4 md:p-5 w-full",
+              monthSpan <= 3 && "md:max-w-3xl",
+              monthSpan === 6 && "md:max-w-6xl",
+              monthSpan === 12 && "md:max-w-none",
+            )}
+          >
+            {/* Action / count row */}
+            <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
+              {viewMode === "expenses" && selectedCategories.size > 0 && (
+                <button
+                  onClick={() => setSelectedCategories(new Set())}
+                  className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
+                >
+                  Reset Filter
+                </button>
+              )}
+              <p className="text-sm text-theme-muted tabular-nums">
+                {spanExpenses.length} transaction
+                {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
+                {formatAmount(spanVariableTotal)}
+              </p>
+            </div>
+
+            {/* Confirm delete modal */}
+            <Modal
+              isOpen={showConfirm}
+              onClose={() => setShowConfirm(false)}
+              title="Confirm Delete"
+              size="sm"
+            >
+              <p className="text-sm text-theme-muted">
+                Are you sure you want to delete{" "}
+                <strong className="text-theme-text">{selectedIds.size}</strong>{" "}
+                expense{selectedIds.size !== 1 ? "s" : ""}?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={confirmDelete} className="confirm-delete-btn">
+                  Delete
+                </button>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="confirm-cancel-btn"
+                >
+                  Cancel
+                </button>
+              </div>
+            </Modal>
+
+            {viewMode === "categories" ? (
+              <div
+                className={cn(
+                  "space-y-4",
+                  viewAnimation === "slide-left" && "view-slide-left",
+                  viewAnimation === "slide-right" && "view-slide-right",
+                )}
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-separate border-spacing-0">
+                    <thead className="sticky top-0 z-10">
+                      <tr>
+                        <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
+                          Category
+                        </th>
+                        {monthSpan > 1 ? (
+                          <>
                             <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                              Total
+                              Transactions
                             </th>
-                          )}
-                        </>
+                            {[...monthKeys].reverse().map((mk, displayIdx) => (
+                              <th
+                                key={mk.key}
+                                className={cn(
+                                  "table-header-cell text-right tabular-nums",
+                                  displayIdx === 0 &&
+                                    "border-l border-theme-border",
+                                )}
+                              >
+                                {mk.name}
+                              </th>
+                            ))}
+                            {showGrandTotal && (
+                              <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
+                                Total
+                              </th>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
+                              Transactions
+                            </th>
+                            <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
+                              Amount
+                            </th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {multiCategoryRows.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={
+                              monthSpan > 1
+                                ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                : 3
+                            }
+                            className="px-3 py-12 text-center text-theme-muted"
+                          >
+                            No expenses yet. Hit{" "}
+                            <strong className="text-theme-primary">+</strong> to
+                            add one.
+                          </td>
+                        </tr>
                       ) : (
+                        multiCategoryRows.map(
+                          ({ name, totalTransactions, monthlyAmounts }) => (
+                            <tr
+                              key={name}
+                              className="border-b border-theme-muted/10 row-hover"
+                            >
+                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                                {name}
+                              </td>
+                              {monthSpan > 1 ? (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    {totalTransactions}
+                                  </td>
+                                  {[...monthlyAmounts]
+                                    .reverse()
+                                    .map((amount, displayIdx) => {
+                                      const dataIdx =
+                                        monthKeys.length - 1 - displayIdx;
+                                      return (
+                                        <td
+                                          key={displayIdx}
+                                          className={cn(
+                                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
+                                            displayIdx === 0 &&
+                                              "border-l border-theme-border",
+                                          )}
+                                        >
+                                          {amount !== 0 ? (
+                                            <button
+                                              onClick={() =>
+                                                handleCategoryClick(
+                                                  name,
+                                                  dataIdx,
+                                                )
+                                              }
+                                              className={cn(
+                                                "font-semibold hover:underline",
+                                                getNumberColorClass(amount),
+                                              )}
+                                            >
+                                              {formatAmount(amount)}
+                                            </button>
+                                          ) : (
+                                            <span className="text-theme-muted">
+                                              —
+                                            </span>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  {showGrandTotal && (
+                                    <td
+                                      className={cn(
+                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                        getNumberColorClass(
+                                          monthlyAmounts.reduce(
+                                            (s, v) => s + v,
+                                            0,
+                                          ),
+                                        ),
+                                      )}
+                                    >
+                                      {formatAmount(
+                                        monthlyAmounts.reduce(
+                                          (s, v) => s + v,
+                                          0,
+                                        ),
+                                      )}
+                                    </td>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                    {totalTransactions}
+                                  </td>
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
+                                    {monthlyAmounts[0] !== 0 ? (
+                                      <button
+                                        onClick={() =>
+                                          handleCategoryClick(name, 0)
+                                        }
+                                        className={cn(
+                                          "font-semibold hover:underline",
+                                          getNumberColorClass(
+                                            monthlyAmounts[0],
+                                          ),
+                                        )}
+                                      >
+                                        {formatAmount(monthlyAmounts[0])}
+                                      </button>
+                                    ) : (
+                                      <span className="text-theme-muted">
+                                        —
+                                      </span>
+                                    )}
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                          ),
+                        )
+                      )}
+                      {multiFixedRows.length > 0 && (
                         <>
-                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                            Transactions
-                          </th>
-                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                            Amount
-                          </th>
+                          <tr>
+                            <td
+                              colSpan={
+                                monthSpan > 1
+                                  ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                  : 3
+                              }
+                              className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
+                            >
+                              Fixed Expenses
+                            </td>
+                          </tr>
+                          {multiFixedRows.map((fe) => {
+                            const fixedGrandTotal = fe.monthlyAmounts.reduce(
+                              (s, v) => (s ?? 0) + (v ?? 0),
+                              0,
+                            );
+                            return (
+                              <tr key={fe.id} className="row-hover">
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap">
+                                  {fe.name}
+                                </td>
+                                {monthSpan > 1 ? (
+                                  <>
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                      —
+                                    </td>
+                                    {[...fe.monthlyAmounts]
+                                      .reverse()
+                                      .map((amount, displayIdx) => (
+                                        <td
+                                          key={displayIdx}
+                                          className={cn(
+                                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
+                                            displayIdx === 0 &&
+                                              "border-l border-theme-border",
+                                          )}
+                                        >
+                                          {amount !== null ? (
+                                            formatAmount(amount)
+                                          ) : (
+                                            <span className="text-theme-muted">
+                                              —
+                                            </span>
+                                          )}
+                                        </td>
+                                      ))}
+                                    {showGrandTotal && (
+                                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                                        {formatAmount(fixedGrandTotal)}
+                                      </td>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                      —
+                                    </td>
+                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text">
+                                      {fe.monthlyAmounts[0] !== null
+                                        ? formatAmount(fe.monthlyAmounts[0])
+                                        : "—"}
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            );
+                          })}
                         </>
                       )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {multiCategoryRows.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={
-                            monthSpan > 1
-                              ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
-                              : 3
-                          }
-                          className="px-3 py-12 text-center text-theme-muted"
-                        >
-                          No expenses yet. Hit{" "}
-                          <strong className="text-theme-primary">+</strong> to
-                          add one.
-                        </td>
-                      </tr>
-                    ) : (
-                      multiCategoryRows.map(
-                        ({ name, totalTransactions, monthlyAmounts }) => (
-                          <tr
-                            key={name}
-                            className="border-b border-theme-muted/10 row-hover"
-                          >
-                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
-                              {name}
+                      {monthSummaries.length > 0 && (
+                        <>
+                          <tr>
+                            <td
+                              colSpan={
+                                monthSpan > 1
+                                  ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                  : 3
+                              }
+                              className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
+                            >
+                              Budget Summary
+                            </td>
+                          </tr>
+                          {/* Income */}
+                          <tr className="row-hover">
+                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                              Income
+                              <svg
+                                className="w-3 h-3 text-theme-muted"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                              </svg>
                             </td>
                             {monthSpan > 1 ? (
                               <>
                                 <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  {totalTransactions}
+                                  —
                                 </td>
-                                {[...monthlyAmounts]
+                                {[...monthSummaries]
                                   .reverse()
-                                  .map((amount, displayIdx) => {
+                                  .map((summary, displayIdx) => {
                                     const dataIdx =
-                                      monthKeys.length - 1 - displayIdx;
+                                      monthSummaries.length - 1 - displayIdx;
                                     return (
                                       <td
                                         key={displayIdx}
@@ -944,40 +1189,24 @@ export default function Dashboard({
                                             "border-l border-theme-border",
                                         )}
                                       >
-                                        {amount !== 0 ? (
-                                          <button
-                                            onClick={() =>
-                                              handleCategoryClick(name, dataIdx)
-                                            }
-                                            className={cn(
-                                              "font-semibold hover:underline",
-                                              getNumberColorClass(amount),
-                                            )}
-                                          >
-                                            {formatAmount(amount)}
-                                          </button>
-                                        ) : (
-                                          <span className="text-theme-muted">
-                                            —
-                                          </span>
-                                        )}
+                                        <button
+                                          onClick={() =>
+                                            openIncomeModal(dataIdx)
+                                          }
+                                          className="font-semibold hover:underline text-theme-text"
+                                        >
+                                          {formatAmount(summary.income)}
+                                        </button>
                                       </td>
                                     );
                                   })}
                                 {showGrandTotal && (
-                                  <td
-                                    className={cn(
-                                      "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                      getNumberColorClass(
-                                        monthlyAmounts.reduce(
-                                          (s, v) => s + v,
-                                          0,
-                                        ),
-                                      ),
-                                    )}
-                                  >
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                     {formatAmount(
-                                      monthlyAmounts.reduce((s, v) => s + v, 0),
+                                      monthSummaries.reduce(
+                                        (s, m) => s + m.income,
+                                        0,
+                                      ),
                                     )}
                                   </td>
                                 )}
@@ -985,298 +1214,160 @@ export default function Dashboard({
                             ) : (
                               <>
                                 <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                  {totalTransactions}
+                                  —
                                 </td>
                                 <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
-                                  {monthlyAmounts[0] !== 0 ? (
-                                    <button
-                                      onClick={() =>
-                                        handleCategoryClick(name, 0)
-                                      }
-                                      className={cn(
-                                        "font-semibold hover:underline",
-                                        getNumberColorClass(monthlyAmounts[0]),
-                                      )}
-                                    >
-                                      {formatAmount(monthlyAmounts[0])}
-                                    </button>
-                                  ) : (
-                                    <span className="text-theme-muted">—</span>
-                                  )}
+                                  <button
+                                    onClick={() => openIncomeModal(0)}
+                                    className="font-semibold hover:underline text-theme-text"
+                                  >
+                                    {formatAmount(monthSummaries[0].income)}
+                                  </button>
                                 </td>
                               </>
                             )}
                           </tr>
-                        ),
-                      )
-                    )}
-                    {multiFixedRows.length > 0 && (
-                      <>
-                        <tr>
-                          <td
-                            colSpan={
-                              monthSpan > 1
-                                ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
-                                : 3
-                            }
-                            className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
-                          >
-                            Fixed Expenses
-                          </td>
-                        </tr>
-                        {multiFixedRows.map((fe) => {
-                          const fixedGrandTotal = fe.monthlyAmounts.reduce(
-                            (s, v) => (s ?? 0) + (v ?? 0),
-                            0,
-                          );
-                          return (
-                            <tr key={fe.id} className="row-hover">
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap">
-                                {fe.name}
-                              </td>
-                              {monthSpan > 1 ? (
-                                <>
-                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                    —
-                                  </td>
-                                  {[...fe.monthlyAmounts]
-                                    .reverse()
-                                    .map((amount, displayIdx) => (
+                          {/* Auto Savings */}
+                          <tr className="row-hover">
+                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                              Auto Savings
+                              <svg
+                                className="w-3 h-3 text-theme-muted"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                              </svg>
+                            </td>
+                            {monthSpan > 1 ? (
+                              <>
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  —
+                                </td>
+                                {[...monthSummaries]
+                                  .reverse()
+                                  .map((summary, displayIdx) => {
+                                    const dataIdx =
+                                      monthSummaries.length - 1 - displayIdx;
+                                    return (
                                       <td
                                         key={displayIdx}
                                         className={cn(
-                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
+                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
                                           displayIdx === 0 &&
                                             "border-l border-theme-border",
                                         )}
                                       >
-                                        {amount !== null ? (
-                                          formatAmount(amount)
-                                        ) : (
-                                          <span className="text-theme-muted">
-                                            —
-                                          </span>
-                                        )}
+                                        <button
+                                          onClick={() =>
+                                            openSavingsModal(dataIdx)
+                                          }
+                                          className="font-semibold hover:underline text-theme-text"
+                                        >
+                                          {formatAmount(summary.autoSavings)}
+                                        </button>
                                       </td>
-                                    ))}
-                                  {showGrandTotal && (
-                                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
-                                      {formatAmount(fixedGrandTotal)}
-                                    </td>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                    —
+                                    );
+                                  })}
+                                {showGrandTotal && (
+                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                                    {formatAmount(
+                                      monthSummaries.reduce(
+                                        (s, m) => s + m.autoSavings,
+                                        0,
+                                      ),
+                                    )}
                                   </td>
-                                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text">
-                                    {fe.monthlyAmounts[0] !== null
-                                      ? formatAmount(fe.monthlyAmounts[0])
-                                      : "—"}
-                                  </td>
-                                </>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </>
-                    )}
-                    {monthSummaries.length > 0 && (
-                      <>
-                        <tr>
-                          <td
-                            colSpan={
-                              monthSpan > 1
-                                ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
-                                : 3
-                            }
-                            className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
-                          >
-                            Budget Summary
-                          </td>
-                        </tr>
-                        {/* Income */}
-                        <tr className="row-hover">
-                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
-                            Income
-                            <svg
-                              className="w-3 h-3 text-theme-muted"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            </svg>
-                          </td>
-                          {monthSpan > 1 ? (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              {[...monthSummaries]
-                                .reverse()
-                                .map((summary, displayIdx) => {
-                                  const dataIdx =
-                                    monthSummaries.length - 1 - displayIdx;
-                                  return (
-                                    <td
-                                      key={displayIdx}
-                                      className={cn(
-                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
-                                        displayIdx === 0 &&
-                                          "border-l border-theme-border",
-                                      )}
-                                    >
-                                      <button
-                                        onClick={() => openIncomeModal(dataIdx)}
-                                        className="font-semibold hover:underline text-theme-text"
-                                      >
-                                        {formatAmount(summary.income)}
-                                      </button>
-                                    </td>
-                                  );
-                                })}
-                              {showGrandTotal && (
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
-                                  {formatAmount(
-                                    monthSummaries.reduce(
-                                      (s, m) => s + m.income,
-                                      0,
-                                    ),
-                                  )}
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  —
                                 </td>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
-                                <button
-                                  onClick={() => openIncomeModal(0)}
-                                  className="font-semibold hover:underline text-theme-text"
-                                >
-                                  {formatAmount(monthSummaries[0].income)}
-                                </button>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                        {/* Auto Savings */}
-                        <tr className="row-hover">
-                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
-                            Auto Savings
-                            <svg
-                              className="w-3 h-3 text-theme-muted"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            </svg>
-                          </td>
-                          {monthSpan > 1 ? (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              {[...monthSummaries]
-                                .reverse()
-                                .map((summary, displayIdx) => {
-                                  const dataIdx =
-                                    monthSummaries.length - 1 - displayIdx;
-                                  return (
-                                    <td
-                                      key={displayIdx}
-                                      className={cn(
-                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
-                                        displayIdx === 0 &&
-                                          "border-l border-theme-border",
-                                      )}
-                                    >
-                                      <button
-                                        onClick={() =>
-                                          openSavingsModal(dataIdx)
-                                        }
-                                        className="font-semibold hover:underline text-theme-text"
-                                      >
-                                        {formatAmount(summary.autoSavings)}
-                                      </button>
-                                    </td>
-                                  );
-                                })}
-                              {showGrandTotal && (
-                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
-                                  {formatAmount(
-                                    monthSummaries.reduce(
-                                      (s, m) => s + m.autoSavings,
-                                      0,
-                                    ),
-                                  )}
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
+                                  <button
+                                    onClick={() => openSavingsModal(0)}
+                                    className="font-semibold hover:underline text-theme-text"
+                                  >
+                                    {formatAmount(
+                                      monthSummaries[0].autoSavings,
+                                    )}
+                                  </button>
                                 </td>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
-                                <button
-                                  onClick={() => openSavingsModal(0)}
-                                  className="font-semibold hover:underline text-theme-text"
-                                >
-                                  {formatAmount(monthSummaries[0].autoSavings)}
-                                </button>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                        {/* Remaining */}
-                        <tr className="row-hover">
-                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
-                            Remaining
-                          </td>
-                          {monthSpan > 1 ? (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              {[...monthSummaries]
-                                .reverse()
-                                .map((summary, displayIdx) => {
-                                  const v = summary.remaining;
-                                  return (
-                                    <td
-                                      key={displayIdx}
-                                      className={cn(
-                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                        v > 0
+                              </>
+                            )}
+                          </tr>
+                          {/* Remaining */}
+                          <tr className="row-hover">
+                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                              Remaining
+                            </td>
+                            {monthSpan > 1 ? (
+                              <>
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  —
+                                </td>
+                                {[...monthSummaries]
+                                  .reverse()
+                                  .map((summary, displayIdx) => {
+                                    const v = summary.remaining;
+                                    return (
+                                      <td
+                                        key={displayIdx}
+                                        className={cn(
+                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                          v > 0
+                                            ? "text-theme-success"
+                                            : v < 0
+                                              ? "text-theme-danger"
+                                              : "text-theme-text",
+                                          displayIdx === 0 &&
+                                            "border-l border-theme-border",
+                                        )}
+                                      >
+                                        {formatAmount(v)}
+                                      </td>
+                                    );
+                                  })}
+                                {showGrandTotal && (
+                                  <td
+                                    className={cn(
+                                      "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                      (() => {
+                                        const v = monthSummaries.reduce(
+                                          (s, m) => s + m.remaining,
+                                          0,
+                                        );
+                                        return v > 0
                                           ? "text-theme-success"
                                           : v < 0
                                             ? "text-theme-danger"
-                                            : "text-theme-text",
-                                        displayIdx === 0 &&
-                                          "border-l border-theme-border",
-                                      )}
-                                    >
-                                      {formatAmount(v)}
-                                    </td>
-                                  );
-                                })}
-                              {showGrandTotal && (
+                                            : "text-theme-text";
+                                      })(),
+                                    )}
+                                  >
+                                    {formatAmount(
+                                      monthSummaries.reduce(
+                                        (s, m) => s + m.remaining,
+                                        0,
+                                      ),
+                                    )}
+                                  </td>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  —
+                                </td>
                                 <td
                                   className={cn(
                                     "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                     (() => {
-                                      const v = monthSummaries.reduce(
-                                        (s, m) => s + m.remaining,
-                                        0,
-                                      );
+                                      const v = monthSummaries[0].remaining;
                                       return v > 0
                                         ? "text-theme-success"
                                         : v < 0
@@ -1285,227 +1376,208 @@ export default function Dashboard({
                                     })(),
                                   )}
                                 >
-                                  {formatAmount(
-                                    monthSummaries.reduce(
-                                      (s, m) => s + m.remaining,
-                                      0,
-                                    ),
-                                  )}
+                                  {formatAmount(monthSummaries[0].remaining)}
                                 </td>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              <td
-                                className={cn(
-                                  "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                  (() => {
-                                    const v = monthSummaries[0].remaining;
-                                    return v > 0
-                                      ? "text-theme-success"
-                                      : v < 0
-                                        ? "text-theme-danger"
-                                        : "text-theme-text";
-                                  })(),
-                                )}
-                              >
-                                {formatAmount(monthSummaries[0].remaining)}
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                        {/* Total Savings */}
-                        <tr className="row-hover">
-                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
-                            Total Savings
-                          </td>
-                          {monthSpan > 1 ? (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              {[...monthSummaries]
-                                .reverse()
-                                .map((summary, displayIdx) => {
-                                  const totalSavings =
-                                    summary.autoSavings + summary.remaining;
-                                  const ratioPct =
-                                    summary.income > 0
-                                      ? (totalSavings / summary.income) * 100
-                                      : 0;
-                                  const color = getSavingsGradientColor(
-                                    ratioPct,
-                                    summary.savingsRate,
-                                  );
-                                  return (
-                                    <td
-                                      key={displayIdx}
-                                      className={cn(
-                                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
-                                        displayIdx === 0 &&
-                                          "border-l border-theme-border",
-                                      )}
-                                      style={{ color }}
-                                    >
-                                      {formatAmount(totalSavings)}
-                                    </td>
-                                  );
-                                })}
-                              {showGrandTotal && (
-                                <td
-                                  className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
-                                  style={{
-                                    color: (() => {
-                                      const grandTotal = monthSummaries.reduce(
-                                        (s, m) =>
-                                          s + m.autoSavings + m.remaining,
-                                        0,
-                                      );
-                                      const totalIncome = monthSummaries.reduce(
-                                        (s, m) => s + m.income,
-                                        0,
-                                      );
-                                      const avgRate =
-                                        monthSummaries.reduce(
-                                          (s, m) => s + m.savingsRate,
-                                          0,
-                                        ) / monthSummaries.length;
-                                      const ratioPct =
-                                        totalIncome > 0
-                                          ? (grandTotal / totalIncome) * 100
-                                          : 0;
-                                      return getSavingsGradientColor(
-                                        ratioPct,
-                                        avgRate,
-                                      );
-                                    })(),
-                                  }}
-                                >
-                                  {formatAmount(
-                                    monthSummaries.reduce(
-                                      (s, m) => s + m.autoSavings + m.remaining,
-                                      0,
-                                    ),
-                                  )}
+                              </>
+                            )}
+                          </tr>
+                          {/* Total Savings */}
+                          <tr className="row-hover">
+                            <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                              Total Savings
+                            </td>
+                            {monthSpan > 1 ? (
+                              <>
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  —
                                 </td>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
-                                —
-                              </td>
-                              <td
-                                className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
-                                style={{
-                                  color: (() => {
-                                    const summary = monthSummaries[0];
+                                {[...monthSummaries]
+                                  .reverse()
+                                  .map((summary, displayIdx) => {
                                     const totalSavings =
                                       summary.autoSavings + summary.remaining;
                                     const ratioPct =
                                       summary.income > 0
                                         ? (totalSavings / summary.income) * 100
                                         : 0;
-                                    return getSavingsGradientColor(
+                                    const color = getSavingsGradientColor(
                                       ratioPct,
                                       summary.savingsRate,
                                     );
-                                  })(),
-                                }}
-                              >
-                                {formatAmount(
-                                  monthSummaries[0].autoSavings +
-                                    monthSummaries[0].remaining,
+                                    return (
+                                      <td
+                                        key={displayIdx}
+                                        className={cn(
+                                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                                          displayIdx === 0 &&
+                                            "border-l border-theme-border",
+                                        )}
+                                        style={{ color }}
+                                      >
+                                        {formatAmount(totalSavings)}
+                                      </td>
+                                    );
+                                  })}
+                                {showGrandTotal && (
+                                  <td
+                                    className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
+                                    style={{
+                                      color: (() => {
+                                        const grandTotal =
+                                          monthSummaries.reduce(
+                                            (s, m) =>
+                                              s + m.autoSavings + m.remaining,
+                                            0,
+                                          );
+                                        const totalIncome =
+                                          monthSummaries.reduce(
+                                            (s, m) => s + m.income,
+                                            0,
+                                          );
+                                        const avgRate =
+                                          monthSummaries.reduce(
+                                            (s, m) => s + m.savingsRate,
+                                            0,
+                                          ) / monthSummaries.length;
+                                        const ratioPct =
+                                          totalIncome > 0
+                                            ? (grandTotal / totalIncome) * 100
+                                            : 0;
+                                        return getSavingsGradientColor(
+                                          ratioPct,
+                                          avgRate,
+                                        );
+                                      })(),
+                                    }}
+                                  >
+                                    {formatAmount(
+                                      monthSummaries.reduce(
+                                        (s, m) =>
+                                          s + m.autoSavings + m.remaining,
+                                        0,
+                                      ),
+                                    )}
+                                  </td>
                                 )}
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      </>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Drilldown */}
-              {drilldownCategory && drilldownExpenses.length > 0 && (
-                <div ref={drilldownRef} className="space-y-2 border-t border-theme-border pt-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-theme-text">
-                      {drilldownCategory} —{" "}
-                      {monthKeys[drilldownMonthIndex].name}{" "}
-                      {monthKeys[drilldownMonthIndex].year}
-                    </h3>
-                    <button
-                      onClick={() => setDrilldownCategory(null)}
-                      className="text-xs font-medium text-theme-muted hover:text-theme-text transition-colors"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-separate border-spacing-0">
-                      <thead>
-                        <tr>
-                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">Date</th>
-                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
-                            Description
-                          </th>
-                          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
-                            Amount
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {drilldownExpenses.map((exp) => (
-                          <tr
-                            key={exp.id}
-                            className="border-b border-theme-muted/10 row-hover"
-                          >
-                            <td className="px-3 py-1 text-theme-text whitespace-nowrap">
-                              {formatDate(exp.date)}
-                            </td>
-                            <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
-                              {exp.description || (
-                                <span className="text-theme-muted">—</span>
-                              )}
-                            </td>
-                            <td
-                              className={cn(
-                                "px-3 py-1 text-right tabular-nums font-semibold",
-                                getNumberColorClass(exp.amount),
-                              )}
-                            >
-                              {formatAmount(exp.amount)}
-                            </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                                  —
+                                </td>
+                                <td
+                                  className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
+                                  style={{
+                                    color: (() => {
+                                      const summary = monthSummaries[0];
+                                      const totalSavings =
+                                        summary.autoSavings + summary.remaining;
+                                      const ratioPct =
+                                        summary.income > 0
+                                          ? (totalSavings / summary.income) *
+                                            100
+                                          : 0;
+                                      return getSavingsGradientColor(
+                                        ratioPct,
+                                        summary.savingsRate,
+                                      );
+                                    })(),
+                                  }}
+                                >
+                                  {formatAmount(
+                                    monthSummaries[0].autoSavings +
+                                      monthSummaries[0].remaining,
+                                  )}
+                                </td>
+                              </>
+                            )}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className={cn(viewAnimation === "slide-left" && "view-slide-left", viewAnimation === "slide-right" && "view-slide-right")}>
-              <ExpenseTable
-                expenses={filtered}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-                onBulkDelete={onBulkDelete}
-                categories={categories}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                onToggleSelectAll={toggleSelectAll}
-                isMobile={isMobile}
-                mobileEditTrigger={mobileEditTrigger}
-              />
-            </div>
-          )}
-        </section>
+
+                {/* Drilldown */}
+                {drilldownCategory && drilldownExpenses.length > 0 && (
+                  <div
+                    ref={drilldownRef}
+                    className="space-y-2 border-t border-theme-border pt-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-theme-text">
+                        {drilldownCategory} —{" "}
+                        {monthKeys[drilldownMonthIndex].name}{" "}
+                        {monthKeys[drilldownMonthIndex].year}
+                      </h3>
+                      <button
+                        onClick={() => setDrilldownCategory(null)}
+                        className="text-xs font-medium text-theme-muted hover:text-theme-text transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div className="divide-y divide-theme-border">
+                      {groupedDrilldownExpenses.map(([date, items]) => (
+                        <div key={date}>
+                          <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background/50">
+                            {formatDate(date)}
+                          </div>
+                          {items.map((exp) => {
+                            const amountColor =
+                              exp.amount < 0
+                                ? "text-theme-success"
+                                : "text-theme-primary";
+                            return (
+                              <div
+                                key={exp.id}
+                                className="flex items-center justify-between py-2 px-3 row-hover"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-theme-text truncate">
+                                    {exp.description || "—"}
+                                  </p>
+                                </div>
+                                <span
+                                  className={cn(
+                                    "text-sm font-semibold tabular-nums",
+                                    amountColor,
+                                  )}
+                                >
+                                  {formatAmount(exp.amount)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  viewAnimation === "slide-left" && "view-slide-left",
+                  viewAnimation === "slide-right" && "view-slide-right",
+                )}
+              >
+                <ExpenseTable
+                  expenses={filtered}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  onBulkDelete={onBulkDelete}
+                  categories={categories}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onToggleSelectAll={toggleSelectAll}
+                  isMobile={isMobile}
+                  mobileEditTrigger={mobileEditTrigger}
+                />
+              </div>
+            )}
+          </section>
+        </div>
       </div>
 
       {/* Mobile selection banner */}
@@ -1726,6 +1798,6 @@ export default function Dashboard({
           </div>
         </div>
       </Modal>
-    </main>
+    </div>
   );
 }
