@@ -6,11 +6,93 @@ interface StripProps {
   scrollSelector: string;
   selectedKey?: string | number;
   align?: "center" | "end";
-  navLeft?: ReactNode;
-  navRight?: ReactNode;
+  onJumpBack?: () => void;
+  onStepBack?: () => void;
+  onStepForward?: () => void;
+  onJumpForward?: () => void;
+  disableJumpBack?: boolean;
+  disableStepBack?: boolean;
+  disableStepForward?: boolean;
+  disableJumpForward?: boolean;
+  jumpBackLabel: string;
+  stepBackLabel: string;
+  stepForwardLabel: string;
+  jumpForwardLabel: string;
   beforeScroll?: ReactNode;
   afterScroll?: ReactNode;
   children: ReactNode;
+}
+
+function ChevronLeft({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 19l-7-7 7-7"
+      />
+    </svg>
+  );
+}
+
+function ChevronRight({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 5l7 7-7 7"
+      />
+    </svg>
+  );
+}
+
+function DoubleChevronLeft({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
+      />
+    </svg>
+  );
+}
+
+function DoubleChevronRight({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13 5l7 7-7 7M6 5l7 7-7 7"
+      />
+    </svg>
+  );
 }
 
 export default function Strip({
@@ -19,8 +101,18 @@ export default function Strip({
   scrollSelector,
   selectedKey,
   align = "center",
-  navLeft,
-  navRight,
+  onJumpBack,
+  onStepBack,
+  onStepForward,
+  onJumpForward,
+  disableJumpBack,
+  disableStepBack,
+  disableStepForward,
+  disableJumpForward,
+  jumpBackLabel,
+  stepBackLabel,
+  stepForwardLabel,
+  jumpForwardLabel,
   beforeScroll,
   afterScroll,
   children,
@@ -40,11 +132,35 @@ export default function Strip({
     }
   }, [scrollSelector, selectedKey]);
 
+  const hasNav =
+    onJumpBack || onStepBack || onStepForward || onJumpForward;
+
   return (
-    <div
-      className={`flex items-${align} justify-center`}
-    >
-      {navLeft}
+    <div className={`flex items-${align} justify-center`}>
+      {hasNav && (
+        <>
+          {onJumpBack && (
+            <button
+              onClick={onJumpBack}
+              disabled={disableJumpBack}
+              className={`strip-nav-btn${disableJumpBack ? " opacity-40 cursor-not-allowed" : ""}`}
+              aria-label={jumpBackLabel}
+            >
+              <DoubleChevronLeft />
+            </button>
+          )}
+          {onStepBack && (
+            <button
+              onClick={onStepBack}
+              disabled={disableStepBack}
+              className={`strip-nav-btn${disableStepBack ? " opacity-40 cursor-not-allowed" : ""}`}
+              aria-label={stepBackLabel}
+            >
+              <ChevronLeft />
+            </button>
+          )}
+        </>
+      )}
       {beforeScroll}
       <div
         className={scrollClass}
@@ -54,7 +170,30 @@ export default function Strip({
         {children}
       </div>
       {afterScroll}
-      {navRight}
+      {hasNav && (
+        <>
+          {onStepForward && (
+            <button
+              onClick={onStepForward}
+              disabled={disableStepForward}
+              className={`strip-nav-btn${disableStepForward ? " opacity-40 cursor-not-allowed" : ""}`}
+              aria-label={stepForwardLabel}
+            >
+              <ChevronRight />
+            </button>
+          )}
+          {onJumpForward && (
+            <button
+              onClick={onJumpForward}
+              disabled={disableJumpForward}
+              className={`strip-nav-btn${disableJumpForward ? " opacity-40 cursor-not-allowed" : ""}`}
+              aria-label={jumpForwardLabel}
+            >
+              <DoubleChevronRight />
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }

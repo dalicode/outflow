@@ -304,100 +304,18 @@ export default function AnalyticsPage({
         scrollClass="year-strip-scroll"
         scrollSelector="[data-selected='true']"
         selectedKey={year}
-        navLeft={
-          <>
-            <button
-              onClick={() => handleYearChange(year - Math.min(maxVisible, 5))}
-              className="year-nav-btn"
-              aria-label="Back"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => handleYearChange(year - 1)}
-              className="year-nav-btn"
-              aria-label="Previous year"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-          </>
+        onJumpBack={() => handleYearChange(year - Math.min(maxVisible, 5))}
+        onStepBack={() => handleYearChange(year - 1)}
+        onStepForward={() => canGoForward && handleYearChange(year + 1)}
+        onJumpForward={() =>
+          year !== currentYear && handleYearChange(currentYear)
         }
-        navRight={
-          <>
-            <button
-              onClick={() => canGoForward && handleYearChange(year + 1)}
-              disabled={!canGoForward}
-              className={cn(
-                "year-nav-btn",
-                !canGoForward && "opacity-40 cursor-not-allowed",
-              )}
-              aria-label="Next year"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() =>
-                year !== currentYear && handleYearChange(currentYear)
-              }
-              disabled={year === currentYear}
-              className={cn(
-                "year-nav-btn",
-                year === currentYear && "opacity-40 cursor-not-allowed",
-              )}
-              aria-label="Go to current year"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13 5l7 7-7 7M6 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </>
-        }
+        disableStepForward={!canGoForward}
+        disableJumpForward={year === currentYear}
+        jumpBackLabel="Back"
+        stepBackLabel="Previous year"
+        stepForwardLabel="Next year"
+        jumpForwardLabel="Current year"
       >
         {yearStrip.map((y) => {
           const isSelected = y === year;
@@ -430,58 +348,18 @@ export default function AnalyticsPage({
         scrollSelector={monthScrollSelector}
         selectedKey={selectedMonth ?? "yr"}
         align="end"
-        navLeft={
-          <>
-            <button
-              onClick={jumpBackMonths}
-              disabled={selectedMonth === null}
-              className={cn(
-                "month-nav-btn",
-                (selectedMonth === null || !canPrevMonth) &&
-                  "opacity-40 cursor-not-allowed",
-              )}
-              aria-label="Back"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={prevMonth}
-              className={cn(
-                "month-nav-btn",
-                (!canPrevMonth || selectedMonth === null) &&
-                  "opacity-40 cursor-not-allowed",
-              )}
-              disabled={!canPrevMonth || selectedMonth === null}
-              aria-label="Previous month"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-          </>
-        }
+        onJumpBack={jumpBackMonths}
+        onStepBack={prevMonth}
+        onStepForward={nextMonth}
+        onJumpForward={jumpToCurrentMonth}
+        disableJumpBack={selectedMonth === null}
+        disableStepBack={!canPrevMonth || selectedMonth === null}
+        disableStepForward={!canNextMonth}
+        disableJumpForward={isAtCurrentMonth}
+        jumpBackLabel="Back"
+        stepBackLabel="Previous month"
+        stepForwardLabel="Next month"
+        jumpForwardLabel="Current month"
         beforeScroll={
           <div className="month-strip-item" data-month="yr">
             <span className="year-label">{year}</span>
@@ -496,56 +374,6 @@ export default function AnalyticsPage({
               Yr
             </button>
           </div>
-        }
-        navRight={
-          <>
-            <button
-              onClick={nextMonth}
-              className={cn(
-                "month-nav-btn",
-                !canNextMonth && "opacity-40 cursor-not-allowed",
-              )}
-              disabled={!canNextMonth}
-              aria-label="Next month"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={jumpToCurrentMonth}
-              disabled={isAtCurrentMonth}
-              className={cn(
-                "month-nav-btn",
-                isAtCurrentMonth && "opacity-40 cursor-not-allowed",
-              )}
-              aria-label="Current month"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13 5l7 7-7 7M6 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </>
         }
       >
         {availableMonths.map((monthIdx) => {

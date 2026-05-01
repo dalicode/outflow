@@ -40,7 +40,6 @@ export default function ChartComponent({
   const colors = [
     currentTheme.colors.primary,
     currentTheme.colors.secondary,
-    currentTheme.colors.success,
   ];
 
   if (data.length === 0) {
@@ -72,7 +71,7 @@ export default function ChartComponent({
             {data.map((entry, i) => (
               <Cell
                 key={i}
-                fill={colors[i % colors.length]}
+                fill={/saving/i.test(entry.name) ? currentTheme.colors.success : colors[i % colors.length]}
                 stroke={
                   activeSlice === entry.key
                     ? currentTheme.colors.text

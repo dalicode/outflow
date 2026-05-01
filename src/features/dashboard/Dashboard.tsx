@@ -756,94 +756,15 @@ export default function Dashboard({
             scrollSelector="[data-selected='true']"
             selectedKey={`${selectedYear}-${selectedMonth}`}
             align="end"
-            navLeft={
-              <>
-                <button
-                  onClick={jumpBackMonths}
-                  className="month-nav-btn"
-                  aria-label="Back"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M18 19l-7-7 7-7M11 19l-7-7 7-7"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={prevMonth}
-                  className="month-nav-btn"
-                  aria-label="Previous month"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
-                </button>
-              </>
-            }
-            navRight={
-              <>
-                <button
-                  onClick={nextMonth}
-                  className="month-nav-btn"
-                  aria-label="Next month"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={jumpToCurrentMonth}
-                  disabled={isAtCurrentMonth}
-                  className={cn(
-                    "month-nav-btn",
-                    isAtCurrentMonth && "opacity-40 cursor-not-allowed",
-                  )}
-                  aria-label="Current month"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M13 5l7 7-7 7M6 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              </>
-            }
+            onJumpBack={jumpBackMonths}
+            onStepBack={prevMonth}
+            onStepForward={nextMonth}
+            onJumpForward={jumpToCurrentMonth}
+            disableJumpForward={isAtCurrentMonth}
+            jumpBackLabel="Back"
+            stepBackLabel="Previous month"
+            stepForwardLabel="Next month"
+            jumpForwardLabel="Current month"
           >
             {monthStrip.map(({ year, month }, index) => {
               const isSelected =

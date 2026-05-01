@@ -73,7 +73,7 @@ function useThemeColors(): ThemeColors {
       background: currentTheme.colors.background,
       grid: currentTheme.colors.border,
       chartPalette: [
-        p, s, su, d, t, m,
+        p, s, d, t, m,
         "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4",
       ],
     };
@@ -307,8 +307,11 @@ const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: Cat
           outerRadius={90}
           paddingAngle={2}
         >
-          {pieData.map((_, i) => (
-            <Cell key={i} fill={colors.chartPalette[i % colors.chartPalette.length]} />
+          {pieData.map((entry, i) => (
+            <Cell
+              key={i}
+              fill={/saving/i.test(entry.name) ? colors.success : colors.chartPalette[i % colors.chartPalette.length]}
+            />
           ))}
         </Pie>
         <Tooltip
