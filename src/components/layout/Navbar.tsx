@@ -7,6 +7,7 @@ import {
 } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
+import { ROUTES } from "../../constants/routes";
 
 interface NavIconProps {
   active: boolean;
@@ -227,10 +228,10 @@ const SignOutIcon = () => (
 );
 
 const links = [
-  { to: "/", label: "Dashboard", icon: DashboardIcon },
-  { to: "/summary", label: "Summary", icon: SummaryIcon },
-  { to: "/analytics", label: "Analytics", icon: AnalyticsIcon },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
+  { to: ROUTES.DASHBOARD, label: "Dashboard", icon: DashboardIcon },
+  { to: ROUTES.SUMMARY, label: "Summary", icon: SummaryIcon },
+  { to: ROUTES.ANALYTICS, label: "Analytics", icon: AnalyticsIcon },
+  { to: ROUTES.SETTINGS, label: "Settings", icon: SettingsIcon },
 ];
 
 interface NavbarProps {

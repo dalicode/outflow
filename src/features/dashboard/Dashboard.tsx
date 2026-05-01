@@ -1,25 +1,23 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useState, useMemo, useCallback } from "react";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
 import Modal from "../../components/ui/Modal";
-import Strip from "../../components/ui/Strip";
-import { useViewportWidth } from "../../hooks/useViewportWidth";
-import { useMaxVisible } from "../../hooks/useMaxVisible";
-import { StorageService } from "../../services/storageService";
+import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
 import { useSettings } from "../../context/settingsContext";
-import { getMonthlyFinancialSummary } from "../../utils/financeEngine";
+import { useDashboard } from "../../hooks/useDashboard";
+import { getSavingsGradientColor } from "../../utils/colorHelpers";
 import {
-  getMonthKeys,
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
 } from "../../utils/dashboardHelpers";
-import { getSavingsGradientColor } from "../../utils/colorHelpers";
-import ExpenseTable from "../expenses/ExpenseTable";
-import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
-import type { Expense, Category, MonthlySummary } from "../../types";
-
-import { getLocalMonthKey } from "../../utils/historicalDataHelpers";
+import DashboardHeader from "./DashboardHeader";
+import MonthSpanSelector from "./MonthSpanSelector";
+import DashboardMonthStrip from "./DashboardMonthStrip";
+import DashboardViewTabs from "./DashboardViewTabs";
+import ExpensesView from "./ExpensesView";
+import FilterModal from "./FilterModal";
+import { DASHBOARD_VIEWS } from "./constants";
+import type { Expense, Category } from "../../types";
 
 interface DashboardProps {
   expenses: Expense[];
@@ -40,624 +38,36 @@ export default function Dashboard({
   onSelectionChange,
   onScroll,
 }: DashboardProps) {
-  const location = useLocation();
-  const now = new Date();
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
-  const [searchParams] = useSearchParams();
-  const [selectedYear, setSelectedYear] = useState(
-    () => parseInt(searchParams.get("year") || "", 10) || now.getFullYear(),
-  );
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const m = parseInt(searchParams.get("month") || "", 10);
-    return isNaN(m) ? now.getMonth() : m;
-  });
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set(),
-  );
-  const [viewMode, setViewMode] = useState<"expenses" | "categories">(
-    "categories",
-  );
-  const [viewAnimation, setViewAnimation] = useState<
-    "slide-left" | "slide-right" | null
-  >(null);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [financialSummary, setFinancialSummary] =
-    useState<MonthlySummary | null>(null);
+  const [dataRefreshKey, setDataRefreshKey] = useState(0);
 
-  const daysLeft = useMemo(() => {
-    const today = new Date();
-    const daysInMonth = new Date(
-      today.getFullYear(),
-      today.getMonth() + 1,
-      0,
-    ).getDate();
-    return Math.max(0, daysInMonth - today.getDate());
-  }, []);
+  // ── Hooks ──
+  const dash = useDashboard(expenses, categories, onBulkDelete, onSelectionChange);
 
-  const [incomeRaw, setIncomeRaw] = useState("");
-  const [incomeFreq, setIncomeFreq] = useState("monthly");
-  const [reloadKey, setReloadKey] = useState(0);
-
-  const [showIncomeModal, setShowIncomeModal] = useState(false);
-  const [incomeDraft, setIncomeDraft] = useState("");
-  const [incomeFreqDraft, setIncomeFreqDraft] = useState("monthly");
-  const [incomeError, setIncomeError] = useState("");
-
-  const [showSavingsModal, setShowSavingsModal] = useState(false);
-  const [savingsDraft, setSavingsDraft] = useState("");
-  const [savingsError, setSavingsError] = useState("");
-
-  const [editingMonthIndex, setEditingMonthIndex] = useState<number>(0);
-
-  const [monthSpan, setMonthSpan] = useState<1 | 2 | 3 | 6 | 12>(1);
-
-  const [mobileEditTrigger, setMobileEditTrigger] = useState<number | null>(
-    null,
-  );
-
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterGlobal, setFilterGlobal] = useState("");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterDescription, setFilterDescription] = useState("");
-  const [filterAmount, setFilterAmount] = useState("");
-  const viewportWidth = useViewportWidth();
-  const maxVisible = useMaxVisible(viewportWidth);
-  const stripMaxVisible = maxVisible + (monthSpan > 3 ? monthSpan * 2 : 0);
-
-  const isMobile = viewportWidth < 640;
-
-  const SPAN_THRESHOLDS: Record<number, number> = {
-    1: 640,
-    2: 768,
-    3: 896,
-    6: 1280,
-    12: 1920,
-  };
-
-  const showSpanSelector = viewportWidth >= SPAN_THRESHOLDS[1];
-
-  const maxAvailableSpan = useMemo(() => {
-    const allowed = [1, 2, 3, 6, 12].filter(
-      (n) => viewportWidth >= SPAN_THRESHOLDS[n],
-    );
-    return allowed.length > 0 ? allowed[allowed.length - 1] : 1;
-  }, [viewportWidth, SPAN_THRESHOLDS]);
-
-  useEffect(() => {
-    const target = showSpanSelector ? maxAvailableSpan : 1;
-    if (monthSpan > target) {
-      setMonthSpan(target as 1 | 2 | 3 | 6 | 12);
-    }
-  }, [monthSpan, maxAvailableSpan, showSpanSelector]);
-
-  useEffect(() => {
-    onSelectionChange?.(selectedIds.size > 0);
-  }, [selectedIds, onSelectionChange]);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const overflowEl = el.querySelector<HTMLDivElement>(".overflow-x-auto");
-    if (overflowEl) {
-      setHasHorizontalOverflow(overflowEl.scrollWidth > overflowEl.clientWidth);
-    }
-  }, [viewMode, monthSpan]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest("button, a, input, select, textarea")) return;
-    setTouchStartX(e.touches[0].clientX);
-  }, []);
-
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      if (touchStartX === null || hasHorizontalOverflow) return;
-      const deltaX = e.changedTouches[0].clientX - touchStartX;
-      if (Math.abs(deltaX) < 80) return;
-
-      if (deltaX < 0 && viewMode === "categories") {
-        setViewAnimation("slide-right");
-        setViewMode("expenses");
-      } else if (deltaX > 0 && viewMode === "expenses") {
-        setViewAnimation("slide-left");
-        setViewMode("categories");
-      }
-      setTouchStartX(null);
-    },
-    [touchStartX, hasHorizontalOverflow, viewMode],
-  );
-
-  useEffect(() => {
-    if (!viewAnimation) return;
-    const timer = setTimeout(() => setViewAnimation(null), 250);
-    return () => clearTimeout(timer);
-  }, [viewAnimation]);
-
-  const scrollableRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    scrollableRef.current?.scrollTo({ top: 0, behavior: "auto" });
-  }, [location.pathname]);
-
-  const [showGrandTotal, setShowGrandTotal] = useState(false);
-  const [monthSummaries, setMonthSummaries] = useState<MonthlySummary[]>([]);
-  const [drilldownCategory, setDrilldownCategory] = useState<string | null>(
-    null,
-  );
-  const [drilldownMonthIndex, setDrilldownMonthIndex] = useState<number>(0);
-  const drilldownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (drilldownCategory && drilldownRef.current) {
-      drilldownRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-  }, [drilldownCategory, drilldownMonthIndex]);
-
-  const FREQUENCIES = ["monthly", "biweekly", "weekly"] as const;
-  const MULTIPLIERS: Record<string, number> = {
-    monthly: 1,
-    biweekly: 2.17,
-    weekly: 4.33,
-  };
-
-  const openIncomeModal = (monthIndex: number = 0) => {
-    const summary = monthSummaries[monthIndex];
-    setEditingMonthIndex(monthIndex);
-    setIncomeDraft(incomeRaw ? String(incomeRaw) : "");
-    setIncomeFreqDraft(incomeFreq || "monthly");
-    setIncomeError("");
-    setShowIncomeModal(true);
-  };
-
-  const closeIncomeModal = () => {
-    setShowIncomeModal(false);
-    setIncomeError("");
-  };
-
-  const submitIncome = (e: React.SubmitEvent) => {
-    e.preventDefault();
-    const parsed = parseFloat(incomeDraft);
-    if (!incomeDraft || isNaN(parsed) || parsed <= 0) {
-      setIncomeError("Enter a positive amount.");
-      return;
-    }
-    setIncomeError("");
-    handleIncomeSave(
-      {
-        income: parsed,
-        frequency: incomeFreqDraft,
-        monthlyIncome: parsed * MULTIPLIERS[incomeFreqDraft],
-      },
-      editingMonthIndex,
-    );
-    setShowIncomeModal(false);
-  };
-
-  const openSavingsModal = (monthIndex: number = 0) => {
-    const summary = monthSummaries[monthIndex];
-    setEditingMonthIndex(monthIndex);
-    setSavingsDraft(String(summary?.savingsRate ?? 0));
-    setSavingsError("");
-    setShowSavingsModal(true);
-  };
-
-  const closeSavingsModal = () => {
-    setShowSavingsModal(false);
-    setSavingsError("");
-  };
-
-  const submitSavings = (e: React.SubmitEvent) => {
-    e.preventDefault();
-    const n = Number(savingsDraft);
-    if (isNaN(n) || n < 0 || n > 100) {
-      setSavingsError("Enter a value between 0 and 100.");
-      return;
-    }
-    setSavingsError("");
-    handleSavingsRateSave(n, editingMonthIndex);
-    setShowSavingsModal(false);
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      const now = new Date();
-      const monthKeys = getMonthKeys(selectedYear, selectedMonth, monthSpan);
-
-      // Determine which years we need snapshots for
-      const neededYears = Array.from(new Set(monthKeys.map((m) => m.year)));
-
-      const [
-        allFixed,
-        globalIncome,
-        globalRate,
-        schedules,
-        incomeAmount,
-        incomeFrequency,
-      ] = await Promise.all([
-        StorageService.getFixedExpenses(),
-        StorageService.getSetting("monthlyIncome", 0),
-        StorageService.getSetting("savingsRate", 0),
-        StorageService.getActiveSchedules(),
-        StorageService.getSetting("incomeAmount", ""),
-        StorageService.getSetting("incomeFrequency", "monthly"),
-      ]);
-
-      setIncomeRaw(incomeAmount as string);
-      setIncomeFreq(incomeFrequency as string);
-
-      // Load snapshots for all needed years
-      const allSnapshotsByYear: Record<
-        number,
-        Awaited<ReturnType<typeof StorageService.getSnapshotsForYear>>
-      > = {};
-      const incomeSnapsByYear: Record<
-        number,
-        Awaited<ReturnType<typeof StorageService.getIncomeSnapshotsForYear>>
-      > = {};
-      const savingsSnapsByYear: Record<
-        number,
-        Awaited<ReturnType<typeof StorageService.getSavingsSnapshotsForYear>>
-      > = {};
-
-      await Promise.all(
-        neededYears.map(async (year) => {
-          const [snaps, incSnaps, savSnaps] = await Promise.all([
-            StorageService.getSnapshotsForYear(year),
-            StorageService.getIncomeSnapshotsForYear(year),
-            StorageService.getSavingsSnapshotsForYear(year),
-          ]);
-          allSnapshotsByYear[year] = snaps;
-          incomeSnapsByYear[year] = incSnaps;
-          savingsSnapsByYear[year] = savSnaps;
-        }),
-      );
-
-      // Compute summary for each month in the span
-      const summaries: MonthlySummary[] = monthKeys.map((mk) => {
-        const isCurrentOrFuture =
-          mk.year > now.getFullYear() ||
-          (mk.year === now.getFullYear() && mk.month >= now.getMonth());
-
-        const allSnapshots = allSnapshotsByYear[mk.year] || [];
-        let monthSnapshots;
-        if (isCurrentOrFuture) {
-          const active = allFixed.filter((f) => f.isArchived !== true);
-          monthSnapshots = active.map((f) => ({
-            fixedExpenseId: f.id as number,
-            year: mk.year,
-            month: mk.month + 1,
-            amountSnapshot: f.amount,
-            nameSnapshot: f.name,
-          }));
-        } else {
-          monthSnapshots = allSnapshots.filter((s) => s.month === mk.month + 1);
-        }
-
-        const data = {
-          expenses,
-          snapshots: monthSnapshots,
-          fixedExpenses: allFixed,
-          globalIncome: globalIncome as number,
-          globalSavingsRate: globalRate as number,
-          schedules,
-          incomeSnapshots: incomeSnapsByYear[mk.year] || [],
-          savingsSnapshots: savingsSnapsByYear[mk.year] || [],
-        };
-
-        return getMonthlyFinancialSummary(mk.year, mk.month, data);
-      });
-
-      setMonthSummaries(summaries);
-    };
-    loadData();
-  }, [selectedYear, selectedMonth, expenses, reloadKey, monthSpan]);
-
-  useEffect(() => {
-    const loadCurrentMonthSummary = async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-
-      const [allFixed, globalIncome, globalRate, schedules] = await Promise.all(
-        [
-          StorageService.getFixedExpenses(),
-          StorageService.getSetting("monthlyIncome", 0),
-          StorageService.getSetting("savingsRate", 0),
-          StorageService.getActiveSchedules(),
-        ],
-      );
-
-      const [snaps, incSnaps, savSnaps] = await Promise.all([
-        StorageService.getSnapshotsForYear(currentYear),
-        StorageService.getIncomeSnapshotsForYear(currentYear),
-        StorageService.getSavingsSnapshotsForYear(currentYear),
-      ]);
-
-      const monthSnapshots = allFixed
-        .filter((f) => f.isArchived !== true)
-        .map((f) => ({
-          fixedExpenseId: f.id as number,
-          year: currentYear,
-          month: currentMonth + 1,
-          amountSnapshot: f.amount,
-          nameSnapshot: f.name,
-        }));
-
-      const data = {
-        expenses,
-        snapshots: monthSnapshots,
-        fixedExpenses: allFixed,
-        globalIncome: globalIncome as number,
-        globalSavingsRate: globalRate as number,
-        schedules,
-        incomeSnapshots: incSnaps,
-        savingsSnapshots: savSnaps,
-      };
-
-      const summary = getMonthlyFinancialSummary(
-        currentYear,
-        currentMonth,
-        data,
-      );
-      setFinancialSummary(summary);
-    };
-    loadCurrentMonthSummary();
-  }, [expenses, reloadKey]);
-
-  const handleIncomeSave = async (
-    {
-      income,
-      frequency,
-      monthlyIncome,
-    }: {
-      income: number;
-      frequency: string;
-      monthlyIncome: number;
-    },
-    monthIndex: number = 0,
-  ) => {
-    const mk = monthKeys[monthIndex];
-    await StorageService.setIncomeSnapshot(
-      mk.year,
-      mk.month + 1,
-      monthlyIncome,
-    );
-    const now = new Date();
-    const isCurrentOrFuture =
-      mk.year > now.getFullYear() ||
-      (mk.year === now.getFullYear() && mk.month >= now.getMonth());
-    if (isCurrentOrFuture) {
-      await Promise.all([
-        StorageService.setSetting("incomeAmount", income),
-        StorageService.setSetting("incomeFrequency", frequency),
-        StorageService.setSetting("monthlyIncome", monthlyIncome),
-      ]);
-    }
-    setReloadKey((k) => k + 1);
-  };
-
-  const handleSavingsRateSave = async (
-    rate: number,
-    monthIndex: number = 0,
-  ) => {
-    const mk = monthKeys[monthIndex];
-    await StorageService.setSavingsSnapshot(mk.year, mk.month + 1, rate);
-    const now = new Date();
-    const isCurrentOrFuture =
-      mk.year > now.getFullYear() ||
-      (mk.year === now.getFullYear() && mk.month >= now.getMonth());
-    if (isCurrentOrFuture) {
-      await StorageService.setSetting("savingsRate", rate);
-    }
-    setReloadKey((k) => k + 1);
-  };
-
-  const navigateToMonth = useCallback((year: number, month: number) => {
-    setSelectedYear(year);
-    setSelectedMonth(month);
-  }, []);
-
-  const prevMonth = () => {
-    if (selectedMonth === 0) {
-      navigateToMonth(selectedYear - 1, 11);
-    } else {
-      navigateToMonth(selectedYear, selectedMonth - 1);
-    }
-  };
-  const nextMonth = () => {
-    if (selectedMonth === 11) {
-      navigateToMonth(selectedYear + 1, 0);
-    } else {
-      navigateToMonth(selectedYear, selectedMonth + 1);
-    }
-  };
-
-  const jumpBackMonths = () => {
-    const d = new Date(selectedYear, selectedMonth);
-    d.setMonth(d.getMonth() - stripMaxVisible);
-    navigateToMonth(d.getFullYear(), d.getMonth());
-  };
-
-  const jumpToCurrentMonth = () => {
-    const today = new Date();
-    navigateToMonth(today.getFullYear(), today.getMonth());
-  };
-
-  const isAtCurrentMonth =
-    selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
-
-  const selectedKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
-
-  const monthStrip = useMemo(() => {
-    const months = [];
-    const center = new Date(selectedYear, selectedMonth);
-    const half = 100;
-    for (let i = -half; i <= half; i++) {
-      const d = new Date(center);
-      d.setMonth(d.getMonth() + i);
-      months.push({ year: d.getFullYear(), month: d.getMonth(), offset: i });
-    }
-    return months;
-  }, [selectedYear, selectedMonth]);
-
-  const yearFirstIndices = useMemo(() => {
-    const map = new Map<number, number>();
-    monthStrip.forEach((m, i) => {
-      if (!map.has(m.year)) map.set(m.year, i);
-    });
-    return map;
-  }, [monthStrip]);
-
-  const catMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c])),
-    [categories],
-  );
-  const resolveName = (exp: Expense) =>
-    catMap[exp.categoryId as number]?.name ?? exp.category ?? "Uncategorized";
-
-  const monthlyExpenses = useMemo(
-    () => expenses.filter((e) => e.date.startsWith(selectedKey)),
-    [expenses, selectedKey],
-  );
-
-  const monthKeys = useMemo(
-    () => getMonthKeys(selectedYear, selectedMonth, monthSpan),
-    [selectedYear, selectedMonth, monthSpan],
-  );
-
-  // For the expenses tab: all expenses across the selected month span
-  const spanExpenses = useMemo(() => {
-    const keys = new Set(monthKeys.map((m) => m.key));
-    return expenses
-      .filter((e) => keys.has(e.date.slice(0, 7)))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [expenses, monthKeys]);
-
-  const filtered = useMemo(() => {
-    let result = spanExpenses;
-
-    if (selectedCategories.size > 0) {
-      result = result.filter((e) => selectedCategories.has(resolveName(e)));
-    }
-
-    if (filterGlobal) {
-      const q = filterGlobal.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.description?.toLowerCase().includes(q) ||
-          resolveName(e).toLowerCase().includes(q) ||
-          String(e.amount).includes(q),
-      );
-    }
-
-    if (filterDateFrom) {
-      result = result.filter((e) => e.date >= filterDateFrom);
-    }
-    if (filterDateTo) {
-      result = result.filter((e) => e.date <= filterDateTo);
-    }
-
-    if (filterCategory) {
-      result = result.filter((e) => resolveName(e) === filterCategory);
-    }
-
-    if (filterDescription) {
-      const q = filterDescription.toLowerCase();
-      result = result.filter((e) => e.description?.toLowerCase().includes(q));
-    }
-
-    if (filterAmount) {
-      result = result.filter((e) => String(e.amount).includes(filterAmount));
-    }
-
-    return result;
-  }, [
-    spanExpenses,
-    selectedCategories,
-    resolveName,
-    filterGlobal,
-    filterDateFrom,
-    filterDateTo,
-    filterCategory,
-    filterDescription,
-    filterAmount,
-  ]);
-
-  const toggleSelect = useCallback((id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const toggleSelectAll = useCallback(() => {
-    setSelectedIds((prev) => {
-      if (prev.size === filtered.length) return new Set();
-      return new Set(filtered.map((e) => e.id as number));
-    });
-  }, [filtered]);
-
-  const handleBulkDeleteClick = useCallback(() => {
-    if (selectedIds.size === 0) return;
-    setShowConfirm(true);
-  }, [selectedIds]);
-
-  const confirmDelete = useCallback(() => {
-    onBulkDelete(Array.from(selectedIds));
-    setSelectedIds(new Set());
-    setShowConfirm(false);
-  }, [selectedIds, onBulkDelete]);
+  // ── Derived values ──
+  const isMobile = dash.viewportWidth < 640;
 
   const multiCategoryRows = useMemo(
-    () => computeMultiMonthCategoryRows(filtered, monthKeys, resolveName),
-    [filtered, monthKeys, resolveName],
+    () => computeMultiMonthCategoryRows(dash.filteredExpenses, dash.monthKeys, dash.getExpenseCategoryName),
+    [dash.filteredExpenses, dash.monthKeys, dash.getExpenseCategoryName],
   );
 
   const multiFixedRows = useMemo(
-    () => computeMultiMonthFixedRows(monthSummaries),
-    [monthSummaries],
-  );
-
-  const handleCategoryClick = useCallback(
-    (name: string, monthIndex: number) => {
-      if (drilldownCategory === name && drilldownMonthIndex === monthIndex) {
-        setDrilldownCategory(null);
-      } else {
-        setDrilldownCategory(name);
-        setDrilldownMonthIndex(monthIndex);
-      }
-    },
-    [drilldownCategory, drilldownMonthIndex],
+    () => computeMultiMonthFixedRows(dash.monthSummaries),
+    [dash.monthSummaries],
   );
 
   const drilldownExpenses = useMemo(() => {
-    if (!drilldownCategory) return [];
-    const mk = monthKeys[drilldownMonthIndex];
-    return filtered
+    if (!dash.drilldownCategory) return [];
+    const mk = dash.monthKeys[dash.drilldownCategoryMonthIndex];
+    return dash.filteredExpenses
       .filter((e) => {
         const matchesMonth = e.date.startsWith(mk.key);
-        const matchesCategory = resolveName(e) === drilldownCategory;
+        const matchesCategory = dash.getExpenseCategoryName(e) === dash.drilldownCategory;
         return matchesMonth && matchesCategory;
       })
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [
-    drilldownCategory,
-    drilldownMonthIndex,
-    filtered,
-    monthKeys,
-    resolveName,
-  ]);
+  }, [dash.drilldownCategory, dash.drilldownCategoryMonthIndex, dash.filteredExpenses, dash.monthKeys, dash.getExpenseCategoryName]);
 
   const groupedDrilldownExpenses = useMemo(() => {
     const groups: Record<string, Expense[]> = {};
@@ -669,309 +79,139 @@ export default function Dashboard({
   }, [drilldownExpenses]);
 
   const spanVariableTotal = useMemo(
-    () => monthSummaries.reduce((s, m) => s + m.variableExpenses, 0),
-    [monthSummaries],
+    () => dash.monthSummaries.reduce((s, m) => s + m.variableExpenses, 0),
+    [dash.monthSummaries],
   );
 
-  const activeFilterCount = [
-    filterGlobal,
-    filterDateFrom,
-    filterDateTo,
-    filterCategory,
-    filterDescription,
-    filterAmount,
-  ].filter(Boolean).length;
+  const triggerMobileEdit = useCallback(() => {
+    const id = Array.from(dash.selectedIds)[0];
+    if (id != null) {
+      dash.setMobileEditTrigger(id);
+      requestAnimationFrame(() => dash.setMobileEditTrigger(null));
+    }
+  }, [dash.selectedIds, dash.setMobileEditTrigger]);
+
+  // ── Income / Savings modal helpers ──
+  const modalMonthKey = dash.monthKeys[dash.modalTargetMonthIndex];
 
   return (
     <div className="flex flex-col h-full">
-      {/* Top section — shrink-0 */}
+      {/* ── Fixed header ── */}
       <div className="shrink-0">
         <div
           className={cn(
             "mx-auto px-4 py-6 space-y-6",
-            monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+            dash.monthSpan === 12 ? "max-w-none" : "max-w-7xl",
           )}
         >
-          <div className="flex items-start justify-between">
-            <h1 className="text-2xl font-bold text-theme-text tracking-tight">
-              Dashboard
-            </h1>
-            {financialSummary && (
-              <div className="flex flex-col items-end text-right pt-0.5">
-                <span
-                  className={cn(
-                    "text-2xl font-bold tabular-nums leading-none",
-                    financialSummary.remaining >= 0
-                      ? "text-theme-success"
-                      : "text-theme-danger",
-                  )}
-                >
-                  {formatAmount(financialSummary.remaining)}
-                </span>
-                <span className="text-xs text-theme-muted mt-0.5">
-                  Remaining
-                  {daysLeft !== null && daysLeft > 0 && ` · T - ${daysLeft}`}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Span selector */}
-          {showSpanSelector && (
-            <div className="flex justify-center">
-              <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
-                {[1, 2, 3, 6, 12]
-                  .filter((n) => viewportWidth >= SPAN_THRESHOLDS[n])
-                  .map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setMonthSpan(n as 1 | 2 | 3 | 6 | 12)}
-                      className={cn(
-                        "dashboard-tab",
-                        monthSpan === n && "dashboard-tab-active",
-                      )}
-                    >
-                      {n}M
-                    </button>
-                  ))}
-                {monthSpan > 1 && (
-                  <button
-                    onClick={() => setShowGrandTotal((prev) => !prev)}
-                    className={cn(
-                      "dashboard-tab",
-                      showGrandTotal && "dashboard-tab-active",
-                    )}
-                  >
-                    Total
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Month strip */}
-          <Strip
-            maxVisible={stripMaxVisible}
-            scrollClass="month-strip-scroll"
-            scrollSelector="[data-selected='true']"
-            selectedKey={`${selectedYear}-${selectedMonth}`}
-            align="end"
-            onJumpBack={jumpBackMonths}
-            onStepBack={prevMonth}
-            onStepForward={nextMonth}
-            onJumpForward={jumpToCurrentMonth}
-            disableJumpForward={isAtCurrentMonth}
-            jumpBackLabel="Back"
-            stepBackLabel="Previous month"
-            stepForwardLabel="Next month"
-            jumpForwardLabel="Current month"
-          >
-            {monthStrip.map(({ year, month }, index) => {
-              const isSelected =
-                year === selectedYear && month === selectedMonth;
-              const pillKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-              const isRealCurrent = pillKey === getLocalMonthKey();
-              const isInSpan =
-                monthSpan > 1 && monthKeys.some((mk) => mk.key === pillKey);
-              const monthName = new Date(year, month).toLocaleString(
-                "default",
-                { month: "short" },
-              );
-              const isFirstOfYear = yearFirstIndices.get(year) === index;
-
-              const handleClick = () => {
-                if (!isSelected) {
-                  setSelectedYear(year);
-                  setSelectedMonth(month);
-                }
-              };
-
-              return (
-                <div
-                  key={`${year}-${month}`}
-                  className="month-strip-item"
-                  data-selected={isSelected || undefined}
-                >
-                  <span
-                    className={cn("year-label", !isFirstOfYear && "invisible")}
-                  >
-                    {year}
-                  </span>
-                  <button
-                    onClick={handleClick}
-                    className={cn(
-                      "month-pill",
-                      (isSelected || isInSpan) && "month-pill-selected",
-                      !isSelected &&
-                        !isInSpan &&
-                        isRealCurrent &&
-                        "month-pill-current",
-                    )}
-                    aria-label={`${monthName} ${year}`}
-                    aria-current={isSelected ? "date" : undefined}
-                  >
-                    <span
-                      className={cn(!isSelected && isInSpan && "opacity-70")}
-                    >
-                      {monthName}
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
-          </Strip>
+          <DashboardHeader
+            financialSummary={dash.financialSummary}
+            daysLeft={dash.daysLeft}
+          />
+          <MonthSpanSelector
+            monthSpan={dash.monthSpan}
+            showGrandTotal={dash.showGrandTotal}
+            viewportWidth={dash.viewportWidth}
+            onSpanChange={dash.setMonthSpan}
+            onToggleGrandTotal={() => dash.setShowGrandTotal((p) => !p)}
+          />
+          <DashboardMonthStrip
+            selectedYear={dash.selectedYear}
+            selectedMonth={dash.selectedMonth}
+            monthSpan={dash.monthSpan}
+            stripMaxVisible={dash.stripMaxVisible}
+            monthStrip={dash.monthStrip}
+            yearFirstIndices={dash.yearFirstIndices}
+            monthKeys={dash.monthKeys}
+            onSelectMonth={dash.navigateToMonth}
+            onJumpBack={dash.jumpBackMonths}
+            onStepBack={dash.goToPreviousMonth}
+            onStepForward={dash.goToNextMonth}
+            onJumpForward={dash.jumpToCurrentMonth}
+            disableJumpForward={dash.isAtCurrentMonth}
+          />
         </div>
       </div>
 
-      {/* Tabs + Filters — fixed above scrollable area, aligned to card corners */}
-      <div
-        className={cn(
-          "shrink-0 mx-auto px-4 w-full",
-          monthSpan === 12 ? "max-w-none" : "max-w-7xl",
-        )}
-      >
-        <div
-          className={cn(
-            "w-full mx-auto",
-            monthSpan <= 3 && "md:max-w-3xl",
-            monthSpan === 6 && "md:max-w-6xl",
-            monthSpan === 12 && "md:max-w-none",
-          )}
-        >
-          <div className="flex items-end justify-between px-6">
-            <div className="flex gap-0.5">
-              <button
-                onClick={() => {
-                  if (viewMode !== "categories") {
-                    setViewAnimation("slide-left");
-                    setViewMode("categories");
-                  }
-                }}
-                className={cn(
-                  "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
-                  viewMode === "categories"
-                    ? "bg-theme-surface text-theme-text"
-                    : "bg-theme-background text-theme-muted hover:text-theme-text",
-                )}
-              >
-                Categories
-              </button>
-              <button
-                onClick={() => {
-                  if (viewMode !== "expenses") {
-                    setViewAnimation("slide-right");
-                    setViewMode("expenses");
-                  }
-                }}
-                className={cn(
-                  "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
-                  viewMode === "expenses"
-                    ? "bg-theme-surface text-theme-text"
-                    : "bg-theme-background text-theme-muted hover:text-theme-text",
-                )}
-              >
-                Expenses
-              </button>
-            </div>
-            <button
-              className={cn(
-                "text-xs font-medium px-3 py-1 rounded-t-md transition-colors flex items-center gap-1.5",
-                activeFilterCount > 0
-                  ? "bg-theme-primary/10 text-theme-primary"
-                  : "bg-theme-background text-theme-muted hover:text-theme-text",
-              )}
-              onClick={() => setShowFilterModal(true)}
-            >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                />
-              </svg>
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-4 px-1 rounded-full bg-theme-primary text-white text-[0.625rem] font-semibold">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* ── Tabs ── */}
+      <DashboardViewTabs
+        viewMode={dash.viewMode}
+        activeFilterCount={dash.activeFilterCount}
+        hasCategoryFilter={dash.selectedCategories.size > 0}
+        onSwitchToCategories={dash.switchToCategories}
+        onSwitchToExpenses={dash.switchToExpenses}
+        onOpenFilters={() => dash.setIsFilterModalOpen(true)}
+        onResetCategoryFilter={() => dash.setSelectedCategories(new Set())}
+        monthSpan={dash.monthSpan}
+      />
 
-      {/* Scrollable content */}
+      {/* ── Scrollable content ── */}
       <div
-        ref={scrollableRef}
+        ref={dash.scrollableRef}
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
         onScroll={onScroll}
       >
         <div
           className={cn(
             "mx-auto px-4 pb-24",
-            monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+            dash.monthSpan === 12 ? "max-w-none" : "max-w-7xl",
           )}
         >
           <div
             className={cn(
               "w-full mx-auto",
-              monthSpan <= 3 && "md:max-w-3xl",
-              monthSpan === 6 && "md:max-w-6xl",
-              monthSpan === 12 && "md:max-w-none",
+              dash.monthSpan <= 3 && "md:max-w-3xl",
+              dash.monthSpan === 6 && "md:max-w-6xl",
+              dash.monthSpan === 12 && "md:max-w-none",
             )}
           >
             <section
-              ref={contentRef}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
+              ref={dash.swipeAreaRef}
+              onTouchStart={dash.handleTouchStart}
+              onTouchEnd={dash.handleTouchEnd}
               className="relative rounded-md bg-theme-surface shadow-sm p-4 md:p-5"
             >
-              {/* Action / count row */}
+              {/* Count row */}
               <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
-                {viewMode === "expenses" && selectedCategories.size > 0 && (
-                  <button
-                    onClick={() => setSelectedCategories(new Set())}
-                    className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
-                  >
-                    Reset Filter
-                  </button>
-                )}
+                {dash.viewMode === DASHBOARD_VIEWS.EXPENSES &&
+                  dash.selectedCategories.size > 0 && (
+                    <button
+                      onClick={() => dash.setSelectedCategories(new Set())}
+                      className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
+                    >
+                      Reset Filter
+                    </button>
+                  )}
                 <p className="text-sm text-theme-muted tabular-nums">
-                  {spanExpenses.length} transaction
-                  {spanExpenses.length !== 1 ? "s" : ""} ·{" "}
+                  {dash.expensesInSelectedSpan.length} transaction
+                  {dash.expensesInSelectedSpan.length !== 1 ? "s" : ""} ·{" "}
                   {formatAmount(spanVariableTotal)}
                 </p>
               </div>
 
-              {/* Confirm delete modal */}
+              {/* Delete confirm modal */}
               <Modal
-                isOpen={showConfirm}
-                onClose={() => setShowConfirm(false)}
+                isOpen={dash.isDeleteConfirmOpen}
+                onClose={() => dash.setIsDeleteConfirmOpen(false)}
                 title="Confirm Delete"
                 size="sm"
               >
                 <p className="text-sm text-theme-muted">
                   Are you sure you want to delete{" "}
                   <strong className="text-theme-text">
-                    {selectedIds.size}
+                    {dash.selectedIds.size}
                   </strong>{" "}
-                  expense{selectedIds.size !== 1 ? "s" : ""}?
+                  expense{dash.selectedIds.size !== 1 ? "s" : ""}?
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={confirmDelete}
+                    onClick={dash.confirmBulkDelete}
                     className="confirm-delete-btn"
                   >
                     Delete
                   </button>
                   <button
-                    onClick={() => setShowConfirm(false)}
+                    onClick={() => dash.setIsDeleteConfirmOpen(false)}
                     className="confirm-cancel-btn"
                   >
                     Cancel
@@ -979,12 +219,13 @@ export default function Dashboard({
                 </div>
               </Modal>
 
-              {viewMode === "categories" ? (
+              {/* ── Categories View ── */}
+              {dash.viewMode === DASHBOARD_VIEWS.CATEGORIES ? (
                 <div
                   className={cn(
                     "space-y-4",
-                    viewAnimation === "slide-left" && "view-slide-left",
-                    viewAnimation === "slide-right" && "view-slide-right",
+                    dash.viewAnimation === "slide-left" && "view-slide-left",
+                    dash.viewAnimation === "slide-right" && "view-slide-right",
                   )}
                 >
                   <div className="overflow-x-auto">
@@ -994,12 +235,12 @@ export default function Dashboard({
                           <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
                             Category
                           </th>
-                          {monthSpan > 1 ? (
+                          {dash.monthSpan > 1 ? (
                             <>
                               <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                                 Transactions
                               </th>
-                              {[...monthKeys]
+                              {[...dash.monthKeys]
                                 .reverse()
                                 .map((mk, displayIdx) => (
                                   <th
@@ -1013,7 +254,7 @@ export default function Dashboard({
                                     {mk.name}
                                   </th>
                                 ))}
-                              {showGrandTotal && (
+                              {dash.showGrandTotal && (
                                 <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                                   Total
                                 </th>
@@ -1036,8 +277,10 @@ export default function Dashboard({
                           <tr>
                             <td
                               colSpan={
-                                monthSpan > 1
-                                  ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                dash.monthSpan > 1
+                                  ? 2 +
+                                    dash.monthSpan +
+                                    (dash.showGrandTotal ? 1 : 0)
                                   : 3
                               }
                               className="px-3 py-12 text-center text-theme-muted"
@@ -1057,7 +300,7 @@ export default function Dashboard({
                                 <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                                   {name}
                                 </td>
-                                {monthSpan > 1 ? (
+                                {dash.monthSpan > 1 ? (
                                   <>
                                     <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                       {totalTransactions}
@@ -1066,7 +309,7 @@ export default function Dashboard({
                                       .reverse()
                                       .map((amount, displayIdx) => {
                                         const dataIdx =
-                                          monthKeys.length - 1 - displayIdx;
+                                          dash.monthKeys.length - 1 - displayIdx;
                                         return (
                                           <td
                                             key={displayIdx}
@@ -1079,7 +322,7 @@ export default function Dashboard({
                                             {amount !== 0 ? (
                                               <button
                                                 onClick={() =>
-                                                  handleCategoryClick(
+                                                  dash.handleCategoryClick(
                                                     name,
                                                     dataIdx,
                                                   )
@@ -1099,7 +342,7 @@ export default function Dashboard({
                                           </td>
                                         );
                                       })}
-                                    {showGrandTotal && (
+                                    {dash.showGrandTotal && (
                                       <td
                                         className={cn(
                                           "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
@@ -1129,7 +372,7 @@ export default function Dashboard({
                                       {monthlyAmounts[0] !== 0 ? (
                                         <button
                                           onClick={() =>
-                                            handleCategoryClick(name, 0)
+                                            dash.handleCategoryClick(name, 0)
                                           }
                                           className={cn(
                                             "font-semibold hover:underline",
@@ -1157,8 +400,10 @@ export default function Dashboard({
                             <tr>
                               <td
                                 colSpan={
-                                  monthSpan > 1
-                                    ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                  dash.monthSpan > 1
+                                    ? 2 +
+                                      dash.monthSpan +
+                                      (dash.showGrandTotal ? 1 : 0)
                                     : 3
                                 }
                                 className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
@@ -1176,7 +421,7 @@ export default function Dashboard({
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap">
                                     {fe.name}
                                   </td>
-                                  {monthSpan > 1 ? (
+                                  {dash.monthSpan > 1 ? (
                                     <>
                                       <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                         —
@@ -1192,16 +437,12 @@ export default function Dashboard({
                                                 "border-l border-theme-border",
                                             )}
                                           >
-                                            {amount !== null ? (
-                                              formatAmount(amount)
-                                            ) : (
-                                              <span className="text-theme-muted">
-                                                —
-                                              </span>
-                                            )}
+                                            {amount !== null
+                                              ? formatAmount(amount)
+                                              : "—"}
                                           </td>
                                         ))}
-                                      {showGrandTotal && (
+                                      {dash.showGrandTotal && (
                                         <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                           {formatAmount(fixedGrandTotal)}
                                         </td>
@@ -1224,13 +465,15 @@ export default function Dashboard({
                             })}
                           </>
                         )}
-                        {monthSummaries.length > 0 && (
+                        {dash.monthSummaries.length > 0 && (
                           <>
                             <tr>
                               <td
                                 colSpan={
-                                  monthSpan > 1
-                                    ? 2 + monthSpan + (showGrandTotal ? 1 : 0)
+                                  dash.monthSpan > 1
+                                    ? 2 +
+                                      dash.monthSpan +
+                                      (dash.showGrandTotal ? 1 : 0)
                                     : 3
                                 }
                                 className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
@@ -1252,16 +495,16 @@ export default function Dashboard({
                                   <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                                 </svg>
                               </td>
-                              {monthSpan > 1 ? (
+                              {dash.monthSpan > 1 ? (
                                 <>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                     —
                                   </td>
-                                  {[...monthSummaries]
+                                  {[...dash.monthSummaries]
                                     .reverse()
                                     .map((summary, displayIdx) => {
                                       const dataIdx =
-                                        monthSummaries.length - 1 - displayIdx;
+                                        dash.monthSummaries.length - 1 - displayIdx;
                                       return (
                                         <td
                                           key={displayIdx}
@@ -1273,7 +516,7 @@ export default function Dashboard({
                                         >
                                           <button
                                             onClick={() =>
-                                              openIncomeModal(dataIdx)
+                                              dash.openIncomeModal(dataIdx)
                                             }
                                             className="font-semibold hover:underline text-theme-text"
                                           >
@@ -1282,10 +525,10 @@ export default function Dashboard({
                                         </td>
                                       );
                                     })}
-                                  {showGrandTotal && (
+                                  {dash.showGrandTotal && (
                                     <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                       {formatAmount(
-                                        monthSummaries.reduce(
+                                        dash.monthSummaries.reduce(
                                           (s, m) => s + m.income,
                                           0,
                                         ),
@@ -1300,10 +543,10 @@ export default function Dashboard({
                                   </td>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
                                     <button
-                                      onClick={() => openIncomeModal(0)}
+                                      onClick={() => dash.openIncomeModal(0)}
                                       className="font-semibold hover:underline text-theme-text"
                                     >
-                                      {formatAmount(monthSummaries[0].income)}
+                                      {formatAmount(dash.monthSummaries[0].income)}
                                     </button>
                                   </td>
                                 </>
@@ -1323,16 +566,16 @@ export default function Dashboard({
                                   <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                                 </svg>
                               </td>
-                              {monthSpan > 1 ? (
+                              {dash.monthSpan > 1 ? (
                                 <>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                     —
                                   </td>
-                                  {[...monthSummaries]
+                                  {[...dash.monthSummaries]
                                     .reverse()
                                     .map((summary, displayIdx) => {
                                       const dataIdx =
-                                        monthSummaries.length - 1 - displayIdx;
+                                        dash.monthSummaries.length - 1 - displayIdx;
                                       return (
                                         <td
                                           key={displayIdx}
@@ -1344,7 +587,7 @@ export default function Dashboard({
                                         >
                                           <button
                                             onClick={() =>
-                                              openSavingsModal(dataIdx)
+                                              dash.openSavingsModal(dataIdx)
                                             }
                                             className="font-semibold hover:underline text-theme-text"
                                           >
@@ -1353,10 +596,10 @@ export default function Dashboard({
                                         </td>
                                       );
                                     })}
-                                  {showGrandTotal && (
+                                  {dash.showGrandTotal && (
                                     <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
                                       {formatAmount(
-                                        monthSummaries.reduce(
+                                        dash.monthSummaries.reduce(
                                           (s, m) => s + m.autoSavings,
                                           0,
                                         ),
@@ -1371,11 +614,11 @@ export default function Dashboard({
                                   </td>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
                                     <button
-                                      onClick={() => openSavingsModal(0)}
+                                      onClick={() => dash.openSavingsModal(0)}
                                       className="font-semibold hover:underline text-theme-text"
                                     >
                                       {formatAmount(
-                                        monthSummaries[0].autoSavings,
+                                        dash.monthSummaries[0].autoSavings,
                                       )}
                                     </button>
                                   </td>
@@ -1387,12 +630,12 @@ export default function Dashboard({
                               <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                                 Remaining
                               </td>
-                              {monthSpan > 1 ? (
+                              {dash.monthSpan > 1 ? (
                                 <>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                     —
                                   </td>
-                                  {[...monthSummaries]
+                                  {[...dash.monthSummaries]
                                     .reverse()
                                     .map((summary, displayIdx) => {
                                       const v = summary.remaining;
@@ -1414,12 +657,12 @@ export default function Dashboard({
                                         </td>
                                       );
                                     })}
-                                  {showGrandTotal && (
+                                  {dash.showGrandTotal && (
                                     <td
                                       className={cn(
                                         "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                         (() => {
-                                          const v = monthSummaries.reduce(
+                                          const v = dash.monthSummaries.reduce(
                                             (s, m) => s + m.remaining,
                                             0,
                                           );
@@ -1432,7 +675,7 @@ export default function Dashboard({
                                       )}
                                     >
                                       {formatAmount(
-                                        monthSummaries.reduce(
+                                        dash.monthSummaries.reduce(
                                           (s, m) => s + m.remaining,
                                           0,
                                         ),
@@ -1449,7 +692,7 @@ export default function Dashboard({
                                     className={cn(
                                       "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
                                       (() => {
-                                        const v = monthSummaries[0].remaining;
+                                        const v = dash.monthSummaries[0].remaining;
                                         return v > 0
                                           ? "text-theme-success"
                                           : v < 0
@@ -1458,7 +701,7 @@ export default function Dashboard({
                                       })(),
                                     )}
                                   >
-                                    {formatAmount(monthSummaries[0].remaining)}
+                                    {formatAmount(dash.monthSummaries[0].remaining)}
                                   </td>
                                 </>
                               )}
@@ -1468,20 +711,19 @@ export default function Dashboard({
                               <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
                                 Total Savings
                               </td>
-                              {monthSpan > 1 ? (
+                              {dash.monthSpan > 1 ? (
                                 <>
                                   <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
                                     —
                                   </td>
-                                  {[...monthSummaries]
+                                  {[...dash.monthSummaries]
                                     .reverse()
                                     .map((summary, displayIdx) => {
                                       const totalSavings =
                                         summary.autoSavings + summary.remaining;
                                       const ratioPct =
                                         summary.income > 0
-                                          ? (totalSavings / summary.income) *
-                                            100
+                                          ? (totalSavings / summary.income) * 100
                                           : 0;
                                       const color = getSavingsGradientColor(
                                         ratioPct,
@@ -1501,27 +743,27 @@ export default function Dashboard({
                                         </td>
                                       );
                                     })}
-                                  {showGrandTotal && (
+                                  {dash.showGrandTotal && (
                                     <td
                                       className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
                                       style={{
                                         color: (() => {
                                           const grandTotal =
-                                            monthSummaries.reduce(
+                                            dash.monthSummaries.reduce(
                                               (s, m) =>
                                                 s + m.autoSavings + m.remaining,
                                               0,
                                             );
                                           const totalIncome =
-                                            monthSummaries.reduce(
+                                            dash.monthSummaries.reduce(
                                               (s, m) => s + m.income,
                                               0,
                                             );
                                           const avgRate =
-                                            monthSummaries.reduce(
+                                            dash.monthSummaries.reduce(
                                               (s, m) => s + m.savingsRate,
                                               0,
-                                            ) / monthSummaries.length;
+                                            ) / dash.monthSummaries.length;
                                           const ratioPct =
                                             totalIncome > 0
                                               ? (grandTotal / totalIncome) * 100
@@ -1534,7 +776,7 @@ export default function Dashboard({
                                       }}
                                     >
                                       {formatAmount(
-                                        monthSummaries.reduce(
+                                        dash.monthSummaries.reduce(
                                           (s, m) =>
                                             s + m.autoSavings + m.remaining,
                                           0,
@@ -1552,10 +794,9 @@ export default function Dashboard({
                                     className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
                                     style={{
                                       color: (() => {
-                                        const summary = monthSummaries[0];
+                                        const summary = dash.monthSummaries[0];
                                         const totalSavings =
-                                          summary.autoSavings +
-                                          summary.remaining;
+                                          summary.autoSavings + summary.remaining;
                                         const ratioPct =
                                           summary.income > 0
                                             ? (totalSavings / summary.income) *
@@ -1569,8 +810,8 @@ export default function Dashboard({
                                     }}
                                   >
                                     {formatAmount(
-                                      monthSummaries[0].autoSavings +
-                                        monthSummaries[0].remaining,
+                                      dash.monthSummaries[0].autoSavings +
+                                        dash.monthSummaries[0].remaining,
                                     )}
                                   </td>
                                 </>
@@ -1583,19 +824,19 @@ export default function Dashboard({
                   </div>
 
                   {/* Drilldown */}
-                  {drilldownCategory && drilldownExpenses.length > 0 && (
+                  {dash.drilldownCategory && drilldownExpenses.length > 0 && (
                     <div
-                      ref={drilldownRef}
+                      ref={dash.drilldownRef}
                       className="space-y-2 border-t border-theme-border pt-4"
                     >
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-theme-text">
-                          {drilldownCategory} —{" "}
-                          {monthKeys[drilldownMonthIndex].name}{" "}
-                          {monthKeys[drilldownMonthIndex].year}
+                          {dash.drilldownCategory} —{" "}
+                          {dash.monthKeys[dash.drilldownCategoryMonthIndex].name}{" "}
+                          {dash.monthKeys[dash.drilldownCategoryMonthIndex].year}
                         </h3>
                         <button
-                          onClick={() => setDrilldownCategory(null)}
+                          onClick={dash.closeDrilldown}
                           className="text-xs font-medium text-theme-muted hover:text-theme-text transition-colors"
                         >
                           Close
@@ -1640,62 +881,50 @@ export default function Dashboard({
                   )}
                 </div>
               ) : (
-                <div
-                  className={cn(
-                    viewAnimation === "slide-left" && "view-slide-left",
-                    viewAnimation === "slide-right" && "view-slide-right",
-                  )}
-                >
-                  <ExpenseTable
-                    expenses={filtered}
-                    onUpdate={onUpdate}
-                    onDelete={onDelete}
-                    onBulkDelete={onBulkDelete}
-                    categories={categories}
-                    selectedIds={selectedIds}
-                    onToggleSelect={toggleSelect}
-                    onToggleSelectAll={toggleSelectAll}
-                    isMobile={isMobile}
-                    mobileEditTrigger={mobileEditTrigger}
-                  />
-                </div>
+                <ExpensesView
+                  expenses={dash.filteredExpenses}
+                  categories={categories}
+                  selectedIds={dash.selectedIds}
+                  onToggleSelect={dash.toggleExpenseSelection}
+                  onToggleSelectAll={dash.toggleSelectAll}
+                  onBulkDelete={dash.openDeleteConfirmation}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  isMobile={isMobile}
+                  mobileEditTrigger={dash.mobileEditTrigger}
+                  viewAnimation={dash.viewAnimation}
+                />
               )}
             </section>
           </div>
         </div>
 
         {/* Mobile selection banner */}
-        {isMobile && selectedIds.size > 0 && (
+        {isMobile && dash.selectedIds.size > 0 && (
           <MobileSelectionBanner
-            count={selectedIds.size}
-            onEdit={() => {
-              const id = Array.from(selectedIds)[0];
-              if (id != null) {
-                setMobileEditTrigger(id);
-                requestAnimationFrame(() => setMobileEditTrigger(null));
-              }
-            }}
-            onDelete={handleBulkDeleteClick}
-            onDeselectAll={() => setSelectedIds(new Set())}
+            count={dash.selectedIds.size}
+            onEdit={triggerMobileEdit}
+            onDelete={dash.openDeleteConfirmation}
+            onDeselectAll={dash.clearSelection}
           />
         )}
 
         {/* Income edit modal */}
         <Modal
-          isOpen={showIncomeModal}
-          onClose={closeIncomeModal}
-          title={`Edit Income — ${monthKeys[editingMonthIndex]?.name ?? ""} ${monthKeys[editingMonthIndex]?.year ?? ""}`}
+          isOpen={dash.isIncomeModalOpen}
+          onClose={dash.closeIncomeModal}
+          title={`Edit Income — ${modalMonthKey?.name ?? ""} ${modalMonthKey?.year ?? ""}`}
           size="sm"
         >
-          <form onSubmit={submitIncome} className="space-y-4">
-            {incomeError && (
-              <p className="text-theme-danger text-xs">{incomeError}</p>
+          <form onSubmit={dash.submitIncome} className="space-y-4">
+            {dash.incomeError && (
+              <p className="text-theme-danger text-xs">{dash.incomeError}</p>
             )}
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="number"
-                value={incomeDraft}
-                onChange={(e) => setIncomeDraft(e.target.value)}
+                value={dash.incomeDraft}
+                onChange={(e) => dash.setIncomeDraft(e.target.value)}
                 placeholder="Amount"
                 min="0.01"
                 step="0.01"
@@ -1703,11 +932,11 @@ export default function Dashboard({
                 className="input-theme px-3 py-2 text-sm w-full sm:flex-1 min-w-0"
               />
               <select
-                value={incomeFreqDraft}
-                onChange={(e) => setIncomeFreqDraft(e.target.value)}
+                value={dash.incomeFreqDraft}
+                onChange={(e) => dash.setIncomeFreqDraft(e.target.value)}
                 className="input-theme px-3 py-2 text-sm w-full sm:w-auto min-w-0"
               >
-                {FREQUENCIES.map((f) => (
+                {dash.INCOME_FREQUENCIES.map((f) => (
                   <option key={f} value={f}>
                     {f.charAt(0).toUpperCase() + f.slice(1)}
                   </option>
@@ -1720,7 +949,7 @@ export default function Dashboard({
               </button>
               <button
                 type="button"
-                onClick={closeIncomeModal}
+                onClick={dash.closeIncomeModal}
                 className="summary-cancel-btn rounded-theme-small"
               >
                 Cancel
@@ -1731,20 +960,20 @@ export default function Dashboard({
 
         {/* Savings rate edit modal */}
         <Modal
-          isOpen={showSavingsModal}
-          onClose={closeSavingsModal}
-          title={`Edit Savings Rate — ${monthKeys[editingMonthIndex]?.name ?? ""} ${monthKeys[editingMonthIndex]?.year ?? ""}`}
+          isOpen={dash.isSavingsModalOpen}
+          onClose={dash.closeSavingsModal}
+          title={`Edit Savings Rate — ${modalMonthKey?.name ?? ""} ${modalMonthKey?.year ?? ""}`}
           size="sm"
         >
-          <form onSubmit={submitSavings} className="space-y-4">
-            {savingsError && (
-              <p className="text-theme-danger text-xs">{savingsError}</p>
+          <form onSubmit={dash.submitSavings} className="space-y-4">
+            {dash.savingsError && (
+              <p className="text-theme-danger text-xs">{dash.savingsError}</p>
             )}
             <div className="flex gap-2 items-center">
               <input
                 type="number"
-                value={savingsDraft}
-                onChange={(e) => setSavingsDraft(e.target.value)}
+                value={dash.savingsDraft}
+                onChange={(e) => dash.setSavingsDraft(e.target.value)}
                 placeholder="e.g. 20"
                 min="0"
                 max="100"
@@ -1760,7 +989,7 @@ export default function Dashboard({
               </button>
               <button
                 type="button"
-                onClick={closeSavingsModal}
+                onClick={dash.closeSavingsModal}
                 className="summary-cancel-btn rounded-theme-small"
               >
                 Cancel
@@ -1770,118 +999,24 @@ export default function Dashboard({
         </Modal>
 
         {/* Filter modal */}
-        <Modal
-          isOpen={showFilterModal}
-          onClose={() => setShowFilterModal(false)}
-          title="Filter Transactions"
-          size="md"
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Search
-              </label>
-              <input
-                type="text"
-                value={filterGlobal}
-                onChange={(e) => setFilterGlobal(e.target.value)}
-                placeholder="Description, category, or amount..."
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-theme-muted mb-1">
-                  Date from
-                </label>
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  className="input-theme w-full px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-theme-muted mb-1">
-                  Date to
-                </label>
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
-                  className="input-theme w-full px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Category
-              </label>
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="input-theme w-full px-3 py-2 text-sm"
-              >
-                <option value="">All categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Description
-              </label>
-              <input
-                type="text"
-                value={filterDescription}
-                onChange={(e) => setFilterDescription(e.target.value)}
-                placeholder="Contains..."
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Amount
-              </label>
-              <input
-                type="text"
-                value={filterAmount}
-                onChange={(e) => setFilterAmount(e.target.value)}
-                placeholder="e.g. 12.50"
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
-              <button
-                onClick={() => {
-                  setFilterGlobal("");
-                  setFilterDateFrom("");
-                  setFilterDateTo("");
-                  setFilterCategory("");
-                  setFilterDescription("");
-                  setFilterAmount("");
-                }}
-                className="summary-cancel-btn rounded-theme-small"
-              >
-                Clear all
-              </button>
-              <button
-                onClick={() => setShowFilterModal(false)}
-                className="summary-save-btn"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </Modal>
+        <FilterModal
+          isOpen={dash.isFilterModalOpen}
+          onClose={() => dash.setIsFilterModalOpen(false)}
+          filterGlobal={dash.filterGlobal}
+          onFilterGlobalChange={dash.setFilterGlobal}
+          filterDateFrom={dash.filterDateFrom}
+          onFilterDateFromChange={dash.setFilterDateFrom}
+          filterDateTo={dash.filterDateTo}
+          onFilterDateToChange={dash.setFilterDateTo}
+          filterCategory={dash.filterCategory}
+          onFilterCategoryChange={dash.setFilterCategory}
+          filterDescription={dash.filterDescription}
+          onFilterDescriptionChange={dash.setFilterDescription}
+          filterAmount={dash.filterAmount}
+          onFilterAmountChange={dash.setFilterAmount}
+          onClearAll={dash.clearAllFilters}
+          categories={categories}
+        />
       </div>
     </div>
   );

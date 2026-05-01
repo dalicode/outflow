@@ -7,6 +7,7 @@ import { useSettings } from "./context/settingsContext";
 import { supabase } from "./services/supabase";
 import { useExpenses, useCategories } from "./hooks/useLocalData";
 import { cn } from "./utils/cn";
+import { ROUTES } from "./constants/routes";
 import Navbar from "./components/layout/Navbar";
 import ExpenseForm from "./features/expenses/ExpenseForm";
 import Dashboard from "./features/dashboard/Dashboard";
@@ -226,7 +227,7 @@ export default function App() {
             >
               <Routes>
                 <Route
-                  path="/"
+                  path={ROUTES.DASHBOARD}
                   element={
                     <Dashboard
                       expenses={expenses}
@@ -240,7 +241,7 @@ export default function App() {
                   }
                 />
                 <Route
-                  path="/summary"
+                  path={ROUTES.SUMMARY}
                   element={
                     <ScrollablePage onScroll={handlePageScroll}>
                       <SummaryPage expenses={expenses} />
@@ -248,7 +249,7 @@ export default function App() {
                   }
                 />
                 <Route
-                  path="/analytics"
+                  path={ROUTES.ANALYTICS}
                   element={
                     <ScrollablePage onScroll={handlePageScroll}>
                       <AnalyticsPage
@@ -259,7 +260,7 @@ export default function App() {
                   }
                 />
                 <Route
-                  path="/settings"
+                  path={ROUTES.SETTINGS}
                   element={
                     <ScrollablePage onScroll={handlePageScroll}>
                       <SettingsPage

@@ -20,10 +20,6 @@ interface ExpenseTableProps {
   mobileEditTrigger?: number | null;
 }
 
-function formatAmountPlain(n: number) {
-  return Math.abs(n).toFixed(2);
-}
-
 export default function ExpenseTable({
   expenses,
   onUpdate,
@@ -36,14 +32,24 @@ export default function ExpenseTable({
   isMobile = false,
   mobileEditTrigger,
 }: ExpenseTableProps) {
-  const { formatAmount, formatDate, getNumberColorClass } = useSettings();
-  const { menu, open: openContextMenu, close: closeContextMenu, menuRef } = useContextMenu();
+  const { formatAmount, formatDate } = useSettings();
+  const {
+    menu,
+    open: openContextMenu,
+    close: closeContextMenu,
+    menuRef,
+  } = useContextMenu();
 
   // Editing
-  const [editingCell, setEditingCell] = useState<{ id: number; field: keyof Expense } | null>(null);
+  const [editingCell, setEditingCell] = useState<{
+    id: number;
+    field: keyof Expense;
+  } | null>(null);
   const [draft, setDraft] = useState<Partial<Expense>>({});
   const [showMobileEditModal, setShowMobileEditModal] = useState(false);
-  const [mobileEditExpense, setMobileEditExpense] = useState<Expense | null>(null);
+  const [mobileEditExpense, setMobileEditExpense] = useState<Expense | null>(
+    null,
+  );
 
   // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -89,7 +95,8 @@ export default function ExpenseTable({
   }, [expenses]);
 
   const allSelected =
-    expenses.length > 0 && expenses.every((e) => selectedIds.has(e.id as number));
+    expenses.length > 0 &&
+    expenses.every((e) => selectedIds.has(e.id as number));
 
   // Long press for mobile
   const { onTouchStart, onTouchMove, onTouchEnd } = useLongPress({
@@ -139,7 +146,8 @@ export default function ExpenseTable({
     const cat = catMap[draft.categoryId as number];
     onUpdate(targetId, {
       ...draft,
-      amount: draft.amount != null ? parseFloat(String(draft.amount)) : undefined,
+      amount:
+        draft.amount != null ? parseFloat(String(draft.amount)) : undefined,
       category: cat?.name ?? draft.category,
     });
     setEditingCell(null);
@@ -190,7 +198,12 @@ export default function ExpenseTable({
     if (!menu) return [];
     const isMulti = selectedIds.size > 1;
     const ids = isMulti ? Array.from(selectedIds) : [menu.expenseId];
-    const items: { label: string; onClick: () => void; disabled?: boolean; danger?: boolean }[] = [];
+    const items: {
+      label: string;
+      onClick: () => void;
+      disabled?: boolean;
+      danger?: boolean;
+    }[] = [];
 
     if (!isMulti) {
       items.push({
@@ -215,7 +228,8 @@ export default function ExpenseTable({
     setDraft((d) => ({ ...d, [field]: val }));
 
   const renderCellEditor = (expense: Expense, field: keyof Expense) => {
-    const isEditing = editingCell?.id === expense.id && editingCell?.field === field;
+    const isEditing =
+      editingCell?.id === expense.id && editingCell?.field === field;
     if (!isEditing) return null;
 
     const value = draft[field] ?? expense[field];
@@ -281,8 +295,13 @@ export default function ExpenseTable({
     }
   };
 
-  const renderCell = (expense: Expense, field: keyof Expense, children: React.ReactNode) => {
-    const isEditing = editingCell?.id === expense.id && editingCell?.field === field;
+  const renderCell = (
+    expense: Expense,
+    field: keyof Expense,
+    children: React.ReactNode,
+  ) => {
+    const isEditing =
+      editingCell?.id === expense.id && editingCell?.field === field;
     if (isEditing) return renderCellEditor(expense, field);
     return (
       <span
@@ -323,7 +342,8 @@ export default function ExpenseTable({
                     key={exp.id}
                     className={cn(
                       "flex items-center justify-between py-2 px-3",
-                      isSelected && "bg-theme-primary/[0.04] border-l-4 border-theme-primary",
+                      isSelected &&
+                        "bg-theme-primary/[0.04] border-l-4 border-theme-primary",
                       !isSelected && "row-hover",
                     )}
                     onTouchStart={(e) => onTouchStart(e, exp.id as number)}
@@ -341,9 +361,16 @@ export default function ExpenseTable({
                       <p className="text-sm font-medium text-theme-text truncate">
                         {exp.description || "—"}
                       </p>
-                      <p className="text-xs text-theme-muted">{resolveName(exp)}</p>
+                      <p className="text-xs text-theme-muted">
+                        {resolveName(exp)}
+                      </p>
                     </div>
-                    <span className={cn("text-sm font-semibold tabular-nums", amountColor)}>
+                    <span
+                      className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        amountColor,
+                      )}
+                    >
                       {formatAmount(exp.amount)}
                     </span>
                   </div>
@@ -373,7 +400,9 @@ export default function ExpenseTable({
                 <th className="table-header-cell text-left">Date</th>
                 <th className="table-header-cell text-left">Category</th>
                 <th className="table-header-cell text-left">Description</th>
-                <th className="table-header-cell text-right tabular-nums">Amount</th>
+                <th className="table-header-cell text-right tabular-nums">
+                  Amount
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -433,7 +462,9 @@ export default function ExpenseTable({
                       {renderCell(
                         exp,
                         "description",
-                        exp.description || <span className="text-theme-muted">—</span>,
+                        exp.description || (
+                          <span className="text-theme-muted">—</span>
+                        ),
                       )}
                     </td>
                     <td
@@ -479,7 +510,9 @@ export default function ExpenseTable({
         >
           <div className="space-y-4">
             <div>
-              <label className="text-xs text-theme-muted block mb-1">Date</label>
+              <label className="text-xs text-theme-muted block mb-1">
+                Date
+              </label>
               <input
                 type="date"
                 value={String(draft.date ?? mobileEditExpense.date)}
@@ -488,9 +521,15 @@ export default function ExpenseTable({
               />
             </div>
             <div>
-              <label className="text-xs text-theme-muted block mb-1">Category</label>
+              <label className="text-xs text-theme-muted block mb-1">
+                Category
+              </label>
               <select
-                value={(draft.categoryId as number) ?? mobileEditExpense.categoryId ?? ""}
+                value={
+                  (draft.categoryId as number) ??
+                  mobileEditExpense.categoryId ??
+                  ""
+                }
                 onChange={(e) => setField("categoryId")(Number(e.target.value))}
                 className="input-theme w-full px-3 py-2 text-sm"
               >
@@ -502,16 +541,22 @@ export default function ExpenseTable({
               </select>
             </div>
             <div>
-              <label className="text-xs text-theme-muted block mb-1">Description</label>
+              <label className="text-xs text-theme-muted block mb-1">
+                Description
+              </label>
               <input
                 type="text"
-                value={String(draft.description ?? mobileEditExpense.description ?? "")}
+                value={String(
+                  draft.description ?? mobileEditExpense.description ?? "",
+                )}
                 onChange={(e) => setField("description")(e.target.value)}
                 className="input-theme w-full px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="text-xs text-theme-muted block mb-1">Amount</label>
+              <label className="text-xs text-theme-muted block mb-1">
+                Amount
+              </label>
               <input
                 type="number"
                 min="0.01"
@@ -525,7 +570,10 @@ export default function ExpenseTable({
               <button onClick={saveEdit} className="summary-save-btn flex-1">
                 Save
               </button>
-              <button onClick={cancelEdit} className="summary-cancel-btn flex-1">
+              <button
+                onClick={cancelEdit}
+                className="summary-cancel-btn flex-1"
+              >
                 Cancel
               </button>
             </div>
