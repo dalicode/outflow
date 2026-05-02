@@ -1,10 +1,12 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
-import { cn } from "../../utils/cn";
 import { useContextMenu } from "../../hooks/useContextMenu";
-import { useLongPress } from "../../hooks/useLongPress";
+import { cn } from "../../utils/cn";
+import DataTable from "../../components/ui/DataTable";
 import ContextMenu from "../../components/ui/ContextMenu";
 import Modal from "../../components/ui/Modal";
+import ExpenseTableMobile from "./ExpenseTableMobile";
+import { getExpenseColumns } from "./expenseColumns";
 import type { Expense, Category } from "../../types";
 
 interface ExpenseTableProps {
@@ -85,59 +87,14 @@ export default function ExpenseTable({
     [catMap],
   );
 
-  const groupedExpenses = useMemo(() => {
-    const groups: Record<string, Expense[]> = {};
-    expenses.forEach((exp) => {
-      if (!groups[exp.date]) groups[exp.date] = [];
-      groups[exp.date].push(exp);
-    });
-    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [expenses]);
-
   const allSelected =
     expenses.length > 0 &&
     expenses.every((e) => selectedIds.has(e.id as number));
 
-  // Long press for mobile
-  const { onTouchStart, onTouchMove, onTouchEnd } = useLongPress({
-    onLongPress: (id: number) => {
-      onToggleSelect(id);
-    },
-  });
-
-  const startCellEdit = useCallback(
-    (expense: Expense, field: keyof Expense) => {
-      if (isMobile && selectedIds.size > 0) {
-        onToggleSelect(expense.id as number);
-        return;
-      }
-      if (isMobile) {
-        setMobileEditExpense(expense);
-        setDraft({ ...expense });
-        setShowMobileEditModal(true);
-        return;
-      }
-      setEditingCell({ id: expense.id as number, field });
-      setDraft({ ...expense });
-      // Focus after render
-      setTimeout(() => inputRef.current?.focus(), 0);
-    },
-    [isMobile, selectedIds, onToggleSelect],
-  );
-
-  const startRowEdit = useCallback(
-    (expense: Expense) => {
-      if (isMobile) {
-        setMobileEditExpense(expense);
-        setDraft({ ...expense });
-        setShowMobileEditModal(true);
-        return;
-      }
-      setEditingCell({ id: expense.id as number, field: "date" });
-      setDraft({ ...expense });
-      setTimeout(() => inputRef.current?.focus(), 0);
-    },
-    [isMobile],
+  const setField = useCallback(
+    (field: keyof Expense) => (val: string | number) =>
+      setDraft((d) => ({ ...d, [field]: val })),
+    [],
   );
 
   const saveEdit = useCallback(() => {
@@ -169,6 +126,40 @@ export default function ExpenseTable({
       if (e.key === "Escape") cancelEdit();
     },
     [saveEdit, cancelEdit],
+  );
+
+  const startCellEdit = useCallback(
+    (expense: Expense, field: keyof Expense) => {
+      if (isMobile && selectedIds.size > 0) {
+        onToggleSelect(expense.id as number);
+        return;
+      }
+      if (isMobile) {
+        setMobileEditExpense(expense);
+        setDraft({ ...expense });
+        setShowMobileEditModal(true);
+        return;
+      }
+      setEditingCell({ id: expense.id as number, field });
+      setDraft({ ...expense });
+      setTimeout(() => inputRef.current?.focus(), 0);
+    },
+    [isMobile, selectedIds, onToggleSelect],
+  );
+
+  const startRowEdit = useCallback(
+    (expense: Expense) => {
+      if (isMobile) {
+        setMobileEditExpense(expense);
+        setDraft({ ...expense });
+        setShowMobileEditModal(true);
+        return;
+      }
+      setEditingCell({ id: expense.id as number, field: "date" });
+      setDraft({ ...expense });
+      setTimeout(() => inputRef.current?.focus(), 0);
+    },
+    [isMobile],
   );
 
   const handleDeleteRequest = useCallback((ids: number[]) => {
@@ -224,101 +215,64 @@ export default function ExpenseTable({
     return items;
   }, [menu, selectedIds, expenses, startRowEdit, handleDeleteRequest]);
 
-  const setField = (field: keyof Expense) => (val: string | number) =>
-    setDraft((d) => ({ ...d, [field]: val }));
+  const columns = useMemo(
+    () =>
+      getExpenseColumns({
+        selectedIds,
+        onToggleSelect,
+        onToggleSelectAll,
+        allSelected,
+        editingCell,
+        draft,
+        setField,
+        saveEdit,
+        cancelEdit,
+        handleKeyDown,
+        onCellEdit: startCellEdit,
+        formatDate,
+        formatAmount,
+        catMap,
+        activeCategories,
+        resolveName,
+        inputRef,
+      }),
+    [
+      selectedIds,
+      onToggleSelect,
+      onToggleSelectAll,
+      allSelected,
+      editingCell,
+      draft,
+      setField,
+      saveEdit,
+      cancelEdit,
+      handleKeyDown,
+      startCellEdit,
+      formatDate,
+      formatAmount,
+      catMap,
+      activeCategories,
+      resolveName,
+    ],
+  );
 
-  const renderCellEditor = (expense: Expense, field: keyof Expense) => {
-    const isEditing =
-      editingCell?.id === expense.id && editingCell?.field === field;
-    if (!isEditing) return null;
-
-    const value = draft[field] ?? expense[field];
-
-    switch (field) {
-      case "date":
-        return (
-          <input
-            ref={inputRef as React.RefObject<HTMLInputElement>}
-            type="date"
-            value={String(value ?? "")}
-            onChange={(e) => setField("date")(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={saveEdit}
-            className="input-sm w-full"
-          />
-        );
-      case "amount":
-        return (
-          <input
-            ref={inputRef as React.RefObject<HTMLInputElement>}
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={String(value ?? "")}
-            onChange={(e) => setField("amount")(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={saveEdit}
-            className="input-sm w-full text-right"
-          />
-        );
-      case "description":
-        return (
-          <input
-            ref={inputRef as React.RefObject<HTMLInputElement>}
-            type="text"
-            value={String(value ?? "")}
-            onChange={(e) => setField("description")(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={saveEdit}
-            className="input-sm w-full"
-          />
-        );
-      case "categoryId":
-        return (
-          <select
-            ref={inputRef as React.RefObject<HTMLSelectElement>}
-            value={(value as number) ?? ""}
-            onChange={(e) => setField("categoryId")(Number(e.target.value))}
-            onKeyDown={handleKeyDown}
-            onBlur={saveEdit}
-            className="input-sm w-full"
-          >
-            {activeCategories.map((c) => (
-              <option key={c.id} value={c.id as number}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const renderCell = (
-    expense: Expense,
-    field: keyof Expense,
-    children: React.ReactNode,
-  ) => {
-    const isEditing =
-      editingCell?.id === expense.id && editingCell?.field === field;
-    if (isEditing) return renderCellEditor(expense, field);
-    return (
-      <span
-        onClick={() => startCellEdit(expense, field)}
-        className="cursor-pointer"
-      >
-        {children}
-      </span>
-    );
-  };
+  const getRowClassName = useCallback(
+    (exp: Expense) => {
+      const isSelected = selectedIds.has(exp.id as number);
+      return cn(
+        isSelected && "bg-theme-primary/[0.04]",
+        !isSelected && "row-hover",
+      );
+    },
+    [selectedIds],
+  );
 
   if (expenses.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-sm text-theme-muted">
-          No expenses yet. Hit <strong className="text-theme-primary">+</strong>{" "}
-          to add one.
+          No expenses yet. Hit{" "}
+          <strong className="text-theme-primary">+</strong> to add one.
         </p>
       </div>
     );
@@ -327,176 +281,21 @@ export default function ExpenseTable({
   return (
     <div className="space-y-3">
       {isMobile ? (
-        <div className="divide-y divide-theme-border">
-          {groupedExpenses.map(([date, items]) => (
-            <div key={date}>
-              <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background/50">
-                {formatDate(date)}
-              </div>
-              {items.map((exp) => {
-                const isSelected = selectedIds.has(exp.id as number);
-                const amountColor =
-                  exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
-                return (
-                  <div
-                    key={exp.id}
-                    className={cn(
-                      "flex items-center justify-between py-2 px-3",
-                      isSelected &&
-                        "bg-theme-primary/[0.04] border-l-4 border-theme-primary",
-                      !isSelected && "row-hover",
-                    )}
-                    onTouchStart={(e) => onTouchStart(e, exp.id as number)}
-                    onTouchMove={onTouchMove}
-                    onTouchEnd={(e) => onTouchEnd(e, exp.id as number)}
-                    onClick={() => {
-                      if (selectedIds.size > 0) {
-                        onToggleSelect(exp.id as number);
-                      } else {
-                        startCellEdit(exp, "description");
-                      }
-                    }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-theme-text truncate">
-                        {exp.description || "—"}
-                      </p>
-                      <p className="text-xs text-theme-muted">
-                        {resolveName(exp)}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "text-sm font-semibold tabular-nums",
-                        amountColor,
-                      )}
-                    >
-                      {formatAmount(exp.amount)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+        <ExpenseTableMobile
+          expenses={expenses}
+          selectedIds={selectedIds}
+          onToggleSelect={onToggleSelect}
+          onCellEdit={(exp) => startCellEdit(exp, "description")}
+          formatDate={formatDate}
+          formatAmount={formatAmount}
+          resolveName={resolveName}
+        />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-separate border-spacing-0">
-            <thead className="sticky top-0 z-10">
-              <tr>
-                <th className="table-header-cell text-center w-10">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={onToggleSelectAll}
-                    className={cn(
-                      "w-4 h-4 rounded-theme-small cursor-pointer",
-                      "expense-checkbox",
-                      allSelected && "opacity-100",
-                    )}
-                    aria-label="Select all"
-                  />
-                </th>
-                <th className="table-header-cell text-left">Date</th>
-                <th className="table-header-cell text-left">Category</th>
-                <th className="table-header-cell text-left">Description</th>
-                <th className="table-header-cell text-right tabular-nums">
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((exp) => {
-                const isSelected = selectedIds.has(exp.id as number);
-                const amountColor =
-                  exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
-
-                return (
-                  <tr
-                    key={exp.id}
-                    className={cn(
-                      "border-b border-theme-muted/10",
-                      isSelected && "bg-theme-primary/[0.04]",
-                      !isSelected && "row-hover",
-                    )}
-                    onContextMenu={(e) => handleContextMenu(e, exp)}
-                    onTouchStart={(e) => onTouchStart(e, exp.id as number)}
-                    onTouchMove={onTouchMove}
-                    onTouchEnd={(e) => onTouchEnd(e, exp.id as number)}
-                  >
-                    <td className="px-3 py-2.5 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          onToggleSelect(exp.id as number);
-                        }}
-                        className={cn(
-                          "w-4 h-4 rounded-theme-small cursor-pointer",
-                          "expense-checkbox",
-                          isSelected && "opacity-100",
-                        )}
-                        aria-label={`Select ${exp.description || "expense"}`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-theme-text whitespace-nowrap">
-                      {renderCell(exp, "date", formatDate(exp.date))}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      {renderCell(
-                        exp,
-                        "categoryId",
-                        <span
-                          className={cn(
-                            catMap[exp.categoryId as number]?.isDeleted
-                              ? "text-theme-muted italic"
-                              : "text-theme-text font-medium",
-                          )}
-                        >
-                          {resolveName(exp)}
-                        </span>,
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-theme-text max-w-[200px] truncate">
-                      {renderCell(
-                        exp,
-                        "description",
-                        exp.description || (
-                          <span className="text-theme-muted">—</span>
-                        ),
-                      )}
-                    </td>
-                    <td
-                      className={cn(
-                        "px-3 py-2.5 text-right tabular-nums font-semibold",
-                        amountColor,
-                      )}
-                    >
-                      {renderCell(exp, "amount", formatAmount(exp.amount))}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {expenses.length === 0 && (
-        <p className="text-sm text-theme-muted text-center py-8">
-          No expenses match the current filters.
-        </p>
-      )}
-
-      {/* Context menu */}
-      {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={contextMenuItems}
-          onClose={closeContextMenu}
-          menuRef={menuRef}
+        <DataTable
+          data={expenses}
+          columns={columns}
+          getRowClassName={getRowClassName}
+          onRowContextMenu={handleContextMenu}
         />
       )}
 
@@ -530,7 +329,9 @@ export default function ExpenseTable({
                   mobileEditExpense.categoryId ??
                   ""
                 }
-                onChange={(e) => setField("categoryId")(Number(e.target.value))}
+                onChange={(e) =>
+                  setField("categoryId")(Number(e.target.value))
+                }
                 className="input-theme w-full px-3 py-2 text-sm"
               >
                 {activeCategories.map((c) => (
@@ -549,7 +350,9 @@ export default function ExpenseTable({
                 value={String(
                   draft.description ?? mobileEditExpense.description ?? "",
                 )}
-                onChange={(e) => setField("description")(e.target.value)}
+                onChange={(e) =>
+                  setField("description")(e.target.value)
+                }
                 className="input-theme w-full px-3 py-2 text-sm"
               />
             </div>
@@ -605,6 +408,17 @@ export default function ExpenseTable({
           </button>
         </div>
       </Modal>
+
+      {/* Context menu */}
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={contextMenuItems}
+          onClose={closeContextMenu}
+          menuRef={menuRef}
+        />
+      )}
     </div>
   );
 }

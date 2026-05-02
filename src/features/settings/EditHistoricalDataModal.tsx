@@ -10,10 +10,10 @@ import {
   checkRangeOverlaps,
   isFullyCovered,
   monthMapToRanges,
-  flattenRangesToMonthMap,
   getYearlyVariableTotals,
   clamp,
   type RangeItem,
+  flattenRangesToMonthMap,
 } from "../../utils/historicalDataHelpers";
 import type { Expense, FixedExpenseSnapshot } from "../../types";
 
@@ -35,7 +35,11 @@ const MONTHS = [
 let _idCounter = 0;
 const nextId = () => `tmp-${++_idCounter}`;
 
-function formatAmount(amount: string | number, symbol = "$", decimals = 2): string {
+function formatAmount(
+  amount: string | number,
+  symbol = "$",
+  decimals = 2,
+): string {
   const n = typeof amount === "number" ? amount : parseFloat(amount);
   if (isNaN(n)) return "—";
   return `${symbol}${n.toFixed(decimals)}`;
@@ -75,7 +79,13 @@ function RemoveBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-xl bg-theme-surface border border-theme-border shadow-sm p-4 space-y-3">
       <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
@@ -93,7 +103,12 @@ interface YearTabBarProps {
   onSelect: (year: number) => void;
 }
 
-function YearTabBar({ years, activeYear, dirtyYears, onSelect }: YearTabBarProps) {
+function YearTabBar({
+  years,
+  activeYear,
+  dirtyYears,
+  onSelect,
+}: YearTabBarProps) {
   return (
     <div className="border-b border-theme-border">
       <div className="flex items-end gap-0 px-1">
@@ -132,7 +147,13 @@ interface MonthSelectProps {
   cls?: string;
 }
 
-function MonthSelect({ value, onChange, minMonth = 1, maxMonth = 12, cls }: MonthSelectProps) {
+function MonthSelect({
+  value,
+  onChange,
+  minMonth = 1,
+  maxMonth = 12,
+  cls,
+}: MonthSelectProps) {
   return (
     <select value={value} onChange={onChange} className={cls}>
       {MONTHS.map((m, i) => {
@@ -157,7 +178,14 @@ interface MultiRangeListProps {
   onUpdate: (id: string, patch: Partial<RangeItem>) => void;
 }
 
-function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }: MultiRangeListProps) {
+function MultiRangeList({
+  ranges,
+  type,
+  year,
+  onAdd,
+  onRemove,
+  onUpdate,
+}: MultiRangeListProps) {
   const isIncome = type === "income";
   const label = isIncome ? "Monthly Income" : "Auto Savings %";
   const placeholder = isIncome ? "e.g. 5000" : "e.g. 20";
@@ -175,9 +203,7 @@ function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }: Multi
   return (
     <SectionCard title={label}>
       {ranges.length === 0 && (
-        <p className="text-xs text-theme-muted italic">
-          No ranges configured.
-        </p>
+        <p className="text-xs text-theme-muted italic">No ranges configured.</p>
       )}
       <div className="space-y-2">
         {sortedRanges.map((range, idx) => {
@@ -194,7 +220,9 @@ function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }: Multi
                 className={`${ghostInputCls} ${inputWidth}`}
               />
               {/* Start month is read-only — controlled by cascade logic */}
-              <span className={`${ghostSelectCls} w-18 inline-block text-center select-none`}>
+              <span
+                className={`${ghostSelectCls} w-18 inline-block text-center select-none`}
+              >
                 {MONTHS[range.startMonth - 1]}
               </span>
               <span className="text-theme-muted text-xs">→</span>
@@ -219,7 +247,7 @@ function MultiRangeList({ ranges, type, year, onAdd, onRemove, onUpdate }: Multi
           "text-sm font-medium transition-colors",
           fullyCovered
             ? "text-theme-muted cursor-not-allowed"
-            : "text-theme-primary hover:text-theme-primary"
+            : "text-theme-primary hover:text-theme-primary",
         )}
       >
         + Add {isIncome ? "income" : "savings"} range
@@ -237,7 +265,14 @@ interface FixedExpenseListProps {
   onPreset: (preset: string) => void;
 }
 
-function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }: FixedExpenseListProps) {
+function FixedExpenseList({
+  items,
+  year,
+  onAdd,
+  onRemove,
+  onUpdate,
+  onPreset,
+}: FixedExpenseListProps) {
   const presets = ["Rent", "Utilities", "Insurance", "Internet", "Phone"];
 
   const now = new Date();
@@ -247,7 +282,9 @@ function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }: 
   return (
     <SectionCard title="Fixed Expenses">
       {items.length === 0 && (
-        <p className="text-xs text-theme-muted italic">No fixed expenses configured.</p>
+        <p className="text-xs text-theme-muted italic">
+          No fixed expenses configured.
+        </p>
       )}
       <div className="space-y-2">
         {items.map((item) => {
@@ -270,14 +307,20 @@ function FixedExpenseList({ items, year, onAdd, onRemove, onUpdate, onPreset }: 
               />
               <MonthSelect
                 value={item.startMonth}
-                onChange={(e) => onUpdate(item.id, { startMonth: parseInt(e.target.value, 10) })}
+                onChange={(e) =>
+                  onUpdate(item.id, {
+                    startMonth: parseInt(e.target.value, 10),
+                  })
+                }
                 maxMonth={maxMonth}
                 cls={`${ghostSelectCls} w-18`}
               />
               <span className="text-theme-muted text-xs">→</span>
               <MonthSelect
                 value={displayEndMonth}
-                onChange={(e) => onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })}
+                onChange={(e) =>
+                  onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })
+                }
                 maxMonth={maxMonth}
                 cls={`${ghostSelectCls} w-18`}
               />
@@ -388,8 +431,16 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
           </thead>
           <tbody>
             {fixedItems.map((item) => {
-              const sm = clamp(parseInt(String(item.startMonth), 10) || 1, 1, 12);
-              const em = clamp(parseInt(String(item.endMonth), 10) || 12, 1, 12);
+              const sm = clamp(
+                parseInt(String(item.startMonth), 10) || 1,
+                1,
+                12,
+              );
+              const em = clamp(
+                parseInt(String(item.endMonth), 10) || 12,
+                1,
+                12,
+              );
               const amt = parseFloat(String(item.amount)) || 0;
               const total = amt * (em - sm + 1);
               return (
@@ -512,7 +563,9 @@ export default function EditHistoricalDataModal({
   const [activeYear, setActiveYear] = useState<number | null>(() =>
     years.length > 0 ? years[0] : null,
   );
-  const [yearConfigs, setYearConfigs] = useState<Record<number, YearConfig>>({});
+  const [yearConfigs, setYearConfigs] = useState<Record<number, YearConfig>>(
+    {},
+  );
   const [dirtyYears, setDirtyYears] = useState<Set<number>>(new Set());
   const [saveMode, setSaveMode] = useState<"merge" | "replace">("merge");
   const [loading, setLoading] = useState(false);
@@ -528,30 +581,45 @@ export default function EditHistoricalDataModal({
     const load = async () => {
       setLoading(true);
       try {
-        const [
-          fixedDefs,
-          incSnaps,
-          savSnaps,
-          allFixedSnaps,
-        ] = await Promise.all([
-          StorageService.getFixedExpenses(),
-          StorageService.getAllIncomeSnapshots(),
-          StorageService.getAllSavingsSnapshots(),
-          StorageService.getAllFixedExpenseSnapshots(),
-        ]);
+        const [fixedDefs, incSnaps, savSnaps, allFixedSnaps] =
+          await Promise.all([
+            StorageService.getFixedExpenses(),
+            StorageService.getAllIncomeSnapshots(),
+            StorageService.getAllSavingsSnapshots(),
+            StorageService.getAllFixedExpenseSnapshots(),
+          ]);
 
-        const defMap = new Map((fixedDefs as Array<{ id?: number; name: string }>).map((f) => [f.id, f]));
+        const defMap = new Map(
+          (fixedDefs as Array<{ id?: number; name: string }>).map((f) => [
+            f.id,
+            f,
+          ]),
+        );
 
         // Compute earliest and latest snapshot per fixed-expense definition
-        const earliestByDef = new Map<number, { year: number; month: number }>();
+        const earliestByDef = new Map<
+          number,
+          { year: number; month: number }
+        >();
         const latestByDef = new Map<number, { year: number; month: number }>();
         for (const s of allFixedSnaps) {
           const ex = earliestByDef.get(s.fixedExpenseId);
-          if (!ex || s.year < ex.year || (s.year === ex.year && s.month < ex.month)) {
-            earliestByDef.set(s.fixedExpenseId, { year: s.year, month: s.month });
+          if (
+            !ex ||
+            s.year < ex.year ||
+            (s.year === ex.year && s.month < ex.month)
+          ) {
+            earliestByDef.set(s.fixedExpenseId, {
+              year: s.year,
+              month: s.month,
+            });
           }
           const lx = latestByDef.get(s.fixedExpenseId);
-          if (!lx || s.year > lx.year || (s.year === lx.year && s.month > lx.month)) {
+          if (
+            !lx ||
+            s.year > lx.year ||
+            (s.year === lx.year && s.month > lx.month)
+          ) {
             latestByDef.set(s.fixedExpenseId, { year: s.year, month: s.month });
           }
         }
@@ -587,7 +655,10 @@ export default function EditHistoricalDataModal({
             for (const r of ranges) {
               fixedItems.push({
                 id: nextId(),
-                name: (def as { name?: string } | undefined)?.name || snaps[0]?.nameSnapshot || "Unknown",
+                name:
+                  (def as { name?: string } | undefined)?.name ||
+                  snaps[0]?.nameSnapshot ||
+                  "Unknown",
                 amount: r.amount,
                 startMonth: r.startMonth,
                 endMonth: r.endMonth,
@@ -689,7 +760,11 @@ export default function EditHistoricalDataModal({
     });
   };
 
-  const updateIncomeRange = (year: number, id: string, patch: Partial<RangeItem>) => {
+  const updateIncomeRange = (
+    year: number,
+    id: string,
+    patch: Partial<RangeItem>,
+  ) => {
     const ranges = yearConfigs[year]?.incomeRanges || [];
     if (patch.endMonth != null) {
       updateYearConfig(year, {
@@ -718,7 +793,11 @@ export default function EditHistoricalDataModal({
     });
   };
 
-  const updateSavingsRange = (year: number, id: string, patch: Partial<RangeItem>) => {
+  const updateSavingsRange = (
+    year: number,
+    id: string,
+    patch: Partial<RangeItem>,
+  ) => {
     const ranges = yearConfigs[year]?.savingsRanges || [];
     if (patch.endMonth != null) {
       updateYearConfig(year, {
@@ -726,7 +805,9 @@ export default function EditHistoricalDataModal({
       });
     } else {
       updateYearConfig(year, {
-        savingsRanges: ranges.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+        savingsRanges: ranges.map((r) =>
+          r.id === id ? { ...r, ...patch } : r,
+        ),
       });
     }
   };
@@ -748,7 +829,11 @@ export default function EditHistoricalDataModal({
     });
   };
 
-  const updateFixedItem = (year: number, id: string, patch: Partial<FixedItem>) => {
+  const updateFixedItem = (
+    year: number,
+    id: string,
+    patch: Partial<FixedItem>,
+  ) => {
     const items = yearConfigs[year]?.fixedItems || [];
     updateYearConfig(year, {
       fixedItems: items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
@@ -819,7 +904,9 @@ export default function EditHistoricalDataModal({
     }
 
     if (!hasAnyData) {
-      nextErrors._global = ["Select at least one year and configure data for it."];
+      nextErrors._global = [
+        "Select at least one year and configure data for it.",
+      ];
       hasError = true;
     }
 
@@ -851,16 +938,20 @@ export default function EditHistoricalDataModal({
           await StorageService.deleteIncomeSnapshotsForYear(year);
           await StorageService.deleteSavingsSnapshotsForYear(year);
         }
-        const incomeSnapshots = Object.entries(incomeMap).map(([month, amount]) => ({
-          year,
-          month: parseInt(month, 10),
-          amountSnapshot: amount as number,
-        }));
-        const savingsSnapshots = Object.entries(savingsMap).map(([month, rate]) => ({
-          year,
-          month: parseInt(month, 10),
-          rateSnapshot: rate as number,
-        }));
+        const incomeSnapshots = Object.entries(incomeMap).map(
+          ([month, amount]) => ({
+            year,
+            month: parseInt(month, 10),
+            amountSnapshot: amount as number,
+          }),
+        );
+        const savingsSnapshots = Object.entries(savingsMap).map(
+          ([month, rate]) => ({
+            year,
+            month: parseInt(month, 10),
+            rateSnapshot: rate as number,
+          }),
+        );
         if (incomeSnapshots.length > 0) {
           await StorageService.bulkUpsertIncomeSnapshots(incomeSnapshots);
         }
@@ -895,8 +986,16 @@ export default function EditHistoricalDataModal({
                     name: item.name.trim(),
                     amount: parseFloat(String(item.amount)),
                   });
-                  const sm = clamp(parseInt(String(item.startMonth), 10) || 1, 1, 12);
-                  const em = clamp(parseInt(String(item.endMonth), 10) || 12, 1, 12);
+                  const sm = clamp(
+                    parseInt(String(item.startMonth), 10) || 1,
+                    1,
+                    12,
+                  );
+                  const em = clamp(
+                    parseInt(String(item.endMonth), 10) || 12,
+                    1,
+                    12,
+                  );
                   for (let m = sm; m <= em; m++) {
                     newSnapshots.push({
                       fixedExpenseId: newId,
@@ -927,8 +1026,16 @@ export default function EditHistoricalDataModal({
                 name: item.name.trim(),
                 amount: parseFloat(String(item.amount)),
               });
-              const sm = clamp(parseInt(String(item.startMonth), 10) || 1, 1, 12);
-              const em = clamp(parseInt(String(item.endMonth), 10) || 12, 1, 12);
+              const sm = clamp(
+                parseInt(String(item.startMonth), 10) || 1,
+                1,
+                12,
+              );
+              const em = clamp(
+                parseInt(String(item.endMonth), 10) || 12,
+                1,
+                12,
+              );
               for (let m = sm; m <= em; m++) {
                 newSnapshots.push({
                   fixedExpenseId: newId,
@@ -1001,124 +1108,121 @@ export default function EditHistoricalDataModal({
 
           {/* Content */}
           <div className="space-y-5">
-              {activeYear && (
-                <>
-                  {/* Income ranges */}
-                  <MultiRangeList
-                    ranges={activeConfig.incomeRanges}
-                    type="income"
-                    year={activeYear}
-                    onAdd={() => addIncomeRange(activeYear)}
-                    onRemove={(id) => removeIncomeRange(activeYear, id)}
-                    onUpdate={(id, patch) =>
-                      updateIncomeRange(activeYear, id, patch)
-                    }
-                  />
+            {activeYear && (
+              <>
+                {/* Income ranges */}
+                <MultiRangeList
+                  ranges={activeConfig.incomeRanges}
+                  type="income"
+                  year={activeYear}
+                  onAdd={() => addIncomeRange(activeYear)}
+                  onRemove={(id) => removeIncomeRange(activeYear, id)}
+                  onUpdate={(id, patch) =>
+                    updateIncomeRange(activeYear, id, patch)
+                  }
+                />
 
-                  {/* Savings ranges */}
-                  <MultiRangeList
-                    ranges={activeConfig.savingsRanges}
-                    type="savings"
-                    year={activeYear}
-                    onAdd={() => addSavingsRange(activeYear)}
-                    onRemove={(id) => removeSavingsRange(activeYear, id)}
-                    onUpdate={(id, patch) =>
-                      updateSavingsRange(activeYear, id, patch)
-                    }
-                  />
+                {/* Savings ranges */}
+                <MultiRangeList
+                  ranges={activeConfig.savingsRanges}
+                  type="savings"
+                  year={activeYear}
+                  onAdd={() => addSavingsRange(activeYear)}
+                  onRemove={(id) => removeSavingsRange(activeYear, id)}
+                  onUpdate={(id, patch) =>
+                    updateSavingsRange(activeYear, id, patch)
+                  }
+                />
 
-                  {/* Fixed expenses */}
-                  <FixedExpenseList
-                    items={activeConfig.fixedItems}
-                    year={activeYear}
-                    onAdd={() => addFixedItem(activeYear)}
-                    onRemove={(id) => removeFixedItem(activeYear, id)}
-                    onUpdate={(id, patch) =>
-                      updateFixedItem(activeYear, id, patch)
-                    }
-                    onPreset={(preset) => addPreset(activeYear, preset)}
-                  />
+                {/* Fixed expenses */}
+                <FixedExpenseList
+                  items={activeConfig.fixedItems}
+                  year={activeYear}
+                  onAdd={() => addFixedItem(activeYear)}
+                  onRemove={(id) => removeFixedItem(activeYear, id)}
+                  onUpdate={(id, patch) =>
+                    updateFixedItem(activeYear, id, patch)
+                  }
+                  onPreset={(preset) => addPreset(activeYear, preset)}
+                />
 
-                  {/* Preview */}
-                  <PreviewTable
-                    yearConfig={activeConfig}
-                    variableTotals={getYearlyVariableTotals(
-                      activeYear,
-                      expenses,
-                    )}
-                  />
-                </>
-              )}
+                {/* Preview */}
+                <PreviewTable
+                  yearConfig={activeConfig}
+                  variableTotals={getYearlyVariableTotals(activeYear, expenses)}
+                />
+              </>
+            )}
 
-              {/* Save mode — segmented control */}
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-theme-muted">
-                  Save mode
-                </span>
-                <div className="inline-flex rounded-lg bg-theme-background border border-theme-border p-0.5">
-                  <button
-                    onClick={() => setSaveMode("merge")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                      saveMode === "merge"
-                        ? "bg-theme-surface text-theme-primary shadow-sm"
-                        : "text-theme-muted hover:text-theme-text"
-                    }`}
-                  >
-                    Merge
-                  </button>
-                  <button
-                    onClick={() => setSaveMode("replace")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                      saveMode === "replace"
-                        ? "bg-theme-surface text-theme-primary shadow-sm"
-                        : "text-theme-muted hover:text-theme-text"
-                    }`}
-                  >
-                    Replace
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-theme-muted leading-relaxed">
-                <strong className="text-theme-text">Merge</strong>: New values
-                overwrite existing months. Unchanged months keep their old
-                values. Old snapshots remain.
-                <br />
-                <strong className="text-theme-text">Replace</strong>: All
-                existing snapshots for the year are deleted and replaced.
-                Income/savings overrides are fully rewritten.
-              </p>
-
-              {/* Validation errors */}
-              {errors._global && (
-                <p className="text-theme-danger text-xs">{errors._global}</p>
-              )}
-              {Object.entries(errors)
-                .filter(([k]) => k !== "_global")
-                .map(([year, errs]) => (
-                  <div key={year} className="space-y-0.5">
-                    <p className="text-theme-danger text-xs font-semibold">
-                      {year}:
-                    </p>
-                    {errs.map((err, i) => (
-                      <p key={i} className="text-theme-danger text-xs">
-                        {err}
-                      </p>
-                    ))}
-                  </div>
-                ))}
-
-              {resultMsg && (
-                <p
-                  className={`text-xs ${
-                    resultMsg.startsWith("Error")
-                      ? "text-theme-danger"
-                      : "text-theme-success"
+            {/* Save mode — segmented control */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-theme-muted">
+                Save mode
+              </span>
+              <div className="inline-flex rounded-lg bg-theme-background border border-theme-border p-0.5">
+                <button
+                  onClick={() => setSaveMode("merge")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    saveMode === "merge"
+                      ? "bg-theme-surface text-theme-primary shadow-sm"
+                      : "text-theme-muted hover:text-theme-text"
                   }`}
                 >
-                  {resultMsg}
-                </p>
-              )}
+                  Merge
+                </button>
+                <button
+                  onClick={() => setSaveMode("replace")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    saveMode === "replace"
+                      ? "bg-theme-surface text-theme-primary shadow-sm"
+                      : "text-theme-muted hover:text-theme-text"
+                  }`}
+                >
+                  Replace
+                </button>
+              </div>
             </div>
+            <p className="text-xs text-theme-muted leading-relaxed">
+              <strong className="text-theme-text">Merge</strong>: New values
+              overwrite existing months. Unchanged months keep their old values.
+              Old snapshots remain.
+              <br />
+              <strong className="text-theme-text">Replace</strong>: All existing
+              snapshots for the year are deleted and replaced. Income/savings
+              overrides are fully rewritten.
+            </p>
+
+            {/* Validation errors */}
+            {errors._global && (
+              <p className="text-theme-danger text-xs">{errors._global}</p>
+            )}
+            {Object.entries(errors)
+              .filter(([k]) => k !== "_global")
+              .map(([year, errs]) => (
+                <div key={year} className="space-y-0.5">
+                  <p className="text-theme-danger text-xs font-semibold">
+                    {year}:
+                  </p>
+                  {errs.map((err, i) => (
+                    <p key={i} className="text-theme-danger text-xs">
+                      {err}
+                    </p>
+                  ))}
+                </div>
+              ))}
+
+            {resultMsg && (
+              <p
+                className={`text-xs ${
+                  resultMsg.startsWith("Error")
+                    ? "text-theme-danger"
+                    : "text-theme-success"
+                }`}
+              >
+                {resultMsg}
+              </p>
+            )}
+          </div>
 
           {/* Actions — desktop only */}
           <div className="hidden sm:flex items-center justify-end gap-2 pt-4">

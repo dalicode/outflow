@@ -5,26 +5,13 @@
  * across multiple months in the dashboard table.
  */
 
-import type { Expense, MonthlySummary } from "../types";
-
-export interface MonthKey {
-  year: number;
-  month: number; // 0-indexed
-  key: string; // "2026-05"
-  name: string; // "May"
-}
-
-export interface MultiMonthCategoryRow {
-  name: string;
-  totalTransactions: number;
-  monthlyAmounts: number[]; // index 0 = current/selected month, then previous months
-}
-
-export interface MultiMonthFixedRow {
-  id: number;
-  name: string;
-  monthlyAmounts: (number | null)[];
-}
+import type {
+  Expense,
+  MonthlySummary,
+  MonthKey,
+  MultiMonthCategoryRow,
+  MultiMonthFixedRow,
+} from "../types";
 
 /**
  * Build an array of MonthKey entries going backwards from the selected month.

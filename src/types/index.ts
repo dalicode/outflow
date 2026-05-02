@@ -120,6 +120,25 @@ export interface MonthlySummary {
   }>
 }
 
+export interface MonthKey {
+  year: number
+  month: number
+  key: string
+  name: string
+}
+
+export interface MultiMonthCategoryRow {
+  name: string
+  totalTransactions: number
+  monthlyAmounts: number[]
+}
+
+export interface MultiMonthFixedRow {
+  id: number
+  name: string
+  monthlyAmounts: (number | null)[]
+}
+
 export interface FixedRow {
   id: string
   name: string
