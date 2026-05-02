@@ -40,6 +40,11 @@ export default function CategoryViewTable({
     [monthKeys],
   );
 
+  const now = new Date();
+  const isFutureMonth = (mk: MonthKey) =>
+    mk.year > now.getFullYear() ||
+    (mk.year === now.getFullYear() && mk.month > now.getMonth());
+
   const totalSavingsData = useMemo(() => {
     return monthSummaries.map((summary) => {
       const totalSavings = summary.autoSavings + summary.remaining;
@@ -334,12 +339,21 @@ export default function CategoryViewTable({
                                 "border-l border-theme-border",
                             )}
                           >
-                            <button
-                              onClick={() => onIncomeClick(dataIdx)}
-                              className="font-semibold hover:underline text-theme-text"
-                            >
-                              {formatAmount(summary.income)}
-                            </button>
+                            {isFutureMonth(monthKeys[dataIdx]) ? (
+                              <span
+                                className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                                title="Use Schedule to change future values"
+                              >
+                                {formatAmount(summary.income)}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => onIncomeClick(dataIdx)}
+                                className="font-semibold hover:underline text-theme-text"
+                              >
+                                {formatAmount(summary.income)}
+                              </button>
+                            )}
                           </td>
                         );
                       })}
@@ -357,12 +371,21 @@ export default function CategoryViewTable({
                       —
                     </td>
                     <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
-                      <button
-                        onClick={() => onIncomeClick(0)}
-                        className="font-semibold hover:underline text-theme-text"
-                      >
-                        {formatAmount(monthSummaries[0].income)}
-                      </button>
+                      {isFutureMonth(monthKeys[0]) ? (
+                        <span
+                          className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                          title="Use Schedule to change future values"
+                        >
+                          {formatAmount(monthSummaries[0].income)}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => onIncomeClick(0)}
+                          className="font-semibold hover:underline text-theme-text"
+                        >
+                          {formatAmount(monthSummaries[0].income)}
+                        </button>
+                      )}
                     </td>
                   </>
                 )}
@@ -400,12 +423,21 @@ export default function CategoryViewTable({
                                 "border-l border-theme-border",
                             )}
                           >
-                            <button
-                              onClick={() => onSavingsClick(dataIdx)}
-                              className="font-semibold hover:underline text-theme-text"
-                            >
-                              {formatAmount(summary.autoSavings)}
-                            </button>
+                            {isFutureMonth(monthKeys[dataIdx]) ? (
+                              <span
+                                className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                                title="Use Schedule to change future values"
+                              >
+                                {formatAmount(summary.autoSavings)}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => onSavingsClick(dataIdx)}
+                                className="font-semibold hover:underline text-theme-text"
+                              >
+                                {formatAmount(summary.autoSavings)}
+                              </button>
+                            )}
                           </td>
                         );
                       })}
@@ -423,12 +455,21 @@ export default function CategoryViewTable({
                       —
                     </td>
                     <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
-                      <button
-                        onClick={() => onSavingsClick(0)}
-                        className="font-semibold hover:underline text-theme-text"
-                      >
-                        {formatAmount(monthSummaries[0].autoSavings)}
-                      </button>
+                      {isFutureMonth(monthKeys[0]) ? (
+                        <span
+                          className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                          title="Use Schedule to change future values"
+                        >
+                          {formatAmount(monthSummaries[0].autoSavings)}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => onSavingsClick(0)}
+                          className="font-semibold hover:underline text-theme-text"
+                        >
+                          {formatAmount(monthSummaries[0].autoSavings)}
+                        </button>
+                      )}
                     </td>
                   </>
                 )}

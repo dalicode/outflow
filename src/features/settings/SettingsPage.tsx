@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSettings } from "../../context/settingsContext";
 import { useAuth } from "../../context/authContext";
 import { StorageService } from "../../services/storageService";
@@ -64,25 +64,12 @@ export default function SettingsPage({
   const [editHistoricalDataYears, setEditHistoricalDataYears] = useState<
     number[]
   >([]);
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [savingsRate, setSavingsRate] = useState("");
   const [isHistoricalDataModalOpen, setIsHistoricalDataModalOpen] =
     useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleToEdit, setScheduleToEdit] = useState<Schedule | null>(null);
 
   const { schedules, loadSchedules, deleteSchedule } = useScheduleList();
-
-  // Load income/savings rate defaults
-  useEffect(() => {
-    Promise.all([
-      StorageService.getSetting("monthlyIncome", 0),
-      StorageService.getSetting("savingsRate", 0),
-    ]).then(([income, rate]) => {
-      setMonthlyIncome(String((income as number | null) ?? ""));
-      setSavingsRate(String((rate as number | null) ?? ""));
-    });
-  }, []);
 
   const handleImportComplete = (importedYears: number[]) => {
     setEditHistoricalDataYears(importedYears);
@@ -110,12 +97,15 @@ export default function SettingsPage({
     onRefreshAll?.();
   };
 
-  const availableYears =
-    editHistoricalDataYears.length > 0
-      ? editHistoricalDataYears
-      : [
-          ...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10))),
-        ].sort((a, b) => a - b);
+  const availableYears = useMemo(
+    () =>
+      editHistoricalDataYears.length > 0
+        ? editHistoricalDataYears
+        : [
+            ...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10))),
+          ].sort((a, b) => a - b),
+    [editHistoricalDataYears, expenses],
+  );
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -304,8 +294,6 @@ export default function SettingsPage({
         onClose={() => setIsHistoricalDataModalOpen(false)}
         years={availableYears}
         expenses={expenses}
-        defaultIncome={monthlyIncome}
-        defaultSavingsRate={savingsRate}
         onComplete={() => {
           setEditHistoricalDataYears([]);
           onRefreshAll?.();
@@ -344,6 +332,7 @@ export default function SettingsPage({
 
       {/* Danger Zone */}
       <DangerZone onClearAll={handleClearAll} />
+
     </main>
   );
 }

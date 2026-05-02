@@ -39,6 +39,15 @@ export function useIncomeSavingsModals(
       setIncomeError("Enter a positive amount.");
       return;
     }
+    const mk = monthKeys[modalTargetMonthIndex];
+    const now = new Date();
+    const isFuture =
+      mk.year > now.getFullYear() ||
+      (mk.year === now.getFullYear() && mk.month > now.getMonth());
+    if (isFuture) {
+      setIncomeError("Future month values can only be changed via Schedule.");
+      return;
+    }
     setIncomeError("");
     persistIncomeChange(
       {
@@ -71,6 +80,15 @@ export function useIncomeSavingsModals(
       setSavingsError("Enter a value between 0 and 100.");
       return;
     }
+    const mk = monthKeys[modalTargetMonthIndex];
+    const now = new Date();
+    const isFuture =
+      mk.year > now.getFullYear() ||
+      (mk.year === now.getFullYear() && mk.month > now.getMonth());
+    if (isFuture) {
+      setSavingsError("Future month values can only be changed via Schedule.");
+      return;
+    }
     setSavingsError("");
     persistSavingsRateChange(n, modalTargetMonthIndex);
     setIsSavingsModalOpen(false);
@@ -89,20 +107,25 @@ export function useIncomeSavingsModals(
     monthIndex: number = 0,
   ) => {
     const mk = monthKeys[monthIndex];
-    await StorageService.setIncomeSnapshot(
-      mk.year,
-      mk.month + 1,
-      monthlyIncome,
-    );
     const now = new Date();
-    const isCurrentOrFuture =
-      mk.year > now.getFullYear() ||
-      (mk.year === now.getFullYear() && mk.month >= now.getMonth());
-    if (isCurrentOrFuture) {
+    const isPast =
+      mk.year < now.getFullYear() ||
+      (mk.year === now.getFullYear() && mk.month < now.getMonth());
+    const isCurrent = mk.year === now.getFullYear() && mk.month === now.getMonth();
+
+    if (isPast) {
+      await StorageService.setIncomeSnapshot(
+        mk.year,
+        mk.month + 1,
+        monthlyIncome,
+      );
+    } else if (isCurrent) {
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       await Promise.all([
         StorageService.setSetting("incomeAmount", income),
         StorageService.setSetting("incomeFrequency", frequency),
         StorageService.setSetting("monthlyIncome", monthlyIncome),
+        StorageService.setSetting("monthlyIncomeUpdatedAt", yearMonth),
       ]);
     }
     onSaved();
@@ -113,13 +136,20 @@ export function useIncomeSavingsModals(
     monthIndex: number = 0,
   ) => {
     const mk = monthKeys[monthIndex];
-    await StorageService.setSavingsSnapshot(mk.year, mk.month + 1, rate);
     const now = new Date();
-    const isCurrentOrFuture =
-      mk.year > now.getFullYear() ||
-      (mk.year === now.getFullYear() && mk.month >= now.getMonth());
-    if (isCurrentOrFuture) {
-      await StorageService.setSetting("savingsRate", rate);
+    const isPast =
+      mk.year < now.getFullYear() ||
+      (mk.year === now.getFullYear() && mk.month < now.getMonth());
+    const isCurrent = mk.year === now.getFullYear() && mk.month === now.getMonth();
+
+    if (isPast) {
+      await StorageService.setSavingsSnapshot(mk.year, mk.month + 1, rate);
+    } else if (isCurrent) {
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      await Promise.all([
+        StorageService.setSetting("savingsRate", rate),
+        StorageService.setSetting("savingsRateUpdatedAt", yearMonth),
+      ]);
     }
     onSaved();
   };

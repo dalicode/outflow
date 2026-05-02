@@ -34,6 +34,7 @@ export interface FixedExpense {
   amount: number
   isArchived?: boolean
   archivedAt?: string
+  updatedAt?: string
 }
 
 export interface FixedExpenseSnapshot {

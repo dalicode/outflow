@@ -90,7 +90,7 @@ export function getMaxMonthForYear(year: number): number {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
-  return year === currentYear ? currentMonth : 12;
+  return year === currentYear ? Math.max(0, currentMonth - 1) : 12;
 }
 
 /**

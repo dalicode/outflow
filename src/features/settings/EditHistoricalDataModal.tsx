@@ -275,9 +275,7 @@ function FixedExpenseList({
 }: FixedExpenseListProps) {
   const presets = ["Rent", "Utilities", "Insurance", "Internet", "Phone"];
 
-  const now = new Date();
-  const isCurrentYear = year === now.getFullYear();
-  const maxMonth = isCurrentYear ? now.getMonth() + 1 : 12;
+  const maxMonth = getMaxMonthForYear(year);
 
   return (
     <SectionCard title="Fixed Expenses">
@@ -547,19 +545,25 @@ interface EditHistoricalDataModalProps {
   years: number[];
   expenses?: Expense[];
   onComplete?: () => void;
-  defaultIncome?: string;
-  defaultSavingsRate?: string;
 }
 
 export default function EditHistoricalDataModal({
   isOpen,
   onClose,
-  years,
+  years: rawYears,
   expenses = [],
   onComplete,
-  defaultIncome = "",
-  defaultSavingsRate = "",
 }: EditHistoricalDataModalProps) {
+  // Filter out current year if it has 0 editable months (e.g., January)
+  const years = useMemo(
+    () =>
+      rawYears.filter((y) => {
+        const maxMonth = getMaxMonthForYear(y);
+        return maxMonth >= 1;
+      }),
+    [rawYears],
+  );
+
   const [activeYear, setActiveYear] = useState<number | null>(() =>
     years.length > 0 ? years[0] : null,
   );
@@ -575,7 +579,10 @@ export default function EditHistoricalDataModal({
 
   // Load existing data when modal opens
   useEffect(() => {
-    if (!isOpen || years.length === 0) return;
+    if (!isOpen || years.length === 0) {
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
     const load = async () => {
@@ -601,34 +608,6 @@ export default function EditHistoricalDataModal({
             f,
           ]),
         );
-
-        // Compute earliest and latest snapshot per fixed-expense definition
-        const earliestByDef = new Map<
-          number,
-          { year: number; month: number }
-        >();
-        const latestByDef = new Map<number, { year: number; month: number }>();
-        for (const s of allFixedSnaps) {
-          const ex = earliestByDef.get(s.fixedExpenseId);
-          if (
-            !ex ||
-            s.year < ex.year ||
-            (s.year === ex.year && s.month < ex.month)
-          ) {
-            earliestByDef.set(s.fixedExpenseId, {
-              year: s.year,
-              month: s.month,
-            });
-          }
-          const lx = latestByDef.get(s.fixedExpenseId);
-          if (
-            !lx ||
-            s.year > lx.year ||
-            (s.year === lx.year && s.month > lx.month)
-          ) {
-            latestByDef.set(s.fixedExpenseId, { year: s.year, month: s.month });
-          }
-        }
 
         const configs: Record<number, YearConfig> = {};
 
@@ -673,46 +652,6 @@ export default function EditHistoricalDataModal({
             }
           }
 
-          // Auto-fill active fixed expenses that have no snapshots for this year
-          for (const def of fixedDefs) {
-            if (!def.id) continue;
-            if (byDef.has(def.id)) continue; // already has explicit snapshots
-
-            const earliest = earliestByDef.get(def.id);
-            if (!earliest) continue; // never had snapshots → not a real tracked expense
-
-            const latest = latestByDef.get(def.id);
-
-            // Expense didn't exist yet in this year
-            if (year < earliest.year) continue;
-
-            // Archived and last snapshot was in an earlier year → not active
-            if (def.isArchived && latest && year > latest.year) continue;
-
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
-
-            const startMonth = year === earliest.year ? earliest.month : 1;
-            let endMonth = 12;
-            if (def.isArchived && latest && year === latest.year) {
-              endMonth = latest.month;
-            }
-            // Don't allow edit past current month in current year
-            if (year === currentYear && endMonth > currentMonth) {
-              endMonth = currentMonth;
-            }
-
-            fixedItems.push({
-              id: nextId(),
-              name: def.name,
-              amount: def.amount,
-              startMonth,
-              endMonth,
-              existingFixedExpenseId: def.id,
-            });
-          }
-
           configs[year] = { incomeRanges, savingsRanges, fixedItems };
         }
 
@@ -735,7 +674,7 @@ export default function EditHistoricalDataModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, years, defaultIncome, defaultSavingsRate]);
+  }, [isOpen, years]);
 
   const updateYearConfig = (year: number, patch: Partial<YearConfig>) => {
     setYearConfigs((prev) => ({
@@ -823,7 +762,7 @@ export default function EditHistoricalDataModal({
     updateYearConfig(year, {
       fixedItems: [
         ...items,
-        { id: nextId(), name: "", amount: "", startMonth: 1, endMonth: 12 },
+        { id: nextId(), name: "", amount: "", startMonth: 1, endMonth: getMaxMonthForYear(year) },
       ],
     });
   };
@@ -851,7 +790,7 @@ export default function EditHistoricalDataModal({
     updateYearConfig(year, {
       fixedItems: [
         ...items,
-        { id: nextId(), name: preset, amount: "", startMonth: 1, endMonth: 12 },
+        { id: nextId(), name: preset, amount: "", startMonth: 1, endMonth: getMaxMonthForYear(year) },
       ],
     });
   };
@@ -1099,6 +1038,10 @@ export default function EditHistoricalDataModal({
       {loading ? (
         <div className="py-8 text-center text-sm text-theme-muted">
           Loading existing data…
+        </div>
+      ) : years.length === 0 ? (
+        <div className="py-8 text-center text-sm text-theme-muted">
+          No historical data available. There are no past months to edit yet.
         </div>
       ) : (
         <>

@@ -74,18 +74,13 @@ The edit historical data modal (`EditHistoricalDataModal`) lets users batch-conf
 
 Edit historical data only writes **snapshots** (not the old `yearlyIncomeOverrides` / `yearlySavingsOverrides` settings, which have been removed).
 
-**Fixed expense auto-display:**
-When opening the edit historical data modal, fixed expenses are automatically shown for every year tab where they were active — even if no explicit snapshots exist for that year yet. The display logic:
+**Fixed expense display:**
+Edit Historical Data only shows fixed expenses that have **actual snapshots** for the selected year. No global definition data is used. If a year has no fixed expense snapshots, no fixed expenses appear in that year's tab.
 
-| Scenario | Range shown |
-|----------|-------------|
-| First snapshot in Mar 2024, viewing 2024 | Mar → Dec |
-| First snapshot in Mar 2024, viewing 2025 | Jan → Dec ("since January") |
-| First snapshot in Mar 2024, viewing 2023 | Hidden (didn't exist yet) |
-| Archived Jun 2025, viewing 2025 | Jan → Jun |
-| Archived Jun 2025, viewing 2026 | Hidden (no longer active) |
-
-The earliest and latest snapshots per definition determine the active range. This uses the live `fixedExpenses` definition `name` and `amount` for auto-generated entries.
+**Editable month range:**
+- Past years: Jan → Dec (full year)
+- Current year: Jan → (current month − 1) (current month is excluded)
+- If current year has 0 editable months (e.g., January), the year tab is hidden entirely
 
 ### Encrypted Backup Export/Import
 

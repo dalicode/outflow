@@ -77,6 +77,25 @@ class OutflowDB extends Dexie {
       incomeSnapshots: '++id, [year+month], year, month',
       savingsSnapshots: '++id, [year+month], year, month',
     })
+    this.version(8).stores({
+      expenses: '++id, date, category, categoryId',
+      settings: 'key',
+      fixedExpenses: '++id',
+      categories: '++id, name',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
+      schedules: '++id, type, effectiveYear, effectiveMonth, isActive, targetId',
+      incomeSnapshots: '++id, [year+month], year, month',
+      savingsSnapshots: '++id, [year+month], year, month',
+    }).upgrade(async (tx) => {
+      const rows = await tx.table('fixedExpenses').toArray();
+      const now = new Date().toISOString();
+      for (const row of rows) {
+        await tx.table('fixedExpenses').update(row.id, {
+          updatedAt: row.archivedAt || now,
+        });
+      }
+    })
 
     this.on('populate', () => {
       const now = new Date().toISOString()
@@ -93,26 +112,6 @@ const DEFAULT_CATEGORIES = [
   'Entertainment', 'Health', 'Misc', 'Personal Goods',
   'Transportation', 'Groceries', 'Dining',
 ]
-
-// Write a snapshot for a fixed expense for the current month (idempotent — upsert by compound key)
-const snapshotFixed = async (item: FixedExpense) => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1 // 1-12
-  // Only write if no snapshot exists for this item+month yet (first write wins for history)
-  const existing = await db.fixedExpenseSnapshots
-    .where('[fixedExpenseId+year+month]').equals([item.id as number, year, month]).first()
-  if (!existing) {
-    await db.fixedExpenseSnapshots.add({
-      fixedExpenseId: item.id as number,
-      nameSnapshot: item.name,
-      amountSnapshot: item.amount,
-      year,
-      month,
-      createdAt: now.toISOString(),
-    })
-  }
-}
 
 // ── Income & Savings Snapshots ────────────────────────────
 
@@ -197,7 +196,7 @@ async function materializePendingSnapshots() {
         })
       }
       if (def) {
-        await db.fixedExpenses.update(schedule.targetId, { amount: schedule.newValue })
+        await db.fixedExpenses.update(schedule.targetId, { amount: schedule.newValue, updatedAt: now.toISOString() })
       }
     } else if (schedule.type === 'expense') {
       const day = schedule.day ?? 1
@@ -248,18 +247,18 @@ async function rolloverSnapshots() {
   const lastYear = parseInt(lastYearStr, 10);
   const lastMonth = parseInt(lastMonthStr, 10);
 
-  // Build list of gap months (past months only, not current)
+  // Build list of months to snapshot — includes last open month and all gaps up to (but not including) current
   const gapMonths: { year: number; month: number }[] = [];
   let y = lastYear;
   let m = lastMonth;
   while (true) {
+    if (y === currentYear && m === currentMonth) break;
+    gapMonths.push({ year: y, month: m });
     m++;
     if (m > 12) {
       m = 1;
       y++;
     }
-    if (y === currentYear && m === currentMonth) break;
-    gapMonths.push({ year: y, month: m });
   }
 
   if (gapMonths.length === 0) {
@@ -267,7 +266,7 @@ async function rolloverSnapshots() {
     return;
   }
 
-  // Load all relevant data in parallel
+  // Load data
   const [allFixedDefs, incomeSnaps, savingsSnaps, fixedSnaps, globalIncomeRow, globalRateRow] =
     await Promise.all([
       db.fixedExpenses.toArray(),
@@ -294,43 +293,33 @@ async function rolloverSnapshots() {
   }[] = [];
 
   for (const { year, month } of gapMonths) {
-    // Income: carry forward last snapshot or global
+    // Income: always use global value
     const hasIncome = incomeSnaps.some(
       (s) => s.year === year && s.month === month,
     );
     if (!hasIncome) {
-      const priorIncome = [...incomeSnaps]
-        .filter(
-          (s) => s.year < year || (s.year === year && s.month < month),
-        )
-        .sort((a, b) => b.year - a.year || b.month - a.month)[0];
       incomeToAdd.push({
         year,
         month,
-        amountSnapshot: priorIncome?.amountSnapshot ?? globalIncome,
+        amountSnapshot: globalIncome,
         createdAt: now.toISOString(),
       });
     }
 
-    // Savings: carry forward last snapshot or global
+    // Savings: always use global value
     const hasSavings = savingsSnaps.some(
       (s) => s.year === year && s.month === month,
     );
     if (!hasSavings) {
-      const priorSavings = [...savingsSnaps]
-        .filter(
-          (s) => s.year < year || (s.year === year && s.month < month),
-        )
-        .sort((a, b) => b.year - a.year || b.month - a.month)[0];
       savingsToAdd.push({
         year,
         month,
-        rateSnapshot: priorSavings?.rateSnapshot ?? globalRate,
+        rateSnapshot: globalRate,
         createdAt: now.toISOString(),
       });
     }
 
-    // Fixed expenses: carry forward per-expense last snapshot
+    // Fixed expenses: always use current definition amount
     for (const def of activeFixed) {
       if (!def.id) continue;
       const hasFixed = fixedSnaps.some(
@@ -340,17 +329,10 @@ async function rolloverSnapshots() {
           s.month === month,
       );
       if (!hasFixed) {
-        const priorFixed = [...fixedSnaps]
-          .filter(
-            (s) =>
-              s.fixedExpenseId === def.id &&
-              (s.year < year || (s.year === year && s.month < month)),
-          )
-          .sort((a, b) => b.year - a.year || b.month - a.month)[0];
         fixedToAdd.push({
           fixedExpenseId: def.id,
           nameSnapshot: def.name,
-          amountSnapshot: priorFixed?.amountSnapshot ?? def.amount,
+          amountSnapshot: def.amount,
           year,
           month,
           createdAt: now.toISOString(),
@@ -382,6 +364,8 @@ async function rolloverSnapshots() {
     },
   );
 }
+
+// Enqueue a sync operation for the background engine to process
 
 // Enqueue a sync operation for the background engine to process
 const enqueue = (table: string, operation: SyncQueueItem['operation'], payload: Record<string, unknown>) =>
@@ -430,9 +414,9 @@ export const StorageService = {
   getActiveFixedExpenses: () =>
     db.fixedExpenses.toArray().then((all) => all.filter((f) => f.isArchived !== true)),
   addFixedExpense: async (item: Omit<FixedExpense, 'id'>) => {
-    const id = await db.fixedExpenses.add(item as FixedExpense)
+    const now = new Date().toISOString()
+    const id = await db.fixedExpenses.add({ ...item, updatedAt: now } as FixedExpense)
     const row = await db.fixedExpenses.get(id)
-    await snapshotFixed(row as FixedExpense)
     await enqueue('fixedExpenses', 'insert', row as unknown as Record<string, unknown>)
     return id
   },
@@ -450,15 +434,11 @@ export const StorageService = {
     return id
   },
   updateFixedExpense: async (id: number, changes: Partial<FixedExpense>) => {
-    await db.fixedExpenses.update(id, changes)
+    await db.fixedExpenses.update(id, { ...changes, updatedAt: new Date().toISOString() })
     const row = await db.fixedExpenses.get(id)
-    await snapshotFixed(row as FixedExpense)
     await enqueue('fixedExpenses', 'update', row as unknown as Record<string, unknown>)
   },
   removeFixedExpense: async (id: number) => {
-    // Snapshot before deleting so history is preserved
-    const row = await db.fixedExpenses.get(id)
-    if (row) await snapshotFixed(row)
     await db.fixedExpenses.delete(id)
     await enqueue('fixedExpenses', 'delete', { id })
   },

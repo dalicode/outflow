@@ -114,30 +114,16 @@ export function useSummary({ expenses }: UseSummaryParams) {
       frequency: string;
       monthlyIncome: number;
     }) => {
-      const existingSetAt = await StorageService.getSetting(
-        "monthlyIncomeSetAt",
-        null,
-      );
-      await Promise.all(
-        [
-          StorageService.setSetting("incomeAmount", income),
-          StorageService.setSetting("incomeFrequency", frequency),
-          StorageService.setSetting("monthlyIncome", monthly),
-          !existingSetAt &&
-            StorageService.setSetting("monthlyIncomeSetAt", {
-              year: now.getFullYear(),
-              month: now.getMonth() + 1,
-            }),
-        ].filter(Boolean),
-      );
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      await Promise.all([
+        StorageService.setSetting("incomeAmount", income),
+        StorageService.setSetting("incomeFrequency", frequency),
+        StorageService.setSetting("monthlyIncome", monthly),
+        StorageService.setSetting("monthlyIncomeUpdatedAt", yearMonth),
+      ]);
       setIncomeRaw(income);
       setIncomeFreq(frequency);
       setMonthlyIncome(monthly);
-      await StorageService.setIncomeSnapshot(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        monthly,
-      );
       const activeFixed = await StorageService.getActiveFixedExpenses();
       setFixedExpenses(activeFixed);
     },
@@ -145,25 +131,11 @@ export function useSummary({ expenses }: UseSummaryParams) {
   );
 
   const handleSavingsRateSave = useCallback(async (rate: number) => {
-    const existingSetAt = await StorageService.getSetting(
-      "savingsRateSetAt",
-      null,
-    );
-    await Promise.all(
-      [
-        StorageService.setSetting("savingsRate", rate),
-        !existingSetAt &&
-          StorageService.setSetting("savingsRateSetAt", {
-            year: now.getFullYear(),
-            month: now.getMonth() + 1,
-          }),
-      ].filter(Boolean),
-    );
-    await StorageService.setSavingsSnapshot(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      rate,
-    );
+    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await Promise.all([
+      StorageService.setSetting("savingsRate", rate),
+      StorageService.setSetting("savingsRateUpdatedAt", yearMonth),
+    ]);
     setSavingsRate(rate);
   }, []);
 
