@@ -16,11 +16,9 @@ interface DashboardViewTabsProps {
 export default function DashboardViewTabs({
   viewMode,
   activeFilterCount,
-  hasCategoryFilter,
   onSwitchToCategories,
   onSwitchToExpenses,
   onOpenFilters,
-  onResetCategoryFilter,
   monthSpan,
 }: DashboardViewTabsProps) {
   return (
