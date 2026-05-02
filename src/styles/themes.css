@@ -407,15 +407,13 @@
 .navbar-desktop {
   display: none;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   position: sticky;
   top: 0;
   background-color: var(--theme-surface);
   border-right: 1px solid var(--theme-border);
   z-index: 40;
-  transition:
-    width 0.2s ease-in-out,
-    all 0.2s ease-in-out;
+  transition: width 0.2s ease-in-out;
 }
 @media (min-width: 640px) {
   .navbar-desktop {

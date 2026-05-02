@@ -43,7 +43,7 @@ export default function AuthPage() {
     });
 
   return (
-    <div className="min-h-screen bg-theme-background flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-theme-background flex items-center justify-center px-4">
       <div className="modal-theme p-8 w-full max-w-sm space-y-5 shadow-xl">
         <div className="text-center">
           <div className="flex items-center justify-center mb-2">

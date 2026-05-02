@@ -40,9 +40,9 @@ describe('getMaxMonthForYear', () => {
     vi.useRealTimers()
   })
 
-  it('returns currentMonth - 1 for current year', () => {
+  it('returns currentMonth for current year', () => {
     mockDate(2025, 6)
-    expect(getMaxMonthForYear(2025)).toBe(5)
+    expect(getMaxMonthForYear(2025)).toBe(6)
     vi.useRealTimers()
   })
 

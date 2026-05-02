@@ -589,6 +589,12 @@ export default function EditHistoricalDataModal({
             StorageService.getAllFixedExpenseSnapshots(),
           ]);
 
+        console.log("Loaded data:", {
+          fixedDefs,
+          incSnaps,
+          savSnaps,
+          allFixedSnaps,
+        });
         const defMap = new Map(
           (fixedDefs as Array<{ id?: number; name: string }>).map((f) => [
             f.id,

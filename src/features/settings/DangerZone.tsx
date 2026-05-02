@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
+import LoadingOverlay from "../../components/ui/LoadingOverlay";
 
 interface DangerZoneProps {
   onClearAll: () => Promise<void>;
@@ -9,10 +10,18 @@ interface DangerZoneProps {
 export default function DangerZone({ onClearAll }: DangerZoneProps) {
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [isReloading, setIsReloading] = useState(false);
 
   const handleClose = () => {
     setIsClearModalOpen(false);
     setDeleteConfirm("");
+  };
+
+  const triggerReload = () => {
+    setIsReloading(true);
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
   };
 
   return (
@@ -58,6 +67,7 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
                 if (deleteConfirm !== "DELETE") return;
                 await onClearAll();
                 handleClose();
+                triggerReload();
               }}
               disabled={deleteConfirm !== "DELETE"}
               className="flex-1 bg-theme-danger hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
@@ -70,6 +80,12 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
           </div>
         </div>
       </Modal>
+
+      <LoadingOverlay
+        isOpen={isReloading}
+        message="Deleting…"
+        subMessage="Refreshing app…"
+      />
     </>
   );
 }

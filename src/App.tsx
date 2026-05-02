@@ -144,7 +144,11 @@ export default function App() {
   }, [syncStatus]);
 
   useEffect(() => {
-    StorageService.materializePendingSnapshots?.().catch(console.error);
+    const init = async () => {
+      await StorageService.materializePendingSnapshots?.().catch(console.error);
+      await StorageService.rolloverSnapshots?.().catch(console.error);
+    };
+    init();
   }, []);
 
   const handleCategoriesChange = async (
@@ -221,7 +225,7 @@ export default function App() {
             />
             <main
               className={cn(
-                "flex-1 min-w-0 overflow-hidden",
+                "flex-1 min-w-0 overflow-hidden bg-theme-background",
                 isScrolling && "is-scrolling"
               )}
             >

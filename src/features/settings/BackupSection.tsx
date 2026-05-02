@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
+import LoadingOverlay from "../../components/ui/LoadingOverlay";
 import { StorageService } from "../../services/storageService";
 import {
   encryptBackup,
@@ -46,6 +47,14 @@ export default function BackupSection({
     useState<Record<string, unknown> | null>(null);
   const [pendingImportMeta, setPendingImportMeta] =
     useState<Record<string, unknown> | null>(null);
+  const [isReloading, setIsReloading] = useState(false);
+
+  const triggerReload = () => {
+    setIsReloading(true);
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+  };
 
   const doExport = async (password: string) => {
     try {
@@ -148,15 +157,13 @@ export default function BackupSection({
         });
         await onRefreshAll?.();
         triggerSync?.();
-        onStatus(
-          `Backup imported successfully.${replaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
-        );
+        setShowPasswordModal(false);
+        setPendingFile(null);
+        triggerReload();
       } catch (err) {
         setPasswordError((err as Error).message);
         return;
       }
-      setShowPasswordModal(false);
-      setPendingFile(null);
     }
   };
 
@@ -242,10 +249,8 @@ export default function BackupSection({
       });
       await onRefreshAll?.();
       triggerSync?.();
-
-      onStatus(
-        `Backup imported successfully.${replaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
-      );
+      triggerReload();
+      return;
     } catch (err) {
       console.error("Import failed:", err);
       onStatus(`Import failed: ${(err as Error).message}`);
@@ -353,7 +358,7 @@ export default function BackupSection({
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={handlePasswordSubmit}
-              className="btn-primary-sm w-full py-2.5"
+              className="btn-primary-sm flex-1 py-2.5"
             >
               {passwordModalMode === "export"
                 ? "Encrypt & Export"
@@ -365,7 +370,7 @@ export default function BackupSection({
                 setPasswordError("");
                 setPendingFile(null);
               }}
-              className="btn-cancel-sm w-full py-2.5"
+              className="btn-cancel-sm flex-1 py-2.5"
             >
               Cancel
             </button>
@@ -429,17 +434,18 @@ export default function BackupSection({
                   });
                   await onRefreshAll?.();
                   triggerSync?.();
-                  onStatus(
-                    `Backup imported (version mismatch).${replaceMode ? " Existing data was replaced." : " Merged with existing data."}`,
-                  );
+                  setShowDbVersionModal(false);
+                  setPendingImportPayload(null);
+                  setPendingImportMeta(null);
+                  triggerReload();
                 } catch (err) {
                   onStatus(`Import failed: ${(err as Error).message}`);
+                  setShowDbVersionModal(false);
+                  setPendingImportPayload(null);
+                  setPendingImportMeta(null);
                 }
-                setShowDbVersionModal(false);
-                setPendingImportPayload(null);
-                setPendingImportMeta(null);
               }}
-              className="btn-danger-sm w-full py-2.5"
+              className="btn-danger-sm flex-1 py-2.5"
             >
               Proceed Anyway
             </button>
@@ -449,13 +455,19 @@ export default function BackupSection({
                 setPendingImportPayload(null);
                 setPendingImportMeta(null);
               }}
-              className="btn-cancel-sm py-2.5"
+              className="btn-cancel-sm flex-1 py-2.5"
             >
               Cancel
             </button>
           </div>
         </div>
       </Modal>
+
+      <LoadingOverlay
+        isOpen={isReloading}
+        message="Loaded successfully"
+        subMessage="Refreshing app…"
+      />
     </>
   );
 }

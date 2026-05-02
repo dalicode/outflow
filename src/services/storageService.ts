@@ -216,6 +216,173 @@ async function materializePendingSnapshots() {
   }
 }
 
+// ── Monthly Snapshot Rollover ─────────────────────────────
+// When the app opens in a new month, automatically create snapshots
+// for any past gap months by carrying forward the last known value.
+// This ensures historical data stays frozen even if the user changes
+// global settings later.
+
+async function rolloverSnapshots() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentKey = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
+
+  const lastOpenRow = await db.settings.get("lastAppOpenMonthKey");
+  const lastOpenKey = lastOpenRow?.value as string | undefined;
+
+  // First-time: initialize without rollover
+  if (!lastOpenKey) {
+    await db.settings.put({ key: "lastAppOpenMonthKey", value: currentKey });
+    return;
+  }
+
+  // Backward time travel guard
+  if (lastOpenKey >= currentKey) {
+    await db.settings.put({ key: "lastAppOpenMonthKey", value: currentKey });
+    return;
+  }
+
+  // Parse last open month
+  const [lastYearStr, lastMonthStr] = lastOpenKey.split("-");
+  const lastYear = parseInt(lastYearStr, 10);
+  const lastMonth = parseInt(lastMonthStr, 10);
+
+  // Build list of gap months (past months only, not current)
+  const gapMonths: { year: number; month: number }[] = [];
+  let y = lastYear;
+  let m = lastMonth;
+  while (true) {
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+    if (y === currentYear && m === currentMonth) break;
+    gapMonths.push({ year: y, month: m });
+  }
+
+  if (gapMonths.length === 0) {
+    await db.settings.put({ key: "lastAppOpenMonthKey", value: currentKey });
+    return;
+  }
+
+  // Load all relevant data in parallel
+  const [allFixedDefs, incomeSnaps, savingsSnaps, fixedSnaps, globalIncomeRow, globalRateRow] =
+    await Promise.all([
+      db.fixedExpenses.toArray(),
+      db.incomeSnapshots.toArray(),
+      db.savingsSnapshots.toArray(),
+      db.fixedExpenseSnapshots.toArray(),
+      db.settings.get("monthlyIncome"),
+      db.settings.get("savingsRate"),
+    ]);
+
+  const activeFixed = allFixedDefs.filter((f) => f.isArchived !== true);
+  const globalIncome = (globalIncomeRow?.value as number) ?? 0;
+  const globalRate = (globalRateRow?.value as number) ?? 0;
+
+  const incomeToAdd: { year: number; month: number; amountSnapshot: number; createdAt: string }[] = [];
+  const savingsToAdd: { year: number; month: number; rateSnapshot: number; createdAt: string }[] = [];
+  const fixedToAdd: {
+    fixedExpenseId: number;
+    nameSnapshot: string;
+    amountSnapshot: number;
+    year: number;
+    month: number;
+    createdAt: string;
+  }[] = [];
+
+  for (const { year, month } of gapMonths) {
+    // Income: carry forward last snapshot or global
+    const hasIncome = incomeSnaps.some(
+      (s) => s.year === year && s.month === month,
+    );
+    if (!hasIncome) {
+      const priorIncome = [...incomeSnaps]
+        .filter(
+          (s) => s.year < year || (s.year === year && s.month < month),
+        )
+        .sort((a, b) => b.year - a.year || b.month - a.month)[0];
+      incomeToAdd.push({
+        year,
+        month,
+        amountSnapshot: priorIncome?.amountSnapshot ?? globalIncome,
+        createdAt: now.toISOString(),
+      });
+    }
+
+    // Savings: carry forward last snapshot or global
+    const hasSavings = savingsSnaps.some(
+      (s) => s.year === year && s.month === month,
+    );
+    if (!hasSavings) {
+      const priorSavings = [...savingsSnaps]
+        .filter(
+          (s) => s.year < year || (s.year === year && s.month < month),
+        )
+        .sort((a, b) => b.year - a.year || b.month - a.month)[0];
+      savingsToAdd.push({
+        year,
+        month,
+        rateSnapshot: priorSavings?.rateSnapshot ?? globalRate,
+        createdAt: now.toISOString(),
+      });
+    }
+
+    // Fixed expenses: carry forward per-expense last snapshot
+    for (const def of activeFixed) {
+      if (!def.id) continue;
+      const hasFixed = fixedSnaps.some(
+        (s) =>
+          s.fixedExpenseId === def.id &&
+          s.year === year &&
+          s.month === month,
+      );
+      if (!hasFixed) {
+        const priorFixed = [...fixedSnaps]
+          .filter(
+            (s) =>
+              s.fixedExpenseId === def.id &&
+              (s.year < year || (s.year === year && s.month < month)),
+          )
+          .sort((a, b) => b.year - a.year || b.month - a.month)[0];
+        fixedToAdd.push({
+          fixedExpenseId: def.id,
+          nameSnapshot: def.name,
+          amountSnapshot: priorFixed?.amountSnapshot ?? def.amount,
+          year,
+          month,
+          createdAt: now.toISOString(),
+        });
+      }
+    }
+  }
+
+  // Batch write everything in one transaction
+  await db.transaction(
+    "rw",
+    [
+      db.incomeSnapshots,
+      db.savingsSnapshots,
+      db.fixedExpenseSnapshots,
+      db.settings,
+    ],
+    async () => {
+      if (incomeToAdd.length)
+        await db.incomeSnapshots.bulkAdd(incomeToAdd);
+      if (savingsToAdd.length)
+        await db.savingsSnapshots.bulkAdd(savingsToAdd);
+      if (fixedToAdd.length)
+        await db.fixedExpenseSnapshots.bulkAdd(fixedToAdd);
+      await db.settings.put({
+        key: "lastAppOpenMonthKey",
+        value: currentKey,
+      });
+    },
+  );
+}
+
 // Enqueue a sync operation for the background engine to process
 const enqueue = (table: string, operation: SyncQueueItem['operation'], payload: Record<string, unknown>) =>
   db.syncQueue.add({ table, operation, payload, timestamp: Date.now() })
@@ -327,6 +494,7 @@ export const StorageService = {
 
   // ── Schedule Materialization ──────────────────────────────
   materializePendingSnapshots,
+  rolloverSnapshots,
 
   // ── Scheduled Changes ─────────────────────────────────────
   getSchedules: () => db.schedules.toArray(),

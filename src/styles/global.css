@@ -6,10 +6,10 @@ body,
   min-height: 100%;
   margin: 0;
   padding: 0;
+  background-color: var(--theme-background);
 }
 
 body {
-  background-color: var(--theme-background);
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
 }
