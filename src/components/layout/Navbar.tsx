@@ -8,6 +8,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import { ROUTES } from "../../constants/routes";
+import { useLastVisitedUrls } from "../../hooks/useLastVisitedUrls";
 
 interface NavIconProps {
   active: boolean;
@@ -227,11 +228,18 @@ const SignOutIcon = () => (
   </svg>
 );
 
-const links = [
-  { to: ROUTES.DASHBOARD, label: "Dashboard", icon: DashboardIcon },
-  { to: ROUTES.SUMMARY, label: "Summary", icon: SummaryIcon },
-  { to: ROUTES.ANALYTICS, label: "Analytics", icon: AnalyticsIcon },
-  { to: ROUTES.SETTINGS, label: "Settings", icon: SettingsIcon },
+interface NavItemConfig {
+  pageKey: "dashboard" | "summary" | "analytics" | "settings";
+  basePath: string;
+  label: string;
+  icon: React.ComponentType<NavIconProps>;
+}
+
+const NAV_ITEMS: NavItemConfig[] = [
+  { pageKey: "dashboard", basePath: ROUTES.DASHBOARD, label: "Dashboard", icon: DashboardIcon },
+  { pageKey: "summary", basePath: ROUTES.SUMMARY, label: "Summary", icon: SummaryIcon },
+  { pageKey: "analytics", basePath: ROUTES.ANALYTICS, label: "Analytics", icon: AnalyticsIcon },
+  { pageKey: "settings", basePath: ROUTES.SETTINGS, label: "Settings", icon: SettingsIcon },
 ];
 
 interface NavbarProps {
@@ -255,6 +263,7 @@ export default function Navbar({
   const [peekExpanded, setPeekExpanded] = useState(false);
   const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
+  const { getRememberedUrl } = useLastVisitedUrls();
 
   useEffect(() => {
     if (!peekExpanded) return;
@@ -332,11 +341,12 @@ export default function Navbar({
 
         {/* Nav Links */}
         <nav className="flex-1 px-2 space-y-1">
-          {links.map(({ to, label, icon: Icon }) => {
-            const isActive = location.pathname === to;
+          {NAV_ITEMS.map(({ pageKey, basePath, label, icon: Icon }) => {
+            const to = getRememberedUrl(pageKey);
+            const isActive = location.pathname === basePath;
             return (
               <NavLink
-                key={to}
+                key={pageKey}
                 to={to}
                 end
                 className={cn(
@@ -432,24 +442,27 @@ export default function Navbar({
           )}
         >
           <div className="mobile-nav-container">
-            {links.slice(0, 2).map(({ to, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center justify-center w-14 h-16 nav-item-hover",
-                    isActive ? "text-theme-primary" : "text-theme-muted",
-                    !peekExpanded &&
-                      (scrollDirection === "down" || hidden) &&
-                      "opacity-0",
-                  )
-                }
-              >
-                <Icon active={location.pathname === to} />
-              </NavLink>
-            ))}
+            {NAV_ITEMS.slice(0, 2).map(({ pageKey, basePath, icon: Icon }) => {
+              const to = getRememberedUrl(pageKey);
+              return (
+                <NavLink
+                  key={pageKey}
+                  to={to}
+                  end
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center justify-center w-14 h-16 nav-item-hover",
+                      isActive ? "text-theme-primary" : "text-theme-muted",
+                      !peekExpanded &&
+                        (scrollDirection === "down" || hidden) &&
+                        "opacity-0",
+                    )
+                  }
+                >
+                  <Icon active={location.pathname === basePath} />
+                </NavLink>
+              );
+            })}
 
             <button
               onClick={onAddExpense}
@@ -464,24 +477,27 @@ export default function Navbar({
               <PlusIcon />
             </button>
 
-            {links.slice(2).map(({ to, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center justify-center w-14 h-16 nav-item-hover",
-                    isActive ? "text-theme-primary" : "text-theme-muted",
-                    !peekExpanded &&
-                      (scrollDirection === "down" || hidden) &&
-                      "opacity-0",
-                  )
-                }
-              >
-                <Icon active={location.pathname === to} />
-              </NavLink>
-            ))}
+            {NAV_ITEMS.slice(2).map(({ pageKey, basePath, icon: Icon }) => {
+              const to = getRememberedUrl(pageKey);
+              return (
+                <NavLink
+                  key={pageKey}
+                  to={to}
+                  end
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center justify-center w-14 h-16 nav-item-hover",
+                      isActive ? "text-theme-primary" : "text-theme-muted",
+                      !peekExpanded &&
+                        (scrollDirection === "down" || hidden) &&
+                        "opacity-0",
+                    )
+                  }
+                >
+                  <Icon active={location.pathname === basePath} />
+                </NavLink>
+              );
+            })}
           </div>
 
           {/* Peek handle — visible when nav is partially hidden */}

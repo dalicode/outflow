@@ -1,16 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation } from "react-router-dom";
-import { DASHBOARD_VIEWS } from "../features/dashboard/constants";
+import { useSearchParams, useLocation } from "react-router-dom";
+import {
+  DASHBOARD_VIEWS,
+  DASHBOARD_QUERY_PARAMS,
+} from "../features/dashboard/constants";
 import type { DashboardView } from "../features/dashboard/constants";
+import { parseViewParam } from "../utils/urlParams";
 
 export function useDashboardView(
   onSelectionChange?: (active: boolean) => void,
   selectedIds?: Set<number>,
 ) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const [viewMode, setViewMode] = useState<DashboardView>(
-    DASHBOARD_VIEWS.CATEGORIES,
-  );
+
+  const viewMode = parseViewParam(searchParams.get(DASHBOARD_QUERY_PARAMS.VIEW));
+
   const [viewAnimation, setViewAnimation] = useState<
     "slide-left" | "slide-right" | null
   >(null);
@@ -26,19 +31,16 @@ export function useDashboardView(
     useState<number>(0);
   const drilldownRef = useRef<HTMLDivElement>(null);
 
-  // Reset scroll on route change
   useEffect(() => {
     scrollableRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [location.pathname]);
 
-  // Clear view animation after it plays
   useEffect(() => {
     if (!viewAnimation) return;
     const timer = setTimeout(() => setViewAnimation(null), 250);
     return () => clearTimeout(timer);
   }, [viewAnimation]);
 
-  // Auto-scroll drilldown into view
   useEffect(() => {
     if (drilldownCategory && drilldownRef.current) {
       drilldownRef.current.scrollIntoView({
@@ -48,7 +50,6 @@ export function useDashboardView(
     }
   }, [drilldownCategory, drilldownCategoryMonthIndex]);
 
-  // Detect horizontal overflow for swipe disabling
   useEffect(() => {
     const el = swipeAreaRef.current;
     if (!el) return;
@@ -59,6 +60,21 @@ export function useDashboardView(
       );
     }
   }, [viewMode]);
+
+  const setViewMode = useCallback(
+    (next: DashboardView, animation: "slide-left" | "slide-right") => {
+      setViewAnimation(animation);
+      setSearchParams(
+        (currentParams) => {
+          const nextParams = new URLSearchParams(currentParams);
+          nextParams.set(DASHBOARD_QUERY_PARAMS.VIEW, next);
+          return nextParams;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement;
@@ -73,15 +89,13 @@ export function useDashboardView(
       if (Math.abs(deltaX) < 80) return;
 
       if (deltaX < 0 && viewMode === DASHBOARD_VIEWS.CATEGORIES) {
-        setViewAnimation("slide-right");
-        setViewMode(DASHBOARD_VIEWS.EXPENSES);
+        setViewMode(DASHBOARD_VIEWS.EXPENSES, "slide-right");
       } else if (deltaX > 0 && viewMode === DASHBOARD_VIEWS.EXPENSES) {
-        setViewAnimation("slide-left");
-        setViewMode(DASHBOARD_VIEWS.CATEGORIES);
+        setViewMode(DASHBOARD_VIEWS.CATEGORIES, "slide-left");
       }
       setTouchStartX(null);
     },
-    [touchStartX, hasHorizontalOverflow, viewMode],
+    [touchStartX, hasHorizontalOverflow, viewMode, setViewMode],
   );
 
   const handleCategoryClick = useCallback(
@@ -104,14 +118,12 @@ export function useDashboardView(
   }, []);
 
   const switchToCategories = useCallback(() => {
-    setViewAnimation("slide-left");
-    setViewMode(DASHBOARD_VIEWS.CATEGORIES);
-  }, []);
+    setViewMode(DASHBOARD_VIEWS.CATEGORIES, "slide-left");
+  }, [setViewMode]);
 
   const switchToExpenses = useCallback(() => {
-    setViewAnimation("slide-right");
-    setViewMode(DASHBOARD_VIEWS.EXPENSES);
-  }, []);
+    setViewMode(DASHBOARD_VIEWS.EXPENSES, "slide-right");
+  }, [setViewMode]);
 
   return {
     viewMode,

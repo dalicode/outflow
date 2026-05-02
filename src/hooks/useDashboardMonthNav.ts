@@ -1,26 +1,41 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useViewportWidth } from "./useViewportWidth";
 import { useMaxVisible } from "./useMaxVisible";
+import { usePersistedToggle } from "./usePersistedToggle";
 import {
   VIEWPORT_THRESHOLDS,
   MONTH_SPANS,
+  DASHBOARD_QUERY_PARAMS,
+  STORAGE_KEYS,
 } from "../features/dashboard/constants";
+import type { MonthSpan } from "../features/dashboard/constants";
+import {
+  parseMonthParam,
+  parseSpanParam,
+  monthKeyToParts,
+  partsToMonthKey,
+} from "../utils/urlParams";
 
 export function useDashboardMonthNav() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const [selectedYear, setSelectedYear] = useState(
-    () => parseInt(searchParams.get("year") || "", 10) || now.getFullYear(),
+  const monthKey = parseMonthParam(
+    searchParams.get(DASHBOARD_QUERY_PARAMS.MONTH),
+    currentMonthKey,
   );
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const m = parseInt(searchParams.get("month") || "", 10);
-    return isNaN(m) ? now.getMonth() : m;
-  });
+  const { year: selectedYear, month: selectedMonth } = monthKeyToParts(monthKey);
 
-  const [monthSpan, setMonthSpan] = useState<1 | 2 | 3 | 6 | 12>(1);
-  const [showGrandTotal, setShowGrandTotal] = useState(false);
+  const monthSpan = parseSpanParam(
+    searchParams.get(DASHBOARD_QUERY_PARAMS.SPAN),
+  );
+
+  const [showGrandTotal, setShowGrandTotal] = usePersistedToggle(
+    STORAGE_KEYS.SHOW_GRAND_TOTAL,
+    false,
+  );
 
   const viewportWidth = useViewportWidth();
   const maxVisible = useMaxVisible(viewportWidth);
@@ -35,18 +50,27 @@ export function useDashboardMonthNav() {
     return allowed.length > 0 ? allowed[allowed.length - 1] : 1;
   }, [viewportWidth]);
 
-  // Auto-downgrade span on resize
   useEffect(() => {
     const target = isSpanSelectorVisible ? maxAvailableSpan : 1;
     if (monthSpan > target) {
-      setMonthSpan(target as 1 | 2 | 3 | 6 | 12);
+      setMonthSpan(target as MonthSpan);
     }
   }, [monthSpan, maxAvailableSpan, isSpanSelectorVisible]);
 
-  const navigateToMonth = useCallback((year: number, month: number) => {
-    setSelectedYear(year);
-    setSelectedMonth(month);
-  }, []);
+  const navigateToMonth = useCallback(
+    (year: number, month: number) => {
+      const newKey = partsToMonthKey(year, month);
+      setSearchParams(
+        (currentParams) => {
+          const nextParams = new URLSearchParams(currentParams);
+          nextParams.set(DASHBOARD_QUERY_PARAMS.MONTH, newKey);
+          return nextParams;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const goToPreviousMonth = useCallback(() => {
     if (selectedMonth === 0) {
@@ -75,10 +99,24 @@ export function useDashboardMonthNav() {
     navigateToMonth(today.getFullYear(), today.getMonth());
   }, [navigateToMonth]);
 
+  const setMonthSpan = useCallback(
+    (span: MonthSpan) => {
+      setSearchParams(
+        (currentParams) => {
+          const nextParams = new URLSearchParams(currentParams);
+          nextParams.set(DASHBOARD_QUERY_PARAMS.SPAN, String(span));
+          return nextParams;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
   const isAtCurrentMonth =
     selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
 
-  const selectedMonthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+  const selectedMonthKey = monthKey;
 
   const monthStrip = useMemo(() => {
     const months = [];
@@ -111,8 +149,8 @@ export function useDashboardMonthNav() {
     selectedMonthKey,
     monthStrip,
     yearFirstIndices,
-    setSelectedYear,
-    setSelectedMonth,
+    setSelectedYear: undefined as unknown as (y: number) => void,
+    setSelectedMonth: undefined as unknown as (m: number) => void,
     setMonthSpan,
     setShowGrandTotal,
     goToPreviousMonth,

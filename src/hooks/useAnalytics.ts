@@ -1,5 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAnalyticsData } from "./useAnalyticsData";
+import { ANALYTICS_QUERY_PARAMS } from "../features/dashboard/constants";
+import { parseYearParam, parseAnalyticsMonthParam } from "../utils/urlParams";
 import type { Expense, Category } from "../types";
 
 interface UseAnalyticsParams {
@@ -13,18 +16,27 @@ export function useAnalytics({
   categories,
   formatAmount,
 }: UseAnalyticsParams) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
-  const [year, setYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const year = parseYearParam(
+    searchParams.get(ANALYTICS_QUERY_PARAMS.YEAR),
+    currentYear,
+  );
 
   const data = useAnalyticsData({ expenses, categories, year });
 
-  const canGoForward = year < currentYear;
   const lastMonth =
     year === currentYear ? currentMonth : year < currentYear ? 11 : -1;
+
+  const selectedMonth = parseAnalyticsMonthParam(
+    searchParams.get(ANALYTICS_QUERY_PARAMS.MONTH),
+    lastMonth,
+  );
+
+  const canGoForward = year < currentYear;
 
   const availableMonths = useMemo(
     () =>
@@ -32,10 +44,49 @@ export function useAnalytics({
     [lastMonth],
   );
 
-  const handleYearChange = useCallback((newYear: number) => {
-    setYear(newYear);
-    setSelectedMonth(null);
-  }, []);
+  const setYearAndMonth = useCallback(
+    (newYear: number, newMonth: number | null) => {
+      setSearchParams(
+        (currentParams) => {
+          const nextParams = new URLSearchParams(currentParams);
+          nextParams.set(ANALYTICS_QUERY_PARAMS.YEAR, String(newYear));
+          if (newMonth !== null) {
+            nextParams.set(ANALYTICS_QUERY_PARAMS.MONTH, String(newMonth));
+          } else {
+            nextParams.delete(ANALYTICS_QUERY_PARAMS.MONTH);
+          }
+          return nextParams;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const setSelectedMonth = useCallback(
+    (m: number | null) => {
+      setSearchParams(
+        (currentParams) => {
+          const nextParams = new URLSearchParams(currentParams);
+          if (m !== null) {
+            nextParams.set(ANALYTICS_QUERY_PARAMS.MONTH, String(m));
+          } else {
+            nextParams.delete(ANALYTICS_QUERY_PARAMS.MONTH);
+          }
+          return nextParams;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const handleYearChange = useCallback(
+    (newYear: number) => {
+      setYearAndMonth(newYear, null);
+    },
+    [setYearAndMonth],
+  );
 
   const prevMonth = useCallback(() => {
     if (selectedMonth === null) {
@@ -43,7 +94,7 @@ export function useAnalytics({
     } else if (selectedMonth > 0) {
       setSelectedMonth(selectedMonth - 1);
     }
-  }, [selectedMonth, lastMonth]);
+  }, [selectedMonth, lastMonth, setSelectedMonth]);
 
   const nextMonth = useCallback(() => {
     if (selectedMonth === null) {
@@ -51,20 +102,19 @@ export function useAnalytics({
     } else if (lastMonth >= 0 && selectedMonth < lastMonth) {
       setSelectedMonth(selectedMonth + 1);
     }
-  }, [selectedMonth, lastMonth]);
+  }, [selectedMonth, lastMonth, setSelectedMonth]);
 
   const jumpBackMonths = useCallback(() => {
-    setYear((prev) => prev - 1);
-  }, []);
+    setYearAndMonth(year - 1, selectedMonth);
+  }, [year, selectedMonth, setYearAndMonth]);
 
   const jumpToCurrentMonth = useCallback(() => {
     if (year < currentYear) {
-      setYear((prev) => prev + 1);
+      setYearAndMonth(year + 1, selectedMonth);
     } else {
-      setYear(currentYear);
-      setSelectedMonth(currentMonth);
+      setYearAndMonth(currentYear, currentMonth);
     }
-  }, [year, currentYear, currentMonth]);
+  }, [year, currentYear, currentMonth, selectedMonth, setYearAndMonth]);
 
   const isAtCurrentMonth =
     year === currentYear && selectedMonth === currentMonth;
