@@ -8,7 +8,11 @@ interface UseAnalyticsParams {
   formatAmount: (n: number) => string;
 }
 
-export function useAnalytics({ expenses, categories, formatAmount }: UseAnalyticsParams) {
+export function useAnalytics({
+  expenses,
+  categories,
+  formatAmount,
+}: UseAnalyticsParams) {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
@@ -28,13 +32,10 @@ export function useAnalytics({ expenses, categories, formatAmount }: UseAnalytic
     [lastMonth],
   );
 
-  const handleYearChange = useCallback(
-    (newYear: number) => {
-      setYear(newYear);
-      setSelectedMonth(null);
-    },
-    [],
-  );
+  const handleYearChange = useCallback((newYear: number) => {
+    setYear(newYear);
+    setSelectedMonth(null);
+  }, []);
 
   const prevMonth = useCallback(() => {
     if (selectedMonth === null) {
@@ -53,15 +54,20 @@ export function useAnalytics({ expenses, categories, formatAmount }: UseAnalytic
   }, [selectedMonth, lastMonth]);
 
   const jumpBackMonths = useCallback(() => {
-    setSelectedMonth(0);
+    setYear((prev) => prev - 1);
   }, []);
 
   const jumpToCurrentMonth = useCallback(() => {
-    setYear(currentYear);
-    setSelectedMonth(currentMonth);
-  }, [currentYear, currentMonth]);
+    if (year < currentYear) {
+      setYear((prev) => prev + 1);
+    } else {
+      setYear(currentYear);
+      setSelectedMonth(currentMonth);
+    }
+  }, [year, currentYear, currentMonth]);
 
-  const isAtCurrentMonth = year === currentYear && selectedMonth === currentMonth;
+  const isAtCurrentMonth =
+    year === currentYear && selectedMonth === currentMonth;
 
   const canPrevMonth =
     selectedMonth === null ? lastMonth >= 0 : selectedMonth > 0;
@@ -81,28 +87,30 @@ export function useAnalytics({ expenses, categories, formatAmount }: UseAnalytic
   const summaryCards = useMemo(
     () => [
       {
-        label: "Total Income",
+        label: year === currentYear ? "YTD Income" : "Total Income",
         value: formatAmount(data.yearTotalIncome),
         tone: "success" as const,
       },
       {
-        label: "Total Fixed",
+        label: year === currentYear ? "YTD Fixed" : "Total Fixed",
         value: formatAmount(data.yearFixedTotal),
         tone: "danger" as const,
       },
       {
-        label: "Total Savings",
-        value: formatAmount(data.yearSavings),
+        label: year === currentYear ? "YTD Savings" : "Total Savings",
+        value: formatAmount(data.yearSavings + data.yearRemaining),
         tone:
-          data.yearSavings >= 0 ? ("success" as const) : ("danger" as const),
-      },
-      {
-        label: "Total Remaining",
-        value: formatAmount(data.yearRemaining),
-        tone:
-          data.yearRemaining >= 0
+          data.yearSavings + data.yearRemaining >= 0
             ? ("success" as const)
             : ("danger" as const),
+      },
+      {
+        label: year === currentYear ? "YTD Expenses" : "Total Expenses",
+        value: formatAmount(data.yearVariableTotal),
+        tone:
+          data.yearVariableTotal >= 0
+            ? ("danger" as const)
+            : ("success" as const),
       },
     ],
     [data, formatAmount],

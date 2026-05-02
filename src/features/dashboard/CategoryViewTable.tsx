@@ -149,12 +149,12 @@ export default function CategoryViewTable({
                   key={name}
                   className="border-b border-theme-muted/10 row-hover"
                 >
-                  <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium">
                     {name}
                   </td>
                   {monthSpan > 1 ? (
                     <>
-                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                         {totalTransactions}
                       </td>
                       {[...monthlyAmounts]
@@ -165,7 +165,7 @@ export default function CategoryViewTable({
                             <td
                               key={displayIdx}
                               className={cn(
-                                "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
+                                "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums",
                                 displayIdx === 0 &&
                                   "border-l border-theme-border",
                               )}
@@ -189,7 +189,7 @@ export default function CategoryViewTable({
                       {showGrandTotal && (
                         <td
                           className={cn(
-                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                            "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
                             getNumberColorClass(
                               monthlyAmounts.reduce((s, v) => s + v, 0),
                             ),
@@ -203,10 +203,10 @@ export default function CategoryViewTable({
                     </>
                   ) : (
                     <>
-                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                         {totalTransactions}
                       </td>
-                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
                         {monthlyAmounts[0] !== 0 ? (
                           <button
                             onClick={() => onCategoryClick(name, 0)}
@@ -245,12 +245,12 @@ export default function CategoryViewTable({
                 );
                 return (
                   <tr key={fe.id} className="row-hover">
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap">
                       {fe.name}
                     </td>
                     {monthSpan > 1 ? (
                       <>
-                        <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                        <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                           —
                         </td>
                         {[...fe.monthlyAmounts]
@@ -259,7 +259,7 @@ export default function CategoryViewTable({
                             <td
                               key={displayIdx}
                               className={cn(
-                                "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text",
+                                "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text",
                                 displayIdx === 0 &&
                                   "border-l border-theme-border",
                               )}
@@ -268,17 +268,17 @@ export default function CategoryViewTable({
                             </td>
                           ))}
                         {showGrandTotal && (
-                          <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                          <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
                             {formatAmount(fixedGrandTotal ?? 0)}
                           </td>
                         )}
                       </>
                     ) : (
                       <>
-                        <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                        <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                           —
                         </td>
-                        <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-medium text-theme-text">
+                        <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text">
                           {fe.monthlyAmounts[0] !== null
                             ? formatAmount(fe.monthlyAmounts[0])
                             : "—"}
@@ -304,7 +304,7 @@ export default function CategoryViewTable({
 
               {/* Income */}
               <tr className="row-hover">
-                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
                   Income
                   <svg
                     className="w-3 h-3 text-theme-muted"
@@ -318,7 +318,7 @@ export default function CategoryViewTable({
                 </td>
                 {monthSpan > 1 ? (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
                     {[...monthSummaries]
@@ -329,7 +329,7 @@ export default function CategoryViewTable({
                           <td
                             key={displayIdx}
                             className={cn(
-                              "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
+                              "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums",
                               displayIdx === 0 &&
                                 "border-l border-theme-border",
                             )}
@@ -344,7 +344,7 @@ export default function CategoryViewTable({
                         );
                       })}
                     {showGrandTotal && (
-                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
                         {formatAmount(
                           monthSummaries.reduce((s, m) => s + m.income, 0),
                         )}
@@ -353,10 +353,10 @@ export default function CategoryViewTable({
                   </>
                 ) : (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
                       <button
                         onClick={() => onIncomeClick(0)}
                         className="font-semibold hover:underline text-theme-text"
@@ -370,7 +370,7 @@ export default function CategoryViewTable({
 
               {/* Auto Savings */}
               <tr className="row-hover">
-                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
+                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
                   Auto Savings
                   <svg
                     className="w-3 h-3 text-theme-muted"
@@ -384,7 +384,7 @@ export default function CategoryViewTable({
                 </td>
                 {monthSpan > 1 ? (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
                     {[...monthSummaries]
@@ -395,7 +395,7 @@ export default function CategoryViewTable({
                           <td
                             key={displayIdx}
                             className={cn(
-                              "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums",
+                              "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums",
                               displayIdx === 0 &&
                                 "border-l border-theme-border",
                             )}
@@ -410,7 +410,7 @@ export default function CategoryViewTable({
                         );
                       })}
                     {showGrandTotal && (
-                      <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold text-theme-text">
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
                         {formatAmount(
                           monthSummaries.reduce((s, m) => s + m.autoSavings, 0),
                         )}
@@ -419,10 +419,10 @@ export default function CategoryViewTable({
                   </>
                 ) : (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
                       <button
                         onClick={() => onSavingsClick(0)}
                         className="font-semibold hover:underline text-theme-text"
@@ -436,12 +436,12 @@ export default function CategoryViewTable({
 
               {/* Remaining */}
               <tr className="row-hover">
-                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium">
                   Remaining
                 </td>
                 {monthSpan > 1 ? (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
                     {[...monthSummaries]
@@ -453,7 +453,7 @@ export default function CategoryViewTable({
                           <td
                             key={displayIdx}
                             className={cn(
-                              "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                              "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
                               cls,
                               displayIdx === 0 &&
                                 "border-l border-theme-border",
@@ -466,7 +466,7 @@ export default function CategoryViewTable({
                     {showGrandTotal && (
                       <td
                         className={cn(
-                          "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                          "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
                           remainingGrandTotalClass,
                         )}
                       >
@@ -478,12 +478,12 @@ export default function CategoryViewTable({
                   </>
                 ) : (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
                     <td
                       className={cn(
-                        "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                        "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
                         remainingClasses[0],
                       )}
                     >
@@ -495,12 +495,12 @@ export default function CategoryViewTable({
 
               {/* Total Savings */}
               <tr className="row-hover">
-                <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-theme-text whitespace-nowrap font-medium">
+                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium">
                   Total Savings
                 </td>
                 {monthSpan > 1 ? (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
                     {[...monthSummaries].reverse().map((_, displayIdx) => {
@@ -510,7 +510,7 @@ export default function CategoryViewTable({
                         <td
                           key={displayIdx}
                           className={cn(
-                            "px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold",
+                            "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
                             displayIdx === 0 && "border-l border-theme-border",
                           )}
                           style={{ color }}
@@ -521,7 +521,7 @@ export default function CategoryViewTable({
                     })}
                     {showGrandTotal && (
                       <td
-                        className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
+                        className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
                         style={{ color: grandTotalSavings.color }}
                       >
                         {formatAmount(grandTotalSavings.grandTotal)}
@@ -530,11 +530,11 @@ export default function CategoryViewTable({
                   </>
                 ) : (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right text-theme-muted tabular-nums">
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                       —
                     </td>
                     <td
-                      className="px-1.5 sm:px-2 md:px-3 py-1.5 text-right tabular-nums font-semibold"
+                      className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
                       style={{ color: totalSavingsData[0]?.color }}
                     >
                       {formatAmount(

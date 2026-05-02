@@ -38,10 +38,10 @@ export default function ExpenseTableMobile({
   });
 
   return (
-    <div className="divide-y divide-theme-border">
+    <div>
       {groupedExpenses.map(([date, items]) => (
         <div key={date}>
-          <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background/50">
+          <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background">
             {formatDate(date)}
           </div>
           {items.map((exp) => {
@@ -52,7 +52,7 @@ export default function ExpenseTableMobile({
               <div
                 key={exp.id}
                 className={cn(
-                  "flex items-center justify-between py-2 px-3",
+                  "flex items-center justify-between py-1 px-3",
                   isSelected &&
                     "bg-theme-primary/[0.04] border-l-4 border-theme-primary",
                   !isSelected && "row-hover",
@@ -72,9 +72,7 @@ export default function ExpenseTableMobile({
                   <p className="text-sm font-medium text-theme-text truncate">
                     {exp.description || "—"}
                   </p>
-                  <p className="text-xs text-theme-muted">
-                    {resolveName(exp)}
-                  </p>
+                  <p className="text-xs text-theme-muted">{resolveName(exp)}</p>
                 </div>
                 <span
                   className={cn(

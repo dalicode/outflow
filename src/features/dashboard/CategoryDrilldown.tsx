@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { forwardRef } from "react";
 import { cn } from "../../utils/cn";
 import type { Expense } from "../../types";
 
@@ -12,26 +12,10 @@ interface CategoryDrilldownProps {
   onClose: () => void;
 }
 
-export default function CategoryDrilldown({
-  category,
-  monthName,
-  year,
-  expenses,
-  formatDate,
-  formatAmount,
-  onClose,
-}: CategoryDrilldownProps) {
-  const groupedExpenses = useMemo(() => {
-    const groups: Record<string, Expense[]> = {};
-    expenses.forEach((exp) => {
-      if (!groups[exp.date]) groups[exp.date] = [];
-      groups[exp.date].push(exp);
-    });
-    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [expenses]);
-
-  return (
-    <div className="space-y-2 border-t border-theme-border pt-4">
+const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
+  ({ category, monthName, year, expenses, formatDate, formatAmount, onClose }, ref) => {
+    return (
+      <div ref={ref} className="space-y-2 border-t border-theme-border pt-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-theme-text">
           {category} — {monthName} {year}
@@ -43,39 +27,51 @@ export default function CategoryDrilldown({
           Close
         </button>
       </div>
-      <div className="divide-y divide-theme-border">
-        {groupedExpenses.map(([date, items]) => (
-          <div key={date}>
-            <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background/50">
-              {formatDate(date)}
-            </div>
-            {items.map((exp) => {
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-separate border-spacing-0">
+          <thead>
+            <tr>
+              <th className="table-header-cell text-left">Date</th>
+              <th className="table-header-cell text-left">Description</th>
+              <th className="table-header-cell text-right tabular-nums">
+                Amount
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {expenses.map((exp) => {
               const amountColor =
                 exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
               return (
-                <div
+                <tr
                   key={exp.id}
-                  className="flex items-center justify-between py-2 px-3 row-hover"
+                  className="border-b border-theme-muted/10 row-hover"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-theme-text truncate">
-                      {exp.description || "—"}
-                    </p>
-                  </div>
-                  <span
+                  <td className="px-3 py-2.5 text-theme-text whitespace-nowrap">
+                    {formatDate(exp.date)}
+                  </td>
+                  <td className="px-3 py-2.5 text-theme-text max-w-[200px] truncate">
+                    {exp.description || "—"}
+                  </td>
+                  <td
                     className={cn(
-                      "text-sm font-semibold tabular-nums",
+                      "px-3 py-2.5 text-right tabular-nums font-semibold",
                       amountColor,
                     )}
                   >
                     {formatAmount(exp.amount)}
-                  </span>
-                </div>
+                  </td>
+                </tr>
               );
             })}
-          </div>
-        ))}
+          </tbody>
+        </table>
+        {expenses.length === 0 && (
+          <p className="text-sm text-theme-muted text-center py-8">No expenses</p>
+        )}
       </div>
     </div>
   );
-}
+});
+
+export default CategoryDrilldown;

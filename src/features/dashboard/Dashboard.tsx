@@ -252,6 +252,7 @@ export default function Dashboard({
 
                   {dash.drilldownCategory && drilldownExpenses.length > 0 && (
                     <CategoryDrilldown
+                      ref={dash.drilldownRef}
                       category={dash.drilldownCategory}
                       monthName={
                         dash.monthKeys[dash.drilldownCategoryMonthIndex].name

@@ -20,8 +20,18 @@ import { useSettings } from "../../context/settingsContext";
 import type { AnalyticsData } from "../../types";
 
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 function fmtCompact(n: number | null | undefined): string {
@@ -72,17 +82,18 @@ function useThemeColors(): ThemeColors {
       surface: currentTheme.colors.surface,
       background: currentTheme.colors.background,
       grid: currentTheme.colors.border,
-      chartPalette: [
-        p, s, d, t, m,
-        "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4",
-      ],
+      chartPalette: [p, s, d, t, m, "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4"],
     };
   }, [currentTheme]);
 }
 
 // ── Month slicing helper ─────────────────────────────────────────────────────
 
-function getMonthCount(year: number, currentYear: number, currentMonth: number): number {
+function getMonthCount(
+  year: number,
+  currentYear: number,
+  currentMonth: number,
+): number {
   if (year > currentYear) return 0;
   if (year === currentYear) return currentMonth + 1;
   return 12;
@@ -108,7 +119,13 @@ interface CustomTooltipProps {
   formatter?: (value: number, name: string) => [string, string] | string;
 }
 
-const CustomTooltip = ({ active, payload, label, formatter, colors }: CustomTooltipProps) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  formatter,
+  colors,
+}: CustomTooltipProps) => {
   if (!active || !payload || payload.length === 0) return null;
 
   return (
@@ -126,7 +143,9 @@ const CustomTooltip = ({ active, payload, label, formatter, colors }: CustomTool
         </div>
       )}
       {payload.map((entry, i) => {
-        const value = formatter ? formatter(entry.value, entry.name) : entry.value;
+        const value = formatter
+          ? formatter(entry.value, entry.name)
+          : entry.value;
         const displayValue = Array.isArray(value) ? value[0] : value;
         const displayName = Array.isArray(value) ? value[1] : entry.name;
         return (
@@ -146,7 +165,7 @@ const CustomTooltip = ({ active, payload, label, formatter, colors }: CustomTool
       })}
     </div>
   );
-}
+};
 
 // ── Metric Card ──────────────────────────────────────────────────────────────
 
@@ -158,7 +177,13 @@ interface MetricCardProps {
   colors: ThemeColors;
 }
 
-const MetricCard = ({ label, value, subValue, accentColor, colors }: MetricCardProps) => {
+const MetricCard = ({
+  label,
+  value,
+  subValue,
+  accentColor,
+  colors,
+}: MetricCardProps) => {
   return (
     <div
       className="rounded-xl border p-4 text-center"
@@ -170,17 +195,23 @@ const MetricCard = ({ label, value, subValue, accentColor, colors }: MetricCardP
       <div className="text-xs font-medium mb-1" style={{ color: colors.muted }}>
         {label}
       </div>
-      <div className="text-xl font-bold" style={{ color: accentColor || colors.text }}>
+      <div
+        className="text-xl font-bold"
+        style={{ color: accentColor || colors.text }}
+      >
         {value}
       </div>
       {subValue && (
-        <div className="text-[0.6875rem] mt-0.5" style={{ color: colors.muted }}>
+        <div
+          className="text-[0.6875rem] mt-0.5"
+          style={{ color: colors.muted }}
+        >
           {subValue}
         </div>
       )}
     </div>
   );
-}
+};
 
 // ── 1. Monthly Spending Trend ────────────────────────────────────────────────
 
@@ -204,16 +235,31 @@ const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+      <AreaChart
+        data={chartData}
+        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+      >
         <defs>
           <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3} />
             <stop offset="95%" stopColor={colors.primary} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-        <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
-        <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke={colors.grid}
+          opacity={0.5}
+        />
+        <XAxis
+          dataKey="month"
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+        />
+        <YAxis
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+          tickFormatter={fmtCompact}
+        />
         <Tooltip
           content={
             <CustomTooltip
@@ -227,7 +273,9 @@ const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
         />
         <Legend
           wrapperStyle={{ fontSize: "12px", color: colors.text }}
-          formatter={(v: string) => (v === "total" ? "Total Expenses" : "Total Savings")}
+          formatter={(v: string) =>
+            v === "total" ? "Total Expenses" : "Total Savings"
+          }
         />
         <Area
           type="monotone"
@@ -249,7 +297,7 @@ const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
       </AreaChart>
     </ResponsiveContainer>
   );
-}
+};
 
 // ── 2. Category Breakdown ────────────────────────────────────────────────────
 
@@ -257,19 +305,33 @@ interface CategoryBreakdownChartProps extends ChartProps {
   selectedMonth: number | null;
 }
 
-const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: CategoryBreakdownChartProps) => {
+const CategoryBreakdownChart = ({
+  data,
+  colors,
+  monthCount,
+  selectedMonth,
+}: CategoryBreakdownChartProps) => {
   const pieData = useMemo(() => {
     const items: { name: string; value: number }[] = [];
     if (selectedMonth === null) {
-      const fixedTotal = sliceMonths(data.monthlyFixedTotals, monthCount).reduce<number>((s, v) => s + (v || 0), 0);
+      const fixedTotal = sliceMonths(
+        data.monthlyFixedTotals,
+        monthCount,
+      ).reduce<number>((s, v) => s + (v || 0), 0);
       if (fixedTotal > 0) {
         items.push({ name: "Fixed Expenses", value: fixedTotal });
       }
       (data.variableRows || []).forEach((row) => {
-        const total = sliceMonths(row.amounts, monthCount).reduce<number>((s, v) => s + (v || 0), 0);
+        const total = sliceMonths(row.amounts, monthCount).reduce<number>(
+          (s, v) => s + (v || 0),
+          0,
+        );
         if (total > 0) items.push({ name: row.name, value: total });
       });
-      const savingsTotal = sliceMonths(data.monthlyTotalSavings, monthCount).reduce<number>((s, v) => s + (v || 0), 0);
+      const savingsTotal = sliceMonths(
+        data.monthlyTotalSavings,
+        monthCount,
+      ).reduce<number>((s, v) => s + (v || 0), 0);
       if (savingsTotal > 0) {
         items.push({ name: "Total Savings", value: savingsTotal });
       }
@@ -291,7 +353,10 @@ const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: Cat
     return items;
   }, [data, monthCount, selectedMonth]);
 
-  const emptyLabel = selectedMonth === null ? "No category data" : `No data for ${MONTHS[selectedMonth]}`;
+  const emptyLabel =
+    selectedMonth === null
+      ? "No category data"
+      : `No data for ${MONTHS[selectedMonth]}`;
   if (pieData.length === 0) return <EmptyState label={emptyLabel} />;
 
   return (
@@ -310,7 +375,11 @@ const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: Cat
           {pieData.map((entry, i) => (
             <Cell
               key={i}
-              fill={/saving/i.test(entry.name) ? colors.success : colors.chartPalette[i % colors.chartPalette.length]}
+              fill={
+                /saving/i.test(entry.name)
+                  ? colors.success
+                  : colors.chartPalette[i % colors.chartPalette.length]
+              }
             />
           ))}
         </Pie>
@@ -322,11 +391,10 @@ const CategoryBreakdownChart = ({ data, colors, monthCount, selectedMonth }: Cat
             />
           }
         />
-        <Legend />
       </PieChart>
     </ResponsiveContainer>
   );
-}
+};
 
 // ── 3. Savings Rate Trend ────────────────────────────────────────────────────
 
@@ -343,10 +411,26 @@ const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-        <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
-        <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtPct} domain={[0, "auto"]} />
+      <LineChart
+        data={chartData}
+        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke={colors.grid}
+          opacity={0.5}
+        />
+        <XAxis
+          dataKey="month"
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+        />
+        <YAxis
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+          tickFormatter={fmtPct}
+          domain={[0, "auto"]}
+        />
         <Tooltip
           content={
             <CustomTooltip
@@ -366,7 +450,7 @@ const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
       </LineChart>
     </ResponsiveContainer>
   );
-}
+};
 
 // ── 4. Monthly Total Savings ─────────────────────────────────────────────────
 
@@ -383,10 +467,26 @@ const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProps) => {
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barGap={2}>
-        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-        <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
-        <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
+      <BarChart
+        data={chartData}
+        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+        barGap={2}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke={colors.grid}
+          opacity={0.5}
+        />
+        <XAxis
+          dataKey="month"
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+        />
+        <YAxis
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+          tickFormatter={fmtCompact}
+        />
         <Tooltip
           content={
             <CustomTooltip
@@ -397,25 +497,35 @@ const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProps) => {
         />
         <Bar dataKey="savings" radius={[3, 3, 0, 0]} maxBarSize={32}>
           {chartData.map((entry, i) => (
-            <Cell key={i} fill={entry.savings >= 0 ? colors.success : colors.danger} />
+            <Cell
+              key={i}
+              fill={entry.savings >= 0 ? colors.success : colors.danger}
+            />
           ))}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
-}
+};
 
 // ── 5. Income vs. Expenses ───────────────────────────────────────────────────
 
-const IncomeVsExpensesChart = ({ data, colors, monthCount, selectedMonth }: CategoryBreakdownChartProps) => {
+const IncomeVsExpensesChart = ({
+  data,
+  colors,
+  monthCount,
+  selectedMonth,
+}: CategoryBreakdownChartProps) => {
   const chartData = useMemo(() => {
     if (selectedMonth !== null) {
       const m = selectedMonth;
-      return [{
-        month: MONTHS[m],
-        income: data.monthlyIncome[m] || 0,
-        expenses: data.monthlyTotals[m] || 0,
-      }];
+      return [
+        {
+          month: MONTHS[m],
+          income: data.monthlyIncome[m] || 0,
+          expenses: data.monthlyTotals[m] || 0,
+        },
+      ];
     }
     return MONTHS.slice(0, monthCount).map((m, i) => ({
       month: m,
@@ -429,10 +539,26 @@ const IncomeVsExpensesChart = ({ data, colors, monthCount, selectedMonth }: Cate
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barGap={2}>
-        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-        <XAxis dataKey="month" tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} />
-        <YAxis tick={{ fill: colors.muted, fontSize: 12 }} axisLine={{ stroke: colors.grid }} tickFormatter={fmtCompact} />
+      <BarChart
+        data={chartData}
+        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+        barGap={2}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke={colors.grid}
+          opacity={0.5}
+        />
+        <XAxis
+          dataKey="month"
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+        />
+        <YAxis
+          tick={{ fill: colors.muted, fontSize: 12 }}
+          axisLine={{ stroke: colors.grid }}
+          tickFormatter={fmtCompact}
+        />
         <Tooltip
           content={
             <CustomTooltip
@@ -448,12 +574,22 @@ const IncomeVsExpensesChart = ({ data, colors, monthCount, selectedMonth }: Cate
           wrapperStyle={{ fontSize: "12px", color: colors.text }}
           formatter={(v: string) => (v === "income" ? "Income" : "Expenses")}
         />
-        <Bar dataKey="income" fill={colors.success} radius={[3, 3, 0, 0]} maxBarSize={24} />
-        <Bar dataKey="expenses" fill={colors.danger} radius={[3, 3, 0, 0]} maxBarSize={24} />
+        <Bar
+          dataKey="income"
+          fill={colors.success}
+          radius={[3, 3, 0, 0]}
+          maxBarSize={24}
+        />
+        <Bar
+          dataKey="expenses"
+          fill={colors.danger}
+          radius={[3, 3, 0, 0]}
+          maxBarSize={24}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
-}
+};
 
 // ── Month View: Metric Cards ─────────────────────────────────────────────────
 
@@ -463,7 +599,11 @@ interface MonthMetricCardsProps {
   colors: ThemeColors;
 }
 
-const MonthMetricCards = ({ data, selectedMonth, colors }: MonthMetricCardsProps) => {
+const MonthMetricCards = ({
+  data,
+  selectedMonth,
+  colors,
+}: MonthMetricCardsProps) => {
   const m = selectedMonth;
   const expenses = data.monthlyTotals[m] || 0;
   const income = data.monthlyIncome[m] || 0;
@@ -496,13 +636,15 @@ const MonthMetricCards = ({ data, selectedMonth, colors }: MonthMetricCardsProps
       <MetricCard
         label={savingsLabel}
         value={fmtFull(Math.abs(totalSavings))}
-        subValue={remaining !== 0 ? `Remaining: ${fmtCompact(remaining)}` : undefined}
+        subValue={
+          remaining !== 0 ? `Remaining: ${fmtCompact(remaining)}` : undefined
+        }
         accentColor={totalSavings >= 0 ? colors.success : colors.danger}
         colors={colors}
       />
     </div>
   );
-}
+};
 
 // ── Empty State ──────────────────────────────────────────────────────────────
 
@@ -512,18 +654,24 @@ const EmptyState = ({ label }: { label: string }) => {
       <span className="text-xs text-theme-muted">{label}</span>
     </div>
   );
-}
+};
 
 // ── Chart Card Wrapper ───────────────────────────────────────────────────────
 
-const ChartCard = ({ title, children }: { title: string; children: React.ReactNode }) => {
+const ChartCard = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
   return (
     <div className="rounded-xl bg-theme-surface shadow-sm p-4">
       <h3 className="text-sm font-semibold text-theme-text mb-3">{title}</h3>
       {children}
     </div>
   );
-}
+};
 
 // ── Year View Layout ─────────────────────────────────────────────────────────
 
@@ -538,31 +686,53 @@ const YearView = ({ data, colors, monthCount }: ViewProps) => {
     <div className="space-y-4">
       {/* Row 1: Monthly Trend (full width) */}
       <ChartCard title="Monthly Spending Trend">
-        <MonthlyTrendChart data={data} colors={colors} monthCount={monthCount} />
+        <MonthlyTrendChart
+          data={data}
+          colors={colors}
+          monthCount={monthCount}
+        />
       </ChartCard>
 
       {/* Row 2: Breakdown + Savings (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ChartCard title="Category Breakdown">
-          <CategoryBreakdownChart data={data} colors={colors} monthCount={monthCount} selectedMonth={null} />
+          <CategoryBreakdownChart
+            data={data}
+            colors={colors}
+            monthCount={monthCount}
+            selectedMonth={null}
+          />
         </ChartCard>
         <ChartCard title="Savings Rate Trend">
-          <SavingsRateChart data={data} colors={colors} monthCount={monthCount} />
+          <SavingsRateChart
+            data={data}
+            colors={colors}
+            monthCount={monthCount}
+          />
         </ChartCard>
       </div>
 
       {/* Row 3: Monthly Total Savings + Income vs. Expenses (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ChartCard title="Monthly Total Savings">
-          <MonthlyTotalSavingsChart data={data} colors={colors} monthCount={monthCount} />
+          <MonthlyTotalSavingsChart
+            data={data}
+            colors={colors}
+            monthCount={monthCount}
+          />
         </ChartCard>
         <ChartCard title="Income vs. Expenses">
-          <IncomeVsExpensesChart data={data} colors={colors} monthCount={monthCount} selectedMonth={null} />
+          <IncomeVsExpensesChart
+            data={data}
+            colors={colors}
+            monthCount={monthCount}
+            selectedMonth={null}
+          />
         </ChartCard>
       </div>
     </div>
   );
-}
+};
 
 // ── Month View Layout ────────────────────────────────────────────────────────
 
@@ -576,7 +746,11 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
   return (
     <div className="space-y-4">
       {/* Row 1: Metric cards */}
-      <MonthMetricCards data={data} selectedMonth={selectedMonth} colors={colors} />
+      <MonthMetricCards
+        data={data}
+        selectedMonth={selectedMonth}
+        colors={colors}
+      />
 
       {/* Row 2: Category Breakdown + Income vs. Expenses (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -599,7 +773,7 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
       </div>
     </div>
   );
-}
+};
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
@@ -611,7 +785,13 @@ interface AnalyticsChartsProps {
   selectedMonth: number | null;
 }
 
-export default function AnalyticsCharts({ data, year, currentYear, currentMonth, selectedMonth }: AnalyticsChartsProps) {
+export default function AnalyticsCharts({
+  data,
+  year,
+  currentYear,
+  currentMonth,
+  selectedMonth,
+}: AnalyticsChartsProps) {
   const colors = useThemeColors();
   const monthCount = getMonthCount(year, currentYear, currentMonth);
 

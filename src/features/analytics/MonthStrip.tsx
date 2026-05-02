@@ -47,7 +47,7 @@ export default function MonthStrip({
       onStepBack={onPrevMonth}
       onStepForward={onNextMonth}
       onJumpForward={onJumpForward}
-      disableJumpBack={selectedMonth === null}
+      disableJumpBack={year <= 1}
       disableStepBack={!canPrevMonth || selectedMonth === null}
       disableStepForward={!canNextMonth}
       disableJumpForward={isAtCurrentMonth}

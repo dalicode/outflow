@@ -104,7 +104,7 @@ export default function DataTable<T>({
                 <td
                   key={cell.id}
                   className={cn(
-                    "px-3 py-2.5",
+                    "px-3 py-1",
                     cell.column.columnDef.meta?.cellClassName,
                   )}
                 >
