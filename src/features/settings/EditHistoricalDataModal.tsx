@@ -15,7 +15,7 @@ import {
   type RangeItem,
   flattenRangesToMonthMap,
 } from "../../utils/historicalDataHelpers";
-import type { Expense, FixedExpenseSnapshot } from "../../types";
+import type { Expense, FixedExpense, FixedExpenseSnapshot } from "../../types";
 
 const MONTHS = [
   "Jan",
@@ -262,8 +262,17 @@ interface FixedExpenseListProps {
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, patch: Partial<FixedItem>) => void;
-  onPreset: (preset: string) => void;
+  onPreset: (preset: { name: string; amount: string }) => void;
+  currentFixedDefs: FixedExpense[];
 }
+
+const HARDCODED_PRESETS = [
+  { name: "Rent", amount: "1200" },
+  { name: "Utilities", amount: "150" },
+  { name: "Insurance", amount: "200" },
+  { name: "Internet", amount: "80" },
+  { name: "Phone", amount: "50" },
+];
 
 function FixedExpenseList({
   items,
@@ -272,8 +281,21 @@ function FixedExpenseList({
   onRemove,
   onUpdate,
   onPreset,
+  currentFixedDefs,
 }: FixedExpenseListProps) {
-  const presets = ["Rent", "Utilities", "Insurance", "Internet", "Phone"];
+  const presets = useMemo(() => {
+    const presetMap = new Map<string, string>();
+    HARDCODED_PRESETS.forEach((p) => presetMap.set(p.name, p.amount));
+    currentFixedDefs.forEach((def) => {
+      if (def.name?.trim()) {
+        presetMap.set(def.name.trim(), String(def.amount));
+      }
+    });
+    return Array.from(presetMap.entries()).map(([name, amount]) => ({
+      name,
+      amount,
+    }));
+  }, [currentFixedDefs]);
 
   const maxMonth = getMaxMonthForYear(year);
 
@@ -337,11 +359,11 @@ function FixedExpenseList({
         <span className="text-xs text-theme-muted">Quick add:</span>
         {presets.map((preset) => (
           <button
-            key={preset}
+            key={preset.name}
             onClick={() => onPreset(preset)}
             className="text-xs text-theme-primary hover:underline font-medium transition-all"
           >
-            {preset}
+            {preset.name}
           </button>
         ))}
       </div>
@@ -400,136 +422,152 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
 
   if (!hasAnyData) return null;
 
-  const fixedItems = yearConfig.fixedItems.filter((i) => i.name.trim());
+  const totals = useMemo(() => {
+    return {
+      fixed: timeline.reduce((s, t) => s + t.fixedTotal, 0),
+      variable: timeline.reduce((s, t) => s + t.variableTotal, 0),
+      income: timeline.reduce((s, t) => s + t.income, 0),
+      autoSavings: timeline.reduce((s, t) => s + t.autoSavings, 0),
+      remaining: timeline.reduce((s, t) => s + t.remaining, 0),
+      totalSavings: timeline.reduce((s, t) => s + t.totalSavings, 0),
+    };
+  }, [timeline]);
+
+  const valueCell = (
+    val: number,
+    type:
+      | "fixed"
+      | "variable"
+      | "income"
+      | "autoSavings"
+      | "remaining"
+      | "totalSavings",
+  ) => {
+    if (val === 0) return <span className="text-theme-muted">—</span>;
+    const baseCls = "tabular-nums";
+    switch (type) {
+      case "fixed":
+        return (
+          <span className={cn(baseCls, "text-theme-text")}>
+            {formatAmount(val)}
+          </span>
+        );
+      case "variable":
+        return (
+          <span className={cn(baseCls, "text-theme-danger")}>
+            {formatAmount(val)}
+          </span>
+        );
+      case "income":
+        return (
+          <span className={cn(baseCls, "text-theme-success")}>
+            {formatAmount(val)}
+          </span>
+        );
+      case "autoSavings":
+        return (
+          <span className={cn(baseCls, "text-theme-primary")}>
+            {formatAmount(val)}
+          </span>
+        );
+      case "remaining":
+      case "totalSavings":
+        return (
+          <span
+            className={cn(
+              baseCls,
+              val > 0
+                ? "text-theme-success"
+                : val < 0
+                  ? "text-theme-danger"
+                  : "text-theme-text",
+            )}
+          >
+            {formatAmount(val)}
+          </span>
+        );
+    }
+  };
 
   return (
     <div>
       <label className="text-xs font-semibold text-theme-muted uppercase tracking-wide block mb-2">
         Preview
       </label>
-      <div className="overflow-x-auto rounded-xl border border-theme-border shadow-sm">
-        <table className="min-w-full text-xs">
+      <div className="rounded-xl border border-theme-border shadow-sm">
+        <table className="w-full text-xs">
           <thead>
             <tr className="bg-theme-background border-b border-theme-border">
-              <th className="text-left px-2 py-1.5 font-semibold text-theme-muted whitespace-nowrap sticky left-0 bg-theme-background">
-                Name
+              <th className="text-left px-2 py-1.5 font-semibold text-theme-muted">
+                Month
               </th>
-              {MONTHS.map((m) => (
-                <th
-                  key={m}
-                  className="text-center px-1 py-1.5 font-semibold text-theme-muted w-10"
-                >
-                  {m}
-                </th>
-              ))}
-              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted whitespace-nowrap">
-                Total
+              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
+                Fixed
+              </th>
+              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
+                Variable
+              </th>
+              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
+                Income
+              </th>
+              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
+                Auto Savings
+              </th>
+              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
+                Remaining
+              </th>
+              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
+                Total Savings
               </th>
             </tr>
           </thead>
           <tbody>
-            {fixedItems.map((item) => {
-              const sm = clamp(
-                parseInt(String(item.startMonth), 10) || 1,
-                1,
-                12,
-              );
-              const em = clamp(
-                parseInt(String(item.endMonth), 10) || 12,
-                1,
-                12,
-              );
-              const amt = parseFloat(String(item.amount)) || 0;
-              const total = amt * (em - sm + 1);
-              return (
-                <tr key={item.id} className="border-b border-theme-border">
-                  <td className="px-2 py-1.5 text-theme-text font-semibold whitespace-nowrap sticky left-0 bg-theme-background">
-                    {item.name.trim()}
-                  </td>
-                  {Array.from({ length: 12 }, (_, m) => (
-                    <td
-                      key={m}
-                      className={`text-center px-1 py-1.5 ${
-                        m + 1 >= sm && m + 1 <= em
-                          ? "text-theme-text"
-                          : "text-theme-muted"
-                      }`}
-                    >
-                      {m + 1 >= sm && m + 1 <= em ? formatAmount(amt) : "—"}
-                    </td>
-                  ))}
-                  <td className="text-right px-2 py-1.5 font-semibold text-theme-text whitespace-nowrap">
-                    {formatAmount(total)}
-                  </td>
-                </tr>
-              );
-            })}
-            {[
-              {
-                label: "Variable Expenses",
-                values: timeline.map((t) => t.variableTotal),
-                cls: "text-theme-danger",
-              },
-              {
-                label: "Income",
-                values: timeline.map((t) => t.income),
-                cls: "text-theme-success",
-              },
-              {
-                label: "Auto Savings",
-                values: timeline.map((t) => t.autoSavings),
-                cls: "text-theme-primary",
-              },
-              {
-                label: "Total Savings",
-                values: timeline.map((t) => t.totalSavings),
-                getCls: (val: number) =>
-                  val > 0
-                    ? "text-theme-success"
-                    : val < 0
-                      ? "text-theme-danger"
-                      : "text-theme-text",
-              },
-            ].map((row) => (
-              <tr
-                key={row.label}
-                className="border-b border-theme-border bg-theme-background/50"
-              >
-                <td className="px-2 py-1.5 text-theme-text font-semibold whitespace-nowrap sticky left-0 bg-theme-background">
-                  {row.label}
+            {timeline.map((t) => (
+              <tr key={t.month} className="border-b border-theme-border">
+                <td className="px-2 py-1.5 text-theme-text font-medium">
+                  {MONTHS[t.month - 1]}
                 </td>
-                {row.values.map((val, m) => (
-                  <td
-                    key={m}
-                    className={`text-center px-1 py-1.5 ${
-                      val !== 0
-                        ? row.getCls
-                          ? row.getCls(val)
-                          : row.cls
-                        : "text-theme-muted"
-                    }`}
-                  >
-                    {val !== 0 ? formatAmount(val) : "—"}
-                  </td>
-                ))}
-                {(() => {
-                  const total = row.values.reduce((s, v) => s + v, 0);
-                  const totalCls =
-                    total !== 0
-                      ? row.getCls
-                        ? row.getCls(total)
-                        : row.cls
-                      : "text-theme-muted";
-                  return (
-                    <td
-                      className={`text-right px-2 py-1.5 font-semibold whitespace-nowrap ${totalCls}`}
-                    >
-                      {total !== 0 ? formatAmount(total) : "—"}
-                    </td>
-                  );
-                })()}
+                <td className="text-right px-2 py-1.5">
+                  {valueCell(t.fixedTotal, "fixed")}
+                </td>
+                <td className="text-right px-2 py-1.5">
+                  {valueCell(t.variableTotal, "variable")}
+                </td>
+                <td className="text-right px-2 py-1.5">
+                  {valueCell(t.income, "income")}
+                </td>
+                <td className="text-right px-2 py-1.5">
+                  {valueCell(t.autoSavings, "autoSavings")}
+                </td>
+                <td className="text-right px-2 py-1.5">
+                  {valueCell(t.remaining, "remaining")}
+                </td>
+                <td className="text-right px-2 py-1.5">
+                  {valueCell(t.totalSavings, "totalSavings")}
+                </td>
               </tr>
             ))}
+            <tr className="bg-theme-background/50 font-semibold">
+              <td className="px-2 py-1.5 text-theme-text">Total</td>
+              <td className="text-right px-2 py-1.5">
+                {valueCell(totals.fixed, "fixed")}
+              </td>
+              <td className="text-right px-2 py-1.5">
+                {valueCell(totals.variable, "variable")}
+              </td>
+              <td className="text-right px-2 py-1.5">
+                {valueCell(totals.income, "income")}
+              </td>
+              <td className="text-right px-2 py-1.5">
+                {valueCell(totals.autoSavings, "autoSavings")}
+              </td>
+              <td className="text-right px-2 py-1.5">
+                {valueCell(totals.remaining, "remaining")}
+              </td>
+              <td className="text-right px-2 py-1.5">
+                {valueCell(totals.totalSavings, "totalSavings")}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -576,6 +614,7 @@ export default function EditHistoricalDataModal({
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
+  const [currentFixedDefs, setCurrentFixedDefs] = useState<FixedExpense[]>([]);
 
   // Load existing data when modal opens
   useEffect(() => {
@@ -596,12 +635,6 @@ export default function EditHistoricalDataModal({
             StorageService.getAllFixedExpenseSnapshots(),
           ]);
 
-        console.log("Loaded data:", {
-          fixedDefs,
-          incSnaps,
-          savSnaps,
-          allFixedSnaps,
-        });
         const defMap = new Map(
           (fixedDefs as Array<{ id?: number; name: string }>).map((f) => [
             f.id,
@@ -625,7 +658,7 @@ export default function EditHistoricalDataModal({
           const savingsRanges = monthMapToRanges(savMonthMap);
 
           // Fixed expenses from snapshots
-          const snapshots = await StorageService.getSnapshotsForYear(year);
+          const snapshots = allFixedSnaps.filter((s) => s.year === year);
           const byDef = new Map<number, FixedExpenseSnapshot[]>();
           for (const s of snapshots) {
             if (!byDef.has(s.fixedExpenseId)) byDef.set(s.fixedExpenseId, []);
@@ -662,6 +695,7 @@ export default function EditHistoricalDataModal({
           setErrors({});
           setResultMsg("");
           setSaveMode("merge");
+          setCurrentFixedDefs(fixedDefs as FixedExpense[]);
         }
       } catch (err) {
         console.error("Failed to load historical data:", err);
@@ -762,7 +796,13 @@ export default function EditHistoricalDataModal({
     updateYearConfig(year, {
       fixedItems: [
         ...items,
-        { id: nextId(), name: "", amount: "", startMonth: 1, endMonth: getMaxMonthForYear(year) },
+        {
+          id: nextId(),
+          name: "",
+          amount: "",
+          startMonth: 1,
+          endMonth: getMaxMonthForYear(year),
+        },
       ],
     });
   };
@@ -785,12 +825,21 @@ export default function EditHistoricalDataModal({
     });
   };
 
-  const addPreset = (year: number, preset: string) => {
+  const addPreset = (
+    year: number,
+    preset: { name: string; amount: string },
+  ) => {
     const items = yearConfigs[year]?.fixedItems || [];
     updateYearConfig(year, {
       fixedItems: [
         ...items,
-        { id: nextId(), name: preset, amount: "", startMonth: 1, endMonth: getMaxMonthForYear(year) },
+        {
+          id: nextId(),
+          name: preset.name,
+          amount: preset.amount,
+          startMonth: 1,
+          endMonth: getMaxMonthForYear(year),
+        },
       ],
     });
   };
@@ -1093,6 +1142,7 @@ export default function EditHistoricalDataModal({
                     updateFixedItem(activeYear, id, patch)
                   }
                   onPreset={(preset) => addPreset(activeYear, preset)}
+                  currentFixedDefs={currentFixedDefs}
                 />
 
                 {/* Preview */}
