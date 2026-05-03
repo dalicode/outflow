@@ -4,6 +4,7 @@ import ModalFooter from "../../components/ui/ModalFooter";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import { toISODate, parseISODate } from "../../utils/historicalDataHelpers";
+import { normalizeName } from "../../utils/normalizeName";
 import type { Schedule, FixedExpense, Category } from "../../types";
 
 const SCHEDULE_TYPES = [
@@ -266,11 +267,11 @@ export default function ScheduleModal({
               disabled={isReadOnly}
             >
               <option value="">Select…</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {normalizeName(c.name)}
+                    </option>
+                  ))}
             </select>
           </div>
         )}

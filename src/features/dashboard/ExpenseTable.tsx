@@ -8,6 +8,7 @@ import ContextMenu from "../../components/ui/ContextMenu";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import ExpenseTableMobile from "./ExpenseTableMobile";
 import ExpenseForm from "../expenses/ExpenseForm";
+import { normalizeName } from "../../utils/normalizeName";
 import { getExpenseColumns } from "./expenseColumns";
 import type { Expense, Category } from "../../types";
 
@@ -89,7 +90,7 @@ export default function ExpenseTable({
   const resolveName = useCallback(
     (exp: Expense) => {
       const cat = catMap[exp.categoryId as number];
-      if (cat) return cat.isArchived ? `${cat.name} (deleted)` : cat.name;
+      if (cat) return cat.isArchived ? `${normalizeName(cat.name)} (deleted)` : normalizeName(cat.name);
       return exp.category || "Uncategorized";
     },
     [catMap],

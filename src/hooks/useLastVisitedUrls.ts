@@ -8,6 +8,7 @@ const PAGE_KEYS: Record<string, string> = {
   dashboard: ROUTES.DASHBOARD,
   summary: ROUTES.SUMMARY,
   analytics: ROUTES.ANALYTICS,
+  payees: ROUTES.PAYEES,
   settings: ROUTES.SETTINGS,
 };
 

@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "../../utils/cn";
+import { normalizeName } from "../../utils/normalizeName";
 import type { Expense, Category, Payee } from "../../types";
 
 interface GetExpenseColumnsParams {
@@ -48,9 +49,9 @@ export function getExpenseColumns({
 
   const resolvePayeeName = (exp: Expense) => {
     if (exp.payeeId && payeeMap[exp.payeeId]) {
-      return payeeMap[exp.payeeId].name;
+      return normalizeName(payeeMap[exp.payeeId].name);
     }
-    return exp.payee || "—";
+    return exp.payee ? normalizeName(exp.payee) : "—";
   };
 
   return [
@@ -159,7 +160,7 @@ export function getExpenseColumns({
             >
               {activeCategories.map((c) => (
                 <option key={c.id} value={c.id as number}>
-                  {c.name}
+                  {normalizeName(c.name)}
                 </option>
               ))}
             </select>

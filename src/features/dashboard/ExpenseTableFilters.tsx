@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { cn } from "../../utils/cn";
+import { normalizeName } from "../../utils/normalizeName";
 import type { Category } from "../../types";
 
 interface ExpenseTableFiltersProps {
@@ -111,11 +112,11 @@ export default function ExpenseTableFilters({
           className="input-theme px-2 py-1 text-xs"
         >
           <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.name}>
-              {c.name}
-            </option>
-          ))}
+            {categories.map((c) => (
+              <option key={c.id} value={c.name}>
+                {normalizeName(c.name)}
+              </option>
+            ))}
         </select>
         <input
           type="text"

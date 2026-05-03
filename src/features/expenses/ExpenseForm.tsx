@@ -4,6 +4,7 @@ import { useSettings } from '../../context/settingsContext'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
+import { normalizeName } from '../../utils/normalizeName'
 import { usePayees } from '../../hooks/useLocalData'
 import { StorageService } from '../../services/storageService'
 import './expenses.css'
@@ -87,7 +88,7 @@ function CategoryModal({ categories, onCategoriesChange, onClose, refreshCategor
               </form>
             ) : (
               <>
-                <span className="flex-1 text-theme-text">{cat.name}</span>
+                <span className="flex-1 text-theme-text">{normalizeName(cat.name)}</span>
                 <button type="button" onClick={() => { setEditId(cat.id as number); setEditName(cat.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
                 <button type="button" onClick={async () => {
                   if (onCategoriesChange) {
@@ -177,9 +178,9 @@ function PayeeModal({ payees, onPayeesChange, onClose, refreshPayees }: PayeeMod
               </form>
             ) : (
               <>
-                <span className="flex-1 text-theme-text">{payee.name}</span>
+                <span className="flex-1 text-theme-text">{normalizeName(payee.name)}</span>
                 <button type="button" onClick={() => { setEditId(payee.id as number); setEditName(payee.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
-                <button type="button" onClick={() => handleArchive(payee.id as number)} className="text-theme-muted hover:text-theme-text">Archive</button>
+                <button type="button" onClick={() => handleArchive(payee.id as number)} className="text-theme-danger hover:opacity-80">Delete</button>
               </>
             )}
           </li>
@@ -269,7 +270,7 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
               </span>
               <select value={form.categoryId} onChange={set('categoryId')} required className={inputCls}>
                 <option value="">Select…</option>
-                {activeCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {activeCategories.map((c) => <option key={c.id} value={c.id}>{normalizeName(c.name)}</option>)}
               </select>
             </label>
           </div>
@@ -281,7 +282,7 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
             </span>
             <select value={form.payeeId} onChange={set('payeeId')} className={inputCls}>
               <option value="">— No payee —</option>
-              {activePayees.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {activePayees.map((p) => <option key={p.id} value={p.id}>{normalizeName(p.name)}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-theme-muted">

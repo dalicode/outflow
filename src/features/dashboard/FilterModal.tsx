@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
+import { normalizeName } from "../../utils/normalizeName";
 import type { Category } from "../../types";
 
 interface FilterDraft {
@@ -126,7 +127,7 @@ export default function FilterModal({
             <option value="">All categories</option>
             {categories.map((c) => (
               <option key={c.id} value={c.name}>
-                {c.name}
+                {normalizeName(c.name)}
               </option>
             ))}
           </select>

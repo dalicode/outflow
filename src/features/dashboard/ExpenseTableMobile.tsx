@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
 import { cn } from "../../utils/cn";
+import { normalizeName } from "../../utils/normalizeName";
 import type { Expense } from "../../types";
 
 interface ExpenseTableMobileProps {
@@ -89,7 +90,7 @@ export default function ExpenseTableMobile({
               >
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-medium text-theme-text truncate">
-                    {exp.payee || exp.description || "—"}
+                    {exp.payee ? normalizeName(exp.payee) : exp.description || "—"}
                   </span>
                   {!hideCategory && (
                     <span className="text-xs text-theme-muted truncate">

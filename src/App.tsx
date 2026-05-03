@@ -14,6 +14,7 @@ import ExpenseForm from "./features/expenses/ExpenseForm";
 import Dashboard from "./features/dashboard/Dashboard";
 import SummaryPage from "./features/summary/SummaryPage";
 import AnalyticsPage from "./features/analytics/AnalyticsPage";
+import PayeesPage from "./features/payees/PayeesPage";
 import AuthPage from "./features/auth/AuthPage";
 import SettingsPage from "./features/settings/SettingsPage";
 import type { SyncStatus } from "./types";
@@ -267,6 +268,14 @@ export default function App() {
                         expenses={expenses}
                         categories={categories}
                       />
+                    </ScrollablePage>
+                  }
+                />
+                <Route
+                  path={ROUTES.PAYEES}
+                  element={
+                    <ScrollablePage onScroll={handlePageScroll}>
+                      <PayeesPage />
                     </ScrollablePage>
                   }
                 />

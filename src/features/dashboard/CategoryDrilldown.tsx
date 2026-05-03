@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { cn } from "../../utils/cn";
+import { normalizeName } from "../../utils/normalizeName";
 import type { Expense } from "../../types";
 import ExpenseTableMobile from "./ExpenseTableMobile";
 
@@ -66,9 +67,9 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
                       <td className="px-3 py-1 text-theme-text whitespace-nowrap">
                         {formatDate(exp.date)}
                       </td>
-                      <td className="px-3 py-1 text-theme-text whitespace-nowrap">
-                        {exp.payee || "—"}
-                      </td>
+                    <td className="px-3 py-1 text-theme-text whitespace-nowrap">
+                      {exp.payee ? normalizeName(exp.payee) : "—"}
+                    </td>
                       <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
                         {exp.description || "—"}
                       </td>

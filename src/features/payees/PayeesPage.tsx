@@ -1,0 +1,173 @@
+import { useState, useMemo } from "react";
+import { cn } from "../../utils/cn";
+import { normalizeName } from "../../utils/normalizeName";
+import { usePayees } from "../../hooks/useLocalData";
+import { StorageService } from "../../services/storageService";
+import type { Payee } from "../../types";
+
+export default function PayeesPage() {
+  const { payees, refresh } = usePayees();
+  const [search, setSearch] = useState("");
+  const [newName, setNewName] = useState("");
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const activePayees = useMemo(
+    () => payees.filter((p) => !p.isArchived),
+    [payees]
+  );
+
+  const sortedPayees = useMemo(
+    () => [...activePayees].sort((a, b) => a.name.localeCompare(b.name)),
+    [activePayees]
+  );
+
+  const filteredPayees = useMemo(() => {
+    if (!search.trim()) return sortedPayees;
+    const q = search.toLowerCase();
+    return sortedPayees.filter((p) => p.name.toLowerCase().includes(q));
+  }, [sortedPayees, search]);
+
+  const handleAdd = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      await StorageService.addPayee(trimmed);
+      setNewName("");
+      setError("");
+      refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const startEdit = (payee: Payee) => {
+    setEditingId(payee.id as number);
+    setEditName(payee.name);
+    setError("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setError("");
+  };
+
+  const saveEdit = async (id: number) => {
+    const trimmed = editName.trim();
+    if (!trimmed) return;
+    try {
+      await StorageService.updatePayee(id, trimmed);
+      setEditingId(null);
+      setEditName("");
+      setError("");
+      refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    await StorageService.archivePayee(id);
+    refresh();
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <h1 className="text-xl font-bold text-theme-text">Payees</h1>
+
+      {/* Search + Add */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search payees..."
+          className="input-theme flex-1 px-3 py-2 text-sm"
+        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="New payee name"
+            className="input-theme flex-1 sm:w-48 px-3 py-2 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAdd();
+            }}
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!newName.trim()}
+            className="bg-theme-primary hover:opacity-90 disabled:opacity-40 text-white text-xs font-medium px-4 py-2 rounded-theme-small transition-opacity whitespace-nowrap"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="text-xs text-theme-danger">{error}</p>}
+
+      {/* List */}
+      <div className="space-y-1">
+        {filteredPayees.map((payee) => (
+          <div
+            key={payee.id}
+            className="flex items-center justify-between py-2 px-3 rounded-theme-small border border-theme-border/50 hover:bg-theme-background transition-colors"
+          >
+            {editingId === payee.id ? (
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input-theme flex-1 px-2 py-1 text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit(payee.id as number);
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                />
+                <button
+                  onClick={() => saveEdit(payee.id as number)}
+                  className="text-xs text-theme-primary font-medium"
+                >
+                  Save
+                </button>
+                <button onClick={cancelEdit} className="text-xs text-theme-muted">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <>
+                <span className="text-sm flex-1 text-theme-text">
+                  {normalizeName(payee.name)}
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => startEdit(payee)}
+                    className="text-xs text-theme-primary hover:opacity-80 font-medium"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(payee.id as number)}
+                    className="text-xs text-theme-danger hover:opacity-80"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+        {filteredPayees.length === 0 && (
+          <p className="text-sm text-theme-muted text-center py-8">
+            {search.trim() ? "No payees match your search." : "No payees yet."}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

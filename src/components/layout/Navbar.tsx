@@ -228,8 +228,39 @@ const SignOutIcon = () => (
   </svg>
 );
 
+const PayeesIcon = ({ active }: NavIconProps) => (
+  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
+    <circle
+      cx="9"
+      cy="8"
+      r="3"
+      fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+    />
+    <path
+      d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <circle
+      cx="17"
+      cy="8"
+      r="2.5"
+      fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      opacity="0.6"
+    />
+    <path
+      d="M14 20c0-2.5 1.8-4.5 4-4.5s4 2 4 4.5"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="2"
+      strokeLinecap="round"
+      opacity="0.6"
+    />
+  </svg>
+);
+
 interface NavItemConfig {
-  pageKey: "dashboard" | "summary" | "analytics" | "settings";
+  pageKey: "dashboard" | "summary" | "analytics" | "payees" | "settings";
   basePath: string;
   label: string;
   icon: React.ComponentType<NavIconProps>;
@@ -239,6 +270,7 @@ const NAV_ITEMS: NavItemConfig[] = [
   { pageKey: "dashboard", basePath: ROUTES.DASHBOARD, label: "Dashboard", icon: DashboardIcon },
   { pageKey: "summary", basePath: ROUTES.SUMMARY, label: "Summary", icon: SummaryIcon },
   { pageKey: "analytics", basePath: ROUTES.ANALYTICS, label: "Analytics", icon: AnalyticsIcon },
+  { pageKey: "payees", basePath: ROUTES.PAYEES, label: "Payees", icon: PayeesIcon },
   { pageKey: "settings", basePath: ROUTES.SETTINGS, label: "Settings", icon: SettingsIcon },
 ];
 

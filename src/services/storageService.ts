@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import { isEncryptedEnvelope, decryptBackup } from '../utils/backupCrypto'
+import { normalizeName } from '../utils/normalizeName'
 import type {
   Expense,
   Category,
@@ -517,8 +518,21 @@ export const StorageService = {
   // ── Categories ────────────────────────────────────────────
   getCategories: () => db.categories.toArray(),
   addCategory: async (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Category name is required')
+    const normalized = normalizeName(trimmed)
+    const existing = await db.categories.where('name').equalsIgnoreCase(trimmed).first()
+    if (existing) {
+      if (existing.isArchived) {
+        await db.categories.update(existing.id, { name: normalized, isArchived: false })
+        const row = await db.categories.get(existing.id)
+        await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
+        return existing.id
+      }
+      throw new Error('A category with that name already exists')
+    }
     const id = await db.categories.add({
-      name: name.trim(),
+      name: normalized,
       createdAt: new Date().toISOString(),
       isArchived: false,
     } as Category)
@@ -527,6 +541,9 @@ export const StorageService = {
     return id
   },
   updateCategory: async (id: number, changes: Partial<Category>) => {
+    if (changes.name) {
+      changes.name = normalizeName(changes.name.trim())
+    }
     await db.categories.update(id, changes)
     const row = await db.categories.get(id)
     await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
@@ -544,10 +561,19 @@ export const StorageService = {
   addPayee: async (name: string) => {
     const trimmed = name.trim()
     if (!trimmed) throw new Error('Payee name is required')
+    const normalized = normalizeName(trimmed)
     const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
-    if (existing) throw new Error('A payee with that name already exists')
+    if (existing) {
+      if (existing.isArchived) {
+        await db.payees.update(existing.id, { name: normalized, isArchived: false })
+        const row = await db.payees.get(existing.id)
+        await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
+        return existing.id
+      }
+      throw new Error('A payee with that name already exists')
+    }
     const id = await db.payees.add({
-      name: trimmed,
+      name: normalized,
       createdAt: new Date().toISOString(),
       isArchived: false,
     } as Payee)
@@ -558,9 +584,10 @@ export const StorageService = {
   updatePayee: async (id: number, name: string) => {
     const trimmed = name.trim()
     if (!trimmed) throw new Error('Payee name is required')
+    const normalized = normalizeName(trimmed)
     const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
     if (existing && existing.id !== id) throw new Error('A payee with that name already exists')
-    await db.payees.update(id, { name: trimmed })
+    await db.payees.update(id, { name: normalized })
     const row = await db.payees.get(id)
     await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
   },
