@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useSettings } from "../../context/settingsContext";
-import Modal from "../../components/ui/Modal";
+import SavingsModalForm from "../../components/forms/SavingsModalForm";
 
 function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -25,64 +25,24 @@ interface SavingsFormProps {
   onSave: (rate: number) => void;
 }
 
-export default function SavingsForm({ savingsRate, monthlyIncome, onSave }: SavingsFormProps) {
+export default function SavingsForm({
+  savingsRate,
+  monthlyIncome,
+  onSave,
+}: SavingsFormProps) {
   const { formatAmount } = useSettings();
   const [showModal, setShowModal] = useState(false);
-  const [amountDraft, setAmountDraft] = useState<string>("");
-  const [percentDraft, setPercentDraft] = useState<string>("");
-  const [error, setError] = useState("");
 
-  const openModal = () => {
-    const rate = Number(savingsRate || 0);
-    const amount = (rate / 100) * monthlyIncome;
-    setPercentDraft(rate.toFixed(2));
-    setAmountDraft(amount.toFixed(2));
-    setError("");
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setError("");
-  };
-
-  const handleAmountChange = (value: string) => {
-    setAmountDraft(value);
-    const amt = parseFloat(value || "0");
-    if (!isNaN(amt) && monthlyIncome > 0) {
-      setPercentDraft(((amt / monthlyIncome) * 100).toFixed(2));
-    }
-  };
-
-  const handlePercentChange = (value: string) => {
-    setPercentDraft(value);
-    const pct = parseFloat(value || "0");
-    if (!isNaN(pct)) {
-      setAmountDraft(((pct / 100) * monthlyIncome).toFixed(2));
-    }
-  };
-
-  const submit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const pct = parseFloat(percentDraft);
-    if (isNaN(pct) || pct < 0 || pct > 100) {
-      setError("Enter a value between 0 and 100.");
-      return;
-    }
-    setError("");
-    onSave(pct);
-    setShowModal(false);
-  };
-
-  // Card always reflects the actual global value
   const cardRate = Number(savingsRate || 0);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-theme-text tracking-tight">Savings Goal</span>
+        <span className="text-sm font-semibold text-theme-text tracking-tight">
+          Savings Goal
+        </span>
         <button
-          onClick={openModal}
+          onClick={() => setShowModal(true)}
           aria-label="Edit savings goal"
           className="icon-btn"
         >
@@ -96,72 +56,19 @@ export default function SavingsForm({ savingsRate, monthlyIncome, onSave }: Savi
         {cardRate.toFixed(1)}% of monthly income
       </p>
 
-      <Modal
+      <SavingsModalForm
         isOpen={showModal}
-        onClose={closeModal}
+        onClose={() => setShowModal(false)}
         title="Edit Savings Goal"
         size="md"
-      >
-        <form onSubmit={submit} className="space-y-4">
-          {error && <p className="text-theme-danger text-xs">{error}</p>}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Amount
-              </label>
-              <input
-                type="number"
-                value={amountDraft}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                placeholder="e.g. 500"
-                min="0"
-                step="0.01"
-                disabled={monthlyIncome <= 0}
-                className="input-theme px-3 py-2 text-sm w-full min-w-0"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
-                Percentage
-              </label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="number"
-                  value={percentDraft}
-                  onChange={(e) => handlePercentChange(e.target.value)}
-                  placeholder="e.g. 20"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  autoFocus
-                  className="input-theme px-3 py-2 text-sm w-full min-w-0"
-                />
-                <span className="text-sm text-theme-muted shrink-0">%</span>
-              </div>
-            </div>
-          </div>
-          {monthlyIncome <= 0 && (
-            <p className="text-xs text-theme-muted">
-              Set your income first to enable amount-based editing.
-            </p>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              type="submit"
-              className="summary-save-btn"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={closeModal}
-              className="summary-cancel-btn rounded-theme-small"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </Modal>
+        initialRate={savingsRate ? String(savingsRate) : ""}
+        monthlyIncome={monthlyIncome}
+        onSave={(rate) => {
+          onSave(rate);
+          setShowModal(false);
+        }}
+        description="Percentage of income automatically set aside. The remaining budget = income − fixed expenses − auto savings."
+      />
     </div>
   );
 }

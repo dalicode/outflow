@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
+import ModalFooter from "../../components/ui/ModalFooter";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import LoadingOverlay from "../../components/ui/LoadingOverlay";
 import { StorageService } from "../../services/storageService";
 import {
@@ -318,6 +320,28 @@ export default function BackupSection({
             : "Decrypt Backup"
         }
         size="md"
+        footer={
+          <ModalFooter>
+            <button
+              onClick={() => {
+                setShowPasswordModal(false);
+                setPasswordError("");
+                setPendingFile(null);
+              }}
+              className="btn-cancel-sm flex-1 py-2.5"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePasswordSubmit}
+              className="btn-primary-sm flex-1 py-2.5"
+            >
+              {passwordModalMode === "export"
+                ? "Encrypt & Export"
+                : "Decrypt & Import"}
+            </button>
+          </ModalFooter>
+        }
       >
         <div className="space-y-3">
           <p className="text-xs text-theme-muted">
@@ -355,31 +379,11 @@ export default function BackupSection({
           {passwordError && (
             <p className="text-xs text-theme-danger">{passwordError}</p>
           )}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={handlePasswordSubmit}
-              className="btn-primary-sm flex-1 py-2.5"
-            >
-              {passwordModalMode === "export"
-                ? "Encrypt & Export"
-                : "Decrypt & Import"}
-            </button>
-            <button
-              onClick={() => {
-                setShowPasswordModal(false);
-                setPasswordError("");
-                setPendingFile(null);
-              }}
-              className="btn-cancel-sm flex-1 py-2.5"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       </Modal>
 
       {/* DB Version Warning Modal */}
-      <Modal
+      <ConfirmDialog
         isOpen={showDbVersionModal}
         onClose={() => {
           setShowDbVersionModal(false);
@@ -387,81 +391,66 @@ export default function BackupSection({
           setPendingImportMeta(null);
         }}
         title="Backup Version Mismatch"
-        size="md"
-      >
-        <div className="space-y-3">
-          <p className="text-xs text-theme-danger">
-            This backup was made with a newer app version. Some data may not
-            import correctly.
-          </p>
-          {pendingImportMeta && (
-            <div className="text-xs text-theme-muted space-y-1">
-              <p>
-                <span className="font-medium">Exported:</span>{" "}
-                {pendingImportMeta.exportedAt
-                  ? new Date(
-                      pendingImportMeta.exportedAt as string,
-                    ).toLocaleString()
-                  : "Unknown"}
-              </p>
-              <p>
-                <span className="font-medium">Backup DB version:</span>{" "}
-                {String(pendingImportMeta.dbVersion ?? "?")}
-              </p>
-              <p>
-                <span className="font-medium">Current DB version:</span>{" "}
-                {StorageService.dbVersion()}
-              </p>
-              {pendingImportMeta.recordCounts && (
+        description={
+          <div className="space-y-3">
+            <p className="text-xs text-theme-danger">
+              This backup was made with a newer app version. Some data may not
+              import correctly.
+            </p>
+            {pendingImportMeta && (
+              <div className="text-xs text-theme-muted space-y-1">
                 <p>
-                  <span className="font-medium">Records:</span>{" "}
-                  {Object.entries(
-                    pendingImportMeta.recordCounts as Record<string, number>,
-                  )
-                    .map(([k, v]) => `${k}: ${v}`)
-                    .join(", ")}
+                  <span className="font-medium">Exported:</span>{" "}
+                  {pendingImportMeta.exportedAt
+                    ? new Date(
+                        pendingImportMeta.exportedAt as string,
+                      ).toLocaleString()
+                    : "Unknown"}
                 </p>
-              )}
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={async () => {
-                if (!pendingImportPayload) return;
-                try {
-                  await StorageService.importAllData(pendingImportPayload, {
-                    replace: replaceMode,
-                  });
-                  await onRefreshAll?.();
-                  triggerSync?.();
-                  setShowDbVersionModal(false);
-                  setPendingImportPayload(null);
-                  setPendingImportMeta(null);
-                  triggerReload();
-                } catch (err) {
-                  onStatus(`Import failed: ${(err as Error).message}`);
-                  setShowDbVersionModal(false);
-                  setPendingImportPayload(null);
-                  setPendingImportMeta(null);
-                }
-              }}
-              className="btn-danger-sm flex-1 py-2.5"
-            >
-              Proceed Anyway
-            </button>
-            <button
-              onClick={() => {
-                setShowDbVersionModal(false);
-                setPendingImportPayload(null);
-                setPendingImportMeta(null);
-              }}
-              className="btn-cancel-sm flex-1 py-2.5"
-            >
-              Cancel
-            </button>
+                <p>
+                  <span className="font-medium">Backup DB version:</span>{" "}
+                  {String(pendingImportMeta.dbVersion ?? "?")}
+                </p>
+                <p>
+                  <span className="font-medium">Current DB version:</span>{" "}
+                  {StorageService.dbVersion()}
+                </p>
+                {pendingImportMeta.recordCounts && (
+                  <p>
+                    <span className="font-medium">Records:</span>{" "}
+                    {Object.entries(
+                      pendingImportMeta.recordCounts as Record<string, number>,
+                    )
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      </Modal>
+        }
+        confirmLabel="Proceed Anyway"
+        confirmVariant="destructive"
+        onConfirm={async () => {
+          if (!pendingImportPayload) return;
+          try {
+            await StorageService.importAllData(pendingImportPayload, {
+              replace: replaceMode,
+            });
+            await onRefreshAll?.();
+            triggerSync?.();
+            setShowDbVersionModal(false);
+            setPendingImportPayload(null);
+            setPendingImportMeta(null);
+            triggerReload();
+          } catch (err) {
+            onStatus(`Import failed: ${(err as Error).message}`);
+            setShowDbVersionModal(false);
+            setPendingImportPayload(null);
+            setPendingImportMeta(null);
+          }
+        }}
+      />
 
       <LoadingOverlay
         isOpen={isReloading}

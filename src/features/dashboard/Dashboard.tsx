@@ -2,7 +2,10 @@ import { useMemo, useCallback } from "react";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
 import Modal from "../../components/ui/Modal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
+import IncomeModalForm from "../../components/forms/IncomeModalForm";
+import SavingsModalForm from "../../components/forms/SavingsModalForm";
 import { useSettings } from "../../context/settingsContext";
 import { useDashboard } from "../../hooks/useDashboard";
 import {
@@ -198,34 +201,23 @@ export default function Dashboard({
               </div>
 
               {/* Delete confirm modal */}
-              <Modal
+              <ConfirmDialog
                 isOpen={dash.isDeleteConfirmOpen}
                 onClose={() => dash.setIsDeleteConfirmOpen(false)}
                 title="Confirm Delete"
-                size="sm"
-              >
-                <p className="text-sm text-theme-muted">
-                  Are you sure you want to delete{" "}
-                  <strong className="text-theme-text">
-                    {dash.selectedIds.size}
-                  </strong>{" "}
-                  expense{dash.selectedIds.size !== 1 ? "s" : ""}?
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={dash.confirmBulkDelete}
-                    className="confirm-delete-btn"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => dash.setIsDeleteConfirmOpen(false)}
-                    className="confirm-cancel-btn"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Modal>
+                description={
+                  <span className="text-sm text-theme-muted">
+                    Are you sure you want to delete{" "}
+                    <strong className="text-theme-text">
+                      {dash.selectedIds.size}
+                    </strong>{" "}
+                    expense{dash.selectedIds.size !== 1 ? "s" : ""}?
+                  </span>
+                }
+                confirmLabel="Delete"
+                confirmVariant="destructive"
+                onConfirm={dash.confirmBulkDelete}
+              />
 
               {/* ── Categories View ── */}
               {dash.viewMode === DASHBOARD_VIEWS.CATEGORIES ? (
@@ -297,93 +289,29 @@ export default function Dashboard({
         )}
 
         {/* Income edit modal */}
-        <Modal
+        <IncomeModalForm
           isOpen={dash.isIncomeModalOpen}
           onClose={dash.closeIncomeModal}
           title={`Edit Income — ${modalMonthKey?.name ?? ""} ${modalMonthKey?.year ?? ""}`}
           size="sm"
-        >
-          <form onSubmit={dash.submitIncome} className="space-y-4">
-            {dash.incomeError && (
-              <p className="text-theme-danger text-xs">{dash.incomeError}</p>
-            )}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="number"
-                value={dash.incomeDraft}
-                onChange={(e) => dash.setIncomeDraft(e.target.value)}
-                placeholder="Amount"
-                min="0.01"
-                step="0.01"
-                autoFocus
-                className="input-theme px-3 py-2 text-sm w-full sm:flex-1 min-w-0"
-              />
-              <select
-                value={dash.incomeFreqDraft}
-                onChange={(e) => dash.setIncomeFreqDraft(e.target.value)}
-                className="input-theme px-3 py-2 text-sm w-full sm:w-auto min-w-0"
-              >
-                {dash.INCOME_FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button type="submit" className="summary-save-btn">
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={dash.closeIncomeModal}
-                className="summary-cancel-btn rounded-theme-small"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </Modal>
+          initialAmount=""
+          initialFrequency="monthly"
+          onSave={dash.handleIncomeSave}
+          error={dash.incomeError}
+          description="Sets your monthly income. This affects budget calculations, savings targets, and remaining balance."
+        />
 
         {/* Savings rate edit modal */}
-        <Modal
+        <SavingsModalForm
           isOpen={dash.isSavingsModalOpen}
           onClose={dash.closeSavingsModal}
           title={`Edit Savings Rate — ${modalMonthKey?.name ?? ""} ${modalMonthKey?.year ?? ""}`}
           size="sm"
-        >
-          <form onSubmit={dash.submitSavings} className="space-y-4">
-            {dash.savingsError && (
-              <p className="text-theme-danger text-xs">{dash.savingsError}</p>
-            )}
-            <div className="flex gap-2 items-center">
-              <input
-                type="number"
-                value={dash.savingsDraft}
-                onChange={(e) => dash.setSavingsDraft(e.target.value)}
-                placeholder="e.g. 20"
-                min="0"
-                max="100"
-                step="0.1"
-                autoFocus
-                className="input-theme px-3 py-2 text-sm w-full sm:w-28 min-w-0"
-              />
-              <span className="text-sm text-theme-muted shrink-0">%</span>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button type="submit" className="summary-save-btn">
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={dash.closeSavingsModal}
-                className="summary-cancel-btn rounded-theme-small"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </Modal>
+          initialRate={dash.getInitialSavingsRate()}
+          onSave={dash.handleSavingsSave}
+          error={dash.savingsError}
+          description="Percentage of income automatically set aside. The remaining budget = income − fixed expenses − auto savings."
+        />
 
         {/* Filter modal */}
         <FilterModal

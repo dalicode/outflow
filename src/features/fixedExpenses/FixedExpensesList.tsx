@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from "react";
 import { cn } from "../../utils/cn";
 import { useSettings } from "../../context/settingsContext";
 import Modal from "../../components/ui/Modal";
+import ModalFooter from "../../components/ui/ModalFooter";
 import "../expenses/expenses.css";
 import type { FixedExpense } from "../../types";
 
@@ -207,8 +208,21 @@ export default function FixedExpensesList({
         onClose={closeModal}
         title={modalMode === "add" ? "Add Fixed Expense" : "Edit Fixed Expense"}
         size="md"
+        footer={
+          <ModalFooter>
+            <button type="button" onClick={closeModal} className="btn-cancel-sm flex-1">
+              Cancel
+            </button>
+            <button type="submit" form="fixed-expense-form" className="btn-submit-fixed flex-1">
+              {modalMode === "add" ? "Add" : "Save"}
+            </button>
+          </ModalFooter>
+        }
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="fixed-expense-form" onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-xs text-theme-muted">
+            Recurring monthly expense like rent or utilities. Applied to all active months automatically.
+          </p>
           {error && <p className="text-theme-danger text-sm">{error}</p>}
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Name
@@ -234,9 +248,6 @@ export default function FixedExpensesList({
               className={inputCls}
             />
           </label>
-          <button type="submit" className="btn-submit-fixed">
-            {modalMode === "add" ? "Add" : "Save"}
-          </button>
         </form>
       </Modal>
     </div>

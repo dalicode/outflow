@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { StorageService } from "../services/storageService";
-import { INCOME_FREQUENCIES, INCOME_MULTIPLIERS } from "../features/dashboard/constants";
 import type { MonthlySummary } from "../types";
 
 export function useIncomeSavingsModals(
@@ -9,20 +8,13 @@ export function useIncomeSavingsModals(
   onSaved: () => void,
 ) {
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
-  const [incomeDraft, setIncomeDraft] = useState("");
-  const [incomeFreqDraft, setIncomeFreqDraft] = useState("monthly");
-  const [incomeError, setIncomeError] = useState("");
-
   const [isSavingsModalOpen, setIsSavingsModalOpen] = useState(false);
-  const [savingsDraft, setSavingsDraft] = useState("");
-  const [savingsError, setSavingsError] = useState("");
-
   const [modalTargetMonthIndex, setModalTargetMonthIndex] = useState(0);
+  const [incomeError, setIncomeError] = useState("");
+  const [savingsError, setSavingsError] = useState("");
 
   const openIncomeModal = (monthIndex: number = 0) => {
     setModalTargetMonthIndex(monthIndex);
-    setIncomeDraft("");
-    setIncomeFreqDraft("monthly");
     setIncomeError("");
     setIsIncomeModalOpen(true);
   };
@@ -32,38 +24,9 @@ export function useIncomeSavingsModals(
     setIncomeError("");
   };
 
-  const submitIncome = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = parseFloat(incomeDraft);
-    if (!incomeDraft || isNaN(parsed) || parsed <= 0) {
-      setIncomeError("Enter a positive amount.");
-      return;
-    }
-    const mk = monthKeys[modalTargetMonthIndex];
-    const now = new Date();
-    const isFuture =
-      mk.year > now.getFullYear() ||
-      (mk.year === now.getFullYear() && mk.month > now.getMonth());
-    if (isFuture) {
-      setIncomeError("Future month values can only be changed via Schedule.");
-      return;
-    }
-    setIncomeError("");
-    persistIncomeChange(
-      {
-        income: parsed,
-        frequency: incomeFreqDraft,
-        monthlyIncome: parsed * INCOME_MULTIPLIERS[incomeFreqDraft],
-      },
-      modalTargetMonthIndex,
-    );
-    setIsIncomeModalOpen(false);
-  };
-
   const openSavingsModal = (monthIndex: number = 0) => {
     const summary = monthSummaries[monthIndex];
     setModalTargetMonthIndex(monthIndex);
-    setSavingsDraft(String(summary?.savingsRate ?? 0));
     setSavingsError("");
     setIsSavingsModalOpen(true);
   };
@@ -73,13 +36,29 @@ export function useIncomeSavingsModals(
     setSavingsError("");
   };
 
-  const submitSavings = (e: React.FormEvent) => {
-    e.preventDefault();
-    const n = Number(savingsDraft);
-    if (isNaN(n) || n < 0 || n > 100) {
-      setSavingsError("Enter a value between 0 and 100.");
-      return;
+  const handleIncomeSave = (
+    data: {
+      income: number;
+      frequency: string;
+      monthlyIncome: number;
+    },
+  ) => {
+    const mk = monthKeys[modalTargetMonthIndex];
+    const now = new Date();
+    const isFuture =
+      mk.year > now.getFullYear() ||
+      (mk.year === now.getFullYear() && mk.month > now.getMonth());
+    if (isFuture) {
+      setIncomeError("Future month values can only be changed via Schedule.");
+      return false;
     }
+    setIncomeError("");
+    persistIncomeChange(data, modalTargetMonthIndex);
+    setIsIncomeModalOpen(false);
+    return true;
+  };
+
+  const handleSavingsSave = (rate: number) => {
     const mk = monthKeys[modalTargetMonthIndex];
     const now = new Date();
     const isFuture =
@@ -87,11 +66,12 @@ export function useIncomeSavingsModals(
       (mk.year === now.getFullYear() && mk.month > now.getMonth());
     if (isFuture) {
       setSavingsError("Future month values can only be changed via Schedule.");
-      return;
+      return false;
     }
     setSavingsError("");
-    persistSavingsRateChange(n, modalTargetMonthIndex);
+    persistSavingsRateChange(rate, modalTargetMonthIndex);
     setIsSavingsModalOpen(false);
+    return true;
   };
 
   const persistIncomeChange = async (
@@ -154,24 +134,23 @@ export function useIncomeSavingsModals(
     onSaved();
   };
 
+  const getInitialSavingsRate = () => {
+    const summary = monthSummaries[modalTargetMonthIndex];
+    return String(summary?.savingsRate ?? 0);
+  };
+
   return {
     isIncomeModalOpen,
     isSavingsModalOpen,
-    incomeDraft,
-    incomeFreqDraft,
-    incomeError,
-    savingsDraft,
-    savingsError,
     modalTargetMonthIndex,
+    incomeError,
+    savingsError,
     openIncomeModal,
     closeIncomeModal,
-    submitIncome,
     openSavingsModal,
     closeSavingsModal,
-    submitSavings,
-    setIncomeDraft,
-    setIncomeFreqDraft,
-    setSavingsDraft,
-    INCOME_FREQUENCIES,
+    handleIncomeSave,
+    handleSavingsSave,
+    getInitialSavingsRate,
   };
 }

@@ -14,11 +14,16 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  description?: string;
   children?: ReactNode;
+  footer?: ReactNode;
   size?: ModalSize;
   mobileActionLabel?: string;
   onMobileAction?: () => void;
   mobileActionDisabled?: boolean;
+  closeOnBackdropClick?: boolean;
+  showCloseButton?: boolean;
+  bodyClassName?: string;
 }
 
 const sizeMap: Record<ModalSize, string> = {
@@ -33,11 +38,16 @@ export default function Modal({
   isOpen,
   onClose,
   title,
+  description,
   children,
+  footer,
   size = "md",
   mobileActionLabel,
   onMobileAction,
   mobileActionDisabled,
+  closeOnBackdropClick = true,
+  showCloseButton = true,
+  bodyClassName,
 }: ModalProps) {
   const pushedRef = useRef(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -98,16 +108,17 @@ export default function Modal({
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) {
+      if (closeOnBackdropClick && e.target === e.currentTarget) {
         onClose();
       }
     },
-    [onClose],
+    [onClose, closeOnBackdropClick],
   );
 
   if (!isOpen) return null;
 
   const isFullScreenMobile = size === "xl" || size === "full";
+  const hasHeader = title || description;
 
   const modalContent = (
     <div
@@ -121,6 +132,8 @@ export default function Modal({
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
+      aria-labelledby={title ? "modal-title" : undefined}
+      aria-describedby={description ? "modal-description" : undefined}
     >
       <div
         className={cn(
@@ -143,7 +156,10 @@ export default function Modal({
               Cancel
             </button>
             {title && (
-              <h2 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-theme-text">
+              <h2
+                id="modal-title"
+                className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-theme-text"
+              >
                 {title}
               </h2>
             )}
@@ -174,22 +190,38 @@ export default function Modal({
         )}
 
         {/* Desktop header (and mobile card header for non-fullscreen) */}
-        {title && (
+        {hasHeader && (
           <div
             className={cn(
-              "flex shrink-0 items-center justify-between p-5 pb-0",
+              "flex shrink-0 flex-col",
               isFullScreenMobile && "hidden sm:flex",
+              !footer ? "p-5 pb-0" : "p-5 pb-0",
             )}
           >
-            <h3 className="text-base font-semibold text-theme-text">{title}</h3>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xl leading-none text-theme-muted hover:text-theme-text"
-              aria-label="Close"
-            >
-              &times;
-            </button>
+            <div className="flex items-center justify-between">
+              {title ? (
+                <h3 id="modal-title" className="text-base font-semibold text-theme-text">
+                  {title}
+                </h3>
+              ) : (
+                <div />
+              )}
+              {showCloseButton && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="text-xl leading-none text-theme-muted hover:text-theme-text"
+                  aria-label="Close"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+            {description && (
+              <p id="modal-description" className="mt-1 text-xs text-theme-muted">
+                {description}
+              </p>
+            )}
           </div>
         )}
 
@@ -199,12 +231,26 @@ export default function Modal({
             "flex-1 overflow-x-hidden overflow-y-auto scrollbar-auto-hide min-h-0",
             isScrolling && "is-scrolling",
             isFullScreenMobile ? "p-4" : "p-5",
-            title && "pt-4",
+            hasHeader && "pt-4",
+            bodyClassName,
           )}
           onScroll={handleScroll}
         >
           {children}
         </div>
+
+        {/* Footer */}
+        {footer && (
+          <div
+            className={cn(
+              "shrink-0 border-t border-theme-border bg-theme-surface",
+              "px-4 py-3 sm:px-5",
+              "pb-[max(env(safe-area-inset-bottom),0.75rem)]",
+            )}
+          >
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

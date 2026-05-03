@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
+import ModalFooter from "../../components/ui/ModalFooter";
 import LoadingOverlay from "../../components/ui/LoadingOverlay";
 
 interface DangerZoneProps {
@@ -41,6 +42,25 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
         onClose={handleClose}
         title="Clear All Data"
         size="sm"
+        footer={
+          <ModalFooter>
+            <button onClick={handleClose} className="btn-cancel-sm flex-1">
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                if (deleteConfirm !== "DELETE") return;
+                await onClearAll();
+                handleClose();
+                triggerReload();
+              }}
+              disabled={deleteConfirm !== "DELETE"}
+              className="flex-1 bg-theme-danger hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
+            >
+              Clear Everything
+            </button>
+          </ModalFooter>
+        }
       >
         <div className="space-y-3">
           <p className="text-xs text-theme-muted">
@@ -61,23 +81,6 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
               autoFocus
             />
           </label>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={async () => {
-                if (deleteConfirm !== "DELETE") return;
-                await onClearAll();
-                handleClose();
-                triggerReload();
-              }}
-              disabled={deleteConfirm !== "DELETE"}
-              className="flex-1 bg-theme-danger hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
-            >
-              Clear Everything
-            </button>
-            <button onClick={handleClose} className="btn-cancel-sm">
-              Cancel
-            </button>
-          </div>
         </div>
       </Modal>
 

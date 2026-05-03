@@ -1,5 +1,6 @@
 import { cn } from "../../utils/cn";
 import Modal from "../../components/ui/Modal";
+import ModalFooter from "../../components/ui/ModalFooter";
 import type { Category } from "../../types";
 
 interface FilterModalProps {
@@ -45,6 +46,16 @@ export default function FilterModal({
       onClose={onClose}
       title="Filter Transactions"
       size="md"
+      footer={
+        <ModalFooter>
+          <button onClick={onClearAll} className="summary-cancel-btn rounded-theme-small flex-1">
+            Clear all
+          </button>
+          <button onClick={onClose} className="summary-save-btn flex-1">
+            Done
+          </button>
+        </ModalFooter>
+      }
     >
       <div className="space-y-4">
         <div>
@@ -127,18 +138,6 @@ export default function FilterModal({
             placeholder="e.g. 12.50"
             className="input-theme w-full px-3 py-2 text-sm"
           />
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 pt-2">
-          <button
-            onClick={onClearAll}
-            className="summary-cancel-btn rounded-theme-small"
-          >
-            Clear all
-          </button>
-          <button onClick={onClose} className="summary-save-btn">
-            Done
-          </button>
         </div>
       </div>
     </Modal>

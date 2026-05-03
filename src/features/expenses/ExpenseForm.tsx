@@ -2,6 +2,7 @@ import { useState, useMemo, type FormEvent } from 'react'
 import { cn } from '../../utils/cn'
 import { useSettings } from '../../context/settingsContext'
 import Modal from '../../components/ui/Modal'
+import ModalFooter from '../../components/ui/ModalFooter'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import './expenses.css'
 import type { Expense, Category } from '../../types'
@@ -113,8 +114,19 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
 
   return (
     <>
-      <Modal isOpen={true} onClose={onClose} title="Add Expense" size="md">
-        <form onSubmit={submit} className="space-y-4">
+      <Modal isOpen={true} onClose={onClose} title="Add Expense" size="md"
+        footer={
+          <ModalFooter>
+            <button type="button" onClick={onClose} className="btn-cancel-sm flex-1">
+              Cancel
+            </button>
+            <button type="submit" form="expense-form" className="btn-save-expense flex-1">
+              Save Expense
+            </button>
+          </ModalFooter>
+        }
+      >
+        <form id="expense-form" onSubmit={submit} className="space-y-4">
           {error && <p className="text-theme-danger text-sm">{error}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm text-theme-muted">
@@ -142,10 +154,6 @@ export default function ExpenseForm({ onAdd, onClose, categories, onCategoriesCh
             <input type="number" value={form.amount} onChange={set('amount')} placeholder="0.00"
               step="0.01" required inputMode="decimal" className={inputCls} />
           </label>
-          <button type="submit"
-            className="btn-save-expense">
-            Save Expense
-          </button>
         </form>
       </Modal>
       {showCatModal && (

@@ -5,6 +5,7 @@ import { cn } from "../../utils/cn";
 import DataTable from "../../components/ui/DataTable";
 import ContextMenu from "../../components/ui/ContextMenu";
 import Modal from "../../components/ui/Modal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import ExpenseTableMobile from "./ExpenseTableMobile";
 import { getExpenseColumns } from "./expenseColumns";
 import type { Expense, Category } from "../../types";
@@ -370,14 +371,14 @@ export default function ExpenseTable({
               />
             </div>
             <div className="flex gap-2 pt-2">
-              <button onClick={saveEdit} className="summary-save-btn flex-1">
-                Save
-              </button>
               <button
                 onClick={cancelEdit}
                 className="summary-cancel-btn flex-1"
               >
                 Cancel
+              </button>
+              <button onClick={saveEdit} className="summary-save-btn flex-1">
+                Save
               </button>
             </div>
           </div>
@@ -385,29 +386,21 @@ export default function ExpenseTable({
       )}
 
       {/* Delete confirmation modal */}
-      <Modal
+      <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         title="Confirm Delete"
-        size="sm"
-      >
-        <p className="text-sm text-theme-muted">
-          Are you sure you want to delete{" "}
-          <strong className="text-theme-text">{deleteTargetIds.length}</strong>{" "}
-          expense{deleteTargetIds.length !== 1 ? "s" : ""}?
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 mt-4">
-          <button onClick={confirmDelete} className="confirm-delete-btn">
-            Delete
-          </button>
-          <button
-            onClick={() => setShowDeleteConfirm(false)}
-            className="confirm-cancel-btn"
-          >
-            Cancel
-          </button>
-        </div>
-      </Modal>
+        description={
+          <span className="text-sm text-theme-muted">
+            Are you sure you want to delete{" "}
+            <strong className="text-theme-text">{deleteTargetIds.length}</strong>{" "}
+            expense{deleteTargetIds.length !== 1 ? "s" : ""}?
+          </span>
+        }
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        onConfirm={confirmDelete}
+      />
 
       {/* Context menu */}
       {menu && (

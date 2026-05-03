@@ -9,6 +9,7 @@ import { useExpenses, useCategories } from "./hooks/useLocalData";
 import { cn } from "./utils/cn";
 import { ROUTES } from "./constants/routes";
 import Navbar from "./components/layout/Navbar";
+import LoadingOverlay from "./components/ui/LoadingOverlay";
 import ExpenseForm from "./features/expenses/ExpenseForm";
 import Dashboard from "./features/dashboard/Dashboard";
 import SummaryPage from "./features/summary/SummaryPage";
@@ -126,6 +127,7 @@ export default function App() {
   const { isScrolling, handleScroll } = useScrollVisibility();
   const { direction, onScroll: handleScrollDirection } = useScrollDirection();
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false);
+  const [snapshotsReady, setSnapshotsReady] = useState(false);
 
   const handlePageScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -145,8 +147,23 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
+      const hasVisited = localStorage.getItem("outflow:hasVisited") === "true";
+      const minLoadTime = hasVisited ? 1500 : 3000;
+      const startTime = Date.now();
+
       await StorageService.materializePendingSnapshots?.().catch(console.error);
       await StorageService.rolloverSnapshots?.().catch(console.error);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, minLoadTime - elapsed);
+      if (remaining > 0) {
+        await new Promise((r) => setTimeout(r, remaining));
+      }
+
+      setSnapshotsReady(true);
+      if (!hasVisited) {
+        localStorage.setItem("outflow:hasVisited", "true");
+      }
     };
     init();
   }, []);
@@ -192,27 +209,17 @@ export default function App() {
 
   if (supabase && !loading && !user) return <AuthPage />;
 
-  const isReady = !loading && settingsLoaded;
+  const isReady = !loading && settingsLoaded && snapshotsReady;
 
   return (
     <BrowserRouter>
       <div className="h-dvh bg-theme-background flex">
         {!isReady ? (
-          <div
-            className="flex-1 p-10"
-            style={{
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif',
-            }}
-          >
-            <p className="text-lg font-bold mb-3">Loading…</p>
-            <p>Auth loading: {String(loading)}</p>
-            <p>Settings loaded: {String(settingsLoaded)}</p>
-            <p>Supabase configured: {String(!!supabase)}</p>
-            <p className="mt-3 text-xs text-gray-500">
-              If this persists, check the browser console for errors.
-            </p>
-          </div>
+          <LoadingOverlay
+            isOpen={true}
+            message="Loading Outflow…"
+            subMessage="Initializing your data"
+          />
         ) : (
           <>
             <Navbar

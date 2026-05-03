@@ -176,6 +176,8 @@ interface MultiRangeListProps {
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, patch: Partial<RangeItem>) => void;
+  quickAddValue?: string;
+  onQuickAdd?: (value: string) => void;
 }
 
 function MultiRangeList({
@@ -185,6 +187,8 @@ function MultiRangeList({
   onAdd,
   onRemove,
   onUpdate,
+  quickAddValue,
+  onQuickAdd,
 }: MultiRangeListProps) {
   const isIncome = type === "income";
   const label = isIncome ? "Monthly Income" : "Auto Savings %";
@@ -199,6 +203,8 @@ function MultiRangeList({
 
   // Determine if the year is fully covered (no gaps)
   const fullyCovered = isFullyCovered(sortedRanges, maxMonth);
+
+  const hasQuickAddValue = quickAddValue && quickAddValue !== "0" && quickAddValue !== "";
 
   return (
     <SectionCard title={label}>
@@ -240,18 +246,34 @@ function MultiRangeList({
           );
         })}
       </div>
-      <button
-        onClick={onAdd}
-        disabled={fullyCovered}
-        className={cn(
-          "text-sm font-medium transition-colors",
-          fullyCovered
-            ? "text-theme-muted cursor-not-allowed"
-            : "text-theme-primary hover:text-theme-primary",
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={onAdd}
+          disabled={fullyCovered}
+          className={cn(
+            "text-sm font-medium transition-colors",
+            fullyCovered
+              ? "text-theme-muted cursor-not-allowed"
+              : "text-theme-primary hover:text-theme-primary",
+          )}
+        >
+          + Add {isIncome ? "income" : "savings"} range
+        </button>
+        {hasQuickAddValue && onQuickAdd && (
+          <button
+            onClick={() => onQuickAdd(quickAddValue)}
+            disabled={fullyCovered}
+            className={cn(
+              "text-xs font-medium transition-colors",
+              fullyCovered
+                ? "text-theme-muted cursor-not-allowed"
+                : "text-theme-primary hover:underline",
+            )}
+          >
+            Use current: {isIncome ? formatAmount(Number(quickAddValue)) : `${quickAddValue}%`}
+          </button>
         )}
-      >
-        + Add {isIncome ? "income" : "savings"} range
-      </button>
+      </div>
     </SectionCard>
   );
 }
@@ -285,12 +307,12 @@ function FixedExpenseList({
 }: FixedExpenseListProps) {
   const presets = useMemo(() => {
     const presetMap = new Map<string, string>();
-    HARDCODED_PRESETS.forEach((p) => presetMap.set(p.name, p.amount));
     currentFixedDefs.forEach((def) => {
       if (def.name?.trim()) {
         presetMap.set(def.name.trim(), String(def.amount));
       }
     });
+    HARDCODED_PRESETS.forEach((p) => presetMap.set(p.name, p.amount));
     return Array.from(presetMap.entries()).map(([name, amount]) => ({
       name,
       amount,
@@ -583,6 +605,8 @@ interface EditHistoricalDataModalProps {
   years: number[];
   expenses?: Expense[];
   onComplete?: () => void;
+  defaultIncome?: string;
+  defaultSavingsRate?: string;
 }
 
 export default function EditHistoricalDataModal({
@@ -591,6 +615,8 @@ export default function EditHistoricalDataModal({
   years: rawYears,
   expenses = [],
   onComplete,
+  defaultIncome = "",
+  defaultSavingsRate = "",
 }: EditHistoricalDataModalProps) {
   // Filter out current year if it has 0 editable months (e.g., January)
   const years = useMemo(
@@ -789,6 +815,24 @@ export default function EditHistoricalDataModal({
         ),
       });
     }
+  };
+
+  const quickAddIncomeRange = (year: number, value: string) => {
+    const ranges = [...(yearConfigs[year]?.incomeRanges || [])];
+    const gap = findGapToFill(ranges, getMaxMonthForYear(year));
+    if (!gap) return;
+    updateYearConfig(year, {
+      incomeRanges: [...ranges, { id: nextId(), amount: value, ...gap }],
+    });
+  };
+
+  const quickAddSavingsRange = (year: number, value: string) => {
+    const ranges = [...(yearConfigs[year]?.savingsRanges || [])];
+    const gap = findGapToFill(ranges, getMaxMonthForYear(year));
+    if (!gap) return;
+    updateYearConfig(year, {
+      savingsRanges: [...ranges, { id: nextId(), amount: value, ...gap }],
+    });
   };
 
   const addFixedItem = (year: number) => {
@@ -1118,6 +1162,8 @@ export default function EditHistoricalDataModal({
                   onUpdate={(id, patch) =>
                     updateIncomeRange(activeYear, id, patch)
                   }
+                  quickAddValue={defaultIncome}
+                  onQuickAdd={(value) => quickAddIncomeRange(activeYear, value)}
                 />
 
                 {/* Savings ranges */}
@@ -1130,6 +1176,8 @@ export default function EditHistoricalDataModal({
                   onUpdate={(id, patch) =>
                     updateSavingsRange(activeYear, id, patch)
                   }
+                  quickAddValue={defaultSavingsRate}
+                  onQuickAdd={(value) => quickAddSavingsRange(activeYear, value)}
                 />
 
                 {/* Fixed expenses */}

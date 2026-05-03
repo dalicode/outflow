@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "../../components/ui/Modal";
+import ModalFooter from "../../components/ui/ModalFooter";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import { toISODate, parseISODate } from "../../utils/historicalDataHelpers";
@@ -196,6 +197,15 @@ export default function ScheduleModal({
       onClose={handleClose}
       title={isReadOnly ? "Schedule Details" : editSchedule ? "Edit Schedule" : "Add Schedule"}
       size="md"
+      footer={
+        <ScheduleModalFooter
+          isReadOnly={isReadOnly}
+          onClose={handleClose}
+          onSave={handleSave}
+          saving={saving}
+          editSchedule={!!editSchedule}
+        />
+      }
     >
       <div className="space-y-4">
         {isReadOnly && (
@@ -334,25 +344,38 @@ export default function ScheduleModal({
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
-          <button
-            onClick={handleClose}
-            className="btn-modal-cancel"
-          >
-            {isReadOnly ? "Close" : "Cancel"}
-          </button>
-          {!isReadOnly && (
-            <button
-              onClick={handleSave}
-              className="btn-modal-primary"
-              disabled={saving}
-            >
-              {saving ? "Saving…" : editSchedule ? "Update" : "Save Schedule"}
-            </button>
-          )}
-        </div>
       </div>
     </Modal>
+  );
+}
+
+function ScheduleModalFooter({
+  isReadOnly,
+  onClose,
+  onSave,
+  saving,
+  editSchedule,
+}: {
+  isReadOnly: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  saving: boolean;
+  editSchedule: boolean;
+}) {
+  return (
+    <ModalFooter>
+      <button onClick={onClose} className="btn-modal-cancel flex-1">
+        {isReadOnly ? "Close" : "Cancel"}
+      </button>
+      {!isReadOnly && (
+        <button
+          onClick={onSave}
+          className="btn-modal-primary flex-1"
+          disabled={saving}
+        >
+          {saving ? "Saving…" : editSchedule ? "Update" : "Save Schedule"}
+        </button>
+      )}
+    </ModalFooter>
   );
 }

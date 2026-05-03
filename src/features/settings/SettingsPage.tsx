@@ -68,8 +68,21 @@ export default function SettingsPage({
     useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleToEdit, setScheduleToEdit] = useState<Schedule | null>(null);
+  const [monthlyIncome, setMonthlyIncome] = useState("");
+  const [savingsRate, setSavingsRate] = useState("");
 
   const { schedules, loadSchedules, deleteSchedule } = useScheduleList();
+
+  // Load current global values for quick-add in Edit Historical Data
+  useEffect(() => {
+    Promise.all([
+      StorageService.getSetting("monthlyIncome", 0),
+      StorageService.getSetting("savingsRate", 0),
+    ]).then(([income, rate]) => {
+      setMonthlyIncome(String((income as number | null) ?? ""));
+      setSavingsRate(String((rate as number | null) ?? ""));
+    });
+  }, []);
 
   const handleImportComplete = (importedYears: number[]) => {
     setEditHistoricalDataYears(importedYears);
@@ -294,6 +307,8 @@ export default function SettingsPage({
         onClose={() => setIsHistoricalDataModalOpen(false)}
         years={availableYears}
         expenses={expenses}
+        defaultIncome={monthlyIncome}
+        defaultSavingsRate={savingsRate}
         onComplete={() => {
           setEditHistoricalDataYears([]);
           onRefreshAll?.();
