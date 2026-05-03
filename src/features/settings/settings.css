@@ -58,14 +58,18 @@
   border-color: color-mix(in srgb, var(--theme-danger) 30%, transparent);
 }
 
-/* Date inputs — color the calendar icon with the theme primary color */
+/* Date inputs — theme-colored calendar icon for ALL date pickers */
+.input-theme[type="date"],
+.input-sm[type="date"],
 .date-input-theme {
-  accent-color: var(--theme-primary);
+  accent-color: var(--theme-text);
 }
 
 /* WebKit (Chrome, Safari, Edge): mask a theme-colored background through a calendar SVG */
+.input-theme[type="date"]::-webkit-calendar-picker-indicator,
+.input-sm[type="date"]::-webkit-calendar-picker-indicator,
 .date-input-theme::-webkit-calendar-picker-indicator {
-  background-color: var(--theme-primary);
+  background-color: var(--theme-text);
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
   -webkit-mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -77,4 +81,17 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+/* Firefox / non-WebKit: use color-scheme to tint native controls */
+[data-theme-mode="light"] .input-theme[type="date"],
+[data-theme-mode="light"] .input-sm[type="date"],
+[data-theme-mode="light"] .date-input-theme {
+  color-scheme: light;
+}
+
+[data-theme-mode="dark"] .input-theme[type="date"],
+[data-theme-mode="dark"] .input-sm[type="date"],
+[data-theme-mode="dark"] .date-input-theme {
+  color-scheme: dark;
 }

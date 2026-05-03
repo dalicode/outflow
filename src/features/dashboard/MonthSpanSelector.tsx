@@ -22,7 +22,7 @@ export default function MonthSpanSelector({
 
   return (
     <div className="flex justify-center">
-      <div className="flex gap-1 bg-theme-background rounded-lg p-0.5">
+      <div className="flex gap-1 bg-theme-background rounded-theme-medium p-0.5">
         {MONTH_SPANS.filter((n) => viewportWidth >= VIEWPORT_THRESHOLDS[n]).map(
           (n) => (
             <button

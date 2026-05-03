@@ -132,6 +132,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     } else {
       root.removeAttribute('data-theme')
     }
+    root.setAttribute('data-theme-mode', theme.isDark ? 'dark' : 'light')
   }, [settings.visualTheme, loaded])
 
   const save = useCallback(async (patch: Partial<AppSettings>) => {

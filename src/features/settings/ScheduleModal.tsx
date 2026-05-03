@@ -288,7 +288,6 @@ export default function ScheduleModal({
             className={cn(
               inputCls,
               "w-full",
-              "date-input-theme",
               isReadOnly && disabledCls,
             )}
             disabled={isReadOnly}

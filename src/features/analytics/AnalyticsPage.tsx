@@ -82,7 +82,7 @@ export default function AnalyticsPage({
       </div>
 
       {/* Content */}
-      <div className="rounded-xl bg-theme-surface shadow-sm overflow-hidden">
+      <div className="rounded-theme-large bg-theme-surface shadow-sm overflow-hidden">
         <AnalyticsCharts
           data={data}
           year={year}

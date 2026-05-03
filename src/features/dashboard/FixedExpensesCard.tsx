@@ -13,7 +13,7 @@ export default function FixedExpensesCard({
   const { formatAmount } = useSettings();
 
   return (
-    <div className="rounded-xl bg-theme-surface shadow-sm p-4 md:p-5">
+    <div className="rounded-theme-large bg-theme-surface shadow-sm p-4 md:p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-theme-text tracking-tight">
           Fixed Expenses

@@ -48,36 +48,56 @@ export function getExpenseColumns({
     {
       id: "select",
       header: () => (
-        <input
-          type="checkbox"
-          checked={allSelected}
-          onChange={onToggleSelectAll}
-          className={cn(
-            "w-4 h-4 rounded-theme-small cursor-pointer",
-            "expense-checkbox",
-            allSelected && "opacity-100",
-          )}
-          aria-label="Select all"
-        />
+        <div className={cn("expense-checkbox-wrapper", allSelected && "checked")}>
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={onToggleSelectAll}
+            className="sr-only"
+            aria-label="Select all"
+          />
+            <div className={cn(
+              "w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center",
+              allSelected
+                ? "bg-theme-text border-theme-text"
+                : "border-theme-text bg-transparent",
+            )}>
+              {allSelected && (
+                <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                  <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+        </div>
       ),
       cell: ({ row }) => {
         const exp = row.original;
         const isSelected = selectedIds.has(exp.id as number);
         return (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={(e) => {
-              e.stopPropagation();
-              onToggleSelect(exp.id as number);
-            }}
-            className={cn(
-              "w-4 h-4 rounded-theme-small cursor-pointer",
-              "expense-checkbox",
-              isSelected && "opacity-100",
-            )}
-            aria-label={`Select ${exp.description || "expense"}`}
-          />
+          <div className={cn("expense-checkbox-wrapper", isSelected && "checked")}>
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSelect(exp.id as number);
+              }}
+              className="sr-only"
+              aria-label={`Select ${exp.description || "expense"}`}
+            />
+            <div className={cn(
+              "w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center",
+              isSelected
+                ? "bg-theme-text border-theme-text"
+                : "border-theme-text bg-transparent",
+            )}>
+              {isSelected && (
+                <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                  <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+          </div>
         );
       },
       meta: { className: "text-center w-10", cellClassName: "text-center" },

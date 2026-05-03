@@ -87,7 +87,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl bg-theme-surface border border-theme-border shadow-sm p-4 space-y-3">
+    <div className="rounded-theme-large bg-theme-surface border border-theme-border shadow-sm p-4 space-y-3">
       <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
       {children}
     </div>
@@ -119,7 +119,7 @@ function YearTabBar({
             <button
               key={y}
               onClick={() => onSelect(y)}
-              className={`relative px-4 py-2 text-sm font-medium rounded-t-lg border-x border-t transition-colors focus:outline-none ${
+              className={`relative px-4 py-2 text-sm font-medium rounded-t-theme-medium border-x border-t transition-colors focus:outline-none ${
                 isActive
                   ? "bg-theme-surface text-theme-primary border-t-2 border-t-theme-primary border-theme-border border-b border-b-theme-surface shadow-sm"
                   : "bg-theme-background text-theme-muted border-transparent hover:text-theme-text hover:bg-theme-background/80"
@@ -389,6 +389,9 @@ function FixedExpenseList({
           </button>
         ))}
       </div>
+      <p className="text-xs text-theme-muted mt-1">
+        Pre-fills name and amount. Adjust the amount if it was different in this year.
+      </p>
     </SectionCard>
   );
 }
@@ -427,11 +430,9 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
         month,
         income,
         fixedTotal,
-        variableTotal,
-        autoSavings,
-        remaining,
-        totalSavings,
-        rate,
+      autoSavings,
+      totalSavings,
+      rate,
       };
     });
   }, [yearConfig, variableTotals]);
@@ -447,10 +448,8 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
   const totals = useMemo(() => {
     return {
       fixed: timeline.reduce((s, t) => s + t.fixedTotal, 0),
-      variable: timeline.reduce((s, t) => s + t.variableTotal, 0),
       income: timeline.reduce((s, t) => s + t.income, 0),
       autoSavings: timeline.reduce((s, t) => s + t.autoSavings, 0),
-      remaining: timeline.reduce((s, t) => s + t.remaining, 0),
       totalSavings: timeline.reduce((s, t) => s + t.totalSavings, 0),
     };
   }, [timeline]);
@@ -459,10 +458,8 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
     val: number,
     type:
       | "fixed"
-      | "variable"
       | "income"
       | "autoSavings"
-      | "remaining"
       | "totalSavings",
   ) => {
     if (val === 0) return <span className="text-theme-muted">—</span>;
@@ -471,12 +468,6 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
       case "fixed":
         return (
           <span className={cn(baseCls, "text-theme-text")}>
-            {formatAmount(val)}
-          </span>
-        );
-      case "variable":
-        return (
-          <span className={cn(baseCls, "text-theme-danger")}>
             {formatAmount(val)}
           </span>
         );
@@ -492,7 +483,6 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
             {formatAmount(val)}
           </span>
         );
-      case "remaining":
       case "totalSavings":
         return (
           <span
@@ -516,7 +506,7 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
       <label className="text-xs font-semibold text-theme-muted uppercase tracking-wide block mb-2">
         Preview
       </label>
-      <div className="rounded-xl border border-theme-border shadow-sm">
+      <div className="rounded-theme-large border border-theme-border shadow-sm overflow-hidden">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-theme-background border-b border-theme-border">
@@ -527,16 +517,10 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
                 Fixed
               </th>
               <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
-                Variable
-              </th>
-              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
                 Income
               </th>
               <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
                 Auto Savings
-              </th>
-              <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
-                Remaining
               </th>
               <th className="text-right px-2 py-1.5 font-semibold text-theme-muted">
                 Total Savings
@@ -553,16 +537,10 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
                   {valueCell(t.fixedTotal, "fixed")}
                 </td>
                 <td className="text-right px-2 py-1.5">
-                  {valueCell(t.variableTotal, "variable")}
-                </td>
-                <td className="text-right px-2 py-1.5">
                   {valueCell(t.income, "income")}
                 </td>
                 <td className="text-right px-2 py-1.5">
                   {valueCell(t.autoSavings, "autoSavings")}
-                </td>
-                <td className="text-right px-2 py-1.5">
-                  {valueCell(t.remaining, "remaining")}
                 </td>
                 <td className="text-right px-2 py-1.5">
                   {valueCell(t.totalSavings, "totalSavings")}
@@ -575,16 +553,10 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
                 {valueCell(totals.fixed, "fixed")}
               </td>
               <td className="text-right px-2 py-1.5">
-                {valueCell(totals.variable, "variable")}
-              </td>
-              <td className="text-right px-2 py-1.5">
                 {valueCell(totals.income, "income")}
               </td>
               <td className="text-right px-2 py-1.5">
                 {valueCell(totals.autoSavings, "autoSavings")}
-              </td>
-              <td className="text-right px-2 py-1.5">
-                {valueCell(totals.remaining, "remaining")}
               </td>
               <td className="text-right px-2 py-1.5">
                 {valueCell(totals.totalSavings, "totalSavings")}
@@ -1206,10 +1178,10 @@ export default function EditHistoricalDataModal({
               <span className="text-xs font-semibold text-theme-muted">
                 Save mode
               </span>
-              <div className="inline-flex rounded-lg bg-theme-background border border-theme-border p-0.5">
+              <div className="inline-flex rounded-theme-medium bg-theme-background border border-theme-border p-0.5">
                 <button
                   onClick={() => setSaveMode("merge")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-theme-medium transition-all ${
                     saveMode === "merge"
                       ? "bg-theme-surface text-theme-primary shadow-sm"
                       : "text-theme-muted hover:text-theme-text"
@@ -1219,7 +1191,7 @@ export default function EditHistoricalDataModal({
                 </button>
                 <button
                   onClick={() => setSaveMode("replace")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-theme-medium transition-all ${
                     saveMode === "replace"
                       ? "bg-theme-surface text-theme-primary shadow-sm"
                       : "text-theme-muted hover:text-theme-text"

@@ -350,7 +350,7 @@ export default function Navbar({
                 to={to}
                 end
                 className={cn(
-                  "flex items-center rounded-lg nav-item-hover",
+                  "flex items-center rounded-theme-medium nav-item-hover",
                   collapsed
                     ? "justify-center py-2.5 px-2"
                     : "gap-3 py-2.5 px-3 mx-2",
@@ -374,7 +374,7 @@ export default function Navbar({
           <button
             onClick={onAddExpense}
             className={cn(
-              "w-full flex items-center rounded-lg text-theme-primary nav-item-hover hover:bg-theme-primary/5 active:scale-95",
+              "w-full flex items-center rounded-theme-medium text-theme-primary nav-item-hover hover:bg-theme-primary/5 active:scale-95",
               collapsed
                 ? "justify-center py-2.5 px-2"
                 : "gap-3 py-2.5 px-3 mx-2",
@@ -401,7 +401,7 @@ export default function Navbar({
             <button
               onClick={onSignOut}
               className={cn(
-                "w-full flex items-center rounded-lg nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5",
+                "w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5",
                 collapsed
                   ? "justify-center py-2.5 px-2 mx-1"
                   : "gap-3 py-2.5 px-3 mx-2",

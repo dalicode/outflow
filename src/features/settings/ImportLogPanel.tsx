@@ -15,7 +15,7 @@ export default function ImportLogPanel({
     importStatus.includes("success") || importStatus.startsWith("Imported");
 
   return (
-    <div className="bg-theme-surface rounded-xl shadow-sm p-4 space-y-2">
+    <div className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-2">
       <h2 className="text-xs font-semibold text-theme-muted uppercase tracking-widest">
         Import Log
       </h2>

@@ -139,8 +139,8 @@ export default function Modal({
         className={cn(
           "m-0 flex flex-col overflow-hidden bg-theme-surface",
           isFullScreenMobile
-            ? "h-[100dvh] w-screen rounded-none sm:h-auto sm:max-h-[80vh] sm:w-full sm:rounded-xl sm:border border-theme-border sm:shadow-xl"
-            : "h-auto max-h-[85vh] w-full rounded-xl border border-theme-border shadow-lg",
+            ? "h-[100dvh] w-screen rounded-none sm:h-auto sm:max-h-[80vh] sm:w-full sm:rounded-theme-large sm:border border-theme-border sm:shadow-xl"
+            : "h-auto max-h-[85vh] w-full rounded-theme-large border border-theme-border shadow-lg",
           sizeMap[size],
         )}
       >

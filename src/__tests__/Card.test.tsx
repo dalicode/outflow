@@ -17,7 +17,7 @@ describe('Card', () => {
   it('applies default variant styling', () => {
     const { container } = render(<Card>Default</Card>)
     expect(container.firstChild).toHaveClass('bg-theme-surface')
-    expect(container.firstChild).toHaveClass('rounded-xl')
+    expect(container.firstChild).toHaveClass('rounded-theme-large')
     expect(container.firstChild).toHaveClass('shadow-sm')
   })
 

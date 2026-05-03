@@ -39,7 +39,7 @@ export default function MobileSelectionBanner({
           onClick={onEdit}
           disabled={count > 1}
           className={cn(
-            "text-sm font-medium px-3 py-1.5 rounded-lg transition-colors",
+            "text-sm font-medium px-3 py-1.5 rounded-theme-medium transition-colors",
             count > 1
               ? "text-theme-muted opacity-40 cursor-not-allowed"
               : "text-theme-primary hover:bg-theme-primary/5",
@@ -51,7 +51,7 @@ export default function MobileSelectionBanner({
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((p) => !p)}
-            className="p-2 rounded-lg hover:bg-theme-background transition-colors"
+            className="p-2 rounded-theme-medium hover:bg-theme-background transition-colors"
             aria-label="More options"
           >
             <svg

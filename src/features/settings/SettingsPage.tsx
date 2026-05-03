@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import "./settings.css";
 import { useSettings } from "../../context/settingsContext";
 import { useAuth } from "../../context/authContext";
 import { StorageService } from "../../services/storageService";

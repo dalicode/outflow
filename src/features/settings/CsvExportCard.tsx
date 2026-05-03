@@ -34,7 +34,7 @@ export default function CsvExportCard({ expenses, formatDate }: CsvExportCardPro
             onChange={(e) =>
               setExportRange((r) => ({ ...r, from: e.target.value }))
             }
-            className="input-sm date-input-theme"
+            className="input-sm"
           />
         </label>
         <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
@@ -45,7 +45,7 @@ export default function CsvExportCard({ expenses, formatDate }: CsvExportCardPro
             onChange={(e) =>
               setExportRange((r) => ({ ...r, to: e.target.value }))
             }
-            className="input-sm date-input-theme"
+            className="input-sm"
           />
         </label>
         <button onClick={handleExport} className="btn-primary-sm">

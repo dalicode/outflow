@@ -180,7 +180,7 @@ export default function Dashboard({
               ref={dash.swipeAreaRef}
               onTouchStart={dash.handleTouchStart}
               onTouchEnd={dash.handleTouchEnd}
-              className="relative rounded-md bg-theme-surface shadow-sm p-4 md:p-5"
+              className="relative rounded-theme-medium bg-theme-surface shadow-sm p-4 md:p-5"
             >
               {/* Count row */}
               <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
@@ -188,7 +188,7 @@ export default function Dashboard({
                   dash.selectedCategories.size > 0 && (
                     <button
                       onClick={() => dash.setSelectedCategories(new Set())}
-                      className="text-[0.6875rem] font-medium px-2 py-1 rounded-md bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
+                      className="text-[0.6875rem] font-medium px-2 py-1 rounded-theme-medium bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
                     >
                       Reset Filter
                     </button>

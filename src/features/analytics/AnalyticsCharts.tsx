@@ -130,7 +130,7 @@ const CustomTooltip = ({
 
   return (
     <div
-      className="rounded-lg border shadow-lg px-3 py-2 text-xs"
+      className="rounded-theme-medium border shadow-lg px-3 py-2 text-xs"
       style={{
         backgroundColor: colors.background,
         borderColor: colors.grid,
@@ -186,7 +186,7 @@ const MetricCard = ({
 }: MetricCardProps) => {
   return (
     <div
-      className="rounded-xl border p-4 text-center"
+      className="rounded-theme-large border p-4 text-center"
       style={{
         backgroundColor: colors.background,
         borderColor: colors.grid,
@@ -666,7 +666,7 @@ const ChartCard = ({
   children: React.ReactNode;
 }) => {
   return (
-    <div className="rounded-xl bg-theme-surface shadow-sm p-4">
+    <div className="rounded-theme-large bg-theme-surface shadow-sm p-4">
       <h3 className="text-sm font-semibold text-theme-text mb-3">{title}</h3>
       {children}
     </div>

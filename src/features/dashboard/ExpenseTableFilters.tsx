@@ -80,7 +80,7 @@ export default function ExpenseTableFilters({
               onColumnFilterChange("description", "");
               onColumnFilterChange("amount", "");
             }}
-            className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-theme-background text-theme-muted hover:text-theme-text border border-theme-border transition-colors shrink-0"
+            className="text-xs font-medium px-2.5 py-1.5 rounded-theme-medium bg-theme-background text-theme-muted hover:text-theme-text border border-theme-border transition-colors shrink-0"
           >
             Clear filters
           </button>

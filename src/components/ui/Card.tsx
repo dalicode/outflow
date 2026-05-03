@@ -4,10 +4,10 @@ type CardVariant = "default" | "elevated" | "minimal";
 
 const variantStyles: Record<CardVariant, string> = {
   default:
-    "bg-theme-surface rounded-xl shadow-sm p-4 md:p-5",
+    "bg-theme-surface rounded-theme-large shadow-sm p-4 md:p-5",
   elevated:
-    "bg-theme-surface rounded-xl shadow-md p-4 md:p-5 transition-shadow duration-200 hover:shadow-lg",
-  minimal: "bg-theme-surface rounded-xl p-4 md:p-5",
+    "bg-theme-surface rounded-theme-large shadow-md p-4 md:p-5 transition-shadow duration-200 hover:shadow-lg",
+  minimal: "bg-theme-surface rounded-theme-large p-4 md:p-5",
 };
 
 interface CardProps {

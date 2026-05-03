@@ -41,7 +41,7 @@ export default function DashboardViewTabs({
             <button
               onClick={onSwitchToCategories}
               className={cn(
-                "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-colors",
                 viewMode === DASHBOARD_VIEWS.CATEGORIES
                   ? "bg-theme-surface text-theme-text"
                   : "bg-theme-background text-theme-muted hover:text-theme-text",
@@ -52,7 +52,7 @@ export default function DashboardViewTabs({
             <button
               onClick={onSwitchToExpenses}
               className={cn(
-                "px-3 py-1 rounded-t-md text-xs font-medium transition-colors",
+                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-colors",
                 viewMode === DASHBOARD_VIEWS.EXPENSES
                   ? "bg-theme-surface text-theme-text"
                   : "bg-theme-background text-theme-muted hover:text-theme-text",
@@ -63,7 +63,7 @@ export default function DashboardViewTabs({
           </div>
           <button
             className={cn(
-              "text-xs font-medium px-3 py-1 rounded-t-md transition-colors flex items-center gap-1.5",
+              "text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-colors flex items-center gap-1.5",
               activeFilterCount > 0
                 ? "bg-theme-primary/10 text-theme-primary"
                 : "bg-theme-background text-theme-muted hover:text-theme-text",

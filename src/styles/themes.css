@@ -56,6 +56,15 @@
 .rounded-theme-large {
   border-radius: var(--radius-large);
 }
+.rounded-t-theme-small {
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
+}
+.rounded-t-theme-medium {
+  border-radius: var(--radius-medium) var(--radius-medium) 0 0;
+}
+.rounded-t-theme-large {
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
+}
 
 /* Button theme */
 .btn-theme {
@@ -162,7 +171,7 @@
   width: 3px;
   height: 50%;
   background-color: var(--theme-primary);
-  border-radius: 0 2px 2px 0;
+  border-radius: 0 var(--radius-small) var(--radius-small) 0;
 }
 
 /* Nav-item hover — muted vertical line on the left (desktop only) */
@@ -182,7 +191,7 @@
     width: 3px;
     height: 50%;
     background-color: var(--theme-muted);
-    border-radius: 0 2px 2px 0;
+    border-radius: 0 var(--radius-small) var(--radius-small) 0;
   }
 }
 
@@ -427,7 +436,7 @@
   align-items: center;
   justify-content: center;
   padding: 0.375rem;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-medium);
   color: var(--theme-muted);
   flex-shrink: 0;
   transition:
@@ -501,7 +510,7 @@
 }
 .scrollbar-auto-hide.is-scrolling::-webkit-scrollbar-thumb {
   background: var(--theme-muted);
-  border-radius: 3px;
+  border-radius: var(--radius-small);
 }
 
 /* Neutral row hover — darkens on light themes, lightens on dark themes */
@@ -564,13 +573,22 @@
   padding-right: 16px;
 }
 
-/* Expense checkbox — hidden until hover or checked */
-.expense-checkbox {
+/* Expense checkbox wrapper — hidden until hover or checked */
+.expense-checkbox-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-top: -3px;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
-tr:hover .expense-checkbox,
-.expense-checkbox:checked {
+tr:hover .expense-checkbox-wrapper,
+.expense-checkbox-wrapper.checked {
+  opacity: 1;
+}
+/* Header checkbox is always visible */
+th .expense-checkbox-wrapper {
   opacity: 1;
 }
 
