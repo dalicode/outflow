@@ -261,8 +261,8 @@ export default function ExpenseTable({
     (exp: Expense) => {
       const isSelected = selectedIds.has(exp.id as number);
       return cn(
-        isSelected && "bg-theme-primary/[0.04]",
-        !isSelected && "row-hover",
+        isSelected && "selected-row",
+        "row-hover",
       );
     },
     [selectedIds],

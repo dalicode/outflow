@@ -54,8 +54,8 @@ export default function ExpenseTableMobile({
                 className={cn(
                   "flex items-center justify-between py-1 px-3",
                   isSelected &&
-                    "bg-theme-primary/[0.04] border-l-4 border-theme-primary",
-                  !isSelected && "row-hover",
+                    "selected-row border-l-4 border-theme-primary",
+                  "row-hover",
                 )}
                 onTouchStart={(e) => onTouchStart(e, exp.id as number)}
                 onTouchMove={onTouchMove}

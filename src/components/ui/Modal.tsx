@@ -7,6 +7,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
@@ -49,6 +50,7 @@ export default function Modal({
   showCloseButton = true,
   bodyClassName,
 }: ModalProps) {
+  const containerRef = useFocusTrap(isOpen);
   const pushedRef = useRef(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -136,6 +138,8 @@ export default function Modal({
       aria-describedby={description ? "modal-description" : undefined}
     >
       <div
+        ref={containerRef}
+        tabIndex={-1}
         className={cn(
           "m-0 flex flex-col overflow-hidden bg-theme-surface",
           isFullScreenMobile

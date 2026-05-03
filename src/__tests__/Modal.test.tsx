@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import Modal from '../components/ui/Modal'
 
@@ -160,5 +161,104 @@ describe('Modal', () => {
       fireEvent.scroll(contentDiv)
       expect(contentDiv).toHaveClass('is-scrolling')
     }
+  })
+
+  describe('focus trap', () => {
+    it('moves focus to first focusable element when opening', async () => {
+      render(
+        <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
+          <input type="text" placeholder="Name" />
+          <button>Save</button>
+        </Modal>,
+      )
+
+      // Wait for requestAnimationFrame to fire
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+
+      // The close button in the header is the first focusable element
+      const closeBtn = screen.getByLabelText('Close')
+      expect(closeBtn).toBe(document.activeElement)
+    })
+
+    it('cycles Tab from last element back to first', async () => {
+      render(
+        <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
+          <input type="text" placeholder="Name" />
+          <button>Save</button>
+        </Modal>,
+      )
+
+      // Wait for focus trap to initialize
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+
+      const focusable = document.body.querySelectorAll('input, button')
+      expect(focusable.length).toBeGreaterThanOrEqual(2)
+      const last = focusable[focusable.length - 1] as HTMLElement
+      const first = focusable[0] as HTMLElement
+
+      last.focus()
+      fireEvent.keyDown(document, { key: 'Tab' })
+      expect(document.activeElement).toBe(first)
+    })
+
+    it('cycles Shift+Tab from first element to last', async () => {
+      render(
+        <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
+          <input type="text" placeholder="Name" />
+          <button>Save</button>
+        </Modal>,
+      )
+
+      // Wait for focus trap to initialize
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+
+      const focusable = document.body.querySelectorAll('input, button')
+      expect(focusable.length).toBeGreaterThanOrEqual(2)
+      const first = focusable[0] as HTMLElement
+      const last = focusable[focusable.length - 1] as HTMLElement
+
+      first.focus()
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(last)
+    })
+
+    it('restores focus to previously focused element when closing', async () => {
+      const Trigger = () => {
+        const [open, setOpen] = useState(false)
+        return (
+          <>
+            <button data-testid="trigger" onClick={() => setOpen(true)}>
+              Open
+            </button>
+            <Modal isOpen={open} onClose={() => setOpen(false)} title="Test Modal">
+              <input type="text" placeholder="Name" />
+            </Modal>
+          </>
+        )
+      }
+
+      const { rerender } = render(<Trigger />)
+      const trigger = screen.getByTestId('trigger')
+
+      // Focus the trigger, then open the modal
+      trigger.focus()
+      trigger.click()
+      rerender(<Trigger />)
+
+      // Wait for focus to move into modal
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+
+      // The close button in the header gets focused
+      const closeBtn = screen.getByLabelText('Close')
+      expect(document.activeElement).toBe(closeBtn)
+
+      // Close the modal
+      closeBtn.click()
+      rerender(<Trigger />)
+
+      // Wait for focus restoration
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      expect(document.activeElement).toBe(trigger)
+    })
   })
 })

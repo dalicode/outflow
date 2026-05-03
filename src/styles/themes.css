@@ -520,6 +520,10 @@
 .row-hover:hover {
   background-color: color-mix(in srgb, var(--theme-text) 5%, transparent);
 }
+/* Selected row — same background as hover */
+.selected-row {
+  background-color: color-mix(in srgb, var(--theme-text) 5%, transparent);
+}
 
 /* Context menu */
 .context-menu {

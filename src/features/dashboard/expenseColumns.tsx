@@ -48,7 +48,7 @@ export function getExpenseColumns({
     {
       id: "select",
       header: () => (
-        <div className={cn("expense-checkbox-wrapper", allSelected && "checked")}>
+        <label className={cn("expense-checkbox-wrapper cursor-pointer", allSelected && "checked")}>
           <input
             type="checkbox"
             checked={allSelected}
@@ -59,22 +59,22 @@ export function getExpenseColumns({
             <div className={cn(
               "w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center",
               allSelected
-                ? "bg-theme-text border-theme-text"
+                ? "border-theme-text bg-transparent"
                 : "border-theme-text bg-transparent",
             )}>
               {allSelected && (
-                <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
                   <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
             </div>
-        </div>
+        </label>
       ),
       cell: ({ row }) => {
         const exp = row.original;
         const isSelected = selectedIds.has(exp.id as number);
         return (
-          <div className={cn("expense-checkbox-wrapper", isSelected && "checked")}>
+          <label className={cn("expense-checkbox-wrapper cursor-pointer", isSelected && "checked")}>
             <input
               type="checkbox"
               checked={isSelected}
@@ -88,16 +88,16 @@ export function getExpenseColumns({
             <div className={cn(
               "w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center",
               isSelected
-                ? "bg-theme-text border-theme-text"
+                ? "border-theme-text bg-transparent"
                 : "border-theme-text bg-transparent",
             )}>
               {isSelected && (
-                <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
                   <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
             </div>
-          </div>
+          </label>
         );
       },
       meta: { className: "text-center w-10", cellClassName: "text-center" },
