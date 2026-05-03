@@ -12,6 +12,8 @@ export interface Expense {
   amount: number
   category?: string
   categoryId?: number
+  payeeId?: number
+  payee?: string
   description?: string
   createdAt?: string
 }
@@ -23,7 +25,15 @@ export interface Category {
   name: string
   createdAt?: string
   isArchived?: boolean
-  isDeleted?: boolean
+}
+
+// ── Payees ──────────────────────────────────────────────────────────────────
+
+export interface Payee {
+  id?: number
+  name: string
+  createdAt?: string
+  isArchived?: boolean
 }
 
 // ── Fixed Expenses ──────────────────────────────────────────────────────────

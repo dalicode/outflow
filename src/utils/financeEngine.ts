@@ -355,8 +355,8 @@ export function getYearFinancialSummary(year: number, data: FinanceEngineData, o
  * @param categories
  * @returns {VariableGridResult}
  */
-export function getYearVariableGrid(year: number, expenses: Expense[], categories: { id?: number; name: string; isDeleted?: boolean }[]): VariableGridResult {
-  const activeCategories = (categories || []).filter((c) => !c.isDeleted);
+export function getYearVariableGrid(year: number, expenses: Expense[], categories: { id?: number; name: string; isArchived?: boolean }[]): VariableGridResult {
+  const activeCategories = (categories || []).filter((c) => !c.isArchived);
 
   const yearExpenses = (expenses || []).filter((e) => e.date && e.date.startsWith(`${year}-`));
 

@@ -3,6 +3,7 @@ import { isEncryptedEnvelope, decryptBackup } from '../utils/backupCrypto'
 import type {
   Expense,
   Category,
+  Payee,
   FixedExpense,
   FixedExpenseSnapshot,
   IncomeSnapshot,
@@ -19,6 +20,7 @@ interface Setting {
 class OutflowDB extends Dexie {
   expenses!: Table<Expense, number>
   categories!: Table<Category, number>
+  payees!: Table<Payee, number>
   fixedExpenses!: Table<FixedExpense, number>
   fixedExpenseSnapshots!: Table<FixedExpenseSnapshot, number>
   incomeSnapshots!: Table<IncomeSnapshot, number>
@@ -97,10 +99,23 @@ class OutflowDB extends Dexie {
       }
     })
 
+    this.version(9).stores({
+      expenses: '++id, date, category, categoryId, payeeId',
+      settings: 'key',
+      fixedExpenses: '++id',
+      categories: '++id, name',
+      payees: '++id, name',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
+      schedules: '++id, type, effectiveYear, effectiveMonth, isActive, targetId',
+      incomeSnapshots: '++id, [year+month], year, month',
+      savingsSnapshots: '++id, [year+month], year, month',
+    })
+
     this.on('populate', () => {
       const now = new Date().toISOString()
       this.categories.bulkAdd(
-        DEFAULT_CATEGORIES.map((name) => ({ name, createdAt: now, isArchived: false, isDeleted: false }))
+        DEFAULT_CATEGORIES.map((name) => ({ name, createdAt: now, isArchived: false }))
       )
     })
   }
@@ -506,7 +521,6 @@ export const StorageService = {
       name: name.trim(),
       createdAt: new Date().toISOString(),
       isArchived: false,
-      isDeleted: false,
     } as Category)
     const row = await db.categories.get(id)
     await enqueue('categories', 'insert', row as unknown as Record<string, unknown>)
@@ -518,9 +532,47 @@ export const StorageService = {
     await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
   },
   deleteCategory: async (id: number) => {
-    await db.categories.update(id, { isDeleted: true })
+    await db.categories.update(id, { isArchived: true })
     const row = await db.categories.get(id)
     await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
+  },
+
+  // ── Payees ────────────────────────────────────────────────
+  getPayees: () => db.payees.toArray(),
+  getActivePayees: () =>
+    db.payees.toArray().then((all) => all.filter((p) => p.isArchived !== true)),
+  addPayee: async (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Payee name is required')
+    const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
+    if (existing) throw new Error('A payee with that name already exists')
+    const id = await db.payees.add({
+      name: trimmed,
+      createdAt: new Date().toISOString(),
+      isArchived: false,
+    } as Payee)
+    const row = await db.payees.get(id)
+    await enqueue('payees', 'insert', row as unknown as Record<string, unknown>)
+    return id
+  },
+  updatePayee: async (id: number, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Payee name is required')
+    const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
+    if (existing && existing.id !== id) throw new Error('A payee with that name already exists')
+    await db.payees.update(id, { name: trimmed })
+    const row = await db.payees.get(id)
+    await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
+  },
+  archivePayee: async (id: number) => {
+    await db.payees.update(id, { isArchived: true })
+    const row = await db.payees.get(id)
+    await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
+  },
+  unarchivePayee: async (id: number) => {
+    await db.payees.update(id, { isArchived: false })
+    const row = await db.payees.get(id)
+    await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
   },
 
   // ── Sync Queue (used by SyncEngine) ──────────────────────
@@ -540,6 +592,7 @@ export const StorageService = {
   // ── Bulk upsert (used by incoming sync merge) ─────────────
   bulkUpsertExpenses: (rows: Expense[]) => db.expenses.bulkPut(rows),
   bulkUpsertCategories: (rows: Category[]) => db.categories.bulkPut(rows),
+  bulkUpsertPayees: (rows: Payee[]) => db.payees.bulkPut(rows),
   bulkUpsertFixedExpenses: (rows: FixedExpense[]) => db.fixedExpenses.bulkPut(rows),
 
   // ── Full data backup (JSON export / import) ────────────────
@@ -548,6 +601,7 @@ export const StorageService = {
   exportAllData: async () => ({
     expenses: await db.expenses.toArray(),
     categories: await db.categories.toArray(),
+    payees: await db.payees.toArray(),
     fixedExpenses: await db.fixedExpenses.toArray(),
     fixedExpenseSnapshots: await db.fixedExpenseSnapshots.toArray(),
     incomeSnapshots: await db.incomeSnapshots.toArray(),
@@ -588,6 +642,7 @@ export const StorageService = {
 
     if (payload.expenses) await db.expenses.bulkPut(payload.expenses as Expense[])
     if (payload.categories) await db.categories.bulkPut(payload.categories as Category[])
+    if (payload.payees) await db.payees.bulkPut(payload.payees as Payee[])
     if (payload.fixedExpenses) await db.fixedExpenses.bulkPut(payload.fixedExpenses as FixedExpense[])
     if (payload.fixedExpenseSnapshots) await db.fixedExpenseSnapshots.bulkPut(payload.fixedExpenseSnapshots as FixedExpenseSnapshot[])
     if (payload.incomeSnapshots) await db.incomeSnapshots.bulkPut(payload.incomeSnapshots as IncomeSnapshot[])

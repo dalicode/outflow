@@ -255,7 +255,9 @@ export default function Dashboard({
                       expenses={drilldownExpenses}
                       formatDate={formatDate}
                       formatAmount={formatAmount}
+                      resolveName={dash.getExpenseCategoryName}
                       onClose={dash.closeDrilldown}
+                      isMobile={isMobile}
                     />
                   )}
                 </div>
@@ -317,19 +319,22 @@ export default function Dashboard({
         <FilterModal
           isOpen={dash.isFilterModalOpen}
           onClose={() => dash.setIsFilterModalOpen(false)}
-          filterGlobal={dash.filterGlobal}
-          onFilterGlobalChange={dash.setFilterGlobal}
-          filterDateFrom={dash.filterDateFrom}
-          onFilterDateFromChange={dash.setFilterDateFrom}
-          filterDateTo={dash.filterDateTo}
-          onFilterDateToChange={dash.setFilterDateTo}
-          filterCategory={dash.filterCategory}
-          onFilterCategoryChange={dash.setFilterCategory}
-          filterDescription={dash.filterDescription}
-          onFilterDescriptionChange={dash.setFilterDescription}
-          filterAmount={dash.filterAmount}
-          onFilterAmountChange={dash.setFilterAmount}
-          onClearAll={dash.clearAllFilters}
+          appliedFilters={{
+            filterGlobal: dash.filterGlobal,
+            filterDateFrom: dash.filterDateFrom,
+            filterDateTo: dash.filterDateTo,
+            filterCategory: dash.filterCategory,
+            filterDescription: dash.filterDescription,
+            filterAmount: dash.filterAmount,
+          }}
+          onApply={(draft) => {
+            dash.setFilterGlobal(draft.filterGlobal);
+            dash.setFilterDateFrom(draft.filterDateFrom);
+            dash.setFilterDateTo(draft.filterDateTo);
+            dash.setFilterCategory(draft.filterCategory);
+            dash.setFilterDescription(draft.filterDescription);
+            dash.setFilterAmount(draft.filterAmount);
+          }}
           categories={categories}
         />
       </div>

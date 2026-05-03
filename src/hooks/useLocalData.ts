@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { StorageService } from "../services/storageService";
-import { Expense, Category } from "../types";
+import { Expense, Category, Payee } from "../types";
 
 export const useExpenses = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -28,4 +28,18 @@ export const useCategories = () => {
   }, []);
 
   return { categories, setCategories, refresh };
+}
+
+export const usePayees = () => {
+  const [payees, setPayees] = useState<Payee[]>([]);
+
+  useEffect(() => {
+    StorageService.getPayees().then((data: Payee[]) => setPayees(data));
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setPayees(await StorageService.getPayees() as Payee[]);
+  }, []);
+
+  return { payees, setPayees, refresh };
 }

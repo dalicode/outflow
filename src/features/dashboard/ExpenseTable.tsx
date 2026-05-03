@@ -1,12 +1,13 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
 import { useContextMenu } from "../../hooks/useContextMenu";
+import { usePayees } from "../../hooks/useLocalData";
 import { cn } from "../../utils/cn";
 import DataTable from "../../components/ui/DataTable";
 import ContextMenu from "../../components/ui/ContextMenu";
-import Modal from "../../components/ui/Modal";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import ExpenseTableMobile from "./ExpenseTableMobile";
+import ExpenseForm from "../expenses/ExpenseForm";
 import { getExpenseColumns } from "./expenseColumns";
 import type { Expense, Category } from "../../types";
 
@@ -60,12 +61,18 @@ export default function ExpenseTable({
 
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
 
+  const { payees } = usePayees();
+
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
     [categories],
   );
+  const payeeMap = useMemo(
+    () => Object.fromEntries(payees.map((p) => [p.id, p])),
+    [payees],
+  );
   const activeCategories = useMemo(
-    () => categories.filter((c) => !c.isDeleted),
+    () => categories.filter((c) => !c.isArchived),
     [categories],
   );
 
@@ -82,7 +89,7 @@ export default function ExpenseTable({
   const resolveName = useCallback(
     (exp: Expense) => {
       const cat = catMap[exp.categoryId as number];
-      if (cat) return cat.isDeleted ? `${cat.name} (deleted)` : cat.name;
+      if (cat) return cat.isArchived ? `${cat.name} (deleted)` : cat.name;
       return exp.category || "Uncategorized";
     },
     [catMap],
@@ -102,17 +109,19 @@ export default function ExpenseTable({
     if (!editingCell && !mobileEditExpense) return;
     const targetId = (editingCell?.id ?? mobileEditExpense?.id) as number;
     const cat = catMap[draft.categoryId as number];
+    const payee = payeeMap[draft.payeeId as number];
     onUpdate(targetId, {
       ...draft,
       amount:
         draft.amount != null ? parseFloat(String(draft.amount)) : undefined,
       category: cat?.name ?? draft.category,
+      payee: payee?.name ?? draft.payee,
     });
     setEditingCell(null);
     setDraft({});
     setShowMobileEditModal(false);
     setMobileEditExpense(null);
-  }, [editingCell, mobileEditExpense, draft, catMap, onUpdate]);
+  }, [editingCell, mobileEditExpense, draft, catMap, payeeMap, onUpdate]);
 
   const cancelEdit = useCallback(() => {
     setEditingCell(null);
@@ -235,6 +244,7 @@ export default function ExpenseTable({
         catMap,
         activeCategories,
         resolveName,
+        payeeMap,
         inputRef,
       }),
     [
@@ -254,6 +264,7 @@ export default function ExpenseTable({
       catMap,
       activeCategories,
       resolveName,
+      payeeMap,
     ],
   );
 
@@ -302,87 +313,12 @@ export default function ExpenseTable({
 
       {/* Mobile edit modal */}
       {showMobileEditModal && mobileEditExpense && (
-        <Modal
-          isOpen={showMobileEditModal}
+        <ExpenseForm
+          initialExpense={mobileEditExpense}
+          onUpdate={onUpdate}
           onClose={cancelEdit}
-          title="Edit Expense"
-          size="md"
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs text-theme-muted block mb-1">
-                Date
-              </label>
-              <input
-                type="date"
-                value={String(draft.date ?? mobileEditExpense.date)}
-                onChange={(e) => setField("date")(e.target.value)}
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-theme-muted block mb-1">
-                Category
-              </label>
-              <select
-                value={
-                  (draft.categoryId as number) ??
-                  mobileEditExpense.categoryId ??
-                  ""
-                }
-                onChange={(e) =>
-                  setField("categoryId")(Number(e.target.value))
-                }
-                className="input-theme w-full px-3 py-2 text-sm"
-              >
-                {activeCategories.map((c) => (
-                  <option key={c.id} value={c.id as number}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-theme-muted block mb-1">
-                Description
-              </label>
-              <input
-                type="text"
-                value={String(
-                  draft.description ?? mobileEditExpense.description ?? "",
-                )}
-                onChange={(e) =>
-                  setField("description")(e.target.value)
-                }
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-theme-muted block mb-1">
-                Amount
-              </label>
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={String(draft.amount ?? mobileEditExpense.amount)}
-                onChange={(e) => setField("amount")(e.target.value)}
-                className="input-theme w-full px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={cancelEdit}
-                className="summary-cancel-btn flex-1"
-              >
-                Cancel
-              </button>
-              <button onClick={saveEdit} className="summary-save-btn flex-1">
-                Save
-              </button>
-            </div>
-          </div>
-        </Modal>
+          categories={categories}
+        />
       )}
 
       {/* Delete confirmation modal */}

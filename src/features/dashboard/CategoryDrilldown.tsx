@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { cn } from "../../utils/cn";
 import type { Expense } from "../../types";
+import ExpenseTableMobile from "./ExpenseTableMobile";
 
 interface CategoryDrilldownProps {
   category: string;
@@ -9,12 +10,14 @@ interface CategoryDrilldownProps {
   expenses: Expense[];
   formatDate: (iso: string) => string;
   formatAmount: (n: number) => string;
+  resolveName: (exp: Expense) => string;
   onClose: () => void;
+  isMobile?: boolean;
 }
 
 const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
   (
-    { category, monthName, year, expenses, formatDate, formatAmount, onClose },
+    { category, monthName, year, expenses, formatDate, formatAmount, resolveName, onClose, isMobile },
     ref,
   ) => {
     return (
@@ -30,51 +33,65 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
             Close
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="table-header-cell text-left">Date</th>
-                <th className="table-header-cell text-left">Description</th>
-                <th className="table-header-cell text-right tabular-nums">
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((exp) => {
-                const amountColor =
-                  exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
-                return (
-                  <tr
-                    key={exp.id}
-                    className="border-b border-theme-muted/10 row-hover"
-                  >
-                    <td className="px-3 py-1 text-theme-text whitespace-nowrap">
-                      {formatDate(exp.date)}
-                    </td>
-                    <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
-                      {exp.description || "—"}
-                    </td>
-                    <td
-                      className={cn(
-                        "px-3 py-1 text-right tabular-nums font-semibold",
-                        amountColor,
-                      )}
+        {isMobile ? (
+          <ExpenseTableMobile
+            expenses={expenses}
+            formatDate={formatDate}
+            formatAmount={formatAmount}
+            resolveName={resolveName}
+            hideCategory={true}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-separate border-spacing-0">
+              <thead>
+                <tr>
+                  <th className="table-header-cell text-left">Date</th>
+                  <th className="table-header-cell text-left">Payee</th>
+                  <th className="table-header-cell text-left">Description</th>
+                  <th className="table-header-cell text-right tabular-nums">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((exp) => {
+                  const amountColor =
+                    exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
+                  return (
+                    <tr
+                      key={exp.id}
+                      className="border-b border-theme-muted/10 row-hover"
                     >
-                      {formatAmount(exp.amount)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {expenses.length === 0 && (
-            <p className="text-sm text-theme-muted text-center py-8">
-              No expenses
-            </p>
-          )}
-        </div>
+                      <td className="px-3 py-1 text-theme-text whitespace-nowrap">
+                        {formatDate(exp.date)}
+                      </td>
+                      <td className="px-3 py-1 text-theme-text whitespace-nowrap">
+                        {exp.payee || "—"}
+                      </td>
+                      <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
+                        {exp.description || "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-1 text-right tabular-nums font-semibold",
+                          amountColor,
+                        )}
+                      >
+                        {formatAmount(exp.amount)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {expenses.length === 0 && (
+          <p className="text-sm text-theme-muted text-center py-8">
+            No expenses
+          </p>
+        )}
       </div>
     );
   },

@@ -5,12 +5,13 @@ import type { Expense } from "../../types";
 
 interface ExpenseTableMobileProps {
   expenses: Expense[];
-  selectedIds: Set<number>;
-  onToggleSelect: (id: number) => void;
-  onCellEdit: (expense: Expense) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
+  onCellEdit?: (expense: Expense) => void;
   formatDate: (iso: string) => string;
   formatAmount: (n: number) => string;
   resolveName: (exp: Expense) => string;
+  hideCategory?: boolean;
 }
 
 export default function ExpenseTableMobile({
@@ -21,7 +22,13 @@ export default function ExpenseTableMobile({
   formatDate,
   formatAmount,
   resolveName,
+  hideCategory,
 }: ExpenseTableMobileProps) {
+  const resolvedSelectedIds = selectedIds ?? new Set<number>();
+  const resolvedOnToggleSelect = onToggleSelect ?? (() => {});
+  const resolvedOnCellEdit = onCellEdit ?? (() => {});
+  const isInteractive = onToggleSelect != null || onCellEdit != null;
+
   const groupedExpenses = useMemo(() => {
     const groups: Record<string, Expense[]> = {};
     expenses.forEach((exp) => {
@@ -33,7 +40,7 @@ export default function ExpenseTableMobile({
 
   const { onTouchStart, onTouchMove, onTouchEnd } = useLongPress({
     onLongPress: (id: number) => {
-      onToggleSelect(id);
+      resolvedOnToggleSelect(id);
     },
   });
 
@@ -45,38 +52,61 @@ export default function ExpenseTableMobile({
             {formatDate(date)}
           </div>
           {items.map((exp) => {
-            const isSelected = selectedIds.has(exp.id as number);
+            const isSelected = resolvedSelectedIds.has(exp.id as number);
             const amountColor =
               exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
             return (
               <div
                 key={exp.id}
                 className={cn(
-                  "flex items-center justify-between py-1 px-3",
-                  isSelected &&
-                    "selected-row border-l-4 border-theme-primary",
+                  "grid items-center gap-x-3 py-1 px-3",
+                  isSelected && "selected-row border-l-4 border-theme-primary",
                   "row-hover",
                 )}
-                onTouchStart={(e) => onTouchStart(e, exp.id as number)}
-                onTouchMove={onTouchMove}
-                onTouchEnd={(e) => onTouchEnd(e, exp.id as number)}
+                style={{
+                  gridTemplateColumns:
+                    "minmax(60px, auto) 1fr minmax(60px, auto)",
+                }}
+                onTouchStart={
+                  isInteractive
+                    ? (e) => onTouchStart(e, exp.id as number)
+                    : undefined
+                }
+                onTouchMove={isInteractive ? onTouchMove : undefined}
+                onTouchEnd={
+                  isInteractive
+                    ? (e) => onTouchEnd(e, exp.id as number)
+                    : undefined
+                }
                 onClick={() => {
-                  if (selectedIds.size > 0) {
-                    onToggleSelect(exp.id as number);
+                  if (!isInteractive) return;
+                  if (resolvedSelectedIds.size > 0) {
+                    resolvedOnToggleSelect(exp.id as number);
                   } else {
-                    onCellEdit(exp);
+                    resolvedOnCellEdit(exp);
                   }
                 }}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-theme-text truncate">
-                    {exp.description || "—"}
-                  </p>
-                  <p className="text-xs text-theme-muted">{resolveName(exp)}</p>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium text-theme-text truncate">
+                    {exp.payee || exp.description || "—"}
+                  </span>
+                  {!hideCategory && (
+                    <span className="text-xs text-theme-muted truncate">
+                      {resolveName(exp)}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right min-w-0">
+                  {exp.description && (
+                    <span className="text-sm text-theme-muted truncate block">
+                      {exp.description}
+                    </span>
+                  )}
                 </div>
                 <span
                   className={cn(
-                    "text-sm font-semibold tabular-nums",
+                    "text-sm font-semibold tabular-nums text-right",
                     amountColor,
                   )}
                 >

@@ -1,45 +1,60 @@
-import { cn } from "../../utils/cn";
+import { useState, useEffect } from "react";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
 import type { Category } from "../../types";
 
+interface FilterDraft {
+  filterGlobal: string;
+  filterDateFrom: string;
+  filterDateTo: string;
+  filterCategory: string;
+  filterDescription: string;
+  filterAmount: string;
+}
+
 interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  filterGlobal: string;
-  onFilterGlobalChange: (val: string) => void;
-  filterDateFrom: string;
-  onFilterDateFromChange: (val: string) => void;
-  filterDateTo: string;
-  onFilterDateToChange: (val: string) => void;
-  filterCategory: string;
-  onFilterCategoryChange: (val: string) => void;
-  filterDescription: string;
-  onFilterDescriptionChange: (val: string) => void;
-  filterAmount: string;
-  onFilterAmountChange: (val: string) => void;
-  onClearAll: () => void;
+  appliedFilters: FilterDraft;
+  onApply: (filters: FilterDraft) => void;
   categories: Category[];
 }
+
+const EMPTY_DRAFT: FilterDraft = {
+  filterGlobal: "",
+  filterDateFrom: "",
+  filterDateTo: "",
+  filterCategory: "",
+  filterDescription: "",
+  filterAmount: "",
+};
 
 export default function FilterModal({
   isOpen,
   onClose,
-  filterGlobal,
-  onFilterGlobalChange,
-  filterDateFrom,
-  onFilterDateFromChange,
-  filterDateTo,
-  onFilterDateToChange,
-  filterCategory,
-  onFilterCategoryChange,
-  filterDescription,
-  onFilterDescriptionChange,
-  filterAmount,
-  onFilterAmountChange,
-  onClearAll,
+  appliedFilters,
+  onApply,
   categories,
 }: FilterModalProps) {
+  const [draft, setDraft] = useState<FilterDraft>(EMPTY_DRAFT);
+
+  // Sync draft from applied filters when opening
+  useEffect(() => {
+    if (isOpen) {
+      setDraft({ ...appliedFilters });
+    }
+  }, [isOpen, appliedFilters]);
+
+  const set = (field: keyof FilterDraft) => (val: string) =>
+    setDraft((d) => ({ ...d, [field]: val }));
+
+  const handleClearAll = () => setDraft(EMPTY_DRAFT);
+
+  const handleDone = () => {
+    onApply(draft);
+    onClose();
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -48,10 +63,13 @@ export default function FilterModal({
       size="md"
       footer={
         <ModalFooter>
-          <button onClick={onClearAll} className="summary-cancel-btn rounded-theme-small flex-1">
+          <button
+            onClick={handleClearAll}
+            className="summary-cancel-btn rounded-theme-small flex-1"
+          >
             Clear all
           </button>
-          <button onClick={onClose} className="summary-save-btn flex-1">
+          <button onClick={handleDone} className="summary-save-btn flex-1">
             Done
           </button>
         </ModalFooter>
@@ -64,8 +82,8 @@ export default function FilterModal({
           </label>
           <input
             type="text"
-            value={filterGlobal}
-            onChange={(e) => onFilterGlobalChange(e.target.value)}
+            value={draft.filterGlobal}
+            onChange={(e) => set("filterGlobal")(e.target.value)}
             placeholder="Description, category, or amount..."
             className="input-theme w-full px-3 py-2 text-sm"
           />
@@ -78,8 +96,8 @@ export default function FilterModal({
             </label>
             <input
               type="date"
-              value={filterDateFrom}
-              onChange={(e) => onFilterDateFromChange(e.target.value)}
+              value={draft.filterDateFrom}
+              onChange={(e) => set("filterDateFrom")(e.target.value)}
               className="input-theme w-full px-3 py-2 text-sm"
             />
           </div>
@@ -89,8 +107,8 @@ export default function FilterModal({
             </label>
             <input
               type="date"
-              value={filterDateTo}
-              onChange={(e) => onFilterDateToChange(e.target.value)}
+              value={draft.filterDateTo}
+              onChange={(e) => set("filterDateTo")(e.target.value)}
               className="input-theme w-full px-3 py-2 text-sm"
             />
           </div>
@@ -101,8 +119,8 @@ export default function FilterModal({
             Category
           </label>
           <select
-            value={filterCategory}
-            onChange={(e) => onFilterCategoryChange(e.target.value)}
+            value={draft.filterCategory}
+            onChange={(e) => set("filterCategory")(e.target.value)}
             className="input-theme w-full px-3 py-2 text-sm"
           >
             <option value="">All categories</option>
@@ -120,8 +138,8 @@ export default function FilterModal({
           </label>
           <input
             type="text"
-            value={filterDescription}
-            onChange={(e) => onFilterDescriptionChange(e.target.value)}
+            value={draft.filterDescription}
+            onChange={(e) => set("filterDescription")(e.target.value)}
             placeholder="Contains..."
             className="input-theme w-full px-3 py-2 text-sm"
           />
@@ -133,8 +151,8 @@ export default function FilterModal({
           </label>
           <input
             type="text"
-            value={filterAmount}
-            onChange={(e) => onFilterAmountChange(e.target.value)}
+            value={draft.filterAmount}
+            onChange={(e) => set("filterAmount")(e.target.value)}
             placeholder="e.g. 12.50"
             className="input-theme w-full px-3 py-2 text-sm"
           />

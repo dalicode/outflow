@@ -3,8 +3,10 @@ import "./settings.css";
 import { useSettings } from "../../context/settingsContext";
 import { useAuth } from "../../context/authContext";
 import { StorageService } from "../../services/storageService";
+import { cn } from "../../utils/cn";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
 import { useScheduleList } from "../../hooks/useScheduleList";
+import { usePayees } from "../../hooks/useLocalData";
 import Card from "../../components/ui/Card";
 import EditHistoricalDataModal from "./EditHistoricalDataModal";
 import ScheduleModal from "./ScheduleModal";
@@ -15,7 +17,7 @@ import CsvImportCard from "./CsvImportCard";
 import ImportLogPanel from "./ImportLogPanel";
 import ScheduleList from "./ScheduleList";
 import DangerZone from "./DangerZone";
-import type { Expense, Schedule } from "../../types";
+import type { Expense, Schedule, Payee } from "../../types";
 
 interface RowProps {
   label: string;
@@ -40,6 +42,195 @@ function Row({ label, value, onChange, options }: RowProps) {
         ))}
       </select>
     </div>
+  );
+}
+
+function PayeeManager() {
+  const { payees, refresh } = usePayees();
+  const [newName, setNewName] = useState("");
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+
+  const activePayees = useMemo(
+    () => payees.filter((p) => !p.isArchived),
+    [payees]
+  );
+  const archivedPayees = useMemo(
+    () => payees.filter((p) => p.isArchived),
+    [payees]
+  );
+  const visiblePayees = showArchived ? payees : activePayees;
+
+  const sortedPayees = useMemo(
+    () => [...visiblePayees].sort((a, b) => a.name.localeCompare(b.name)),
+    [visiblePayees]
+  );
+
+  const handleAdd = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      await StorageService.addPayee(trimmed);
+      setNewName("");
+      setError("");
+      refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const startEdit = (payee: Payee) => {
+    setEditingId(payee.id as number);
+    setEditName(payee.name);
+    setError("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setError("");
+  };
+
+  const saveEdit = async (id: number) => {
+    const trimmed = editName.trim();
+    if (!trimmed) return;
+    try {
+      await StorageService.updatePayee(id, trimmed);
+      setEditingId(null);
+      setEditName("");
+      setError("");
+      refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const handleArchive = async (id: number) => {
+    await StorageService.archivePayee(id);
+    refresh();
+  };
+
+  const handleUnarchive = async (id: number) => {
+    await StorageService.unarchivePayee(id);
+    refresh();
+  };
+
+  return (
+    <Card title="Payees">
+      <p className="text-xs text-theme-muted mb-2">
+        Manage who or where you spend money.
+      </p>
+
+      {/* Add new */}
+      <div className="flex gap-2 mb-3">
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New payee name"
+          className="input-theme flex-1 px-3 py-1.5 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAdd();
+          }}
+        />
+        <button
+          onClick={handleAdd}
+          disabled={!newName.trim()}
+          className="bg-theme-primary hover:opacity-90 disabled:opacity-40 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+        >
+          Add
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-theme-danger mb-2">{error}</p>}
+
+      {/* List */}
+      <div className="space-y-1 max-h-64 overflow-y-auto scrollbar-auto-hide">
+        {sortedPayees.map((payee) => (
+          <div
+            key={payee.id}
+            className="flex items-center justify-between py-1 px-2 rounded-theme-small"
+          >
+            {editingId === payee.id ? (
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input-theme flex-1 px-2 py-1 text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit(payee.id as number);
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                />
+                <button
+                  onClick={() => saveEdit(payee.id as number)}
+                  className="text-xs text-theme-primary font-medium"
+                >
+                  Save
+                </button>
+                <button onClick={cancelEdit} className="text-xs text-theme-muted">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <>
+                <span
+                  className={cn(
+                    "text-sm flex-1",
+                    payee.isArchived ? "text-theme-muted line-through" : "text-theme-text"
+                  )}
+                >
+                  {payee.name}
+                </span>
+                <div className="flex items-center gap-2">
+                  {!payee.isArchived && (
+                    <>
+                      <button
+                        onClick={() => startEdit(payee)}
+                        className="text-xs text-theme-primary hover:opacity-80 font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleArchive(payee.id as number)}
+                        className="text-xs text-theme-muted hover:text-theme-text"
+                      >
+                        Archive
+                      </button>
+                    </>
+                  )}
+                  {payee.isArchived && (
+                    <button
+                      onClick={() => handleUnarchive(payee.id as number)}
+                      className="text-xs text-theme-muted hover:text-theme-text"
+                    >
+                      Unarchive
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+        {sortedPayees.length === 0 && (
+          <p className="text-xs text-theme-muted py-2">No payees yet.</p>
+        )}
+      </div>
+
+      {/* Show archived toggle */}
+      {archivedPayees.length > 0 && (
+        <button
+          onClick={() => setShowArchived((s) => !s)}
+          className="text-xs text-theme-muted hover:text-theme-text mt-2"
+        >
+          {showArchived ? "Hide archived" : `Show archived (${archivedPayees.length})`}
+        </button>
+      )}
+    </Card>
   );
 }
 
@@ -251,6 +442,9 @@ export default function SettingsPage({
           Preview: {formatDate(getLocalToday())}
         </p>
       </Card>
+
+      {/* Payees */}
+      <PayeeManager />
 
       {/* Export + Import */}
       <div className="flex flex-col sm:flex-row gap-3">

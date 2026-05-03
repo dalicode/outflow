@@ -42,7 +42,6 @@ function toCloud(table: string, payload: Record<string, unknown>, userId: string
       id: String(p.id),
       name: p.name,
       is_archived: p.isArchived ?? false,
-      is_deleted: p.isDeleted ?? false,
     }
   }
   if (table === 'fixedExpenses') {
@@ -93,7 +92,6 @@ function fromCloud(table: string, row: Record<string, unknown>): Record<string, 
       id: row.id,
       name: row.name,
       isArchived: row.is_archived,
-      isDeleted: row.is_deleted,
       createdAt: row.created_at ?? new Date().toISOString(),
     }
   }

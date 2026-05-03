@@ -383,8 +383,8 @@ describe('getYearVariableGrid', () => {
       makeExpense({ date: '2024-01-10', amount: 75, categoryId: 2 }),
     ]
     const categories = [
-      { id: 1, name: 'Food', isDeleted: false },
-      { id: 2, name: 'Transport', isDeleted: false },
+      { id: 1, name: 'Food', isArchived: false },
+      { id: 2, name: 'Transport', isArchived: false },
     ]
 
     const result = getYearVariableGrid(2024, expenses, categories)
@@ -400,7 +400,7 @@ describe('getYearVariableGrid', () => {
       makeExpense({ date: '2024-01-15', amount: 100, categoryId: 1 }),
     ]
     const categories = [
-      { id: 1, name: 'Food', isDeleted: true },
+      { id: 1, name: 'Food', isArchived: true },
     ]
 
     const result = getYearVariableGrid(2024, expenses, categories)

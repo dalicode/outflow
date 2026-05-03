@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "../../utils/cn";
-import type { Expense, Category } from "../../types";
+import type { Expense, Category, Payee } from "../../types";
 
 interface GetExpenseColumnsParams {
   selectedIds: Set<number>;
@@ -19,6 +19,7 @@ interface GetExpenseColumnsParams {
   catMap: Record<number, Category>;
   activeCategories: Category[];
   resolveName: (exp: Expense) => string;
+  payeeMap: Record<number, Payee>;
   inputRef: React.RefObject<HTMLInputElement | HTMLSelectElement | null>;
 }
 
@@ -39,10 +40,18 @@ export function getExpenseColumns({
   catMap,
   activeCategories,
   resolveName,
+  payeeMap,
   inputRef,
 }: GetExpenseColumnsParams): ColumnDef<Expense>[] {
   const isEditing = (exp: Expense, field: keyof Expense) =>
     editingCell?.id === exp.id && editingCell?.field === field;
+
+  const resolvePayeeName = (exp: Expense) => {
+    if (exp.payeeId && payeeMap[exp.payeeId]) {
+      return payeeMap[exp.payeeId].name;
+    }
+    return exp.payee || "—";
+  };
 
   return [
     {
@@ -161,7 +170,7 @@ export function getExpenseColumns({
             onClick={() => onCellEdit(exp, "categoryId")}
             className={cn(
               "cursor-pointer",
-              catMap[exp.categoryId as number]?.isDeleted
+              catMap[exp.categoryId as number]?.isArchived
                 ? "text-theme-muted italic"
                 : "text-theme-text font-medium",
             )}
@@ -171,6 +180,19 @@ export function getExpenseColumns({
         );
       },
       meta: { className: "text-left", cellClassName: "whitespace-nowrap" },
+    },
+    {
+      id: "payee",
+      header: "Payee",
+      cell: ({ row }) => {
+        const exp = row.original;
+        return (
+          <span className="text-theme-muted text-xs">
+            {resolvePayeeName(exp)}
+          </span>
+        );
+      },
+      meta: { className: "text-left hidden sm:table-cell", cellClassName: "whitespace-nowrap" },
     },
     {
       id: "description",

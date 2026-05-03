@@ -3,6 +3,7 @@ import type { Expense } from "../types";
 export const CSV_HEADERS = [
   "Date",
   "Category",
+  "Payee",
   "Description",
   "Amount",
   "Month",
@@ -18,6 +19,7 @@ export function expenseToRow(
   return [
     formatDate(d),
     exp.category ?? "",
+    exp.payee ?? "",
     exp.description ?? "",
     exp.amount ?? 0,
     m ? parseInt(m, 10) : "",

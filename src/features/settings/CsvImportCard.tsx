@@ -36,6 +36,7 @@ export default function CsvImportCard({
       const valid: Array<{
         date: string;
         category: string;
+        payee?: string;
         description: string;
         amount: number;
       }> = [];
@@ -69,6 +70,7 @@ export default function CsvImportCard({
         valid.push({
           date: iso,
           category: getCsvField(row, ["category"]) || "Uncategorized",
+          payee: getCsvField(row, ["payee"]) || undefined,
           description: getCsvField(row, ["description", "item"]) || "",
           amount,
         });
@@ -100,6 +102,22 @@ export default function CsvImportCard({
         : valid.filter(
             (r) => !existingKeys.has(`${r.date}|${r.amount}|${r.description}`),
           );
+
+      // Create payees for imported rows that have payee names
+      const payeeNames = [...new Set(toAdd.map((r) => r.payee).filter(Boolean))];
+      if (payeeNames.length > 0) {
+        const existingPayees = await StorageService.getPayees();
+        const existingNames = new Set(existingPayees.map((p) => p.name.toLowerCase()));
+        for (const name of payeeNames) {
+          if (!existingNames.has(name!.toLowerCase())) {
+            try {
+              await StorageService.addPayee(name!);
+            } catch {
+              // Payee may already exist (race condition), ignore
+            }
+          }
+        }
+      }
       const skipped = valid.length - toAdd.length;
 
       for (const row of toAdd) await StorageService.add(row);
@@ -123,8 +141,8 @@ export default function CsvImportCard({
   return (
     <Card title="Import CSV" className="flex-1">
       <p className="text-xs text-theme-muted mb-2">
-        Import expenses from a CSV file. Supports date, category, description,
-        and amount columns.
+        Import expenses from a CSV file. Supports date, category, payee,
+        description, and amount columns.
       </p>
       <CsvImportForm fileRef={fileRef} onImport={handleImport} />
     </Card>
