@@ -13,7 +13,6 @@ import type { FinanceEngineData, Expense, FixedExpense, FixedExpenseSnapshot, Sc
 const makeExpense = (overrides: Partial<Expense> = {}): Expense => ({
   date: '2024-01-15',
   amount: 100,
-  category: 'Food',
   ...overrides,
 })
 
@@ -414,12 +413,12 @@ describe('getYearVariableGrid', () => {
 
   it('handles uncategorized expenses', () => {
     const expenses: Expense[] = [
-      makeExpense({ date: '2024-01-15', amount: 100, category: 'Misc' }),
+      makeExpense({ date: '2024-01-15', amount: 100 }),
     ]
 
     const result = getYearVariableGrid(2024, expenses, [])
     expect(result.variableRows).toHaveLength(1)
-    expect(result.variableRows[0].name).toBe('Misc')
+    expect(result.variableRows[0].name).toBe('Uncategorized')
   })
 
   it('ignores expenses from other years', () => {

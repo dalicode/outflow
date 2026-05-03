@@ -103,24 +103,67 @@ export default function CsvImportCard({
             (r) => !existingKeys.has(`${r.date}|${r.amount}|${r.description}`),
           );
 
-      // Create payees for imported rows that have payee names
+      // Create/link payees for imported rows
       const payeeNames = [...new Set(toAdd.map((r) => r.payee).filter(Boolean))];
+      const payeeMap: Record<string, number> = {};
       if (payeeNames.length > 0) {
         const existingPayees = await StorageService.getPayees();
-        const existingNames = new Set(existingPayees.map((p) => p.name.toLowerCase()));
+        const existingByName = new Map(
+          existingPayees.map((p) => [p.name.toLowerCase(), p])
+        );
         for (const name of payeeNames) {
-          if (!existingNames.has(name!.toLowerCase())) {
+          const existing = existingByName.get(name!.toLowerCase());
+          if (existing && !existing.isArchived) {
+            payeeMap[name!] = existing.id!;
+          } else {
             try {
-              await StorageService.addPayee(name!);
+              const newId = await StorageService.addPayee(name!);
+              payeeMap[name!] = newId;
             } catch {
-              // Payee may already exist (race condition), ignore
+              const refreshed = await StorageService.getPayees();
+              const found = refreshed.find((p) => p.name.toLowerCase() === name!.toLowerCase());
+              if (found) payeeMap[name!] = found.id!;
             }
           }
         }
       }
+
+      // Create/link categories for imported rows
+      const categoryNames = [...new Set(toAdd.map((r) => r.category).filter(Boolean))];
+      const categoryMap: Record<string, number> = {};
+      if (categoryNames.length > 0) {
+        const existingCategories = await StorageService.getCategories();
+        const existingByName = new Map(
+          existingCategories.map((c) => [c.name.toLowerCase(), c])
+        );
+        for (const name of categoryNames) {
+          const existing = existingByName.get(name!.toLowerCase());
+          if (existing && !existing.isArchived) {
+            categoryMap[name!] = existing.id!;
+          } else {
+            try {
+              const newId = await StorageService.addCategory(name!);
+              categoryMap[name!] = newId;
+            } catch {
+              const refreshed = await StorageService.getCategories();
+              const found = refreshed.find((c) => c.name.toLowerCase() === name!.toLowerCase());
+              if (found) categoryMap[name!] = found.id!;
+            }
+          }
+        }
+      }
+
       const skipped = valid.length - toAdd.length;
 
-      for (const row of toAdd) await StorageService.add(row);
+      for (const row of toAdd) {
+        await StorageService.add({
+          date: row.date,
+          amount: row.amount,
+          description: row.description,
+          categoryId: categoryMap[row.category],
+          payeeId: row.payee ? payeeMap[row.payee] : undefined,
+        });
+      }
 
       const importedYears = [
         ...new Set(toAdd.map((r) => parseInt(r.date.slice(0, 4), 10))),

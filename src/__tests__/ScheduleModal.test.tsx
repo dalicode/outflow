@@ -10,6 +10,7 @@ vi.mock('../services/storageService', () => ({
       { id: 1, name: 'Groceries' },
       { id: 2, name: 'Entertainment' },
     ])),
+    addCategory: vi.fn(() => Promise.resolve(3)),
     addSchedule: vi.fn(() => Promise.resolve(1)),
     updateSchedule: vi.fn(() => Promise.resolve()),
   },
@@ -67,6 +68,15 @@ describe('ScheduleModal', () => {
 
     const typeSelect = screen.getAllByRole('combobox')[0]
     fireEvent.change(typeSelect, { target: { value: 'expense' } })
+
+    await waitFor(() => {
+      expect(screen.getByText('Category')).toBeInTheDocument()
+    })
+
+    // Open the CreatableCombobox dropdown
+    const categoryInput = screen.getByPlaceholderText('Search or add category…')
+    fireEvent.focus(categoryInput)
+    fireEvent.keyDown(categoryInput, { key: 'ArrowDown' })
 
     await waitFor(() => {
       expect(screen.getByText('Groceries')).toBeInTheDocument()

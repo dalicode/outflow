@@ -1,5 +1,6 @@
 import { cn } from "../../utils/cn";
-import type { Schedule } from "../../types";
+import { normalizeName } from "../../utils/normalizeName";
+import type { Schedule, Category } from "../../types";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -8,11 +9,12 @@ const MONTHS = [
 
 interface ScheduleListProps {
   schedules: Schedule[];
+  categories: Category[];
   onEdit: (schedule: Schedule) => void;
   onDelete: (id: number) => void;
 }
 
-export default function ScheduleList({ schedules, onEdit, onDelete }: ScheduleListProps) {
+export default function ScheduleList({ schedules, categories, onEdit, onDelete }: ScheduleListProps) {
   if (schedules.length === 0) {
     return (
       <p className="text-xs text-theme-muted italic mb-3">
@@ -48,6 +50,7 @@ export default function ScheduleList({ schedules, onEdit, onDelete }: ScheduleLi
             <ScheduleItem
               key={s.id}
               schedule={s}
+              categories={categories}
               isArchived={false}
               onEdit={() => onEdit(s)}
               onDelete={() => onDelete(s.id as number)}
@@ -64,6 +67,7 @@ export default function ScheduleList({ schedules, onEdit, onDelete }: ScheduleLi
             <ScheduleItem
               key={s.id}
               schedule={s}
+              categories={categories}
               isArchived={true}
               onEdit={() => {}}
               onDelete={() => {}}
@@ -77,11 +81,13 @@ export default function ScheduleList({ schedules, onEdit, onDelete }: ScheduleLi
 
 function ScheduleItem({
   schedule,
+  categories,
   isArchived,
   onEdit,
   onDelete,
 }: {
   schedule: Schedule;
+  categories: Category[];
   isArchived: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -117,8 +123,10 @@ function ScheduleItem({
         <span className="text-theme-muted mx-1">&rarr;</span>
         <span className="text-theme-primary font-semibold">{valueLabel}</span>
         <span className="text-theme-muted ml-2">{dateLabel}</span>
-        {schedule.category && (
-          <span className="text-theme-muted ml-1">({schedule.category})</span>
+        {schedule.categoryId && (
+          <span className="text-theme-muted ml-1">
+            ({normalizeName(categories.find((c) => c.id === schedule.categoryId)?.name ?? "Unknown")})
+          </span>
         )}
         {schedule.note && (
           <span className="text-theme-muted ml-1">({schedule.note})</span>

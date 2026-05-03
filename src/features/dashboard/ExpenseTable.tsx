@@ -91,7 +91,7 @@ export default function ExpenseTable({
     (exp: Expense) => {
       const cat = catMap[exp.categoryId as number];
       if (cat) return cat.isArchived ? `${normalizeName(cat.name)} (deleted)` : normalizeName(cat.name);
-      return exp.category || "Uncategorized";
+      return "Uncategorized";
     },
     [catMap],
   );
@@ -115,8 +115,6 @@ export default function ExpenseTable({
       ...draft,
       amount:
         draft.amount != null ? parseFloat(String(draft.amount)) : undefined,
-      category: cat?.name ?? draft.category,
-      payee: payee?.name ?? draft.payee,
     });
     setEditingCell(null);
     setDraft({});
@@ -302,6 +300,10 @@ export default function ExpenseTable({
           formatDate={formatDate}
           formatAmount={formatAmount}
           resolveName={resolveName}
+          resolvePayeeName={(exp) => {
+            const p = payeeMap[exp.payeeId as number];
+            return p ? normalizeName(p.name) : "";
+          }}
         />
       ) : (
         <DataTable

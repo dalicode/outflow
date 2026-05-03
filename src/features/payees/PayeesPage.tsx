@@ -114,7 +114,7 @@ export default function PayeesPage() {
         {filteredPayees.map((payee) => (
           <div
             key={payee.id}
-            className="flex items-center justify-between py-2 px-3 rounded-theme-small border border-theme-border/50 hover:bg-theme-background transition-colors"
+            className="flex items-center justify-between py-2 px-3 rounded-theme-small border-b border-theme-border hover:bg-theme-background transition-colors"
           >
             {editingId === payee.id ? (
               <div className="flex items-center gap-2 flex-1">

@@ -7,7 +7,9 @@ import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
 import IncomeModalForm from "../../components/forms/IncomeModalForm";
 import SavingsModalForm from "../../components/forms/SavingsModalForm";
 import { useSettings } from "../../context/settingsContext";
+import { usePayees } from "../../hooks/useLocalData";
 import { useDashboard } from "../../hooks/useDashboard";
+import { normalizeName } from "../../utils/normalizeName";
 import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
@@ -54,6 +56,11 @@ export default function Dashboard({
 
   // ── Derived values ──
   const isMobile = dash.viewportWidth < 640;
+  const { payees } = usePayees();
+  const payeeMap = useMemo(
+    () => Object.fromEntries(payees.map((p) => [p.id, p])),
+    [payees]
+  );
 
   const multiCategoryRows = useMemo(
     () =>
@@ -256,6 +263,10 @@ export default function Dashboard({
                       formatDate={formatDate}
                       formatAmount={formatAmount}
                       resolveName={dash.getExpenseCategoryName}
+                      resolvePayeeName={(exp) => {
+                        const p = payeeMap[exp.payeeId as number];
+                        return p ? normalizeName(p.name) : "";
+                      }}
                       onClose={dash.closeDrilldown}
                       isMobile={isMobile}
                     />

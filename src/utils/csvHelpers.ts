@@ -12,14 +12,16 @@ export const CSV_HEADERS = [
 
 export function expenseToRow(
   exp: Expense,
+  catMap: Record<number, string>,
+  payeeMap: Record<number, string>,
   formatDate: (iso: string) => string,
 ): (string | number)[] {
   const d = exp.date || "";
   const [y, m] = d.split("-");
   return [
     formatDate(d),
-    exp.category ?? "",
-    exp.payee ?? "",
+    catMap[exp.categoryId as number] ?? "Uncategorized",
+    payeeMap[exp.payeeId as number] ?? "",
     exp.description ?? "",
     exp.amount ?? 0,
     m ? parseInt(m, 10) : "",

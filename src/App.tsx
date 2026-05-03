@@ -172,15 +172,18 @@ export default function App() {
   const handleCategoriesChange = async (
     action: "add" | "update" | "delete",
     payload: { id?: number; name?: string },
-  ) => {
-    if (action === "add" && payload.name)
-      await StorageService.addCategory(payload.name);
-    else if (action === "update" && payload.id != null && payload.name)
+  ): Promise<number | undefined> => {
+    let newId: number | undefined;
+    if (action === "add" && payload.name) {
+      newId = await StorageService.addCategory(payload.name);
+    } else if (action === "update" && payload.id != null && payload.name) {
       await StorageService.updateCategory(payload.id, { name: payload.name });
-    else if (action === "delete" && payload.id != null)
+    } else if (action === "delete" && payload.id != null) {
       await StorageService.deleteCategory(payload.id);
+    }
     await refreshCategories();
     triggerSync?.();
+    return newId;
   };
 
   const handleAdd = async (expense: Omit<Expense, "id">) => {

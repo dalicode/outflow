@@ -7,12 +7,13 @@
  */
 import { supabase } from './supabase'
 import { StorageService } from './storageService'
-import { Expense, Category, FixedExpense, FixedExpenseSnapshot, SyncQueueItem } from '../types'
+import { Expense, Category, Payee, FixedExpense, FixedExpenseSnapshot, SyncQueueItem } from '../types'
 
 // Map local table names → Supabase table names
 const TABLE_MAP: Record<string, string> = {
   expenses: 'expenses',
   categories: 'categories',
+  payees: 'payees',
   fixedExpenses: 'fixed_expenses',
   fixedExpenseSnapshots: 'fixed_expense_snapshots',
   settings: 'settings',
@@ -30,13 +31,22 @@ function toCloud(table: string, payload: Record<string, unknown>, userId: string
       id: String(p.id),
       date: p.date,
       category_id: p.categoryId != null ? String(p.categoryId) : null,
-      category: p.category ?? '',
+      payee_id: p.payeeId != null ? String(p.payeeId) : null,
       description: p.description ?? '',
       amount: p.amount,
     }
   }
   if (table === 'categories') {
     const p = payload as unknown as Category
+    return {
+      ...base,
+      id: String(p.id),
+      name: p.name,
+      is_archived: p.isArchived ?? false,
+    }
+  }
+  if (table === 'payees') {
+    const p = payload as unknown as Payee
     return {
       ...base,
       id: String(p.id),
@@ -82,12 +92,20 @@ function fromCloud(table: string, row: Record<string, unknown>): Record<string, 
       id: row.id,
       date: row.date,
       categoryId: row.category_id,
-      category: row.category ?? '',
+      payeeId: row.payee_id,
       description: row.description ?? '',
       amount: row.amount,
     }
   }
   if (table === 'categories') {
+    return {
+      id: row.id,
+      name: row.name,
+      isArchived: row.is_archived,
+      createdAt: row.created_at ?? new Date().toISOString(),
+    }
+  }
+  if (table === 'payees') {
     return {
       id: row.id,
       name: row.name,
@@ -147,9 +165,10 @@ export async function flushSyncQueue(userId: string): Promise<void> {
 export async function pullFromSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
-  const [expRes, catRes, fixRes, snapRes, setRes] = await Promise.all([
+  const [expRes, catRes, payRes, fixRes, snapRes, setRes] = await Promise.all([
     supabase.from('expenses').select('*').eq('user_id', userId),
     supabase.from('categories').select('*').eq('user_id', userId),
+    supabase.from('payees').select('*').eq('user_id', userId),
     supabase.from('fixed_expenses').select('*').eq('user_id', userId),
     supabase.from('fixed_expense_snapshots').select('*').eq('user_id', userId),
     supabase.from('settings').select('*').eq('user_id', userId),
@@ -160,6 +179,9 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   }
   if (catRes.data?.length) {
     await StorageService.bulkUpsertCategories(catRes.data.map((r: unknown) => fromCloud('categories', r as Record<string, unknown>) as unknown as Category))
+  }
+  if (payRes.data?.length) {
+    await StorageService.bulkUpsertPayees(payRes.data.map((r: unknown) => fromCloud('payees', r as Record<string, unknown>) as unknown as Payee))
   }
   if (fixRes.data?.length) {
     await StorageService.bulkUpsertFixedExpenses(fixRes.data.map((r: unknown) => fromCloud('fixed_expenses', r as Record<string, unknown>) as unknown as FixedExpense))
@@ -229,9 +251,10 @@ export async function fetchBackupPasswordFromProfile(userId: string): Promise<st
 export async function migrateLocalToSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
-  const [expenses, categories, fixedExpenses] = await Promise.all([
+  const [expenses, categories, payees, fixedExpenses] = await Promise.all([
     StorageService.getAll() as Promise<Expense[]>,
     StorageService.getCategories() as Promise<Category[]>,
+    StorageService.getPayees() as Promise<Payee[]>,
     StorageService.getFixedExpenses() as Promise<FixedExpense[]>,
   ])
 
@@ -245,6 +268,7 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
   await Promise.all([
     upsert('expenses', expenses.map((r) => toCloud('expenses', r as unknown as Record<string, unknown>, userId))),
     upsert('categories', categories.map((r) => toCloud('categories', r as unknown as Record<string, unknown>, userId))),
+    upsert('payees', payees.map((r) => toCloud('payees', r as unknown as Record<string, unknown>, userId))),
     upsert('fixed_expenses', fixedExpenses.map((r) => toCloud('fixedExpenses', r as unknown as Record<string, unknown>, userId))),
   ])
 }

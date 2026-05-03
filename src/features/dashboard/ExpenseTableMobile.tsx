@@ -12,6 +12,7 @@ interface ExpenseTableMobileProps {
   formatDate: (iso: string) => string;
   formatAmount: (n: number) => string;
   resolveName: (exp: Expense) => string;
+  resolvePayeeName?: (exp: Expense) => string;
   hideCategory?: boolean;
 }
 
@@ -23,6 +24,7 @@ export default function ExpenseTableMobile({
   formatDate,
   formatAmount,
   resolveName,
+  resolvePayeeName,
   hideCategory,
 }: ExpenseTableMobileProps) {
   const resolvedSelectedIds = selectedIds ?? new Set<number>();
@@ -90,7 +92,7 @@ export default function ExpenseTableMobile({
               >
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-medium text-theme-text truncate">
-                    {exp.payee ? normalizeName(exp.payee) : exp.description || "—"}
+                    {resolvePayeeName?.(exp) || exp.description || "—"}
                   </span>
                   {!hideCategory && (
                     <span className="text-xs text-theme-muted truncate">

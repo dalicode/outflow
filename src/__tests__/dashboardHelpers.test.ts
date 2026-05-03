@@ -76,8 +76,15 @@ describe("getMonthKeys", () => {
 });
 
 describe("computeMultiMonthCategoryRows", () => {
+  const catMap: Record<number, string> = {
+    1: "Food",
+    2: "Transport",
+    3: "A",
+    4: "B",
+    5: "C",
+  };
   const resolveName = (exp: Expense) =>
-    exp.category ?? "Uncategorized";
+    catMap[exp.categoryId as number] ?? "Uncategorized";
 
   it("returns empty array when no expenses", () => {
     const months = getMonthKeys(2026, 4, 2);
@@ -87,9 +94,9 @@ describe("computeMultiMonthCategoryRows", () => {
 
   it("aggregates single month correctly", () => {
     const expenses: Expense[] = [
-      { date: "2026-05-01", amount: 100, category: "Food" },
-      { date: "2026-05-02", amount: 50, category: "Food" },
-      { date: "2026-05-03", amount: 30, category: "Transport" },
+      { date: "2026-05-01", amount: 100, categoryId: 1 },
+      { date: "2026-05-02", amount: 50, categoryId: 1 },
+      { date: "2026-05-03", amount: 30, categoryId: 2 },
     ];
     const months = getMonthKeys(2026, 4, 1);
     const result = computeMultiMonthCategoryRows(expenses, months, resolveName);
@@ -108,9 +115,9 @@ describe("computeMultiMonthCategoryRows", () => {
 
   it("sorts by current month amount descending", () => {
     const expenses: Expense[] = [
-      { date: "2026-05-01", amount: 10, category: "A" },
-      { date: "2026-05-02", amount: 100, category: "B" },
-      { date: "2026-05-03", amount: 50, category: "C" },
+      { date: "2026-05-01", amount: 10, categoryId: 3 },
+      { date: "2026-05-02", amount: 100, categoryId: 4 },
+      { date: "2026-05-03", amount: 50, categoryId: 5 },
     ];
     const months = getMonthKeys(2026, 4, 1);
     const result = computeMultiMonthCategoryRows(expenses, months, resolveName);
@@ -119,8 +126,8 @@ describe("computeMultiMonthCategoryRows", () => {
 
   it("includes previous-month-only categories and shows 0 for current", () => {
     const expenses: Expense[] = [
-      { date: "2026-05-01", amount: 50, category: "Food" },
-      { date: "2026-04-15", amount: 30, category: "Transport" },
+      { date: "2026-05-01", amount: 50, categoryId: 1 },
+      { date: "2026-04-15", amount: 30, categoryId: 2 },
     ];
     const months = getMonthKeys(2026, 4, 2);
     const result = computeMultiMonthCategoryRows(expenses, months, resolveName);
@@ -143,9 +150,9 @@ describe("computeMultiMonthCategoryRows", () => {
 
   it("sums transactions across all months", () => {
     const expenses: Expense[] = [
-      { date: "2026-05-01", amount: 100, category: "Food" },
-      { date: "2026-04-10", amount: 50, category: "Food" },
-      { date: "2026-04-20", amount: 20, category: "Food" },
+      { date: "2026-05-01", amount: 100, categoryId: 1 },
+      { date: "2026-04-10", amount: 50, categoryId: 1 },
+      { date: "2026-04-20", amount: 20, categoryId: 1 },
     ];
     const months = getMonthKeys(2026, 4, 2);
     const result = computeMultiMonthCategoryRows(expenses, months, resolveName);

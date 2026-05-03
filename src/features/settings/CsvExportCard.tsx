@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
 import { expenseToRow, downloadCSV } from "../../utils/csvHelpers";
+import { usePayees } from "../../hooks/useLocalData";
+import { StorageService } from "../../services/storageService";
 import Card from "../../components/ui/Card";
 import type { Expense } from "../../types";
 
@@ -11,12 +13,27 @@ interface CsvExportCardProps {
 
 export default function CsvExportCard({ expenses, formatDate }: CsvExportCardProps) {
   const [exportRange, setExportRange] = useState({ from: "", to: "" });
+  const { payees } = usePayees();
+  const [categories, setCategories] = useState<{ id?: number; name: string }[]>([]);
+
+  useMemo(() => {
+    StorageService.getCategories().then(setCategories);
+  }, []);
+
+  const catMap = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id as number, c.name])),
+    [categories]
+  );
+  const payeeMap = useMemo(
+    () => Object.fromEntries(payees.map((p) => [p.id as number, p.name])),
+    [payees]
+  );
 
   const handleExport = () => {
     let rows = expenses;
     if (exportRange.from) rows = rows.filter((e) => e.date >= exportRange.from);
     if (exportRange.to) rows = rows.filter((e) => e.date <= exportRange.to);
-    const csvRows = rows.map((e) => expenseToRow(e, formatDate));
+    const csvRows = rows.map((e) => expenseToRow(e, catMap, payeeMap, formatDate));
     downloadCSV(csvRows, `expenses-${getLocalToday()}.csv`);
   };
 

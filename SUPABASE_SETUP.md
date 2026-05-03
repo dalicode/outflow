@@ -24,7 +24,7 @@ create table expenses (
   user_id     uuid references auth.users not null,
   date        text not null,
   category_id text,
-  category    text,
+  payee_id    text,
   description text,
   amount      numeric not null,
   updated_at  timestamptz default now()
@@ -39,12 +39,24 @@ create table categories (
   user_id     uuid references auth.users not null,
   name        text not null,
   is_archived boolean default false,
-  is_deleted  boolean default false,
   created_at  timestamptz default now(),
   updated_at  timestamptz default now()
 );
 alter table categories enable row level security;
 create policy "users own categories" on categories
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- payees
+create table payees (
+  id          text primary key,
+  user_id     uuid references auth.users not null,
+  name        text not null,
+  is_archived boolean default false,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+alter table payees enable row level security;
+create policy "users own payees" on payees
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- fixed_expenses

@@ -362,7 +362,7 @@ export function getYearVariableGrid(year: number, expenses: Expense[], categorie
 
   const grid: Record<string, number[]> = {};
   yearExpenses.forEach((e) => {
-    const key = e.categoryId != null ? String(e.categoryId) : e.category || "Uncategorized";
+    const key = e.categoryId != null ? String(e.categoryId) : "Uncategorized";
     const m = parseInt(e.date.slice(5, 7), 10) - 1;
     if (!grid[key]) grid[key] = Array(12).fill(0);
     grid[key][m] += e.amount || 0;

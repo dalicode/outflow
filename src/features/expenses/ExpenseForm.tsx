@@ -3,6 +3,7 @@ import { cn } from '../../utils/cn'
 import { useSettings } from '../../context/settingsContext'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
+import CreatableCombobox from '../../components/inputs/CreatableCombobox'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { normalizeName } from '../../utils/normalizeName'
 import { usePayees } from '../../hooks/useLocalData'
@@ -27,7 +28,7 @@ interface CategoryModalProps {
   onCategoriesChange?: (
     action: 'add' | 'update' | 'delete',
     payload: { id?: number; name?: string },
-  ) => Promise<void>;
+  ) => Promise<number | undefined>;
   onClose: () => void;
   refreshCategories?: () => void;
 }
@@ -62,7 +63,7 @@ function CategoryModal({ categories, onCategoriesChange, onClose, refreshCategor
     if (onCategoriesChange) {
       await onCategoriesChange('update', { id: editId as number, name })
     } else {
-      await StorageService.updateCategory(editId as number, name)
+      await StorageService.updateCategory(editId as number, { name })
       refreshCategories?.()
     }
     setEditId(null)
@@ -198,7 +199,7 @@ interface ExpenseFormProps {
   onCategoriesChange?: (
     action: 'add' | 'update' | 'delete',
     payload: { id?: number; name?: string },
-  ) => Promise<void>;
+  ) => Promise<number | undefined>;
   initialExpense?: Expense;
 }
 
@@ -212,6 +213,16 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
 
   const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
   const activePayees = useMemo(() => payees.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name)), [payees])
+
+  const categoryOptions = useMemo(
+    () => activeCategories.map((c) => ({ id: c.id!, label: normalizeName(c.name) })),
+    [activeCategories]
+  )
+  const payeeOptions = useMemo(
+    () => activePayees.map((p) => ({ id: p.id!, label: normalizeName(p.name) })),
+    [activePayees]
+  )
+
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }))
 
@@ -224,9 +235,7 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
     const payload = {
       date: form.date,
       categoryId: Number(form.categoryId),
-      category: cat?.name ?? '',
       payeeId: form.payeeId ? Number(form.payeeId) : undefined,
-      payee: payee?.name ?? undefined,
       description: form.description,
       amount: parseFloat(form.amount),
     }
@@ -262,29 +271,51 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
               Date
               <input type="date" value={form.date} onChange={set('date')} required className={inputCls} />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-theme-muted">
-              <span className="flex items-center justify-between">
-                Category
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-theme-muted">Category</label>
                 <button type="button" onClick={() => setShowCatModal(true)}
                   className="text-xs text-theme-primary hover:opacity-80 font-medium">+ Manage</button>
-              </span>
-              <select value={form.categoryId} onChange={set('categoryId')} required className={inputCls}>
-                <option value="">Select…</option>
-                {activeCategories.map((c) => <option key={c.id} value={c.id}>{normalizeName(c.name)}</option>)}
-              </select>
-            </label>
+              </div>
+              <CreatableCombobox
+                value={form.categoryId ? Number(form.categoryId) : undefined}
+                options={categoryOptions}
+                placeholder="Select or add category"
+                emptyMessage="No categories found."
+                allowCreate
+                required
+                onChange={(id) => setForm((f) => ({ ...f, categoryId: id != null ? String(id) : '' }))}
+                onCreate={async (name) => {
+                  if (onCategoriesChange) {
+                    const newId = await onCategoriesChange('add', { name })
+                    return newId!
+                  }
+                  return await StorageService.addCategory(name)
+                }}
+              />
+            </div>
           </div>
-          <label className="flex flex-col gap-1 text-sm text-theme-muted">
-            <span className="flex items-center justify-between">
-              Payee
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-theme-muted">Payee</label>
               <button type="button" onClick={() => setShowPayeeModal(true)}
                 className="text-xs text-theme-primary hover:opacity-80 font-medium">+ Manage</button>
-            </span>
-            <select value={form.payeeId} onChange={set('payeeId')} className={inputCls}>
-              <option value="">— No payee —</option>
-              {activePayees.map((p) => <option key={p.id} value={p.id}>{normalizeName(p.name)}</option>)}
-            </select>
-          </label>
+            </div>
+            <CreatableCombobox
+              value={form.payeeId ? Number(form.payeeId) : undefined}
+              options={payeeOptions}
+              placeholder="Select or add payee"
+              emptyMessage="No payees found."
+              allowCreate
+              allowClear
+              onChange={(id) => setForm((f) => ({ ...f, payeeId: id != null ? String(id) : '' }))}
+              onCreate={async (name) => {
+                const newId = await StorageService.addPayee(name)
+                await refreshPayees()
+                return newId
+              }}
+            />
+          </div>
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Description
             <input type="text" value={form.description} onChange={set('description')} placeholder="Optional" className={inputCls} />

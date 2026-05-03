@@ -16,7 +16,7 @@ import CsvImportCard from "./CsvImportCard";
 import ImportLogPanel from "./ImportLogPanel";
 import ScheduleList from "./ScheduleList";
 import DangerZone from "./DangerZone";
-import type { Expense, Schedule } from "../../types";
+import type { Expense, Schedule, Category } from "../../types";
 
 interface RowProps {
   label: string;
@@ -72,8 +72,13 @@ export default function SettingsPage({
   const [scheduleToEdit, setScheduleToEdit] = useState<Schedule | null>(null);
   const [monthlyIncome, setMonthlyIncome] = useState("");
   const [savingsRate, setSavingsRate] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const { schedules, loadSchedules, deleteSchedule } = useScheduleList();
+
+  useEffect(() => {
+    StorageService.getCategories().then(setCategories);
+  }, []);
 
   // Load current global values for quick-add in Edit Historical Data
   useEffect(() => {
@@ -86,9 +91,9 @@ export default function SettingsPage({
     });
   }, []);
 
-  const handleImportComplete = (importedYears: number[]) => {
+  const handleImportComplete = async (importedYears: number[]) => {
     setEditHistoricalDataYears(importedYears);
-    onImport?.();
+    await onRefreshAll?.();
   };
 
   const handleEditSchedule = (schedule: Schedule) => {
@@ -326,6 +331,7 @@ export default function SettingsPage({
         </p>
         <ScheduleList
           schedules={schedules}
+          categories={categories}
           onEdit={handleEditSchedule}
           onDelete={deleteSchedule}
         />

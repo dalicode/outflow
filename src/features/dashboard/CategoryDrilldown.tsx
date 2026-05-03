@@ -12,13 +12,14 @@ interface CategoryDrilldownProps {
   formatDate: (iso: string) => string;
   formatAmount: (n: number) => string;
   resolveName: (exp: Expense) => string;
+  resolvePayeeName?: (exp: Expense) => string;
   onClose: () => void;
   isMobile?: boolean;
 }
 
 const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
   (
-    { category, monthName, year, expenses, formatDate, formatAmount, resolveName, onClose, isMobile },
+    { category, monthName, year, expenses, formatDate, formatAmount, resolveName, resolvePayeeName, onClose, isMobile },
     ref,
   ) => {
     return (
@@ -40,6 +41,7 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
             formatDate={formatDate}
             formatAmount={formatAmount}
             resolveName={resolveName}
+            resolvePayeeName={resolvePayeeName}
             hideCategory={true}
           />
         ) : (
@@ -68,7 +70,7 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
                         {formatDate(exp.date)}
                       </td>
                     <td className="px-3 py-1 text-theme-text whitespace-nowrap">
-                      {exp.payee ? normalizeName(exp.payee) : "—"}
+                      {resolvePayeeName?.(exp) || "—"}
                     </td>
                       <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
                         {exp.description || "—"}

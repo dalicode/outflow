@@ -23,7 +23,7 @@ export function useDashboardFilters(
   );
 
   const getExpenseCategoryName = (exp: Expense) =>
-    categoryById[exp.categoryId as number]?.name ?? exp.category ?? "Uncategorized";
+    categoryById[exp.categoryId as number]?.name ?? "Uncategorized";
 
   const expensesInSelectedSpan = useMemo(() => {
     const keys = new Set(monthKeys.map((m) => m.key));

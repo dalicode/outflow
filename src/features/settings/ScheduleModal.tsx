@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
+import CreatableCombobox from "../../components/inputs/CreatableCombobox";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import { toISODate, parseISODate } from "../../utils/historicalDataHelpers";
@@ -34,7 +35,7 @@ export default function ScheduleModal({
   const [note, setNote] = useState("");
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [category, setCategory] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -73,7 +74,7 @@ export default function ScheduleModal({
       );
       setNewValue(String(editSchedule.newValue));
       setNote(editSchedule.note || "");
-      setCategory(editSchedule.category || "");
+      setCategoryId(editSchedule.categoryId ? String(editSchedule.categoryId) : "");
     } else {
       reset();
     }
@@ -85,7 +86,7 @@ export default function ScheduleModal({
     setEffectiveDate(currentMonthStr);
     setNewValue("");
     setNote("");
-    setCategory("");
+    setCategoryId("");
     setErrors([]);
   };
 
@@ -109,7 +110,7 @@ export default function ScheduleModal({
     if (type === "fixedExpense" && !targetId)
       errs.push("Please select a fixed expense.");
 
-    if (type === "expense" && !category)
+    if (type === "expense" && !categoryId)
       errs.push("Please select a category.");
 
     // Date validation for all types
@@ -156,7 +157,7 @@ export default function ScheduleModal({
               day: parsed.day,
               newValue: parseFloat(newValue),
               note: note.trim(),
-              category,
+              categoryId: parseInt(categoryId, 10),
             }
           : {
               type,
@@ -260,19 +261,24 @@ export default function ScheduleModal({
             <label className="text-sm font-semibold text-theme-text">
               Category
             </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className={cn(selectCls, "w-full", isReadOnly && disabledCls)}
+            <CreatableCombobox
+              value={categoryId ? Number(categoryId) : undefined}
+              options={categories.map((c) => ({
+                id: c.id as number,
+                label: normalizeName(c.name),
+              }))}
+              placeholder="Search or add category…"
+              allowCreate
+              allowClear
               disabled={isReadOnly}
-            >
-              <option value="">Select…</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {normalizeName(c.name)}
-                    </option>
-                  ))}
-            </select>
+              onChange={(id) => setCategoryId(id != null ? String(id) : "")}
+              onCreate={async (name) => {
+                const id = await StorageService.addCategory(name);
+                const cats = await StorageService.getCategories();
+                setCategories(cats);
+                return id;
+              }}
+            />
           </div>
         )}
 

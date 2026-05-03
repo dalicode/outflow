@@ -10,10 +10,8 @@ export interface Expense {
   id?: number
   date: string
   amount: number
-  category?: string
   categoryId?: number
   payeeId?: number
-  payee?: string
   description?: string
   createdAt?: string
 }
@@ -88,7 +86,7 @@ export interface Schedule {
   note?: string
   createdAt?: string
   day?: number        // 1–31, used by expense schedules
-  category?: string   // used by expense schedules
+  categoryId?: number // used by expense schedules
 }
 
 // ── Settings ────────────────────────────────────────────────────────────────

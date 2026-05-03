@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { StorageService } from "../services/storageService";
 import { getMonthlyFinancialSummary } from "../utils/financeEngine";
-import type { Expense, FixedExpense, MonthlyFinancialSummary } from "../types";
+import type { Expense, FixedExpense, MonthlyFinancialSummary, Category } from "../types";
 
 interface UseSummaryParams {
   expenses: Expense[];
@@ -23,6 +23,7 @@ export function useSummary({ expenses }: UseSummaryParams) {
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [savingsRate, setSavingsRate] = useState(0);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [financialSummary, setFinancialSummary] =
     useState<MonthlyFinancialSummary | null>(null);
 
@@ -39,6 +40,7 @@ export function useSummary({ expenses }: UseSummaryParams) {
         schedules,
         incomeSnaps,
         savingsSnaps,
+        cats,
       ] = await Promise.all([
         StorageService.getSetting("incomeAmount", ""),
         StorageService.getSetting("incomeFrequency", "monthly"),
@@ -50,6 +52,7 @@ export function useSummary({ expenses }: UseSummaryParams) {
         StorageService.getActiveSchedules(),
         StorageService.getIncomeSnapshotsForYear(currentYear),
         StorageService.getSavingsSnapshotsForYear(currentYear),
+        StorageService.getCategories(),
       ]);
 
       setIncomeRaw(amt);
@@ -57,6 +60,7 @@ export function useSummary({ expenses }: UseSummaryParams) {
       setMonthlyIncome(monthly);
       setSavingsRate(rate);
       setFixedExpenses(activeFixed);
+      setCategories(cats);
 
       const virtualSnapshots = activeFixed.map((f: FixedExpense) => ({
         fixedExpenseId: f.id,
@@ -90,7 +94,8 @@ export function useSummary({ expenses }: UseSummaryParams) {
 
     const byCategory: Record<string, number> = {};
     monthExpenses.forEach((e) => {
-      const key = e.category || "Uncategorized";
+      const cat = categories.find((c) => c.id === e.categoryId);
+      const key = cat?.name ?? "Uncategorized";
       byCategory[key] = (byCategory[key] || 0) + (e.amount || 0);
     });
 
