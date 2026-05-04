@@ -27,7 +27,7 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
 
   return (
     <>
-      <Card title="Danger Zone" className="border-theme-danger/30">
+      <Card title="Danger Zone" className="border-theme-danger-subtle">
         <p className="text-xs text-theme-muted mb-2">
           Permanently delete all expenses, categories, fixed expenses, snapshots,
           and settings. This cannot be undone.

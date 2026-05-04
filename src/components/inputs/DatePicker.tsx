@@ -1,18 +1,40 @@
 /**
  * DatePicker — Custom date picker with portal popup, keyboard navigation,
  * and month/year selector. Replaces native <input type="date">.
+ *
+ * State model:
+ *   activeDate  → the date being navigated (keyboard/mouse/typing)
+ *   viewDate    → the month currently rendered in the calendar grid
+ *   textValue   → always mirrors activeDate in the user's dateFormat
+ *
+ * Keyboard arrows move activeDate as a real calendar date; the view
+ * auto-scrolls when activeDate crosses into a different month.
  */
-import { useState, useRef, useEffect, useCallback, useId } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useId,
+} from "react";
 import { createPortal } from "react-dom";
 import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
 import {
-  getCalendarDays,
+  getCalendarGrid,
   getMonthName,
   parseUserDateInput,
   formatISODate,
   isValidISODate,
+  toISO,
+  isSameDay,
+  addDays,
+  addMonths,
+  startOfMonth,
+  endOfMonth,
 } from "../../utils/datePickerHelpers";
+import type { CalendarDay } from "../../utils/datePickerHelpers";
 
 interface DatePickerProps {
   value: string;
@@ -22,6 +44,7 @@ interface DatePickerProps {
   autoOpen?: boolean;
   placeholder?: string;
   disabled?: boolean;
+  variant?: "default" | "inline";
 }
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -34,193 +57,268 @@ export default function DatePicker({
   autoOpen = false,
   placeholder = "Select date…",
   disabled = false,
+  variant = "default",
 }: DatePickerProps) {
   const { settings } = useSettings();
   const dateFormat = settings.dateFormat;
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [viewYear, setViewYear] = useState(() => {
-    const d = value ? new Date(value + "T00:00:00") : new Date();
-    return d.getFullYear();
+  /* ── state ──────────────────────────────────────────────────────── */
+
+  const [activeDate, setActiveDate] = useState<Date>(() => {
+    if (value && isValidISODate(value)) {
+      return new Date(value + "T00:00:00");
+    }
+    return new Date();
   });
-  const [viewMonth, setViewMonth] = useState(() => {
-    const d = value ? new Date(value + "T00:00:00") : new Date();
-    return d.getMonth();
+
+  const [viewDate, setViewDate] = useState<Date>(() => {
+    if (value && isValidISODate(value)) {
+      return new Date(value + "T00:00:00");
+    }
+    return new Date();
   });
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
   const [textValue, setTextValue] = useState(() =>
-    value ? formatISODate(value, dateFormat) : "",
+    value && isValidISODate(value) ? formatISODate(value, dateFormat) : "",
   );
+
   const [isInvalid, setIsInvalid] = useState(false);
+  const [popupState, setPopupState] = useState<{
+    isOpen: boolean;
+    pos: { top: number; left: number; width: number } | null;
+  }>({ isOpen: false, pos: null });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const hasAutoOpened = useRef(false);
-  const hasCommittedRef = useRef(false);
-  const textValueRef = useRef(textValue);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listboxId = useId();
 
-  useEffect(() => {
-    textValueRef.current = textValue;
-  }, [textValue]);
+  /* ── derived data ───────────────────────────────────────────────── */
 
-  useEffect(() => {
-    hasCommittedRef.current = false;
-  }, []);
+  const calendarDays = getCalendarGrid(
+    viewDate.getFullYear(),
+    viewDate.getMonth(),
+  );
 
-  // Derive calendar data
-  const calendarDays = getCalendarDays(viewYear, viewMonth, value);
-  const startDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
-  const selectedDayIndex = calendarDays.findIndex((d) => d.isSelected);
+  /* ── helpers ────────────────────────────────────────────────────── */
 
-  // Popup positioning
-  const [popupPos, setPopupPos] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
-
-  const updatePopupPosition = useCallback(() => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const popupHeight = 280;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const top =
-      spaceBelow >= popupHeight
-        ? rect.bottom + 4
-        : Math.max(4, rect.top - popupHeight - 4);
-    setPopupPos({
-      top,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, []);
+  const updateActiveDate = useCallback(
+    (date: Date) => {
+      setActiveDate(date);
+      setTextValue(formatISODate(toISO(date), dateFormat));
+      // Scroll the view when active date enters a different month
+      if (
+        date.getMonth() !== viewDate.getMonth() ||
+        date.getFullYear() !== viewDate.getFullYear()
+      ) {
+        setViewDate(new Date(date.getFullYear(), date.getMonth(), 1));
+      }
+    },
+    [dateFormat, viewDate],
+  );
 
   const openPopup = useCallback(() => {
     if (disabled) return;
-    // Reset view to selected date or today
     inputRef.current?.select();
-    if (value && isValidISODate(value)) {
-      const d = new Date(value + "T00:00:00");
-      setViewYear(d.getFullYear());
-      setViewMonth(d.getMonth());
-    } else {
-      const now = new Date();
-      setViewYear(now.getFullYear());
-      setViewMonth(now.getMonth());
-    }
-    setHighlightedIndex(selectedDayIndex >= 0 ? selectedDayIndex : 0);
-    setIsOpen(true);
-    requestAnimationFrame(updatePopupPosition);
-  }, [disabled, value, selectedDayIndex, updatePopupPosition]);
+
+    const baseDate =
+      value && isValidISODate(value)
+        ? new Date(value + "T00:00:00")
+        : new Date();
+
+    setActiveDate(baseDate);
+    setTextValue(formatISODate(toISO(baseDate), dateFormat));
+    setViewDate(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
+
+    const rect = containerRef.current?.getBoundingClientRect();
+    const popupHeight = 280;
+    const spaceBelow = rect ? window.innerHeight - rect.bottom : 0;
+    const pos = rect
+      ? {
+          top:
+            spaceBelow >= popupHeight
+              ? rect.bottom + 4
+              : Math.max(4, rect.top - popupHeight - 4),
+          left: rect.left,
+          width: rect.width,
+        }
+      : null;
+
+    setPopupState({ isOpen: true, pos });
+  }, [disabled, value, dateFormat]);
 
   const closePopup = useCallback(() => {
-    setIsOpen(false);
+    setPopupState({ isOpen: false, pos: null });
   }, []);
 
-  const commitValue = useCallback(() => {
-    if (hasCommittedRef.current) return;
-    const val = textValueRef.current.trim();
-    if (!val) {
-      onCancel?.();
-      return;
-    }
-    const parsed = parseUserDateInput(val, dateFormat);
-    if (parsed && isValidISODate(parsed)) {
-      onChange(parsed);
-    } else {
-      onCancel?.();
-    }
-  }, [dateFormat, onChange, onCancel]);
-
-  const selectDate = useCallback(
-    (iso: string) => {
-      if (!isValidISODate(iso)) return;
-      hasCommittedRef.current = true;
-      onChange(iso);
+  const commitDate = useCallback(
+    (date: Date) => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+      }
+      onChange(toISO(date));
       setIsInvalid(false);
       closePopup();
     },
-    [onChange, dateFormat, closePopup],
+    [onChange, closePopup],
   );
 
-  // Auto-open on mount
+  const commitActiveDate = useCallback(() => {
+    commitDate(activeDate);
+  }, [commitDate, activeDate]);
+
+  /* ── sync from external value when popup is closed ──────────────── */
+
   useEffect(() => {
-    if (autoOpen && !hasAutoOpened.current && !disabled) {
-      hasAutoOpened.current = true;
-      requestAnimationFrame(() => openPopup());
+    if (popupState.isOpen) return;
+    if (value && isValidISODate(value)) {
+      const d = new Date(value + "T00:00:00");
+      setActiveDate(d);
+      setTextValue(formatISODate(value, dateFormat));
+      setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
     }
-  }, [autoOpen, disabled, openPopup]);
+  }, [value, popupState.isOpen, dateFormat]);
 
-  // Commit on unmount (safety net if parent swaps cell back to <span>)
-  useEffect(() => {
-    return () => commitValue();
-  }, [commitValue]);
+  /* ── auto-open ──────────────────────────────────────────────────── */
 
-  // Close on click outside — always active so we commit even when popup is closed
-  // Clicks inside the DatePicker are stopped via onMouseDown stopPropagation
+  useLayoutEffect(() => {
+    if (autoOpen) {
+      openPopup();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ── click outside ──────────────────────────────────────────────── */
+
   useEffect(() => {
-    const handleClick = () => {
-      commitValue();
+    if (!popupState.isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current?.contains(e.target as Node)) return;
+      if (popupRef.current?.contains(e.target as Node)) return;
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+      }
+      commitActiveDate();
       closePopup();
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [commitValue, closePopup]);
+  }, [popupState.isOpen, commitActiveDate, closePopup]);
 
-  // Keyboard handling (popup open)
+  /* ── document-level Escape (when input is not focused) ──────────── */
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!popupState.isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement === inputRef.current) return;
       if (e.key === "Escape") {
         e.preventDefault();
         closePopup();
         onCancel?.();
-        return;
-      }
-      // Let ArrowLeft/Right move the text caret when the input is focused
-      if (
-        document.activeElement === inputRef.current &&
-        (e.key === "ArrowLeft" || e.key === "ArrowRight")
-      ) {
-        return;
       }
     };
-
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, closePopup, onCancel]);
+  }, [popupState.isOpen, closePopup, onCancel]);
 
-  // Handle text input blur
+  /* ── blur timeout cleanup ───────────────────────────────────────── */
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    };
+  }, []);
+
+  /* ── event handlers ─────────────────────────────────────────────── */
+
   const handleBlur = () => {
-    commitValue();
+    // If text is invalid, reset it to the formatted activeDate
+    const formatted = formatISODate(toISO(activeDate), dateFormat);
+    if (textValue !== formatted) {
+      const parsed = parseUserDateInput(textValue, dateFormat);
+      if (!parsed || !isValidISODate(parsed)) {
+        setTextValue(formatted);
+        setIsInvalid(false);
+      }
+    }
+
+    blurTimeoutRef.current = setTimeout(() => {
+      commitActiveDate();
+    }, 0);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTextValue(e.target.value);
+    const val = e.target.value;
+    setTextValue(val);
     setIsInvalid(false);
-  };
 
-  // Calendar icon click
-  const handleIconClick = () => {
-    if (isOpen) {
-      closePopup();
-    } else {
-      openPopup();
+    const parsed = parseUserDateInput(val, dateFormat);
+    if (parsed && isValidISODate(parsed)) {
+      const d = new Date(parsed + "T00:00:00");
+      setActiveDate(d);
+      setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
     }
   };
 
-  // Popup content
-  const popupContent = isOpen && popupPos && (
+  const handleDayClick = useCallback(
+    (day: CalendarDay) => {
+      const d = new Date(day.year, day.month, day.date);
+      updateActiveDate(d);
+      commitDate(d);
+    },
+    [updateActiveDate, commitDate],
+  );
+
+  const goToPrevMonth = useCallback(() => {
+    setViewDate((vd) => addMonths(vd, -1));
+  }, []);
+
+  const goToNextMonth = useCallback(() => {
+    setViewDate((vd) => addMonths(vd, 1));
+  }, []);
+
+  /* ── render helpers ─────────────────────────────────────────────── */
+
+  const renderDay = (day: CalendarDay) => {
+    const dayDate = new Date(day.year, day.month, day.date);
+    const isActive = isSameDay(dayDate, activeDate);
+
+    return (
+      <button
+        key={`${day.year}-${day.month}-${day.date}`}
+        type="button"
+        onClick={() => handleDayClick(day)}
+        className={cn(
+          "text-center text-xs py-1 rounded-theme-small transition-colors",
+          !day.isCurrentMonth && "text-theme-muted opacity-50",
+          day.isCurrentMonth && "text-theme-text",
+          isActive &&
+            "bg-theme-primary-subtle border border-theme-primary font-medium",
+          !isActive && day.isCurrentMonth && "hover:bg-theme-primary-subtle",
+        )}
+      >
+        {day.date}
+      </button>
+    );
+  };
+
+  /* ── popup content ──────────────────────────────────────────────── */
+
+  const popupContent = popupState.isOpen && popupState.pos && (
     <div
       ref={popupRef}
       id={listboxId}
-      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-      className="fixed z-[60] bg-theme-surface border border-theme-border rounded-theme-medium shadow-lg p-2 scrollbar-auto-hide"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-medium shadow-lg p-2 scrollbar-auto-hide"
       style={{
-        top: popupPos.top,
-        left: popupPos.left,
+        top: popupState.pos.top,
+        left: popupState.pos.left,
         minWidth: 240,
         maxWidth: 260,
       }}
@@ -229,11 +327,8 @@ export default function DatePicker({
       <div className="flex items-center justify-between mb-1">
         <button
           type="button"
-          onClick={() => {
-            setViewMonth((m) => (m === 0 ? 11 : m - 1));
-            if (viewMonth === 0) setViewYear((y) => y - 1);
-          }}
-          className="p-1 rounded-theme-small hover:bg-theme-primary/5 text-theme-text"
+          onClick={goToPrevMonth}
+          className="p-1 rounded-theme-small hover:bg-theme-primary-subtle text-theme-text"
         >
           <svg
             className="w-3 h-3"
@@ -246,15 +341,12 @@ export default function DatePicker({
           </svg>
         </button>
         <span className="text-xs font-semibold text-theme-text px-2 py-1">
-          {getMonthName(viewMonth)} {viewYear}
+          {getMonthName(viewDate.getMonth())} {viewDate.getFullYear()}
         </span>
         <button
           type="button"
-          onClick={() => {
-            setViewMonth((m) => (m === 11 ? 0 : m + 1));
-            if (viewMonth === 11) setViewYear((y) => y + 1);
-          }}
-          className="p-1 rounded-theme-small hover:bg-theme-primary/5 text-theme-text"
+          onClick={goToNextMonth}
+          className="p-1 rounded-theme-small hover:bg-theme-primary-subtle text-theme-text"
         >
           <svg
             className="w-3 h-3"
@@ -279,45 +371,24 @@ export default function DatePicker({
           </div>
         ))}
       </div>
-      {/* Day grid */}
+
+      {/* Day grid (6 weeks × 7 days) */}
       <div className="grid grid-cols-7 gap-0">
-        {/* Empty slots for weekday alignment */}
-        {Array.from({ length: startDayOfWeek }, (_, i) => (
-          <div key={`pad-${i}`} />
-        ))}
-        {calendarDays.map((day, i) => (
-          <button
-            key={`${day.year}-${day.month}-${day.date}`}
-            type="button"
-            onClick={() => {
-              const iso = `${day.year}-${String(day.month + 1).padStart(2, "0")}-${String(day.date).padStart(2, "0")}`;
-              selectDate(iso);
-            }}
-            onMouseEnter={() => setHighlightedIndex(i)}
-            className={cn(
-              "text-center text-xs py-1 rounded-theme-small transition-colors text-theme-text",
-              day.isSelected && "bg-theme-primary text-white font-semibold",
-              !day.isSelected &&
-                i === highlightedIndex &&
-                "bg-theme-primary/5",
-              !day.isSelected &&
-                day.isToday &&
-                "border border-theme-primary",
-              !day.isSelected &&
-                !day.isToday &&
-                i !== highlightedIndex &&
-                "hover:bg-theme-primary/5",
-            )}
-          >
-            {day.date}
-          </button>
-        ))}
+        {calendarDays.map(renderDay)}
       </div>
     </div>
   );
 
+  /* ── main render ────────────────────────────────────────────────── */
+
   return (
-    <div ref={containerRef} onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }} className="relative">
+    <div
+      ref={containerRef}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+      }}
+      className="relative"
+    >
       <div className="relative">
         <input
           ref={inputRef}
@@ -327,37 +398,112 @@ export default function DatePicker({
           onBlur={handleBlur}
           onFocus={() => {
             setIsInvalid(false);
+            if (variant === "inline") {
+              openPopup();
+            }
           }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               e.preventDefault();
+              e.stopPropagation();
               closePopup();
               onCancel?.();
-            } else if (e.key === "Tab") {
+              return;
+            }
+
+            if (e.key === "Tab") {
               e.preventDefault();
               closePopup();
-              if (textValue.trim()) {
-                const parsed = parseUserDateInput(textValue, dateFormat);
-                if (parsed && isValidISODate(parsed)) {
-                  onChange(parsed);
-                }
+              if (blurTimeoutRef.current) {
+                clearTimeout(blurTimeoutRef.current);
+                blurTimeoutRef.current = null;
               }
+              commitActiveDate();
               onTab?.(e.shiftKey);
+              return;
+            }
+
+            if (!popupState.isOpen) {
+              if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openPopup();
+              }
+              return;
+            }
+
+            // Popup is open — keyboard navigation moves activeDate
+            switch (e.key) {
+              case "ArrowRight": {
+                e.preventDefault();
+                updateActiveDate(addDays(activeDate, 1));
+                break;
+              }
+              case "ArrowLeft": {
+                e.preventDefault();
+                updateActiveDate(addDays(activeDate, -1));
+                break;
+              }
+              case "ArrowDown": {
+                e.preventDefault();
+                updateActiveDate(addDays(activeDate, 7));
+                break;
+              }
+              case "ArrowUp": {
+                e.preventDefault();
+                updateActiveDate(addDays(activeDate, -7));
+                break;
+              }
+              case "PageDown": {
+                e.preventDefault();
+                updateActiveDate(addMonths(activeDate, 1));
+                break;
+              }
+              case "PageUp": {
+                e.preventDefault();
+                updateActiveDate(addMonths(activeDate, -1));
+                break;
+              }
+              case "Home": {
+                e.preventDefault();
+                updateActiveDate(startOfMonth(activeDate));
+                break;
+              }
+              case "End": {
+                e.preventDefault();
+                updateActiveDate(endOfMonth(activeDate));
+                break;
+              }
+              case "Enter": {
+                e.preventDefault();
+                commitActiveDate();
+                break;
+              }
             }
           }}
           placeholder={placeholder}
           disabled={disabled}
+          autoFocus={variant === "inline"}
           className={cn(
-            "input-theme w-full px-3 py-2 text-sm pr-9",
-            isInvalid && "border-theme-danger",
+            "text-sm",
+            variant === "inline"
+              ? "input-inline pr-5"
+              : "input-theme w-full px-3 py-2 pr-9",
+            isInvalid && (variant === "inline" ? "" : "border-theme-danger"),
             disabled && "opacity-50 cursor-not-allowed",
           )}
         />
+        {/* Calendar icon — hidden for now */}
         <button
           type="button"
-          onClick={handleIconClick}
+          onClick={() => {
+            if (popupState.isOpen) {
+              closePopup();
+            } else {
+              openPopup();
+            }
+          }}
           disabled={disabled}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-text transition-colors"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-text transition-colors hidden"
           tabIndex={-1}
         >
           <svg
@@ -383,5 +529,3 @@ export default function DatePicker({
     </div>
   );
 }
-
-

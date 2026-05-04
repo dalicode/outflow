@@ -71,7 +71,7 @@ function RemoveBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="w-6 h-6 flex items-center justify-center rounded-full text-theme-muted hover:text-theme-danger hover:bg-theme-danger/10 transition-all"
+      className="w-6 h-6 flex items-center justify-center rounded-full text-theme-muted hover:text-theme-danger hover:bg-theme-danger-muted transition-all"
       aria-label="Remove"
     >
       <span className="text-xs leading-none">&times;</span>
@@ -122,7 +122,7 @@ function YearTabBar({
               className={`relative px-4 py-2 text-sm font-medium rounded-t-theme-medium border-x border-t transition-colors focus:outline-none ${
                 isActive
                   ? "bg-theme-surface text-theme-primary border-t-2 border-t-theme-primary border-theme-border border-b border-b-theme-surface shadow-sm"
-                  : "bg-theme-background text-theme-muted border-transparent hover:text-theme-text hover:bg-theme-background/80"
+                  : "bg-theme-background text-theme-muted border-transparent hover:text-theme-text hover:bg-theme-background-muted"
               }`}
             >
               <span className="flex items-center gap-1.5">
@@ -547,7 +547,7 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
                 </td>
               </tr>
             ))}
-            <tr className="bg-theme-background/50 font-semibold">
+            <tr className="bg-theme-background-semi font-semibold">
               <td className="px-2 py-1.5 text-theme-text">Total</td>
               <td className="text-right px-2 py-1.5">
                 {valueCell(totals.fixed, "fixed")}

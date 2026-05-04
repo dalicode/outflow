@@ -10,6 +10,7 @@ declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends unknown, TValue> {
     className?: string;
     cellClassName?: string;
+    getCellClassName?: (row: TData) => string;
   }
 }
 
@@ -80,7 +81,7 @@ export default function DataTable<T>({
             <tr
               key={row.id}
               className={cn(
-                "border-b border-theme-muted/10",
+                "border-b border-theme-muted-subtle",
                 getRowClassName?.(row.original),
               )}
               onContextMenu={
@@ -106,6 +107,7 @@ export default function DataTable<T>({
                   className={cn(
                     "px-3 py-1",
                     cell.column.columnDef.meta?.cellClassName,
+                    cell.column.columnDef.meta?.getCellClassName?.(row.original),
                   )}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
 import { useContextMenu } from "../../hooks/useContextMenu";
 import { usePayees } from "../../hooks/useLocalData";
@@ -54,20 +54,34 @@ export default function ExpenseTable({
     id: number;
     field: keyof Expense;
   } | null>(null);
-  const [draft, setDraft] = useState<Partial<Expense>>({});
   const [showMobileEditModal, setShowMobileEditModal] = useState(false);
   const [mobileEditExpense, setMobileEditExpense] = useState<Expense | null>(
     null,
   );
 
-  // Optimistic values for inline edits (prevents flash when exiting edit)
+  // Temporary optimistic values for inline edits (prevents flash when exiting edit)
   const [optimistic, setOptimistic] = useState<Record<number, Partial<Expense>>>({});
+
+  // Auto-clear optimistic entries once the real prop matches
+  useEffect(() => {
+    setOptimistic((prev) => {
+      const next: Record<number, Partial<Expense>> = {};
+      for (const [idStr, overrides] of Object.entries(prev)) {
+        const id = Number(idStr);
+        const exp = expenses.find((e) => e.id === id);
+        if (!exp) continue;
+        const stillHasOverride = Object.entries(overrides).some(
+          ([key, val]) => (exp as Record<string, unknown>)[key] !== val,
+        );
+        if (stillHasOverride) next[id] = overrides;
+      }
+      return next;
+    });
+  }, [expenses]);
 
   // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
-
-  const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
 
   const { payees } = usePayees();
 
@@ -93,7 +107,6 @@ export default function ExpenseTable({
     const expense = expenses.find((e) => e.id === mobileEditTrigger);
     if (expense) {
       setMobileEditExpense(expense);
-      setDraft({ ...expense });
       setShowMobileEditModal(true);
     }
   }, [mobileEditTrigger, expenses]);
@@ -111,29 +124,8 @@ export default function ExpenseTable({
     expenses.length > 0 &&
     expenses.every((e) => selectedIds.has(e.id as number));
 
-  const setField = useCallback(
-    (field: keyof Expense) => (val: string | number) =>
-      setDraft((d) => ({ ...d, [field]: val })),
-    [],
-  );
-
-  const saveEdit = useCallback(() => {
-    if (!editingCell && !mobileEditExpense) return;
-    const targetId = (editingCell?.id ?? mobileEditExpense?.id) as number;
-    onUpdate(targetId, {
-      ...draft,
-      amount:
-        draft.amount != null ? parseFloat(String(draft.amount)) : undefined,
-    });
-    setEditingCell(null);
-    setDraft({});
-    setShowMobileEditModal(false);
-    setMobileEditExpense(null);
-  }, [editingCell, mobileEditExpense, draft, onUpdate]);
-
   const cancelEdit = useCallback(() => {
     setEditingCell(null);
-    setDraft({});
     setShowMobileEditModal(false);
     setMobileEditExpense(null);
   }, []);
@@ -146,51 +138,29 @@ export default function ExpenseTable({
     "amount",
   ];
 
-  const handleCellKeyDown = useCallback(
-    (e: React.KeyboardEvent, expense: Expense, field: keyof Expense) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        saveEdit();
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        cancelEdit();
-        return;
-      }
-      if (e.key === "Tab") {
-        e.preventDefault();
-        saveEdit();
-
-        const idx = FIELD_ORDER.indexOf(field);
-        const rowIdx = expenses.findIndex((ex) => ex.id === expense.id);
-
-        if (e.shiftKey) {
-          // Shift+Tab: previous field or previous row's amount
-          if (idx > 0) {
-            setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx - 1] });
-            setDraft({ ...expense });
-          } else if (rowIdx > 0) {
-            const prev = expenses[rowIdx - 1];
-            setEditingCell({ id: prev.id as number, field: "amount" });
-            setDraft({ ...prev });
-          }
+  const handleTabNavigation = useCallback(
+    (expense: Expense, field: keyof Expense, shiftKey: boolean) => {
+      const idx = FIELD_ORDER.indexOf(field);
+      const rowIdx = expenses.findIndex((ex) => ex.id === expense.id);
+      if (shiftKey) {
+        if (idx > 0) {
+          setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx - 1] });
+        } else if (rowIdx > 0) {
+          setEditingCell({ id: expenses[rowIdx - 1].id as number, field: "amount" });
         } else {
-          // Tab: next field or next row's date
-          if (idx < FIELD_ORDER.length - 1) {
-            setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx + 1] });
-            setDraft({ ...expense });
-          } else if (rowIdx < expenses.length - 1) {
-            const next = expenses[rowIdx + 1];
-            setEditingCell({ id: next.id as number, field: "date" });
-            setDraft({ ...next });
-          }
+          setEditingCell(null);
         }
-        setTimeout(() => inputRef.current?.focus(), 0);
-        return;
+      } else {
+        if (idx < FIELD_ORDER.length - 1) {
+          setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx + 1] });
+        } else if (rowIdx < expenses.length - 1) {
+          setEditingCell({ id: expenses[rowIdx + 1].id as number, field: "date" });
+        } else {
+          setEditingCell(null);
+        }
       }
     },
-    [saveEdit, cancelEdit, expenses, FIELD_ORDER],
+    [expenses, FIELD_ORDER],
   );
 
   const startCellEdit = useCallback(
@@ -201,13 +171,10 @@ export default function ExpenseTable({
       }
       if (isMobile) {
         setMobileEditExpense(expense);
-        setDraft({ ...expense });
         setShowMobileEditModal(true);
         return;
       }
       setEditingCell({ id: expense.id as number, field });
-      setDraft({ ...expense });
-      setTimeout(() => inputRef.current?.focus(), 0);
     },
     [isMobile, selectedIds, onToggleSelect],
   );
@@ -216,13 +183,10 @@ export default function ExpenseTable({
     (expense: Expense) => {
       if (isMobile) {
         setMobileEditExpense(expense);
-        setDraft({ ...expense });
         setShowMobileEditModal(true);
         return;
       }
       setEditingCell({ id: expense.id as number, field: "date" });
-      setDraft({ ...expense });
-      setTimeout(() => inputRef.current?.focus(), 0);
     },
     [isMobile],
   );
@@ -288,11 +252,8 @@ export default function ExpenseTable({
         onToggleSelectAll,
         allSelected,
         editingCell,
-        draft,
-        setField,
-        saveEdit,
         cancelEdit,
-        handleCellKeyDown,
+        handleTabNavigation,
         onCellEdit: startCellEdit,
         formatDate,
         formatAmount,
@@ -300,10 +261,8 @@ export default function ExpenseTable({
         activeCategories,
         activePayees,
         payeeMap,
-        inputRef,
         onUpdate,
         setEditingCell,
-        setDraft,
         refreshCategories,
         refreshPayees,
         optimistic,
@@ -315,11 +274,8 @@ export default function ExpenseTable({
       onToggleSelectAll,
       allSelected,
       editingCell,
-      draft,
-      setField,
-      saveEdit,
       cancelEdit,
-      handleCellKeyDown,
+      handleTabNavigation,
       startCellEdit,
       formatDate,
       formatAmount,

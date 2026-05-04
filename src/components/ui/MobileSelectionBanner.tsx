@@ -42,7 +42,7 @@ export default function MobileSelectionBanner({
             "text-sm font-medium px-3 py-1.5 rounded-theme-medium transition-colors",
             count > 1
               ? "text-theme-muted opacity-40 cursor-not-allowed"
-              : "text-theme-primary hover:bg-theme-primary/5",
+              : "text-theme-primary hover:bg-theme-primary-subtle",
           )}
         >
           Edit

@@ -19,7 +19,7 @@ export default function LoadingOverlay({
     <div
       className={cn(
         "fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3",
-        "bg-theme-background/95 backdrop-blur-sm",
+        "bg-theme-background-solid backdrop-blur-sm",
       )}
     >
       {showSpinner && (

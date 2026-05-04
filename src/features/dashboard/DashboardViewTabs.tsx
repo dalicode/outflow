@@ -65,7 +65,7 @@ export default function DashboardViewTabs({
             className={cn(
               "text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-colors flex items-center gap-1.5",
               activeFilterCount > 0
-                ? "bg-theme-primary/10 text-theme-primary"
+                ? "bg-theme-primary-muted text-theme-primary"
                 : "bg-theme-background text-theme-muted hover:text-theme-text",
             )}
             onClick={onOpenFilters}

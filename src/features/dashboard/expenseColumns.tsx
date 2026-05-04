@@ -3,6 +3,7 @@ import { cn } from "../../utils/cn";
 import { normalizeName } from "../../utils/normalizeName";
 import CreatableCombobox from "../../components/inputs/CreatableCombobox";
 import DatePicker from "../../components/inputs/DatePicker";
+import InlineEditCell from "./InlineEditCell";
 import { StorageService } from "../../services/storageService";
 import type { Expense, Category, Payee } from "../../types";
 
@@ -12,15 +13,8 @@ interface GetExpenseColumnsParams {
   onToggleSelectAll: () => void;
   allSelected: boolean;
   editingCell: { id: number; field: keyof Expense } | null;
-  draft: Partial<Expense>;
-  setField: (field: keyof Expense) => (val: string | number) => void;
-  saveEdit: () => void;
   cancelEdit: () => void;
-  handleCellKeyDown: (
-    e: React.KeyboardEvent,
-    expense: Expense,
-    field: keyof Expense,
-  ) => void;
+  handleTabNavigation: (expense: Expense, field: keyof Expense, shiftKey: boolean) => void;
   onCellEdit: (expense: Expense, field: keyof Expense) => void;
   formatDate: (iso: string) => string;
   formatAmount: (n: number) => string;
@@ -28,12 +22,10 @@ interface GetExpenseColumnsParams {
   activeCategories: Category[];
   activePayees: Payee[];
   payeeMap: Record<number, Payee>;
-  inputRef: React.RefObject<HTMLInputElement | HTMLSelectElement | null>;
   onUpdate: (id: number, changes: Partial<Expense>) => void;
   setEditingCell: React.Dispatch<
     React.SetStateAction<{ id: number; field: keyof Expense } | null>
   >;
-  setDraft: React.Dispatch<React.SetStateAction<Partial<Expense>>>;
   refreshCategories?: () => Promise<void>;
   refreshPayees?: () => Promise<void>;
   optimistic: Record<number, Partial<Expense>>;
@@ -48,11 +40,8 @@ export function getExpenseColumns({
   onToggleSelectAll,
   allSelected,
   editingCell,
-  draft,
-  setField,
-  saveEdit,
   cancelEdit,
-  handleCellKeyDown,
+  handleTabNavigation,
   onCellEdit,
   formatDate,
   formatAmount,
@@ -60,10 +49,8 @@ export function getExpenseColumns({
   activeCategories,
   activePayees,
   payeeMap,
-  inputRef,
   onUpdate,
   setEditingCell,
-  setDraft,
   refreshCategories,
   refreshPayees,
   optimistic,
@@ -174,6 +161,7 @@ export function getExpenseColumns({
           return (
             <DatePicker
               value={exp.date ?? ""}
+              variant="inline"
               autoOpen
               onChange={(iso) => {
                 setOptimistic((prev) => ({
@@ -182,17 +170,9 @@ export function getExpenseColumns({
                 }));
                 onUpdate(exp.id as number, { date: iso });
                 setEditingCell(null);
-                setDraft({});
               }}
               onCancel={cancelEdit}
-              onTab={(shiftKey) => {
-                const e = {
-                  key: "Tab",
-                  shiftKey,
-                  preventDefault: () => {},
-                } as React.KeyboardEvent;
-                handleCellKeyDown(e, exp, "date");
-              }}
+              onTab={(shiftKey) => handleTabNavigation(exp, "date", shiftKey)}
             />
           );
         }
@@ -208,6 +188,8 @@ export function getExpenseColumns({
       meta: {
         className: "text-left",
         cellClassName: "text-theme-text whitespace-nowrap",
+        getCellClassName: (exp) =>
+          isEditing(exp, "date") ? "cell-editing" : "",
       },
     },
     {
@@ -215,11 +197,13 @@ export function getExpenseColumns({
       header: "Category",
       cell: ({ row }) => {
         const exp = row.original;
-        const optCatId = optimistic[exp.id as number]?.categoryId ?? exp.categoryId;
+        const optCatId =
+          optimistic[exp.id as number]?.categoryId ?? exp.categoryId;
         if (isEditing(exp, "categoryId")) {
           return (
             <CreatableCombobox
               value={exp.categoryId}
+              variant="inline"
               options={activeCategories.map((c) => ({
                 id: c.id as number,
                 label: normalizeName(c.name),
@@ -231,11 +215,13 @@ export function getExpenseColumns({
                 const numId = id != null ? Number(id) : undefined;
                 setOptimistic((prev) => ({
                   ...prev,
-                  [exp.id as number]: { ...prev[exp.id as number], categoryId: numId },
+                  [exp.id as number]: {
+                    ...prev[exp.id as number],
+                    categoryId: numId,
+                  },
                 }));
                 onUpdate(exp.id as number, { categoryId: numId });
                 setEditingCell(null);
-                setDraft({});
               }}
               onCreate={async (name) => {
                 const newId = await StorageService.addCategory(name);
@@ -243,14 +229,17 @@ export function getExpenseColumns({
                 await refreshCategories?.();
                 setOptimistic((prev) => ({
                   ...prev,
-                  [exp.id as number]: { ...prev[exp.id as number], categoryId: newId },
+                  [exp.id as number]: {
+                    ...prev[exp.id as number],
+                    categoryId: newId,
+                  },
                 }));
                 onUpdate(exp.id as number, { categoryId: newId });
                 setEditingCell(null);
-                setDraft({});
                 return newId as number;
               }}
               onCancel={cancelEdit}
+              onTab={(shiftKey) => handleTabNavigation(exp, "categoryId", shiftKey)}
             />
           );
         }
@@ -272,7 +261,12 @@ export function getExpenseColumns({
           </span>
         );
       },
-      meta: { className: "text-left", cellClassName: "whitespace-nowrap" },
+      meta: {
+        className: "text-left",
+        cellClassName: "whitespace-nowrap",
+        getCellClassName: (exp) =>
+          isEditing(exp, "categoryId") ? "cell-editing" : "",
+      },
     },
     {
       id: "payee",
@@ -284,6 +278,7 @@ export function getExpenseColumns({
           return (
             <CreatableCombobox
               value={exp.payeeId}
+              variant="inline"
               options={activePayees.map((p) => ({
                 id: p.id as number,
                 label: normalizeName(p.name),
@@ -295,11 +290,13 @@ export function getExpenseColumns({
                 const numId = id != null ? Number(id) : undefined;
                 setOptimistic((prev) => ({
                   ...prev,
-                  [exp.id as number]: { ...prev[exp.id as number], payeeId: numId },
+                  [exp.id as number]: {
+                    ...prev[exp.id as number],
+                    payeeId: numId,
+                  },
                 }));
                 onUpdate(exp.id as number, { payeeId: numId });
                 setEditingCell(null);
-                setDraft({});
               }}
               onCreate={async (name) => {
                 const newId = await StorageService.addPayee(name);
@@ -307,14 +304,17 @@ export function getExpenseColumns({
                 await refreshPayees?.();
                 setOptimistic((prev) => ({
                   ...prev,
-                  [exp.id as number]: { ...prev[exp.id as number], payeeId: newId },
+                  [exp.id as number]: {
+                    ...prev[exp.id as number],
+                    payeeId: newId,
+                  },
                 }));
                 onUpdate(exp.id as number, { payeeId: newId });
                 setEditingCell(null);
-                setDraft({});
                 return newId as number;
               }}
               onCancel={cancelEdit}
+              onTab={(shiftKey) => handleTabNavigation(exp, "payeeId", shiftKey)}
             />
           );
         }
@@ -332,6 +332,8 @@ export function getExpenseColumns({
       meta: {
         className: "text-left hidden sm:table-cell",
         cellClassName: "whitespace-nowrap",
+        getCellClassName: (exp) =>
+          isEditing(exp, "payeeId") ? "cell-editing" : "",
       },
     },
     {
@@ -339,27 +341,23 @@ export function getExpenseColumns({
       header: "Description",
       cell: ({ row }) => {
         const exp = row.original;
-        const optDesc = optimistic[exp.id as number]?.description ?? exp.description;
+        const optDesc =
+          optimistic[exp.id as number]?.description ?? exp.description;
         if (isEditing(exp, "description")) {
           return (
-            <input
-              ref={inputRef as React.RefObject<HTMLInputElement>}
-              type="text"
-              value={String(draft.description ?? exp.description ?? "")}
-              onChange={(e) => setField("description")(e.target.value)}
-              onKeyDown={(e) => handleCellKeyDown(e, exp, "description")}
-              onBlur={() => {
+            <InlineEditCell
+              initialValue={exp.description ?? ""}
+              onCommit={(val) => {
+                const trimmed = val.trim() || undefined;
                 setOptimistic((prev) => ({
                   ...prev,
-                  [exp.id as number]: {
-                    ...prev[exp.id as number],
-                    description: draft.description,
-                  },
+                  [exp.id as number]: { ...prev[exp.id as number], description: trimmed },
                 }));
-                saveEdit();
+                onUpdate(exp.id as number, { description: trimmed });
+                setEditingCell(null);
               }}
-              className="input-sm w-full"
-              autoFocus
+              onCancel={() => setEditingCell(null)}
+              onTab={(shiftKey) => handleTabNavigation(exp, "description", shiftKey)}
             />
           );
         }
@@ -375,6 +373,8 @@ export function getExpenseColumns({
       meta: {
         className: "text-left",
         cellClassName: "text-theme-text max-w-[200px] truncate",
+        getCellClassName: (exp) =>
+          isEditing(exp, "description") ? "cell-editing" : "",
       },
     },
     {
@@ -387,30 +387,21 @@ export function getExpenseColumns({
           (optAmount ?? 0) < 0 ? "text-theme-success" : "text-theme-primary";
         if (isEditing(exp, "amount")) {
           return (
-            <input
-              ref={inputRef as React.RefObject<HTMLInputElement>}
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={String(draft.amount ?? exp.amount ?? "")}
-              onChange={(e) => setField("amount")(e.target.value)}
-              onKeyDown={(e) => handleCellKeyDown(e, exp, "amount")}
-              onBlur={() => {
-                const parsed =
-                  draft.amount != null
-                    ? parseFloat(String(draft.amount))
-                    : undefined;
+            <InlineEditCell
+              initialValue={String(exp.amount ?? "")}
+              onCommit={(val) => {
+                const parsed = val ? parseFloat(val) : undefined;
                 setOptimistic((prev) => ({
                   ...prev,
-                  [exp.id as number]: {
-                    ...prev[exp.id as number],
-                    amount: parsed,
-                  },
+                  [exp.id as number]: { ...prev[exp.id as number], amount: parsed },
                 }));
-                saveEdit();
+                onUpdate(exp.id as number, { amount: parsed });
+                setEditingCell(null);
               }}
-              className="input-sm w-full text-right"
-              autoFocus
+              onCancel={() => setEditingCell(null)}
+              onTab={(shiftKey) => handleTabNavigation(exp, "amount", shiftKey)}
+              type="number"
+              className="text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           );
         }
@@ -426,6 +417,8 @@ export function getExpenseColumns({
       meta: {
         className: "text-right tabular-nums",
         cellClassName: "text-right tabular-nums font-semibold",
+        getCellClassName: (exp) =>
+          isEditing(exp, "amount") ? "cell-editing" : "",
       },
     },
   ];

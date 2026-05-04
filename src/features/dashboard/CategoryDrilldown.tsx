@@ -64,7 +64,7 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
                   return (
                     <tr
                       key={exp.id}
-                      className="border-b border-theme-muted/10 row-hover"
+                      className="border-b border-theme-muted-subtle row-hover"
                     >
                       <td className="px-3 py-1 text-theme-text whitespace-nowrap">
                         {formatDate(exp.date)}

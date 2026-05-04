@@ -387,7 +387,7 @@ export default function Navbar({
                     ? "justify-center py-2.5 px-2"
                     : "gap-3 py-2.5 px-3 mx-2",
                   isActive
-                    ? "bg-theme-primary/5 text-theme-primary font-semibold nav-item-indicator"
+                    ? "bg-theme-primary-subtle text-theme-primary font-semibold nav-item-indicator"
                     : "text-theme-muted hover:text-theme-text hover:bg-theme-background",
                 )}
               >
@@ -406,7 +406,7 @@ export default function Navbar({
           <button
             onClick={onAddExpense}
             className={cn(
-              "w-full flex items-center rounded-theme-medium text-theme-primary nav-item-hover hover:bg-theme-primary/5 active:scale-95",
+              "w-full flex items-center rounded-theme-medium text-theme-primary nav-item-hover hover:bg-theme-primary-subtle active:scale-95",
               collapsed
                 ? "justify-center py-2.5 px-2"
                 : "gap-3 py-2.5 px-3 mx-2",
@@ -433,7 +433,7 @@ export default function Navbar({
             <button
               onClick={onSignOut}
               className={cn(
-                "w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger/5",
+                "w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger-subtle",
                 collapsed
                   ? "justify-center py-2.5 px-2 mx-1"
                   : "gap-3 py-2.5 px-3 mx-2",

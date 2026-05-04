@@ -32,7 +32,7 @@ export default function FixedExpensesCard({
               key={f.id}
               className={`flex items-center justify-between py-2 text-sm ${
                 i !== fixedExpenses.length - 1
-                  ? "border-b border-theme-muted/10"
+                  ? "border-b border-theme-muted-subtle"
                   : ""
               }`}
             >

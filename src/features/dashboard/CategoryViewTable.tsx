@@ -152,7 +152,7 @@ export default function CategoryViewTable({
               ({ name, totalTransactions, monthlyAmounts }) => (
                 <tr
                   key={name}
-                  className="border-b border-theme-muted/10 row-hover"
+                  className="border-b border-theme-muted-subtle row-hover"
                 >
                   <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium">
                     {name}

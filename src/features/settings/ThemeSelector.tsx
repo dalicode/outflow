@@ -65,7 +65,7 @@ function ThemeCard({ theme, isSelected, onClick }: ThemeCardProps) {
       className={cn(
         "flex-shrink-0 w-28 sm:w-32 p-2 rounded-theme-large border-2 transition-all text-left snap-start",
         isSelected
-          ? "border-theme-primary ring-2 ring-theme-primary/30"
+          ? "border-theme-primary ring-primary-30"
           : "border-transparent hover:border-theme-border",
       )}
       style={{ background: preview.background }}

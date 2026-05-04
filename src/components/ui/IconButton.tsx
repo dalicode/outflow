@@ -78,7 +78,7 @@ export default function IconButton({
       onClick={onClick}
       aria-label={label}
       aria-pressed={active}
-      className={`w-8 h-8 flex items-center justify-center rounded-theme-small transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary/40 ${
+      className={`w-8 h-8 flex items-center justify-center rounded-theme-small transition-colors focus-ring-primary ${
         active
           ? "bg-theme-primary text-white"
           : danger

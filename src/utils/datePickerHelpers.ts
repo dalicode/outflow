@@ -12,33 +12,78 @@ export interface CalendarDay {
   month: number;
   year: number;
   isToday: boolean;
-  isSelected: boolean;
+  isCurrentMonth: boolean;
+}
+
+/** Format a Date to ISO YYYY-MM-DD. */
+export function toISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Check if two dates represent the same calendar day. */
+export function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/** Add days to a date (returns new Date). */
+export function addDays(date: Date, n: number): Date {
+  const result = new Date(date);
+  result.setDate(date.getDate() + n);
+  return result;
+}
+
+/** Add months to a date (returns new Date). */
+export function addMonths(date: Date, n: number): Date {
+  const result = new Date(date);
+  result.setMonth(date.getMonth() + n);
+  return result;
+}
+
+/** First day of the month for a given date. */
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+/** Last day of the month for a given date. */
+export function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
 }
 
 /**
- * Generate days for a given month.
- * Only returns actual days of the selected month.
+ * Generate a 6×7 calendar grid for a given month.
+ * Includes previous-month and next-month padding so arrow keys
+ * can navigate across month boundaries seamlessly.
  */
-export function getCalendarDays(
+export function getCalendarGrid(
   year: number,
   month: number,
-  selectedISO?: string,
 ): CalendarDay[] {
   const today = new Date();
-  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayISO = toISO(today);
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1);
+  const firstWeekday = firstDay.getDay(); // 0 = Sunday
+
+  // Start from the Sunday on or before the 1st of the month
+  const startDate = addDays(firstDay, -firstWeekday);
 
   const days: CalendarDay[] = [];
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  for (let i = 0; i < 42; i++) {
+    const d = addDays(startDate, i);
+    const iso = toISO(d);
     days.push({
-      date: d,
-      month,
-      year,
+      date: d.getDate(),
+      month: d.getMonth(),
+      year: d.getFullYear(),
       isToday: iso === todayISO,
-      isSelected: iso === selectedISO,
+      isCurrentMonth: d.getMonth() === month,
     });
   }
 
