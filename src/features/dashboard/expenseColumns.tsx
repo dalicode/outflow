@@ -157,7 +157,11 @@ export function getExpenseColumns({
           </label>
         );
       },
-      meta: { className: "text-center w-10", cellClassName: "text-center" },
+      meta: {
+        className: "text-center w-10",
+        cellClassName: "text-center",
+        width: "2.5rem",
+      },
     },
     {
       id: "date",
@@ -197,7 +201,8 @@ export function getExpenseColumns({
       },
       meta: {
         className: "text-left",
-        cellClassName: "text-theme-text whitespace-nowrap",
+        cellClassName: "text-theme-text whitespace-nowrap overflow-hidden",
+        width: "6.5rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "date") ? "cell-editing" : "",
       },
@@ -221,7 +226,11 @@ export function getExpenseColumns({
                 placeholder="Select payee…"
                 createHint="Type a new payee name to add it."
                 allowCreate
-                autoOpen
+                autoOpen={editing.shouldAutoOpenEditor(
+                  exp.id as number,
+                  "payeeId",
+                )}
+                autoFocus
                 onChange={(id) => {
                   const numId = id != null ? Number(id) : undefined;
                   editing.createOnCommit(exp.id as number, "payeeId", {
@@ -270,7 +279,8 @@ export function getExpenseColumns({
       },
       meta: {
         className: "text-left hidden sm:table-cell",
-        cellClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap overflow-hidden",
+        width: "9rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "payeeId")
             ? "cell-editing"
@@ -297,7 +307,11 @@ export function getExpenseColumns({
                 placeholder="Select category…"
                 createHint="Type a new category name to add it."
                 allowCreate
-                autoOpen
+                autoOpen={editing.shouldAutoOpenEditor(
+                  exp.id as number,
+                  "categoryId",
+                )}
+                autoFocus
                 onChange={(id) => {
                   const numId = id != null ? Number(id) : undefined;
                   editing.createOnCommit(exp.id as number, "categoryId", {
@@ -348,7 +362,8 @@ export function getExpenseColumns({
       },
       meta: {
         className: "text-left",
-        cellClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap overflow-hidden",
+        width: "9rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "categoryId")
             ? "cell-editing"
@@ -388,7 +403,7 @@ export function getExpenseColumns({
       },
       meta: {
         className: "text-left",
-        cellClassName: "text-theme-text max-w-[200px] truncate",
+        cellClassName: "text-theme-text overflow-hidden truncate",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "description")
             ? "cell-editing"
@@ -438,7 +453,8 @@ export function getExpenseColumns({
       },
       meta: {
         className: "text-right tabular-nums",
-        cellClassName: "text-right tabular-nums font-semibold",
+        cellClassName: "text-right tabular-nums font-semibold whitespace-nowrap",
+        width: "6.5rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "amount")
             ? "cell-editing"

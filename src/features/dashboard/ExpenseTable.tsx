@@ -271,6 +271,7 @@ export default function ExpenseTable({
         <DataTable
           data={expenses}
           columns={columns}
+          fixedLayout
           getRowClassName={getRowClassName}
           onRowContextMenu={handleContextMenu}
         />

@@ -28,6 +28,7 @@ interface CreatableComboboxProps {
   disabled?: boolean;
   error?: string;
   autoOpen?: boolean;
+  autoFocus?: boolean;
   variant?: "default" | "inline";
   openOnClick?: boolean;
   onChange: (id: string | number | undefined) => void;
@@ -49,6 +50,7 @@ export default function CreatableCombobox({
   disabled = false,
   error,
   autoOpen = false,
+  autoFocus = false,
   variant = "default",
   openOnClick = false,
   onChange,
@@ -151,7 +153,6 @@ export default function CreatableCombobox({
       setHasTyped(false);
       closeDropdown();
       onChange(id);
-      inputRef.current?.focus();
     },
     [options, closeDropdown, onChange],
   );
@@ -191,6 +192,28 @@ export default function CreatableCombobox({
     return highlightedMatch?.id ?? filtered[0]?.id ?? value;
   }, [displayQuery, filterText, filtered, highlightedIndex, options, value]);
 
+  const commitDefaultSelection = useCallback(() => {
+    const id = getDefaultCommitId();
+    const option = options.find((o) => o.id === id);
+    if (filterText.trim() && filtered.length === 0) {
+      setDisplayQuery(selectedLabel);
+      setHasTyped(false);
+      return;
+    }
+    if (option) {
+      setDisplayQuery(option.label);
+      setHasTyped(false);
+    }
+    onChange(id);
+  }, [
+    filterText,
+    filtered.length,
+    getDefaultCommitId,
+    onChange,
+    options,
+    selectedLabel,
+  ]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (!dropdownState.isOpen) {
@@ -199,7 +222,7 @@ export default function CreatableCombobox({
           openDropdown();
         } else if (e.key === "Tab") {
           e.preventDefault();
-          onChange(getDefaultCommitId());
+          commitDefaultSelection();
           onTab?.(e.shiftKey);
         }
         return;
@@ -255,7 +278,7 @@ export default function CreatableCombobox({
           e.preventDefault();
 
           closeDropdown();
-          onChange(getDefaultCommitId());
+          commitDefaultSelection();
           onTab?.(e.shiftKey);
           break;
         }
@@ -278,6 +301,7 @@ export default function CreatableCombobox({
       displayQuery,
       onChange,
       getDefaultCommitId,
+      commitDefaultSelection,
     ],
   );
 
@@ -298,7 +322,7 @@ export default function CreatableCombobox({
 
   const handleBlur = () => {
     if (isCreatingRef.current || justCreatedRef.current) return;
-    onChange(getDefaultCommitId());
+    commitDefaultSelection();
     onCancel?.();
     closeDropdown();
   };
@@ -334,6 +358,8 @@ export default function CreatableCombobox({
   useLayoutEffect(() => {
     if (autoOpen) {
       openDropdown();
+    } else if (autoFocus) {
+      inputRef.current?.focus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -349,6 +375,7 @@ export default function CreatableCombobox({
       id={listboxId}
       data-no-cell-switch
       role="listbox"
+      onMouseDown={(e) => e.preventDefault()}
       className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-medium shadow-lg max-h-60 overflow-y-auto scrollbar-auto-hide"
       style={{
         top: dropdownState.pos.top,

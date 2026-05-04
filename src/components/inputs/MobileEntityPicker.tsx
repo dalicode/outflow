@@ -111,20 +111,18 @@ export default function MobileEntityPicker({
     [options, value],
   );
 
-  const handleSave = useCallback(async () => {
-    if (showCreateOption) {
-      await handleCreate();
-      return;
-    }
+  const hasQuery = Boolean(query.trim());
+  const defaultMatchId = hasQuery ? filtered[0]?.id : value;
+  const cannotSaveTypedQuery = hasQuery && filtered.length === 0;
 
-    const trimmed = query.trim();
-    if (trimmed && filtered[0]) {
+  const handleSave = useCallback(async () => {
+    if (query.trim() && filtered[0]) {
       handleSelect(filtered[0].id);
       return;
     }
 
     onClose();
-  }, [filtered, handleCreate, handleSelect, onClose, query, showCreateOption]);
+  }, [filtered, handleSelect, onClose, query]);
 
   return (
     <Modal
@@ -134,7 +132,7 @@ export default function MobileEntityPicker({
       size="full"
       mobileActionLabel="Save"
       onMobileAction={handleSave}
-      mobileActionDisabled={isCreating}
+      mobileActionDisabled={isCreating || cannotSaveTypedQuery}
       bodyClassName="overflow-hidden p-0"
       showCloseButton={false}
     >
@@ -148,6 +146,16 @@ export default function MobileEntityPicker({
             onChange={(e) => {
               setQuery(e.target.value);
               setCreateError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              if (showCreateOption && filtered.length === 0) {
+                void handleCreate();
+                return;
+              }
+              if (isCreating || cannotSaveTypedQuery) return;
+              void handleSave();
             }}
             placeholder={placeholder}
             className="input-theme w-full px-3 py-2.5 text-sm"
@@ -183,7 +191,7 @@ export default function MobileEntityPicker({
 
           {/* Existing options */}
           {filtered.map((opt) => {
-            const isSelected = opt.id === value;
+            const isSelected = opt.id === defaultMatchId;
             return (
               <button
                 key={opt.id}
@@ -214,7 +222,10 @@ export default function MobileEntityPicker({
                 "flex min-h-12 w-full items-center gap-3 rounded-theme-medium px-3 py-3 text-left text-sm transition-colors",
                 isCreating
                   ? "opacity-60 cursor-not-allowed"
-                  : "text-theme-text hover:bg-theme-border",
+                  : cn(
+                      "text-theme-text hover:bg-theme-border",
+                      filtered.length === 0 && "bg-theme-primary-subtle",
+                    ),
               )}
             >
               {isCreating ? (

@@ -15,8 +15,8 @@ interface EditingCell {
 
 const FIELD_ORDER: EditableField[] = [
   "date",
-  "categoryId",
   "payeeId",
+  "categoryId",
   "description",
   "amount",
 ];
@@ -56,6 +56,7 @@ export interface CellEditingAPI {
     name: string,
   ) => void;
   getPendingName: (expenseId: number, field: EditableField) => string | null;
+  shouldAutoOpenEditor: (expenseId: number, field: EditableField) => boolean;
 }
 
 interface UseExpenseCellEditingParams {
@@ -84,6 +85,7 @@ export function useExpenseCellEditing({
   setShowMobileEditModal,
 }: UseExpenseCellEditingParams): CellEditingAPI {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [autoOpenCell, setAutoOpenCell] = useState<EditingCell | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [pendingNames, setPendingNames] = useState<Record<string, string>>({});
 
@@ -130,6 +132,7 @@ export function useExpenseCellEditing({
         field,
       };
       setEditingCell(cell);
+      setAutoOpenCell(cell);
       editingCellRef.current = cell;
       setValidationError(null);
       setPendingNames({});
@@ -145,6 +148,7 @@ export function useExpenseCellEditing({
 
   const cancelCurrentCellEdit = useCallback(() => {
     setEditingCell(null);
+    setAutoOpenCell(null);
     editingCellRef.current = null;
     setValidationError(null);
     pendingSwitchRef.current = null;
@@ -195,6 +199,7 @@ export function useExpenseCellEditing({
 
       setValidationError(null);
       setEditingCell(nextCell);
+      setAutoOpenCell(nextCell);
       editingCellRef.current = nextCell;
 
       setTimeout(() => {
@@ -213,6 +218,13 @@ export function useExpenseCellEditing({
     [editingCell],
   );
 
+  const shouldAutoOpenEditor = useCallback(
+    (expenseId: number, field: EditableField) => {
+      return autoOpenCell?.expenseId === expenseId && autoOpenCell.field === field;
+    },
+    [autoOpenCell],
+  );
+
   const createOnCommit = useCallback(
     (
       expenseId: number,
@@ -220,6 +232,10 @@ export function useExpenseCellEditing({
       options?: { stayInEdit?: boolean },
     ) => {
       return (value: unknown) => {
+        if (options?.stayInEdit) {
+          setAutoOpenCell(null);
+        }
+
         onUpdate(expenseId, { [field]: value } as Partial<Expense>);
         setOptimistic((prev) => ({
           ...prev,
@@ -234,6 +250,7 @@ export function useExpenseCellEditing({
 
         if (isCurrentEdit && !pendingSwitchRef.current) {
           setEditingCell(null);
+          setAutoOpenCell(null);
           editingCellRef.current = null;
           setValidationError(null);
         }
@@ -246,6 +263,7 @@ export function useExpenseCellEditing({
     return () => {
       if (pendingSwitchRef.current) return;
       setEditingCell(null);
+      setAutoOpenCell(null);
       editingCellRef.current = null;
       setValidationError(null);
     };
@@ -294,5 +312,6 @@ export function useExpenseCellEditing({
     validateField,
     setPendingName,
     getPendingName,
+    shouldAutoOpenEditor,
   };
 }
