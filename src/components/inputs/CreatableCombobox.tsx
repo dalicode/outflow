@@ -28,6 +28,7 @@ interface CreatableComboboxProps {
   error?: string;
   autoOpen?: boolean;
   variant?: "default" | "inline";
+  openOnClick?: boolean;
   onChange: (id: string | number | undefined) => void;
   onCreate?: (name: string) => Promise<string | number>;
   onCancel?: () => void;
@@ -47,6 +48,7 @@ export default function CreatableCombobox({
   error,
   autoOpen = false,
   variant = "default",
+  openOnClick = false,
   onChange,
   onCreate,
   onCancel,
@@ -222,8 +224,6 @@ export default function CreatableCombobox({
           if (showCreateOption && highlightedIndex === createIndex) {
             handleCreate();
           } else if (filtered[highlightedIndex]) {
-            console.log("Selected option:", filtered[highlightedIndex]);
-            console.log(filtered[highlightedIndex].id);
             const id = filtered[highlightedIndex].id;
             setDisplayQuery(filtered[highlightedIndex].label);
             setHasTyped(false);
@@ -418,6 +418,11 @@ export default function CreatableCombobox({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onClick={() => {
+            if (openOnClick && !dropdownState.isOpen) {
+              openDropdown();
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled || isCreating}
           className={cn(

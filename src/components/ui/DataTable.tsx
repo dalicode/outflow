@@ -52,7 +52,6 @@ export default function DataTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto">
       <table className="w-full text-sm border-separate border-spacing-0">
         <thead className="sticky top-0 z-10">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -117,6 +116,5 @@ export default function DataTable<T>({
           ))}
         </tbody>
       </table>
-    </div>
   );
 }

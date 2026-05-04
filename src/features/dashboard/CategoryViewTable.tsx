@@ -95,7 +95,6 @@ export default function CategoryViewTable({
     monthSpan > 1 ? 2 + monthSpan + (showGrandTotal ? 1 : 0) : 3;
 
   return (
-    <div className="overflow-x-auto">
       <table className="w-full text-sm border-separate border-spacing-0">
         <thead className="sticky top-0 z-10">
           <tr>
@@ -590,6 +589,5 @@ export default function CategoryViewTable({
           )}
         </tbody>
       </table>
-    </div>
   );
 }

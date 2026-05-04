@@ -203,6 +203,80 @@ export function getExpenseColumns({
       },
     },
     {
+      id: "payee",
+      header: "Payee",
+      cell: ({ row }) => {
+        const exp = row.original;
+        const optPayeeId = optimistic[exp.id as number]?.payeeId ?? exp.payeeId;
+        if (editing.isCellEditing(exp.id as number, "payeeId")) {
+          return (
+            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+              <CreatableCombobox
+                value={optPayeeId}
+                variant="inline"
+                options={activePayees.map((p) => ({
+                  id: p.id as number,
+                  label: normalizeName(p.name),
+                }))}
+                placeholder="Select payee…"
+                allowCreate
+                autoOpen
+                onChange={(id) => {
+                  const numId = id != null ? Number(id) : undefined;
+                  editing.createOnCommit(exp.id as number, "payeeId", {
+                    stayInEdit: true,
+                  })(numId);
+                }}
+                onCreate={async (name) => {
+                  const newId = await StorageService.addPayee(name);
+                  if (newId == null) throw new Error("Failed to create payee");
+                  editing.setPendingName(
+                    exp.id as number,
+                    "payeeId",
+                    name.trim(),
+                  );
+                  await refreshPayees?.();
+                  return newId as number;
+                }}
+                onCancel={editing.createOnCancel()}
+                onTab={(shiftKey) =>
+                  editing.handleTabNavigation(exp, "payeeId", shiftKey)
+                }
+              />
+            </div>
+          );
+        }
+        return (
+          <span
+            data-editable-cell
+            data-expense-id={exp.id}
+            data-field="payeeId"
+            {...editableCellActivate(editing, exp, "payeeId")}
+            className={cn(
+              "cursor-pointer",
+              payeeMap[optPayeeId as number]?.isArchived
+                ? "text-theme-muted italic"
+                : "text-theme-text font-medium",
+            )}
+          >
+            {optPayeeId && payeeMap[optPayeeId as number]
+              ? normalizeName(payeeMap[optPayeeId as number].name)
+              : optPayeeId
+                ? (editing.getPendingName(exp.id as number, "payeeId") ?? "—")
+                : "—"}
+          </span>
+        );
+      },
+      meta: {
+        className: "text-left hidden sm:table-cell",
+        cellClassName: "whitespace-nowrap",
+        getCellClassName: (exp: Expense) =>
+          editing.isCellEditing(exp.id as number, "payeeId")
+            ? "cell-editing"
+            : "",
+      },
+    },
+    {
       id: "category",
       header: "Category",
       cell: ({ row }) => {
@@ -224,7 +298,6 @@ export function getExpenseColumns({
                 autoOpen
                 onChange={(id) => {
                   const numId = id != null ? Number(id) : undefined;
-                  console.log("Selected category ID:", numId);
                   editing.createOnCommit(exp.id as number, "categoryId", {
                     stayInEdit: true,
                   })(numId);
@@ -276,75 +349,6 @@ export function getExpenseColumns({
         cellClassName: "whitespace-nowrap",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "categoryId")
-            ? "cell-editing"
-            : "",
-      },
-    },
-    {
-      id: "payee",
-      header: "Payee",
-      cell: ({ row }) => {
-        const exp = row.original;
-        const optPayeeId = optimistic[exp.id as number]?.payeeId ?? exp.payeeId;
-        if (editing.isCellEditing(exp.id as number, "payeeId")) {
-          return (
-            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
-              <CreatableCombobox
-                value={optPayeeId}
-                variant="inline"
-                options={activePayees.map((p) => ({
-                  id: p.id as number,
-                  label: normalizeName(p.name),
-                }))}
-                placeholder="Select payee…"
-                allowCreate
-                autoOpen
-                onChange={(id) => {
-                  const numId = id != null ? Number(id) : undefined;
-                  editing.createOnCommit(exp.id as number, "payeeId", {
-                    stayInEdit: true,
-                  })(numId);
-                }}
-                onCreate={async (name) => {
-                  const newId = await StorageService.addPayee(name);
-                  if (newId == null) throw new Error("Failed to create payee");
-                  editing.setPendingName(
-                    exp.id as number,
-                    "payeeId",
-                    name.trim(),
-                  );
-                  await refreshPayees?.();
-                  return newId as number;
-                }}
-                onCancel={editing.createOnCancel()}
-                onTab={(shiftKey) =>
-                  editing.handleTabNavigation(exp, "payeeId", shiftKey)
-                }
-              />
-            </div>
-          );
-        }
-        return (
-          <span
-            data-editable-cell
-            data-expense-id={exp.id}
-            data-field="payeeId"
-            {...editableCellActivate(editing, exp, "payeeId")}
-            className="cursor-pointer text-theme-muted text-xs"
-          >
-            {optPayeeId && payeeMap[optPayeeId as number]
-              ? normalizeName(payeeMap[optPayeeId as number].name)
-              : optPayeeId
-                ? (editing.getPendingName(exp.id as number, "payeeId") ?? "—")
-                : "—"}
-          </span>
-        );
-      },
-      meta: {
-        className: "text-left hidden sm:table-cell",
-        cellClassName: "whitespace-nowrap",
-        getCellClassName: (exp: Expense) =>
-          editing.isCellEditing(exp.id as number, "payeeId")
             ? "cell-editing"
             : "",
       },

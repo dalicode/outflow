@@ -1,112 +1,175 @@
-import { useState, useMemo, type FormEvent } from 'react'
-import { cn } from '../../utils/cn'
-import { useSettings } from '../../context/settingsContext'
-import Modal from '../../components/ui/Modal'
-import ModalFooter from '../../components/ui/ModalFooter'
-import CreatableCombobox from '../../components/inputs/CreatableCombobox'
-import DatePicker from '../../components/inputs/DatePicker'
-import { getLocalToday } from '../../utils/historicalDataHelpers'
-import { normalizeName } from '../../utils/normalizeName'
-import { usePayees } from '../../hooks/useLocalData'
-import { StorageService } from '../../services/storageService'
-import './expenses.css'
-import type { Expense, Category, Payee } from '../../types'
+import { useState, useMemo, type FormEvent } from "react";
+import { useSettings } from "../../context/settingsContext";
+import Modal from "../../components/ui/Modal";
+import ModalFooter from "../../components/ui/ModalFooter";
+import CreatableCombobox from "../../components/inputs/CreatableCombobox";
+import DatePicker from "../../components/inputs/DatePicker";
+import { getLocalToday } from "../../utils/historicalDataHelpers";
+import { normalizeName } from "../../utils/normalizeName";
+import { usePayees } from "../../hooks/useLocalData";
+import { StorageService } from "../../services/storageService";
+import "./expenses.css";
+import type { Expense, Category, Payee } from "../../types";
 
-const EMPTY_FORM = { date: getLocalToday(), categoryId: '', payeeId: '', description: '', amount: '' }
+const EMPTY_FORM = {
+  date: getLocalToday(),
+  categoryId: "",
+  payeeId: "",
+  description: "",
+  amount: "",
+};
 
 function getFormFromExpense(expense: Expense) {
   return {
     date: expense.date,
-    categoryId: String(expense.categoryId ?? ''),
-    payeeId: String(expense.payeeId ?? ''),
-    description: expense.description ?? '',
-    amount: String(expense.amount ?? ''),
-  }
+    categoryId: String(expense.categoryId ?? ""),
+    payeeId: String(expense.payeeId ?? ""),
+    description: expense.description ?? "",
+    amount: String(expense.amount ?? ""),
+  };
 }
 
 interface CategoryModalProps {
   categories: Category[];
   onCategoriesChange?: (
-    action: 'add' | 'update' | 'delete',
+    action: "add" | "update" | "delete",
     payload: { id?: number; name?: string },
   ) => Promise<number | undefined>;
   onClose: () => void;
   refreshCategories?: () => void;
 }
 
-function CategoryModal({ categories, onCategoriesChange, onClose, refreshCategories }: CategoryModalProps) {
-  const [newName, setNewName] = useState('')
-  const [newError, setNewError] = useState('')
-  const [editId, setEditId] = useState<number | null>(null)
-  const [editName, setEditName] = useState('')
+function CategoryModal({
+  categories,
+  onCategoriesChange,
+  onClose,
+  refreshCategories,
+}: CategoryModalProps) {
+  const [newName, setNewName] = useState("");
+  const [newError, setNewError] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
 
-  const active = categories.filter((c) => !c.isArchived)
+  const active = categories.filter((c) => !c.isArchived);
 
   const addCat = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const name = newName.trim()
-    if (!name) { setNewError('Name is required.'); return }
-    if (active.some((c) => c.name.toLowerCase() === name.toLowerCase())) { setNewError('Already exists.'); return }
-    if (onCategoriesChange) {
-      await onCategoriesChange('add', { name })
-    } else {
-      await StorageService.addCategory(name)
-      refreshCategories?.()
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) {
+      setNewError("Name is required.");
+      return;
     }
-    setNewName(''); setNewError('')
-  }
+    if (active.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      setNewError("Already exists.");
+      return;
+    }
+    if (onCategoriesChange) {
+      await onCategoriesChange("add", { name });
+    } else {
+      await StorageService.addCategory(name);
+      refreshCategories?.();
+    }
+    setNewName("");
+    setNewError("");
+  };
 
   const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const name = editName.trim()
-    if (!name) return
-    if (active.some((c) => c.id !== editId && c.name.toLowerCase() === name.toLowerCase())) return
+    e.preventDefault();
+    const name = editName.trim();
+    if (!name) return;
+    if (
+      active.some(
+        (c) => c.id !== editId && c.name.toLowerCase() === name.toLowerCase(),
+      )
+    )
+      return;
     if (onCategoriesChange) {
-      await onCategoriesChange('update', { id: editId as number, name })
+      await onCategoriesChange("update", { id: editId as number, name });
     } else {
-      await StorageService.updateCategory(editId as number, { name })
-      refreshCategories?.()
+      await StorageService.updateCategory(editId as number, { name });
+      refreshCategories?.();
     }
-    setEditId(null)
-  }
+    setEditId(null);
+  };
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Manage Categories" size="md">
       <form onSubmit={addCat} className="flex gap-2">
-        <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category…" autoFocus
-          className="input-theme text-sm flex-1 px-3 py-2" />
-        <button type="submit"             className="btn-primary-sm">Add</button>
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New category…"
+          autoFocus
+          className="input-theme text-sm flex-1 px-3 py-2"
+        />
+        <button type="submit" className="btn-primary-sm">
+          Add
+        </button>
       </form>
-      {newError && <p className="text-theme-danger text-xs -mt-2">{newError}</p>}
+      {newError && (
+        <p className="text-theme-danger text-xs -mt-2">{newError}</p>
+      )}
       <ul className="space-y-1 max-h-64 overflow-y-auto scrollbar-themed">
         {active.map((cat) => (
           <li key={cat.id} className="flex items-center gap-2 text-sm">
             {editId === cat.id ? (
               <form onSubmit={saveEdit} className="flex gap-2 flex-1">
-                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
-                  className="input-theme text-sm flex-1 px-2 py-1" />
-                <button type="submit" className="text-theme-success hover:opacity-80 font-medium">Save</button>
-                <button type="button" onClick={() => setEditId(null)} className="text-theme-muted hover:text-theme-text">Cancel</button>
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input-theme text-sm flex-1 px-2 py-1"
+                />
+                <button
+                  type="submit"
+                  className="text-theme-success hover:opacity-80 font-medium"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditId(null)}
+                  className="text-theme-muted hover:text-theme-text"
+                >
+                  Cancel
+                </button>
               </form>
             ) : (
               <>
-                <span className="flex-1 text-theme-text">{normalizeName(cat.name)}</span>
-                <button type="button" onClick={() => { setEditId(cat.id as number); setEditName(cat.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
-                <button type="button" onClick={async () => {
-                  if (onCategoriesChange) {
-                    await onCategoriesChange('delete', { id: cat.id })
-                  } else {
-                    await StorageService.archiveCategory(cat.id as number)
-                    refreshCategories?.()
-                  }
-                }} className="text-theme-danger hover:opacity-80">Delete</button>
+                <span className="flex-1 text-theme-text">
+                  {normalizeName(cat.name)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditId(cat.id as number);
+                    setEditName(cat.name);
+                  }}
+                  className="text-theme-primary hover:opacity-80"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (onCategoriesChange) {
+                      await onCategoriesChange("delete", { id: cat.id });
+                    } else {
+                      await StorageService.deleteCategory(cat.id as number);
+                      refreshCategories?.();
+                    }
+                  }}
+                  className="text-theme-danger hover:opacity-80"
+                >
+                  Delete
+                </button>
               </>
             )}
           </li>
         ))}
       </ul>
     </Modal>
-  )
+  );
 }
 
 interface PayeeModalProps {
@@ -116,151 +179,274 @@ interface PayeeModalProps {
   refreshPayees?: () => void;
 }
 
-function PayeeModal({ payees, onPayeesChange, onClose, refreshPayees }: PayeeModalProps) {
-  const [newName, setNewName] = useState('')
-  const [newError, setNewError] = useState('')
-  const [editId, setEditId] = useState<number | null>(null)
-  const [editName, setEditName] = useState('')
+function PayeeModal({
+  payees,
+  onPayeesChange,
+  onClose,
+  refreshPayees,
+}: PayeeModalProps) {
+  const [newName, setNewName] = useState("");
+  const [newError, setNewError] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
 
-  const active = payees.filter((p) => !p.isArchived)
+  const active = payees.filter((p) => !p.isArchived);
 
   const addPayee = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const name = newName.trim()
-    if (!name) { setNewError('Name is required.'); return }
-    if (active.some((p) => p.name.toLowerCase() === name.toLowerCase())) { setNewError('Already exists.'); return }
-    try {
-      await StorageService.addPayee(name)
-      setNewName(''); setNewError('')
-      onPayeesChange?.()
-      refreshPayees?.()
-    } catch (err) {
-      setNewError((err as Error).message)
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) {
+      setNewError("Name is required.");
+      return;
     }
-  }
+    if (active.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+      setNewError("Already exists.");
+      return;
+    }
+    try {
+      await StorageService.addPayee(name);
+      setNewName("");
+      setNewError("");
+      onPayeesChange?.();
+      refreshPayees?.();
+    } catch (err) {
+      setNewError((err as Error).message);
+    }
+  };
 
   const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const name = editName.trim()
-    if (!name) return
-    if (active.some((p) => p.id !== editId && p.name.toLowerCase() === name.toLowerCase())) return
+    e.preventDefault();
+    const name = editName.trim();
+    if (!name) return;
+    if (
+      active.some(
+        (p) => p.id !== editId && p.name.toLowerCase() === name.toLowerCase(),
+      )
+    )
+      return;
     try {
-      await StorageService.updatePayee(editId as number, name)
-      setEditId(null)
-      onPayeesChange?.()
-      refreshPayees?.()
+      await StorageService.updatePayee(editId as number, name);
+      setEditId(null);
+      onPayeesChange?.();
+      refreshPayees?.();
     } catch (err) {
-      setNewError((err as Error).message)
+      setNewError((err as Error).message);
     }
-  }
+  };
 
   const handleArchive = async (id: number) => {
-    await StorageService.archivePayee(id)
-    onPayeesChange?.()
-    refreshPayees?.()
-  }
+    await StorageService.archivePayee(id);
+    onPayeesChange?.();
+    refreshPayees?.();
+  };
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Manage Payees" size="md">
       <form onSubmit={addPayee} className="flex gap-2">
-        <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New payee…" autoFocus
-          className="input-theme text-sm flex-1 px-3 py-2" />
-        <button type="submit" className="btn-primary-sm">Add</button>
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New payee…"
+          autoFocus
+          className="input-theme text-sm flex-1 px-3 py-2"
+        />
+        <button type="submit" className="btn-primary-sm">
+          Add
+        </button>
       </form>
-      {newError && <p className="text-theme-danger text-xs -mt-2">{newError}</p>}
+      {newError && (
+        <p className="text-theme-danger text-xs -mt-2">{newError}</p>
+      )}
       <ul className="space-y-1 max-h-64 overflow-y-auto scrollbar-themed">
         {active.map((payee) => (
           <li key={payee.id} className="flex items-center gap-2 text-sm">
             {editId === payee.id ? (
               <form onSubmit={saveEdit} className="flex gap-2 flex-1">
-                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
-                  className="input-theme text-sm flex-1 px-2 py-1" />
-                <button type="submit" className="text-theme-success hover:opacity-80 font-medium">Save</button>
-                <button type="button" onClick={() => setEditId(null)} className="text-theme-muted hover:text-theme-text">Cancel</button>
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input-theme text-sm flex-1 px-2 py-1"
+                />
+                <button
+                  type="submit"
+                  className="text-theme-success hover:opacity-80 font-medium"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditId(null)}
+                  className="text-theme-muted hover:text-theme-text"
+                >
+                  Cancel
+                </button>
               </form>
             ) : (
               <>
-                <span className="flex-1 text-theme-text">{normalizeName(payee.name)}</span>
-                <button type="button" onClick={() => { setEditId(payee.id as number); setEditName(payee.name) }} className="text-theme-primary hover:opacity-80">Edit</button>
-                <button type="button" onClick={() => handleArchive(payee.id as number)} className="text-theme-danger hover:opacity-80">Delete</button>
+                <span className="flex-1 text-theme-text">
+                  {normalizeName(payee.name)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditId(payee.id as number);
+                    setEditName(payee.name);
+                  }}
+                  className="text-theme-primary hover:opacity-80"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleArchive(payee.id as number)}
+                  className="text-theme-danger hover:opacity-80"
+                >
+                  Delete
+                </button>
               </>
             )}
           </li>
         ))}
       </ul>
     </Modal>
-  )
+  );
 }
 
 interface ExpenseFormProps {
-  onAdd?: (expense: Omit<Expense, 'id'>) => void;
+  onAdd?: (expense: Omit<Expense, "id">) => void;
   onUpdate?: (id: number, changes: Partial<Expense>) => void;
   onClose: () => void;
   categories: Category[];
   onCategoriesChange?: (
-    action: 'add' | 'update' | 'delete',
+    action: "add" | "update" | "delete",
     payload: { id?: number; name?: string },
   ) => Promise<number | undefined>;
   initialExpense?: Expense;
 }
 
-export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCategoriesChange, initialExpense }: ExpenseFormProps) {
-  const isEdit = !!initialExpense
-  const [form, setForm] = useState(() => isEdit ? getFormFromExpense(initialExpense) : EMPTY_FORM)
-  const [error, setError] = useState('')
-  const [showCatModal, setShowCatModal] = useState(false)
-  const [showPayeeModal, setShowPayeeModal] = useState(false)
-  const { payees, refresh: refreshPayees } = usePayees()
+export default function ExpenseForm({
+  onAdd,
+  onUpdate,
+  onClose,
+  categories,
+  onCategoriesChange,
+  initialExpense,
+}: ExpenseFormProps) {
+  const isEdit = !!initialExpense;
+  const { payees, refresh: refreshPayees } = usePayees();
+  const { settings } = useSettings();
+  const decimalPlaces = parseInt(settings.decimalPlaces, 10) || 2;
 
-  const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
-  const activePayees = useMemo(() => payees.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name)), [payees])
+  const [form, setForm] = useState(() => {
+    if (!isEdit || !initialExpense) return EMPTY_FORM;
+    const base = getFormFromExpense(initialExpense);
+    return {
+      ...base,
+      amount:
+        initialExpense.amount != null
+          ? initialExpense.amount.toFixed(decimalPlaces)
+          : "",
+    };
+  });
+  const [error, setError] = useState("");
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [showPayeeModal, setShowPayeeModal] = useState(false);
+
+  const activeCategories = useMemo(
+    () => categories.filter((c) => !c.isArchived),
+    [categories],
+  );
+  const activePayees = useMemo(
+    () =>
+      payees
+        .filter((p) => !p.isArchived)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [payees],
+  );
 
   const categoryOptions = useMemo(
-    () => activeCategories.map((c) => ({ id: c.id!, label: normalizeName(c.name) })),
-    [activeCategories]
-  )
+    () =>
+      activeCategories.map((c) => ({
+        id: c.id!,
+        label: normalizeName(c.name),
+      })),
+    [activeCategories],
+  );
   const payeeOptions = useMemo(
-    () => activePayees.map((p) => ({ id: p.id!, label: normalizeName(p.name) })),
-    [activePayees]
-  )
+    () =>
+      activePayees.map((p) => ({ id: p.id!, label: normalizeName(p.name) })),
+    [activePayees],
+  );
 
-  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm((f) => ({ ...f, [field]: e.target.value }))
+  const set =
+    (field: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!form.categoryId) { setError('Please select a category.'); return }
-    if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) === 0) { setError('Amount cannot be zero.'); return }
-    const cat = categories.find((c) => c.id === Number(form.categoryId))
-    const payee = activePayees.find((p) => p.id === Number(form.payeeId))
+    e.preventDefault();
+    if (!form.categoryId) {
+      setError("Please select a category.");
+      return;
+    }
+    if (
+      !form.amount ||
+      isNaN(Number(form.amount)) ||
+      Number(form.amount) === 0
+    ) {
+      setError("Amount cannot be zero.");
+      return;
+    }
     const payload = {
       date: form.date,
       categoryId: Number(form.categoryId),
       payeeId: form.payeeId ? Number(form.payeeId) : undefined,
       description: form.description,
       amount: parseFloat(form.amount),
-    }
+    };
     if (isEdit && initialExpense) {
-      onUpdate?.(initialExpense.id as number, payload)
+      onUpdate?.(initialExpense.id as number, payload);
     } else {
-      onAdd?.(payload)
-      setForm(EMPTY_FORM)
+      onAdd?.(payload);
+      setForm(EMPTY_FORM);
     }
-    setError('')
-  }
+    setError("");
+  };
 
-  const inputCls = 'input-theme px-3 py-2 w-full'
+  const inputCls = "input-theme px-3 py-2 w-full";
+
+  const handleAmountBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const val = e.target.value.trim();
+    if (val === "") return;
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      setForm((f) => ({ ...f, amount: num.toFixed(decimalPlaces) }));
+    }
+  };
 
   return (
     <>
-      <Modal isOpen={true} onClose={onClose} title={isEdit ? 'Edit Expense' : 'Add Expense'} size="md"
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title={isEdit ? "Edit Expense" : "Add Expense"}
+        size="md"
         footer={
           <ModalFooter>
-            <button type="button" onClick={onClose} className="btn-cancel-sm flex-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-cancel-sm flex-1"
+            >
               Cancel
             </button>
-            <button type="submit" form="expense-form" className="btn-save-expense flex-1">
-              {isEdit ? 'Save Changes' : 'Save Expense'}
+            <button
+              type="submit"
+              form="expense-form"
+              className="btn-save-expense flex-1"
+            >
+              {isEdit ? "Save Changes" : "Save Expense"}
             </button>
           </ModalFooter>
         }
@@ -279,8 +465,13 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <label className="text-sm text-theme-muted">Category</label>
-                <button type="button" onClick={() => setShowCatModal(true)}
-                  className="text-xs text-theme-primary hover:opacity-80 font-medium">+ Manage</button>
+                <button
+                  type="button"
+                  onClick={() => setShowCatModal(true)}
+                  className="text-xs text-theme-primary hover:opacity-80 font-medium"
+                >
+                  + Manage
+                </button>
               </div>
               <CreatableCombobox
                 value={form.categoryId ? Number(form.categoryId) : undefined}
@@ -289,13 +480,19 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
                 emptyMessage="No categories found."
                 allowCreate
                 required
-                onChange={(id) => setForm((f) => ({ ...f, categoryId: id != null ? String(id) : '' }))}
+                openOnClick
+                onChange={(id) =>
+                  setForm((f) => ({
+                    ...f,
+                    categoryId: id != null ? String(id) : "",
+                  }))
+                }
                 onCreate={async (name) => {
                   if (onCategoriesChange) {
-                    const newId = await onCategoriesChange('add', { name })
-                    return newId!
+                    const newId = await onCategoriesChange("add", { name });
+                    return newId ?? -1; // Return -1 if undefined to indicate failure
                   }
-                  return await StorageService.addCategory(name)
+                  return await StorageService.addCategory(name);
                 }}
               />
             </div>
@@ -303,8 +500,13 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <label className="text-sm text-theme-muted">Payee</label>
-              <button type="button" onClick={() => setShowPayeeModal(true)}
-                className="text-xs text-theme-primary hover:opacity-80 font-medium">+ Manage</button>
+              <button
+                type="button"
+                onClick={() => setShowPayeeModal(true)}
+                className="text-xs text-theme-primary hover:opacity-80 font-medium"
+              >
+                + Manage
+              </button>
             </div>
             <CreatableCombobox
               value={form.payeeId ? Number(form.payeeId) : undefined}
@@ -312,32 +514,60 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
               placeholder="Select or add payee"
               emptyMessage="No payees found."
               allowCreate
-              allowClear
-              onChange={(id) => setForm((f) => ({ ...f, payeeId: id != null ? String(id) : '' }))}
+              openOnClick
+              onChange={(id) =>
+                setForm((f) => ({
+                  ...f,
+                  payeeId: id != null ? String(id) : "",
+                }))
+              }
               onCreate={async (name) => {
-                const newId = await StorageService.addPayee(name)
-                await refreshPayees()
-                return newId
+                const newId = await StorageService.addPayee(name);
+                await refreshPayees();
+                return newId;
               }}
             />
           </div>
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Description
-            <input type="text" value={form.description} onChange={set('description')} placeholder="Optional" className={inputCls} />
+            <input
+              type="text"
+              value={form.description}
+              onChange={set("description")}
+              placeholder="Optional"
+              className={inputCls}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Amount ($)
-            <input type="number" value={form.amount} onChange={set('amount')} placeholder="0.00"
-              step="0.01" required inputMode="decimal" className={inputCls} />
+            <input
+              type="number"
+              value={form.amount}
+              onChange={set("amount")}
+              onBlur={handleAmountBlur}
+              placeholder="0.00"
+              step={Math.pow(10, -decimalPlaces)}
+              required
+              inputMode="decimal"
+              className={inputCls}
+            />
           </label>
         </form>
       </Modal>
       {showCatModal && (
-        <CategoryModal categories={categories} onCategoriesChange={onCategoriesChange} onClose={() => setShowCatModal(false)} />
+        <CategoryModal
+          categories={categories}
+          onCategoriesChange={onCategoriesChange}
+          onClose={() => setShowCatModal(false)}
+        />
       )}
       {showPayeeModal && (
-        <PayeeModal payees={payees} onPayeesChange={refreshPayees} onClose={() => setShowPayeeModal(false)} />
+        <PayeeModal
+          payees={payees}
+          onPayeesChange={refreshPayees}
+          onClose={() => setShowPayeeModal(false)}
+        />
       )}
     </>
-  )
+  );
 }

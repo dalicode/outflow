@@ -220,7 +220,6 @@ export function useExpenseCellEditing({
       options?: { stayInEdit?: boolean },
     ) => {
       return (value: unknown) => {
-        console.log("Committing edit:", { expenseId, field, value });
         onUpdate(expenseId, { [field]: value } as Partial<Expense>);
         setOptimistic((prev) => ({
           ...prev,
