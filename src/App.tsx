@@ -252,6 +252,7 @@ export default function App() {
                       onBulkDelete={handleBulkDelete}
                       onSelectionChange={setMobileSelectionActive}
                       onScroll={handlePageScroll}
+                      refreshCategories={refreshCategories}
                     />
                   }
                 />

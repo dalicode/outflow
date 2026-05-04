@@ -33,6 +33,7 @@ interface DashboardProps {
   onBulkDelete: (ids: number[]) => Promise<void>;
   onSelectionChange?: (active: boolean) => void;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  refreshCategories?: () => Promise<void>;
 }
 
 export default function Dashboard({
@@ -43,6 +44,7 @@ export default function Dashboard({
   onBulkDelete,
   onSelectionChange,
   onScroll,
+  refreshCategories,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
 
@@ -56,7 +58,7 @@ export default function Dashboard({
 
   // ── Derived values ──
   const isMobile = dash.viewportWidth < 640;
-  const { payees } = usePayees();
+  const { payees, refresh: refreshPayees } = usePayees();
   const payeeMap = useMemo(
     () => Object.fromEntries(payees.map((p) => [p.id, p])),
     [payees]
@@ -285,6 +287,8 @@ export default function Dashboard({
                   isMobile={isMobile}
                   mobileEditTrigger={dash.mobileEditTrigger}
                   viewAnimation={dash.viewAnimation}
+                  refreshCategories={refreshCategories}
+                  refreshPayees={refreshPayees}
                 />
               )}
             </section>

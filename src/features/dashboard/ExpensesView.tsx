@@ -14,6 +14,8 @@ interface ExpensesViewProps {
   isMobile: boolean;
   mobileEditTrigger: number | null;
   viewAnimation: "slide-left" | "slide-right" | null;
+  refreshCategories?: () => Promise<void>;
+  refreshPayees?: () => Promise<void>;
 }
 
 export default function ExpensesView({
@@ -28,6 +30,8 @@ export default function ExpensesView({
   isMobile,
   mobileEditTrigger,
   viewAnimation,
+  refreshCategories,
+  refreshPayees,
 }: ExpensesViewProps) {
   return (
     <div
@@ -47,6 +51,8 @@ export default function ExpensesView({
         onToggleSelectAll={onToggleSelectAll}
         isMobile={isMobile}
         mobileEditTrigger={mobileEditTrigger}
+        refreshCategories={refreshCategories}
+        refreshPayees={refreshPayees}
       />
     </div>
   );

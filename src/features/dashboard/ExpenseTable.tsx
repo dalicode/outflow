@@ -23,6 +23,8 @@ interface ExpenseTableProps {
   onToggleSelectAll: () => void;
   isMobile?: boolean;
   mobileEditTrigger?: number | null;
+  refreshCategories?: () => Promise<void>;
+  refreshPayees?: () => Promise<void>;
 }
 
 export default function ExpenseTable({
@@ -36,6 +38,8 @@ export default function ExpenseTable({
   onToggleSelectAll,
   isMobile = false,
   mobileEditTrigger,
+  refreshCategories,
+  refreshPayees,
 }: ExpenseTableProps) {
   const { formatAmount, formatDate } = useSettings();
   const {
@@ -56,6 +60,9 @@ export default function ExpenseTable({
     null,
   );
 
+  // Optimistic values for inline edits (prevents flash when exiting edit)
+  const [optimistic, setOptimistic] = useState<Record<number, Partial<Expense>>>({});
+
   // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
@@ -75,6 +82,10 @@ export default function ExpenseTable({
   const activeCategories = useMemo(
     () => categories.filter((c) => !c.isArchived),
     [categories],
+  );
+  const activePayees = useMemo(
+    () => payees.filter((p) => !p.isArchived),
+    [payees],
   );
 
   useEffect(() => {
@@ -109,8 +120,6 @@ export default function ExpenseTable({
   const saveEdit = useCallback(() => {
     if (!editingCell && !mobileEditExpense) return;
     const targetId = (editingCell?.id ?? mobileEditExpense?.id) as number;
-    const cat = catMap[draft.categoryId as number];
-    const payee = payeeMap[draft.payeeId as number];
     onUpdate(targetId, {
       ...draft,
       amount:
@@ -120,7 +129,7 @@ export default function ExpenseTable({
     setDraft({});
     setShowMobileEditModal(false);
     setMobileEditExpense(null);
-  }, [editingCell, mobileEditExpense, draft, catMap, payeeMap, onUpdate]);
+  }, [editingCell, mobileEditExpense, draft, onUpdate]);
 
   const cancelEdit = useCallback(() => {
     setEditingCell(null);
@@ -129,12 +138,59 @@ export default function ExpenseTable({
     setMobileEditExpense(null);
   }, []);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") saveEdit();
-      if (e.key === "Escape") cancelEdit();
+  const FIELD_ORDER: (keyof Expense)[] = [
+    "date",
+    "categoryId",
+    "payeeId",
+    "description",
+    "amount",
+  ];
+
+  const handleCellKeyDown = useCallback(
+    (e: React.KeyboardEvent, expense: Expense, field: keyof Expense) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveEdit();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelEdit();
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        saveEdit();
+
+        const idx = FIELD_ORDER.indexOf(field);
+        const rowIdx = expenses.findIndex((ex) => ex.id === expense.id);
+
+        if (e.shiftKey) {
+          // Shift+Tab: previous field or previous row's amount
+          if (idx > 0) {
+            setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx - 1] });
+            setDraft({ ...expense });
+          } else if (rowIdx > 0) {
+            const prev = expenses[rowIdx - 1];
+            setEditingCell({ id: prev.id as number, field: "amount" });
+            setDraft({ ...prev });
+          }
+        } else {
+          // Tab: next field or next row's date
+          if (idx < FIELD_ORDER.length - 1) {
+            setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx + 1] });
+            setDraft({ ...expense });
+          } else if (rowIdx < expenses.length - 1) {
+            const next = expenses[rowIdx + 1];
+            setEditingCell({ id: next.id as number, field: "date" });
+            setDraft({ ...next });
+          }
+        }
+        setTimeout(() => inputRef.current?.focus(), 0);
+        return;
+      }
     },
-    [saveEdit, cancelEdit],
+    [saveEdit, cancelEdit, expenses, FIELD_ORDER],
   );
 
   const startCellEdit = useCallback(
@@ -236,15 +292,22 @@ export default function ExpenseTable({
         setField,
         saveEdit,
         cancelEdit,
-        handleKeyDown,
+        handleCellKeyDown,
         onCellEdit: startCellEdit,
         formatDate,
         formatAmount,
         catMap,
         activeCategories,
-        resolveName,
+        activePayees,
         payeeMap,
         inputRef,
+        onUpdate,
+        setEditingCell,
+        setDraft,
+        refreshCategories,
+        refreshPayees,
+        optimistic,
+        setOptimistic,
       }),
     [
       selectedIds,
@@ -256,14 +319,19 @@ export default function ExpenseTable({
       setField,
       saveEdit,
       cancelEdit,
-      handleKeyDown,
+      handleCellKeyDown,
       startCellEdit,
       formatDate,
       formatAmount,
       catMap,
       activeCategories,
-      resolveName,
+      activePayees,
       payeeMap,
+      onUpdate,
+      refreshCategories,
+      refreshPayees,
+      optimistic,
+      setOptimistic,
     ],
   );
 

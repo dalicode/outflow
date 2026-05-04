@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
 import CreatableCombobox from "../../components/inputs/CreatableCombobox";
+import DatePicker from "../../components/inputs/DatePicker";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import { toISODate, parseISODate } from "../../utils/historicalDataHelpers";
@@ -287,16 +288,9 @@ export default function ScheduleModal({
           <label className="text-sm font-semibold text-theme-text">
             {type === "expense" ? "Date" : "Effective Date"}
           </label>
-          <input
-            type="date"
+          <DatePicker
             value={effectiveDate}
-            min={type === "expense" ? todayStr : currentMonthStr}
-            onChange={(e) => setEffectiveDate(e.target.value)}
-            className={cn(
-              inputCls,
-              "w-full",
-              isReadOnly && disabledCls,
-            )}
+            onChange={(iso) => setEffectiveDate(iso)}
             disabled={isReadOnly}
           />
         </div>

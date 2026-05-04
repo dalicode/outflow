@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { cn } from "../../utils/cn";
 import { normalizeName } from "../../utils/normalizeName";
+import DatePicker from "../../components/inputs/DatePicker";
 import type { Category } from "../../types";
 
 interface ExpenseTableFiltersProps {
@@ -91,19 +92,15 @@ export default function ExpenseTableFilters({
       {/* Column filters */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="flex gap-1">
-          <input
-            type="date"
+          <DatePicker
             value={columnFilters.dateFrom}
-            onChange={(e) => onColumnFilterChange("dateFrom", e.target.value)}
-            className="input-theme px-2 py-1 text-xs w-full"
-            aria-label="Date from"
+            onChange={(iso) => onColumnFilterChange("dateFrom", iso)}
+            placeholder="From"
           />
-          <input
-            type="date"
+          <DatePicker
             value={columnFilters.dateTo}
-            onChange={(e) => onColumnFilterChange("dateTo", e.target.value)}
-            className="input-theme px-2 py-1 text-xs w-full"
-            aria-label="Date to"
+            onChange={(iso) => onColumnFilterChange("dateTo", iso)}
+            placeholder="To"
           />
         </div>
         <select

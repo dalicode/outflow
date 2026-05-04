@@ -3,6 +3,7 @@ import { getLocalToday } from "../../utils/historicalDataHelpers";
 import { expenseToRow, downloadCSV } from "../../utils/csvHelpers";
 import { usePayees } from "../../hooks/useLocalData";
 import { StorageService } from "../../services/storageService";
+import DatePicker from "../../components/inputs/DatePicker";
 import Card from "../../components/ui/Card";
 import type { Expense } from "../../types";
 
@@ -45,24 +46,22 @@ export default function CsvExportCard({ expenses, formatDate }: CsvExportCardPro
       <div className="flex items-end gap-2">
         <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
           <span className="truncate">From</span>
-          <input
-            type="date"
+          <DatePicker
             value={exportRange.from}
-            onChange={(e) =>
-              setExportRange((r) => ({ ...r, from: e.target.value }))
+            onChange={(iso) =>
+              setExportRange((r) => ({ ...r, from: iso }))
             }
-            className="input-sm"
+            placeholder="From"
           />
         </label>
         <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
           <span className="truncate">To</span>
-          <input
-            type="date"
+          <DatePicker
             value={exportRange.to}
-            onChange={(e) =>
-              setExportRange((r) => ({ ...r, to: e.target.value }))
+            onChange={(iso) =>
+              setExportRange((r) => ({ ...r, to: iso }))
             }
-            className="input-sm"
+            placeholder="To"
           />
         </label>
         <button onClick={handleExport} className="btn-primary-sm">

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { createContext, useContext } from 'react'
 import ScheduleModal from '../features/settings/ScheduleModal'
 import { StorageService } from '../services/storageService'
 
@@ -14,6 +15,16 @@ vi.mock('../services/storageService', () => ({
     addSchedule: vi.fn(() => Promise.resolve(1)),
     updateSchedule: vi.fn(() => Promise.resolve()),
   },
+}))
+
+// Mock useSettings for DatePicker
+vi.mock('../context/settingsContext', () => ({
+  useSettings: () => ({
+    settings: { dateFormat: 'MM/DD/YYYY' },
+    formatDate: (iso: string) => iso,
+    formatAmount: (n: number) => String(n),
+    getNumberColorClass: () => 'text-theme-text',
+  }),
 }))
 
 describe('ScheduleModal', () => {

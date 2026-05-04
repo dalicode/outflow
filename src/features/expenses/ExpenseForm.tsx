@@ -4,6 +4,7 @@ import { useSettings } from '../../context/settingsContext'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import CreatableCombobox from '../../components/inputs/CreatableCombobox'
+import DatePicker from '../../components/inputs/DatePicker'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { normalizeName } from '../../utils/normalizeName'
 import { usePayees } from '../../hooks/useLocalData'
@@ -269,7 +270,11 @@ export default function ExpenseForm({ onAdd, onUpdate, onClose, categories, onCa
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm text-theme-muted">
               Date
-              <input type="date" value={form.date} onChange={set('date')} required className={inputCls} />
+              <DatePicker
+                value={form.date}
+                onChange={(iso) => setForm((f) => ({ ...f, date: iso }))}
+                placeholder="Select date…"
+              />
             </label>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">

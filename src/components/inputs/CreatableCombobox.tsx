@@ -22,12 +22,13 @@ interface CreatableComboboxProps {
   emptyMessage?: string;
   createLabel?: (query: string) => string;
   allowCreate?: boolean;
-  allowClear?: boolean;
   required?: boolean;
   disabled?: boolean;
   error?: string;
+  autoOpen?: boolean;
   onChange: (id: string | number | undefined) => void;
   onCreate?: (name: string) => Promise<string | number>;
+  onCancel?: () => void;
 }
 
 export default function CreatableCombobox({
@@ -38,15 +39,16 @@ export default function CreatableCombobox({
   emptyMessage = "No matches found.",
   createLabel = (query) => `Add "${query.trim()}"`,
   allowCreate = false,
-  allowClear = false,
   required = false,
   disabled = false,
   error,
+  autoOpen = false,
   onChange,
   onCreate,
+  onCancel,
 }: CreatableComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [hasTyped, setHasTyped] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -59,26 +61,28 @@ export default function CreatableCombobox({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasAutoOpened = useRef(false);
   const listboxId = useId();
   const optionIdPrefix = useId();
 
   const selectedOption = useMemo(
     () => options.find((o) => o.id === value),
-    [options, value]
+    [options, value],
   );
 
-  const displayValue = isOpen ? query : selectedOption?.label ?? "";
+  const selectedLabel = selectedOption?.label ?? "";
+
+  const [displayQuery, setDisplayQuery] = useState(() => selectedLabel);
+
+  const filterText = isOpen && !hasTyped ? "" : displayQuery;
 
   const filtered = useMemo(
-    () => getFilteredOptions(options, query),
-    [options, query]
+    () => getFilteredOptions(options, filterText),
+    [options, filterText],
   );
 
   const showCreateOption =
-    allowCreate &&
-    onCreate &&
-    query.trim() &&
-    !hasExactMatch(options, query);
+    allowCreate && onCreate && filterText.trim() && !hasExactMatch(options, filterText);
 
   const totalItems = filtered.length + (showCreateOption ? 1 : 0);
   const createIndex = filtered.length;
@@ -101,37 +105,48 @@ export default function CreatableCombobox({
 
   const openDropdown = useCallback(() => {
     if (disabled || isCreating) return;
-    setQuery(selectedOption?.label ?? "");
+    setDisplayQuery(selectedLabel);
+    setHasTyped(false);
     setHighlightedIndex(0);
     setLocalError(null);
     setIsOpen(true);
+    inputRef.current?.select();
     requestAnimationFrame(updateDropdownPosition);
-  }, [disabled, isCreating, selectedOption, updateDropdownPosition]);
+  }, [disabled, isCreating, selectedLabel, updateDropdownPosition]);
 
   const closeDropdown = useCallback(() => {
     setIsOpen(false);
-    setQuery("");
     setHighlightedIndex(0);
   }, []);
 
   const handleSelect = useCallback(
     (id: string | number) => {
-      onChange(id);
+      const label = options.find((o) => o.id === id)?.label ?? "";
+      setDisplayQuery(label);
+      setHasTyped(false);
       closeDropdown();
-      inputRef.current?.blur();
+      // Clear the pending blur timeout so onChange doesn't fire here.
+      // Selection alone does not commit; the user must exit the input (Tab / click away)
+      // for onChange to fire via handleBlur.
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+      }
+      inputRef.current?.focus();
     },
-    [onChange, closeDropdown]
+    [options, closeDropdown],
   );
 
   const handleCreate = useCallback(async () => {
     if (!onCreate || isCreating) return;
-    const trimmed = query.trim();
+    const trimmed = filterText.trim();
     if (!trimmed) return;
     setIsCreating(true);
     setLocalError(null);
     try {
       const newId = await onCreate(trimmed);
       onChange(newId);
+      setHasTyped(false);
       closeDropdown();
       inputRef.current?.blur();
     } catch (err) {
@@ -139,18 +154,7 @@ export default function CreatableCombobox({
     } finally {
       setIsCreating(false);
     }
-  }, [onCreate, isCreating, query, onChange, closeDropdown]);
-
-  const handleClear = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onChange(undefined);
-      setQuery("");
-      setLocalError(null);
-      inputRef.current?.focus();
-    },
-    [onChange]
-  );
+  }, [onCreate, isCreating, filterText, onChange, closeDropdown]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -166,14 +170,14 @@ export default function CreatableCombobox({
         case "ArrowDown": {
           e.preventDefault();
           setHighlightedIndex((prev) =>
-            prev >= totalItems - 1 ? 0 : prev + 1
+            prev >= totalItems - 1 ? 0 : prev + 1,
           );
           break;
         }
         case "ArrowUp": {
           e.preventDefault();
           setHighlightedIndex((prev) =>
-            prev <= 0 ? totalItems - 1 : prev - 1
+            prev <= 0 ? totalItems - 1 : prev - 1,
           );
           break;
         }
@@ -188,7 +192,12 @@ export default function CreatableCombobox({
         }
         case "Escape": {
           e.preventDefault();
+          if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+          }
           closeDropdown();
+          onCancel?.();
           break;
         }
         case "Tab": {
@@ -208,12 +217,14 @@ export default function CreatableCombobox({
       handleSelect,
       closeDropdown,
       openDropdown,
-    ]
+      onCancel,
+    ],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    setQuery(val);
+    setDisplayQuery(val);
+    setHasTyped(true);
     setHighlightedIndex(0);
     setLocalError(null);
     if (!isOpen) setIsOpen(true);
@@ -221,8 +232,10 @@ export default function CreatableCombobox({
   };
 
   const handleFocus = () => {
+    // Intentionally does NOT open dropdown here.
+    // Dropdown opens via autoOpen effect or explicit keydown (ArrowDown / Enter / Space).
+    // Prevents dropdown from reopening immediately after selection.
     setLocalError(null);
-    openDropdown();
   };
 
   const handleBlur = () => {
@@ -230,6 +243,8 @@ export default function CreatableCombobox({
       if (required && !value) {
         setLocalError("This field is required.");
       }
+      onChange(options.find((o) => o.label === displayQuery)?.id ?? value);
+      onCancel?.();
       closeDropdown();
     }, 150);
   };
@@ -243,7 +258,12 @@ export default function CreatableCombobox({
       ) {
         return;
       }
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+      }
       closeDropdown();
+      onCancel?.();
     };
     const handleResize = () => updateDropdownPosition();
     document.addEventListener("mousedown", handleClick);
@@ -252,7 +272,26 @@ export default function CreatableCombobox({
       document.removeEventListener("mousedown", handleClick);
       window.removeEventListener("resize", handleResize);
     };
-  }, [isOpen, listboxId, closeDropdown, updateDropdownPosition]);
+  }, [isOpen, listboxId, closeDropdown, updateDropdownPosition, onCancel]);
+
+  useEffect(() => {
+    if (
+      autoOpen &&
+      !hasAutoOpened.current &&
+      !isOpen &&
+      !disabled &&
+      !isCreating
+    ) {
+      hasAutoOpened.current = true;
+      requestAnimationFrame(() => openDropdown());
+    }
+  }, [autoOpen]);
+
+  useEffect(() => {
+    if (!hasTyped) {
+      setDisplayQuery(selectedLabel);
+    }
+  }, [selectedLabel, hasTyped]);
 
   useEffect(() => {
     return () => {
@@ -278,9 +317,9 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={i === highlightedIndex}
           className={cn(
-            "px-3 py-2.5 text-sm cursor-pointer transition-colors",
+            "px-3 py-2.5 text-sm cursor-pointer transition-colors text-theme-text",
             i === highlightedIndex && "bg-theme-primary/5",
-            opt.id === value && "font-medium text-theme-primary"
+            opt.id === value && "font-medium",
           )}
           onClick={() => handleSelect(opt.id)}
           onMouseEnter={() => setHighlightedIndex(i)}
@@ -294,24 +333,24 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={createIndex === highlightedIndex}
           className={cn(
-            "px-3 py-2.5 text-sm cursor-pointer transition-colors border-t border-theme-border",
-            createIndex === highlightedIndex && "bg-theme-primary/5"
+            "px-3 py-2.5 text-sm cursor-pointer transition-colors text-theme-text border-t border-theme-border",
+            createIndex === highlightedIndex && "bg-theme-primary/5",
           )}
           onClick={handleCreate}
           onMouseEnter={() => setHighlightedIndex(createIndex)}
         >
           {isCreating ? (
-            <span className="flex items-center gap-2 text-theme-primary">
+            <span className="flex items-center gap-2 text-theme-text">
               <span className="w-3.5 h-3.5 border-2 border-theme-primary border-t-transparent rounded-full animate-spin" />
               Adding...
             </span>
           ) : (
-            <span className="text-theme-primary">+ {createLabel(query)}</span>
+            <span className="text-theme-text">+ {createLabel(filterText)}</span>
           )}
         </div>
       )}
       {filtered.length === 0 && !showCreateOption && (
-        <div className="px-3 py-4 text-sm text-theme-muted text-center">
+        <div className="px-3 py-4 text-sm text-theme-text text-center">
           {emptyMessage}
         </div>
       )}
@@ -338,7 +377,7 @@ export default function CreatableCombobox({
               : undefined
           }
           type="text"
-          value={displayValue}
+          value={displayQuery}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
@@ -348,20 +387,9 @@ export default function CreatableCombobox({
           className={cn(
             "input-theme w-full px-3 py-2 text-sm pr-8",
             (localError || error) && "border-theme-danger",
-            disabled && "opacity-50 cursor-not-allowed"
+            disabled && "opacity-50 cursor-not-allowed",
           )}
         />
-        {allowClear && value != null && !disabled && (
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-text text-lg leading-none"
-            aria-label="Clear selection"
-          >
-            &times;
-          </button>
-        )}
       </div>
       {(localError || error) && (
         <p className="text-theme-danger text-xs mt-1">{localError || error}</p>

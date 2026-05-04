@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
+import DatePicker from "../../components/inputs/DatePicker";
 import { normalizeName } from "../../utils/normalizeName";
 import type { Category } from "../../types";
 
@@ -95,22 +96,20 @@ export default function FilterModal({
             <label className="block text-xs font-medium text-theme-muted mb-1">
               Date from
             </label>
-            <input
-              type="date"
+            <DatePicker
               value={draft.filterDateFrom}
-              onChange={(e) => set("filterDateFrom")(e.target.value)}
-              className="input-theme w-full px-3 py-2 text-sm"
+              onChange={(iso) => set("filterDateFrom")(iso)}
+              placeholder="From"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-theme-muted mb-1">
               Date to
             </label>
-            <input
-              type="date"
+            <DatePicker
               value={draft.filterDateTo}
-              onChange={(e) => set("filterDateTo")(e.target.value)}
-              className="input-theme w-full px-3 py-2 text-sm"
+              onChange={(iso) => set("filterDateTo")(iso)}
+              placeholder="To"
             />
           </div>
         </div>
