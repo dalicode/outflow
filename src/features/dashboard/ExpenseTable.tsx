@@ -11,7 +11,7 @@ import ExpenseForm from "../expenses/ExpenseForm";
 import { normalizeName } from "../../utils/normalizeName";
 import { getExpenseColumns } from "./expenseColumns";
 import { useExpenseCellEditing } from "./useExpenseCellEditing";
-import type { Expense, Category } from "../../types";
+import type { Expense, Category, Payee } from "../../types";
 
 interface ExpenseTableProps {
   expenses: Expense[];
@@ -19,6 +19,7 @@ interface ExpenseTableProps {
   onDelete: (id: number) => void;
   onBulkDelete?: (ids: number[]) => void;
   categories?: Category[];
+  payees?: Payee[];
   selectedIds: Set<number>;
   onToggleSelect: (id: number) => void;
   onToggleSelectAll: () => void;
@@ -34,6 +35,7 @@ export default function ExpenseTable({
   onDelete,
   onBulkDelete,
   categories = [],
+  payees = [],
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
@@ -67,7 +69,8 @@ export default function ExpenseTable({
         const exp = expenses.find((e) => e.id === id);
         if (!exp) continue;
         const stillHasOverride = Object.entries(overrides).some(
-          ([key, val]) => (exp as unknown as Record<string, unknown>)[key] !== val,
+          ([key, val]) =>
+            (exp as unknown as Record<string, unknown>)[key] !== val,
         );
         if (stillHasOverride) next[id] = overrides;
       }
@@ -78,12 +81,11 @@ export default function ExpenseTable({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
 
-  const { payees } = usePayees();
-
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
     [categories],
   );
+
   const payeeMap = useMemo(
     () => Object.fromEntries(payees.map((p) => [p.id, p])),
     [payees],

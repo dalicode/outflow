@@ -56,6 +56,8 @@ export default function CreatableCombobox({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const justCreatedRef = useRef(false);
+  const isCreatingRef = useRef(false);
   const [dropdownState, setDropdownState] = useState<{
     isOpen: boolean;
     pos: { top: number; left: number; width: number } | null;
@@ -110,7 +112,7 @@ export default function CreatableCombobox({
     if (disabled || isCreating) return;
     setDisplayQuery(selectedLabel);
     setHasTyped(false);
-    setHighlightedIndex(0);
+    setHighlightedIndex(-1);
     setLocalError(null);
     inputRef.current?.select();
 
@@ -151,18 +153,26 @@ export default function CreatableCombobox({
     if (!onCreate || isCreating) return;
     const trimmed = filterText.trim();
     if (!trimmed) return;
+    isCreatingRef.current = true;
     setIsCreating(true);
     setLocalError(null);
     try {
       const newId = await onCreate(trimmed);
+      justCreatedRef.current = true;
       onChange(newId);
       setHasTyped(false);
       closeDropdown();
-      inputRef.current?.blur();
     } catch (err) {
       setLocalError((err as Error).message);
     } finally {
       setIsCreating(false);
+      isCreatingRef.current = false;
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+      setTimeout(() => {
+        justCreatedRef.current = false;
+      }, 150);
     }
   }, [onCreate, isCreating, filterText, onChange, closeDropdown]);
 
@@ -185,16 +195,26 @@ export default function CreatableCombobox({
       switch (e.key) {
         case "ArrowDown": {
           e.preventDefault();
-          setHighlightedIndex((prev) =>
-            prev >= totalItems - 1 ? 0 : prev + 1,
-          );
+          setHighlightedIndex((prev) => {
+            if (prev >= totalItems - 1) {
+              return 0;
+            } else {
+              setDisplayQuery(filtered[highlightedIndex + 1].label);
+              return prev + 1;
+            }
+          });
           break;
         }
         case "ArrowUp": {
           e.preventDefault();
-          setHighlightedIndex((prev) =>
-            prev <= 0 ? totalItems - 1 : prev - 1,
-          );
+          setHighlightedIndex((prev) => {
+            if (prev <= 0) {
+              return 0;
+            } else {
+              setDisplayQuery(filtered[highlightedIndex - 1].label);
+              return prev - 1;
+            }
+          });
           break;
         }
         case "Enter": {
@@ -202,8 +222,10 @@ export default function CreatableCombobox({
           if (showCreateOption && highlightedIndex === createIndex) {
             handleCreate();
           } else if (filtered[highlightedIndex]) {
+            console.log("Selected option:", filtered[highlightedIndex]);
+            console.log(filtered[highlightedIndex].id);
             const id = filtered[highlightedIndex].id;
-            setDisplayQuery(options.find((o) => o.id === id)?.label ?? "");
+            setDisplayQuery(filtered[highlightedIndex].label);
             setHasTyped(false);
             closeDropdown();
             onChange(id);
@@ -265,6 +287,7 @@ export default function CreatableCombobox({
   };
 
   const handleBlur = () => {
+    if (isCreatingRef.current || justCreatedRef.current) return;
     onChange(options.find((o) => o.label === displayQuery)?.id ?? value);
     onCancel?.();
     closeDropdown();

@@ -213,7 +213,7 @@ export function getExpenseColumns({
           return (
             <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
               <CreatableCombobox
-                value={exp.categoryId}
+                value={optCatId}
                 variant="inline"
                 options={activeCategories.map((c) => ({
                   id: c.id as number,
@@ -224,14 +224,21 @@ export function getExpenseColumns({
                 autoOpen
                 onChange={(id) => {
                   const numId = id != null ? Number(id) : undefined;
-                  editing.createOnCommit(exp.id as number, "categoryId")(numId);
+                  console.log("Selected category ID:", numId);
+                  editing.createOnCommit(exp.id as number, "categoryId", {
+                    stayInEdit: true,
+                  })(numId);
                 }}
                 onCreate={async (name) => {
                   const newId = await StorageService.addCategory(name);
                   if (newId == null)
                     throw new Error("Failed to create category");
+                  editing.setPendingName(
+                    exp.id as number,
+                    "categoryId",
+                    name.trim(),
+                  );
                   await refreshCategories?.();
-                  editing.createOnCommit(exp.id as number, "categoryId")(newId);
                   return newId as number;
                 }}
                 onCancel={editing.createOnCancel()}
@@ -259,7 +266,8 @@ export function getExpenseColumns({
               ? catMap[optCatId as number].isArchived
                 ? `${normalizeName(catMap[optCatId as number].name)} (deleted)`
                 : normalizeName(catMap[optCatId as number].name)
-              : "Uncategorized"}
+              : (editing.getPendingName(exp.id as number, "categoryId") ??
+                "Uncategorized")}
           </span>
         );
       },
@@ -282,7 +290,7 @@ export function getExpenseColumns({
           return (
             <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
               <CreatableCombobox
-                value={exp.payeeId}
+                value={optPayeeId}
                 variant="inline"
                 options={activePayees.map((p) => ({
                   id: p.id as number,
@@ -293,13 +301,19 @@ export function getExpenseColumns({
                 autoOpen
                 onChange={(id) => {
                   const numId = id != null ? Number(id) : undefined;
-                  editing.createOnCommit(exp.id as number, "payeeId")(numId);
+                  editing.createOnCommit(exp.id as number, "payeeId", {
+                    stayInEdit: true,
+                  })(numId);
                 }}
                 onCreate={async (name) => {
                   const newId = await StorageService.addPayee(name);
                   if (newId == null) throw new Error("Failed to create payee");
+                  editing.setPendingName(
+                    exp.id as number,
+                    "payeeId",
+                    name.trim(),
+                  );
                   await refreshPayees?.();
-                  editing.createOnCommit(exp.id as number, "payeeId")(newId);
                   return newId as number;
                 }}
                 onCancel={editing.createOnCancel()}
@@ -320,7 +334,9 @@ export function getExpenseColumns({
           >
             {optPayeeId && payeeMap[optPayeeId as number]
               ? normalizeName(payeeMap[optPayeeId as number].name)
-              : "—"}
+              : optPayeeId
+                ? (editing.getPendingName(exp.id as number, "payeeId") ?? "—")
+                : "—"}
           </span>
         );
       },

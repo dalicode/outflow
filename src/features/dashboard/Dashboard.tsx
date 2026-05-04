@@ -61,7 +61,7 @@ export default function Dashboard({
   const { payees, refresh: refreshPayees } = usePayees();
   const payeeMap = useMemo(
     () => Object.fromEntries(payees.map((p) => [p.id, p])),
-    [payees]
+    [payees],
   );
 
   const multiCategoryRows = useMemo(
@@ -278,6 +278,7 @@ export default function Dashboard({
                 <ExpensesView
                   expenses={dash.filteredExpenses}
                   categories={categories}
+                  payees={payees}
                   selectedIds={dash.selectedIds}
                   onToggleSelect={dash.toggleExpenseSelection}
                   onToggleSelectAll={dash.toggleSelectAll}

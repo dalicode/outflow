@@ -41,6 +41,7 @@ export interface CellEditingAPI {
   createOnCommit: (
     expenseId: number,
     field: EditableField,
+    options?: { stayInEdit?: boolean },
   ) => (value: unknown) => void;
   createOnCancel: () => () => void;
   handleTabNavigation: (
@@ -49,6 +50,12 @@ export interface CellEditingAPI {
     shiftKey: boolean,
   ) => void;
   validateField: (field: EditableField, value: unknown) => string | null;
+  setPendingName: (
+    expenseId: number,
+    field: EditableField,
+    name: string,
+  ) => void;
+  getPendingName: (expenseId: number, field: EditableField) => string | null;
 }
 
 interface UseExpenseCellEditingParams {
@@ -78,6 +85,7 @@ export function useExpenseCellEditing({
 }: UseExpenseCellEditingParams): CellEditingAPI {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [pendingNames, setPendingNames] = useState<Record<string, string>>({});
 
   const editingCellRef = useRef<EditingCell | null>(null);
   const pendingSwitchRef = useRef<EditingCell | null>(null);
@@ -85,6 +93,26 @@ export function useExpenseCellEditing({
 
   editingCellRef.current = editingCell;
   expensesRef.current = expenses;
+
+  const pendingNameKey = (expenseId: number, field: EditableField) =>
+    `${expenseId}:${field}`;
+
+  const setPendingName = useCallback(
+    (expenseId: number, field: EditableField, name: string) => {
+      setPendingNames((prev) => ({
+        ...prev,
+        [pendingNameKey(expenseId, field)]: name,
+      }));
+    },
+    [],
+  );
+
+  const getPendingName = useCallback(
+    (expenseId: number, field: EditableField): string | null => {
+      return pendingNames[pendingNameKey(expenseId, field)] ?? null;
+    },
+    [pendingNames],
+  );
 
   const startCellEdit = useCallback(
     (expense: Expense, field: EditableField) => {
@@ -101,10 +129,10 @@ export function useExpenseCellEditing({
         expenseId: expense.id as number,
         field,
       };
-      console.log("startCellEdit", { cell });
       setEditingCell(cell);
       editingCellRef.current = cell;
       setValidationError(null);
+      setPendingNames({});
     },
     [
       isMobile,
@@ -120,11 +148,11 @@ export function useExpenseCellEditing({
     editingCellRef.current = null;
     setValidationError(null);
     pendingSwitchRef.current = null;
+    setPendingNames({});
   }, []);
 
   const switchCellEdit = useCallback(
     (nextExpense: Expense, nextField: EditableField) => {
-      console.log("switchCellEdit", { nextExpense, nextField });
       const nextCell: EditingCell = {
         expenseId: nextExpense.id as number,
         field: nextField,
@@ -132,7 +160,6 @@ export function useExpenseCellEditing({
       const current = editingCellRef.current;
 
       if (!current) {
-        console.log("No current cell, starting edit", { nextCell });
         startCellEdit(nextExpense, nextField);
         return;
       }
@@ -187,13 +214,20 @@ export function useExpenseCellEditing({
   );
 
   const createOnCommit = useCallback(
-    (expenseId: number, field: EditableField) => {
+    (
+      expenseId: number,
+      field: EditableField,
+      options?: { stayInEdit?: boolean },
+    ) => {
       return (value: unknown) => {
+        console.log("Committing edit:", { expenseId, field, value });
         onUpdate(expenseId, { [field]: value } as Partial<Expense>);
         setOptimistic((prev) => ({
           ...prev,
           [expenseId]: { ...prev[expenseId], [field]: value },
         }));
+
+        if (options?.stayInEdit) return;
 
         const isCurrentEdit =
           editingCellRef.current?.expenseId === expenseId &&
@@ -259,5 +293,7 @@ export function useExpenseCellEditing({
     createOnCancel,
     handleTabNavigation,
     validateField,
+    setPendingName,
+    getPendingName,
   };
 }

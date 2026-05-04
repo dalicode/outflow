@@ -1,10 +1,11 @@
 import { cn } from "../../utils/cn";
 import ExpenseTable from "./ExpenseTable";
-import type { Expense, Category } from "../../types";
+import type { Expense, Category, Payee } from "../../types";
 
 interface ExpensesViewProps {
   expenses: Expense[];
   categories: Category[];
+  payees: Payee[];
   selectedIds: Set<number>;
   onToggleSelect: (id: number) => void;
   onToggleSelectAll: () => void;
@@ -21,6 +22,7 @@ interface ExpensesViewProps {
 export default function ExpensesView({
   expenses,
   categories,
+  payees,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
@@ -46,6 +48,7 @@ export default function ExpensesView({
         onDelete={onDelete}
         onBulkDelete={onBulkDelete}
         categories={categories}
+        payees={payees}
         selectedIds={selectedIds}
         onToggleSelect={onToggleSelect}
         onToggleSelectAll={onToggleSelectAll}
