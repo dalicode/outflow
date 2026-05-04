@@ -10,6 +10,7 @@ import ExpenseTableMobile from "./ExpenseTableMobile";
 import ExpenseForm from "../expenses/ExpenseForm";
 import { normalizeName } from "../../utils/normalizeName";
 import { getExpenseColumns } from "./expenseColumns";
+import { useExpenseCellEditing } from "./useExpenseCellEditing";
 import type { Expense, Category } from "../../types";
 
 interface ExpenseTableProps {
@@ -41,7 +42,7 @@ export default function ExpenseTable({
   refreshCategories,
   refreshPayees,
 }: ExpenseTableProps) {
-  const { formatAmount, formatDate } = useSettings();
+  const { formatAmount, formatDate, settings } = useSettings();
   const {
     menu,
     open: openContextMenu,
@@ -49,20 +50,15 @@ export default function ExpenseTable({
     menuRef,
   } = useContextMenu();
 
-  // Editing
-  const [editingCell, setEditingCell] = useState<{
-    id: number;
-    field: keyof Expense;
-  } | null>(null);
   const [showMobileEditModal, setShowMobileEditModal] = useState(false);
   const [mobileEditExpense, setMobileEditExpense] = useState<Expense | null>(
     null,
   );
 
-  // Temporary optimistic values for inline edits (prevents flash when exiting edit)
-  const [optimistic, setOptimistic] = useState<Record<number, Partial<Expense>>>({});
+  const [optimistic, setOptimistic] = useState<
+    Record<number, Partial<Expense>>
+  >({});
 
-  // Auto-clear optimistic entries once the real prop matches
   useEffect(() => {
     setOptimistic((prev) => {
       const next: Record<number, Partial<Expense>> = {};
@@ -71,7 +67,7 @@ export default function ExpenseTable({
         const exp = expenses.find((e) => e.id === id);
         if (!exp) continue;
         const stillHasOverride = Object.entries(overrides).some(
-          ([key, val]) => (exp as Record<string, unknown>)[key] !== val,
+          ([key, val]) => (exp as unknown as Record<string, unknown>)[key] !== val,
         );
         if (stillHasOverride) next[id] = overrides;
       }
@@ -79,7 +75,6 @@ export default function ExpenseTable({
     });
   }, [expenses]);
 
-  // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
 
@@ -114,7 +109,10 @@ export default function ExpenseTable({
   const resolveName = useCallback(
     (exp: Expense) => {
       const cat = catMap[exp.categoryId as number];
-      if (cat) return cat.isArchived ? `${normalizeName(cat.name)} (deleted)` : normalizeName(cat.name);
+      if (cat)
+        return cat.isArchived
+          ? `${normalizeName(cat.name)} (deleted)`
+          : normalizeName(cat.name);
       return "Uncategorized";
     },
     [catMap],
@@ -124,72 +122,22 @@ export default function ExpenseTable({
     expenses.length > 0 &&
     expenses.every((e) => selectedIds.has(e.id as number));
 
-  const cancelEdit = useCallback(() => {
-    setEditingCell(null);
+  const cancelMobileEdit = useCallback(() => {
     setShowMobileEditModal(false);
     setMobileEditExpense(null);
   }, []);
 
-  const FIELD_ORDER: (keyof Expense)[] = [
-    "date",
-    "categoryId",
-    "payeeId",
-    "description",
-    "amount",
-  ];
-
-  const handleTabNavigation = useCallback(
-    (expense: Expense, field: keyof Expense, shiftKey: boolean) => {
-      const idx = FIELD_ORDER.indexOf(field);
-      const rowIdx = expenses.findIndex((ex) => ex.id === expense.id);
-      if (shiftKey) {
-        if (idx > 0) {
-          setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx - 1] });
-        } else if (rowIdx > 0) {
-          setEditingCell({ id: expenses[rowIdx - 1].id as number, field: "amount" });
-        } else {
-          setEditingCell(null);
-        }
-      } else {
-        if (idx < FIELD_ORDER.length - 1) {
-          setEditingCell({ id: expense.id as number, field: FIELD_ORDER[idx + 1] });
-        } else if (rowIdx < expenses.length - 1) {
-          setEditingCell({ id: expenses[rowIdx + 1].id as number, field: "date" });
-        } else {
-          setEditingCell(null);
-        }
-      }
-    },
-    [expenses, FIELD_ORDER],
-  );
-
-  const startCellEdit = useCallback(
-    (expense: Expense, field: keyof Expense) => {
-      if (isMobile && selectedIds.size > 0) {
-        onToggleSelect(expense.id as number);
-        return;
-      }
-      if (isMobile) {
-        setMobileEditExpense(expense);
-        setShowMobileEditModal(true);
-        return;
-      }
-      setEditingCell({ id: expense.id as number, field });
-    },
-    [isMobile, selectedIds, onToggleSelect],
-  );
-
-  const startRowEdit = useCallback(
-    (expense: Expense) => {
-      if (isMobile) {
-        setMobileEditExpense(expense);
-        setShowMobileEditModal(true);
-        return;
-      }
-      setEditingCell({ id: expense.id as number, field: "date" });
-    },
-    [isMobile],
-  );
+  const editing = useExpenseCellEditing({
+    expenses,
+    onUpdate,
+    optimistic,
+    setOptimistic,
+    isMobile,
+    selectedIds,
+    onToggleSelect,
+    setMobileEditExpense,
+    setShowMobileEditModal,
+  });
 
   const handleDeleteRequest = useCallback((ids: number[]) => {
     setDeleteTargetIds(ids);
@@ -230,7 +178,7 @@ export default function ExpenseTable({
         label: "Edit",
         onClick: () => {
           const exp = expenses.find((e) => e.id === menu.expenseId);
-          if (exp) startRowEdit(exp);
+          if (exp) editing.startCellEdit(exp, "date");
         },
       });
     }
@@ -242,7 +190,7 @@ export default function ExpenseTable({
     });
 
     return items;
-  }, [menu, selectedIds, expenses, startRowEdit, handleDeleteRequest]);
+  }, [menu, selectedIds, expenses, editing, handleDeleteRequest]);
 
   const columns = useMemo(
     () =>
@@ -251,53 +199,41 @@ export default function ExpenseTable({
         onToggleSelect,
         onToggleSelectAll,
         allSelected,
-        editingCell,
-        cancelEdit,
-        handleTabNavigation,
-        onCellEdit: startCellEdit,
+        editing,
         formatDate,
         formatAmount,
         catMap,
         activeCategories,
         activePayees,
         payeeMap,
-        onUpdate,
-        setEditingCell,
+        optimistic,
         refreshCategories,
         refreshPayees,
-        optimistic,
-        setOptimistic,
+        decimalPlaces: parseInt(settings.decimalPlaces, 10) || 2,
       }),
     [
       selectedIds,
       onToggleSelect,
       onToggleSelectAll,
       allSelected,
-      editingCell,
-      cancelEdit,
-      handleTabNavigation,
-      startCellEdit,
+      editing,
       formatDate,
       formatAmount,
       catMap,
       activeCategories,
       activePayees,
       payeeMap,
-      onUpdate,
+      optimistic,
       refreshCategories,
       refreshPayees,
-      optimistic,
-      setOptimistic,
+      settings.decimalPlaces,
     ],
   );
 
   const getRowClassName = useCallback(
     (exp: Expense) => {
       const isSelected = selectedIds.has(exp.id as number);
-      return cn(
-        isSelected && "selected-row",
-        "row-hover",
-      );
+      return cn(isSelected && "selected-row", "row-hover");
     },
     [selectedIds],
   );
@@ -306,8 +242,8 @@ export default function ExpenseTable({
     return (
       <div className="text-center py-12">
         <p className="text-sm text-theme-muted">
-          No expenses yet. Hit{" "}
-          <strong className="text-theme-primary">+</strong> to add one.
+          No expenses yet. Hit <strong className="text-theme-primary">+</strong>{" "}
+          to add one.
         </p>
       </div>
     );
@@ -320,7 +256,7 @@ export default function ExpenseTable({
           expenses={expenses}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
-          onCellEdit={(exp) => startCellEdit(exp, "description")}
+          onCellEdit={(exp) => editing.startCellEdit(exp, "description")}
           formatDate={formatDate}
           formatAmount={formatAmount}
           resolveName={resolveName}
@@ -338,17 +274,15 @@ export default function ExpenseTable({
         />
       )}
 
-      {/* Mobile edit modal */}
       {showMobileEditModal && mobileEditExpense && (
         <ExpenseForm
           initialExpense={mobileEditExpense}
           onUpdate={onUpdate}
-          onClose={cancelEdit}
+          onClose={cancelMobileEdit}
           categories={categories}
         />
       )}
 
-      {/* Delete confirmation modal */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -356,7 +290,9 @@ export default function ExpenseTable({
         description={
           <span className="text-sm text-theme-muted">
             Are you sure you want to delete{" "}
-            <strong className="text-theme-text">{deleteTargetIds.length}</strong>{" "}
+            <strong className="text-theme-text">
+              {deleteTargetIds.length}
+            </strong>{" "}
             expense{deleteTargetIds.length !== 1 ? "s" : ""}?
           </span>
         }
@@ -365,7 +301,6 @@ export default function ExpenseTable({
         onConfirm={confirmDelete}
       />
 
-      {/* Context menu */}
       {menu && (
         <ContextMenu
           x={menu.x}

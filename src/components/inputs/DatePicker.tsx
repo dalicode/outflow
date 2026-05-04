@@ -311,6 +311,7 @@ export default function DatePicker({
     <div
       ref={popupRef}
       id={listboxId}
+      data-no-cell-switch
       onMouseDown={(e) => {
         e.stopPropagation();
         e.preventDefault();

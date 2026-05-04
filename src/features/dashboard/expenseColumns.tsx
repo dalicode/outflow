@@ -6,32 +6,48 @@ import DatePicker from "../../components/inputs/DatePicker";
 import InlineEditCell from "./InlineEditCell";
 import { StorageService } from "../../services/storageService";
 import type { Expense, Category, Payee } from "../../types";
+import type { CellEditingAPI } from "./useExpenseCellEditing";
 
 interface GetExpenseColumnsParams {
   selectedIds: Set<number>;
   onToggleSelect: (id: number) => void;
   onToggleSelectAll: () => void;
   allSelected: boolean;
-  editingCell: { id: number; field: keyof Expense } | null;
-  cancelEdit: () => void;
-  handleTabNavigation: (expense: Expense, field: keyof Expense, shiftKey: boolean) => void;
-  onCellEdit: (expense: Expense, field: keyof Expense) => void;
+  editing: CellEditingAPI;
   formatDate: (iso: string) => string;
   formatAmount: (n: number) => string;
   catMap: Record<number, Category>;
   activeCategories: Category[];
   activePayees: Payee[];
   payeeMap: Record<number, Payee>;
-  onUpdate: (id: number, changes: Partial<Expense>) => void;
-  setEditingCell: React.Dispatch<
-    React.SetStateAction<{ id: number; field: keyof Expense } | null>
-  >;
+  optimistic: Record<number, Partial<Expense>>;
   refreshCategories?: () => Promise<void>;
   refreshPayees?: () => Promise<void>;
-  optimistic: Record<number, Partial<Expense>>;
-  setOptimistic: React.Dispatch<
-    React.SetStateAction<Record<number, Partial<Expense>>>
-  >;
+  decimalPlaces: number;
+}
+
+function editableCellActivate(
+  editing: CellEditingAPI,
+  expense: Expense,
+  field: Parameters<CellEditingAPI["switchCellEdit"]>[1],
+) {
+  const activate = () => {
+    editing.switchCellEdit(expense, field);
+  };
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault();
+      if (
+        e.target instanceof Element &&
+        e.target.closest("[data-no-cell-switch]")
+      )
+        return;
+      activate();
+    },
+    onClick: () => {
+      activate();
+    },
+  };
 }
 
 export function getExpenseColumns({
@@ -39,26 +55,18 @@ export function getExpenseColumns({
   onToggleSelect,
   onToggleSelectAll,
   allSelected,
-  editingCell,
-  cancelEdit,
-  handleTabNavigation,
-  onCellEdit,
+  editing,
   formatDate,
   formatAmount,
   catMap,
   activeCategories,
   activePayees,
   payeeMap,
-  onUpdate,
-  setEditingCell,
+  optimistic,
   refreshCategories,
   refreshPayees,
-  optimistic,
-  setOptimistic,
+  decimalPlaces,
 }: GetExpenseColumnsParams): ColumnDef<Expense>[] {
-  const isEditing = (exp: Expense, field: keyof Expense) =>
-    editingCell?.id === exp.id && editingCell?.field === field;
-
   return [
     {
       id: "select",
@@ -157,28 +165,30 @@ export function getExpenseColumns({
       cell: ({ row }) => {
         const exp = row.original;
         const optDate = optimistic[exp.id as number]?.date ?? exp.date;
-        if (isEditing(exp, "date")) {
+        if (editing.isCellEditing(exp.id as number, "date")) {
           return (
-            <DatePicker
-              value={exp.date ?? ""}
-              variant="inline"
-              autoOpen
-              onChange={(iso) => {
-                setOptimistic((prev) => ({
-                  ...prev,
-                  [exp.id as number]: { ...prev[exp.id as number], date: iso },
-                }));
-                onUpdate(exp.id as number, { date: iso });
-                setEditingCell(null);
-              }}
-              onCancel={cancelEdit}
-              onTab={(shiftKey) => handleTabNavigation(exp, "date", shiftKey)}
-            />
+            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+              <DatePicker
+                value={exp.date ?? ""}
+                variant="inline"
+                autoOpen
+                onChange={(iso) => {
+                  editing.createOnCommit(exp.id as number, "date")(iso);
+                }}
+                onCancel={editing.createOnCancel()}
+                onTab={(shiftKey) =>
+                  editing.handleTabNavigation(exp, "date", shiftKey)
+                }
+              />
+            </div>
           );
         }
         return (
           <span
-            onClick={() => onCellEdit(exp, "date")}
+            data-editable-cell
+            data-expense-id={exp.id}
+            data-field="date"
+            {...editableCellActivate(editing, exp, "date")}
             className="cursor-pointer"
           >
             {formatDate(optDate)}
@@ -188,8 +198,8 @@ export function getExpenseColumns({
       meta: {
         className: "text-left",
         cellClassName: "text-theme-text whitespace-nowrap",
-        getCellClassName: (exp) =>
-          isEditing(exp, "date") ? "cell-editing" : "",
+        getCellClassName: (exp: Expense) =>
+          editing.isCellEditing(exp.id as number, "date") ? "cell-editing" : "",
       },
     },
     {
@@ -199,53 +209,45 @@ export function getExpenseColumns({
         const exp = row.original;
         const optCatId =
           optimistic[exp.id as number]?.categoryId ?? exp.categoryId;
-        if (isEditing(exp, "categoryId")) {
+        if (editing.isCellEditing(exp.id as number, "categoryId")) {
           return (
-            <CreatableCombobox
-              value={exp.categoryId}
-              variant="inline"
-              options={activeCategories.map((c) => ({
-                id: c.id as number,
-                label: normalizeName(c.name),
-              }))}
-              placeholder="Select category…"
-              allowCreate
-              autoOpen
-              onChange={(id) => {
-                const numId = id != null ? Number(id) : undefined;
-                setOptimistic((prev) => ({
-                  ...prev,
-                  [exp.id as number]: {
-                    ...prev[exp.id as number],
-                    categoryId: numId,
-                  },
-                }));
-                onUpdate(exp.id as number, { categoryId: numId });
-                setEditingCell(null);
-              }}
-              onCreate={async (name) => {
-                const newId = await StorageService.addCategory(name);
-                if (newId == null) throw new Error("Failed to create category");
-                await refreshCategories?.();
-                setOptimistic((prev) => ({
-                  ...prev,
-                  [exp.id as number]: {
-                    ...prev[exp.id as number],
-                    categoryId: newId,
-                  },
-                }));
-                onUpdate(exp.id as number, { categoryId: newId });
-                setEditingCell(null);
-                return newId as number;
-              }}
-              onCancel={cancelEdit}
-              onTab={(shiftKey) => handleTabNavigation(exp, "categoryId", shiftKey)}
-            />
+            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+              <CreatableCombobox
+                value={exp.categoryId}
+                variant="inline"
+                options={activeCategories.map((c) => ({
+                  id: c.id as number,
+                  label: normalizeName(c.name),
+                }))}
+                placeholder="Select category…"
+                allowCreate
+                autoOpen
+                onChange={(id) => {
+                  const numId = id != null ? Number(id) : undefined;
+                  editing.createOnCommit(exp.id as number, "categoryId")(numId);
+                }}
+                onCreate={async (name) => {
+                  const newId = await StorageService.addCategory(name);
+                  if (newId == null)
+                    throw new Error("Failed to create category");
+                  await refreshCategories?.();
+                  editing.createOnCommit(exp.id as number, "categoryId")(newId);
+                  return newId as number;
+                }}
+                onCancel={editing.createOnCancel()}
+                onTab={(shiftKey) =>
+                  editing.handleTabNavigation(exp, "categoryId", shiftKey)
+                }
+              />
+            </div>
           );
         }
         return (
           <span
-            onClick={() => onCellEdit(exp, "categoryId")}
+            data-editable-cell
+            data-expense-id={exp.id}
+            data-field="categoryId"
+            {...editableCellActivate(editing, exp, "categoryId")}
             className={cn(
               "cursor-pointer",
               catMap[optCatId as number]?.isArchived
@@ -264,8 +266,10 @@ export function getExpenseColumns({
       meta: {
         className: "text-left",
         cellClassName: "whitespace-nowrap",
-        getCellClassName: (exp) =>
-          isEditing(exp, "categoryId") ? "cell-editing" : "",
+        getCellClassName: (exp: Expense) =>
+          editing.isCellEditing(exp.id as number, "categoryId")
+            ? "cell-editing"
+            : "",
       },
     },
     {
@@ -274,53 +278,44 @@ export function getExpenseColumns({
       cell: ({ row }) => {
         const exp = row.original;
         const optPayeeId = optimistic[exp.id as number]?.payeeId ?? exp.payeeId;
-        if (isEditing(exp, "payeeId")) {
+        if (editing.isCellEditing(exp.id as number, "payeeId")) {
           return (
-            <CreatableCombobox
-              value={exp.payeeId}
-              variant="inline"
-              options={activePayees.map((p) => ({
-                id: p.id as number,
-                label: normalizeName(p.name),
-              }))}
-              placeholder="Select payee…"
-              allowCreate
-              autoOpen
-              onChange={(id) => {
-                const numId = id != null ? Number(id) : undefined;
-                setOptimistic((prev) => ({
-                  ...prev,
-                  [exp.id as number]: {
-                    ...prev[exp.id as number],
-                    payeeId: numId,
-                  },
-                }));
-                onUpdate(exp.id as number, { payeeId: numId });
-                setEditingCell(null);
-              }}
-              onCreate={async (name) => {
-                const newId = await StorageService.addPayee(name);
-                if (newId == null) throw new Error("Failed to create payee");
-                await refreshPayees?.();
-                setOptimistic((prev) => ({
-                  ...prev,
-                  [exp.id as number]: {
-                    ...prev[exp.id as number],
-                    payeeId: newId,
-                  },
-                }));
-                onUpdate(exp.id as number, { payeeId: newId });
-                setEditingCell(null);
-                return newId as number;
-              }}
-              onCancel={cancelEdit}
-              onTab={(shiftKey) => handleTabNavigation(exp, "payeeId", shiftKey)}
-            />
+            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+              <CreatableCombobox
+                value={exp.payeeId}
+                variant="inline"
+                options={activePayees.map((p) => ({
+                  id: p.id as number,
+                  label: normalizeName(p.name),
+                }))}
+                placeholder="Select payee…"
+                allowCreate
+                autoOpen
+                onChange={(id) => {
+                  const numId = id != null ? Number(id) : undefined;
+                  editing.createOnCommit(exp.id as number, "payeeId")(numId);
+                }}
+                onCreate={async (name) => {
+                  const newId = await StorageService.addPayee(name);
+                  if (newId == null) throw new Error("Failed to create payee");
+                  await refreshPayees?.();
+                  editing.createOnCommit(exp.id as number, "payeeId")(newId);
+                  return newId as number;
+                }}
+                onCancel={editing.createOnCancel()}
+                onTab={(shiftKey) =>
+                  editing.handleTabNavigation(exp, "payeeId", shiftKey)
+                }
+              />
+            </div>
           );
         }
         return (
           <span
-            onClick={() => onCellEdit(exp, "payeeId")}
+            data-editable-cell
+            data-expense-id={exp.id}
+            data-field="payeeId"
+            {...editableCellActivate(editing, exp, "payeeId")}
             className="cursor-pointer text-theme-muted text-xs"
           >
             {optPayeeId && payeeMap[optPayeeId as number]
@@ -332,8 +327,10 @@ export function getExpenseColumns({
       meta: {
         className: "text-left hidden sm:table-cell",
         cellClassName: "whitespace-nowrap",
-        getCellClassName: (exp) =>
-          isEditing(exp, "payeeId") ? "cell-editing" : "",
+        getCellClassName: (exp: Expense) =>
+          editing.isCellEditing(exp.id as number, "payeeId")
+            ? "cell-editing"
+            : "",
       },
     },
     {
@@ -343,27 +340,24 @@ export function getExpenseColumns({
         const exp = row.original;
         const optDesc =
           optimistic[exp.id as number]?.description ?? exp.description;
-        if (isEditing(exp, "description")) {
+        if (editing.isCellEditing(exp.id as number, "description")) {
           return (
             <InlineEditCell
               initialValue={exp.description ?? ""}
-              onCommit={(val) => {
-                const trimmed = val.trim() || undefined;
-                setOptimistic((prev) => ({
-                  ...prev,
-                  [exp.id as number]: { ...prev[exp.id as number], description: trimmed },
-                }));
-                onUpdate(exp.id as number, { description: trimmed });
-                setEditingCell(null);
-              }}
-              onCancel={() => setEditingCell(null)}
-              onTab={(shiftKey) => handleTabNavigation(exp, "description", shiftKey)}
+              onCommit={editing.createOnCommit(exp.id as number, "description")}
+              onCancel={editing.createOnCancel()}
+              onTab={(shiftKey) =>
+                editing.handleTabNavigation(exp, "description", shiftKey)
+              }
             />
           );
         }
         return (
           <span
-            onClick={() => onCellEdit(exp, "description")}
+            data-editable-cell
+            data-expense-id={exp.id}
+            data-field="description"
+            {...editableCellActivate(editing, exp, "description")}
             className="cursor-pointer"
           >
             {optDesc || <span className="text-theme-muted">—</span>}
@@ -373,8 +367,10 @@ export function getExpenseColumns({
       meta: {
         className: "text-left",
         cellClassName: "text-theme-text max-w-[200px] truncate",
-        getCellClassName: (exp) =>
-          isEditing(exp, "description") ? "cell-editing" : "",
+        getCellClassName: (exp: Expense) =>
+          editing.isCellEditing(exp.id as number, "description")
+            ? "cell-editing"
+            : "",
       },
     },
     {
@@ -385,21 +381,22 @@ export function getExpenseColumns({
         const optAmount = optimistic[exp.id as number]?.amount ?? exp.amount;
         const amountColor =
           (optAmount ?? 0) < 0 ? "text-theme-success" : "text-theme-primary";
-        if (isEditing(exp, "amount")) {
+        if (editing.isCellEditing(exp.id as number, "amount")) {
           return (
             <InlineEditCell
-              initialValue={String(exp.amount ?? "")}
+              initialValue={
+                exp.amount != null ? exp.amount.toFixed(decimalPlaces) : ""
+              }
               onCommit={(val) => {
                 const parsed = val ? parseFloat(val) : undefined;
-                setOptimistic((prev) => ({
-                  ...prev,
-                  [exp.id as number]: { ...prev[exp.id as number], amount: parsed },
-                }));
-                onUpdate(exp.id as number, { amount: parsed });
-                setEditingCell(null);
+                editing.createOnCommit(exp.id as number, "amount")(parsed);
               }}
-              onCancel={() => setEditingCell(null)}
-              onTab={(shiftKey) => handleTabNavigation(exp, "amount", shiftKey)}
+              onCancel={editing.createOnCancel()}
+              onTab={(shiftKey) =>
+                editing.handleTabNavigation(exp, "amount", shiftKey)
+              }
+              validate={(val) => editing.validateField("amount", val)}
+              error={editing.validationError}
               type="number"
               className="text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
@@ -407,7 +404,10 @@ export function getExpenseColumns({
         }
         return (
           <span
-            onClick={() => onCellEdit(exp, "amount")}
+            data-editable-cell
+            data-expense-id={exp.id}
+            data-field="amount"
+            {...editableCellActivate(editing, exp, "amount")}
             className={cn("cursor-pointer", amountColor)}
           >
             {formatAmount(optAmount ?? 0)}
@@ -417,8 +417,10 @@ export function getExpenseColumns({
       meta: {
         className: "text-right tabular-nums",
         cellClassName: "text-right tabular-nums font-semibold",
-        getCellClassName: (exp) =>
-          isEditing(exp, "amount") ? "cell-editing" : "",
+        getCellClassName: (exp: Expense) =>
+          editing.isCellEditing(exp.id as number, "amount")
+            ? "cell-editing"
+            : "",
       },
     },
   ];

@@ -63,7 +63,6 @@ export default function CreatableCombobox({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listboxId = useId();
   const optionIdPrefix = useId();
 
@@ -143,10 +142,6 @@ export default function CreatableCombobox({
       setDisplayQuery(label);
       setHasTyped(false);
       closeDropdown();
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-        blurTimeoutRef.current = null;
-      }
       inputRef.current?.focus();
     },
     [options, closeDropdown],
@@ -211,10 +206,6 @@ export default function CreatableCombobox({
             setDisplayQuery(options.find((o) => o.id === id)?.label ?? "");
             setHasTyped(false);
             closeDropdown();
-            if (blurTimeoutRef.current) {
-              clearTimeout(blurTimeoutRef.current);
-              blurTimeoutRef.current = null;
-            }
             onChange(id);
             onTab?.(false);
           }
@@ -222,20 +213,14 @@ export default function CreatableCombobox({
         }
         case "Escape": {
           e.preventDefault();
-          if (blurTimeoutRef.current) {
-            clearTimeout(blurTimeoutRef.current);
-            blurTimeoutRef.current = null;
-          }
+
           closeDropdown();
           onCancel?.();
           break;
         }
         case "Tab": {
           e.preventDefault();
-          if (blurTimeoutRef.current) {
-            clearTimeout(blurTimeoutRef.current);
-            blurTimeoutRef.current = null;
-          }
+
           closeDropdown();
           const selectedId =
             options.find((o) => o.label === displayQuery)?.id ?? value;
@@ -280,15 +265,12 @@ export default function CreatableCombobox({
   };
 
   const handleBlur = () => {
-    blurTimeoutRef.current = setTimeout(() => {
-      if (required && !value) {
-        setLocalError("This field is required.");
-      }
-      onChange(options.find((o) => o.label === displayQuery)?.id ?? value);
-      onCancel?.();
-      closeDropdown();
-    }, 150);
+    onChange(options.find((o) => o.label === displayQuery)?.id ?? value);
+    onCancel?.();
+    closeDropdown();
   };
+  // , 150);
+  // };
 
   useEffect(() => {
     if (!dropdownState.isOpen) return;
@@ -297,14 +279,9 @@ export default function CreatableCombobox({
         containerRef.current?.contains(e.target as Node) ||
         document.getElementById(listboxId)?.contains(e.target as Node)
       ) {
+        e.preventDefault();
         return;
       }
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-        blurTimeoutRef.current = null;
-      }
-      closeDropdown();
-      onCancel?.();
     };
     const handleResize = () => updateDropdownPosition();
     document.addEventListener("mousedown", handleClick);
@@ -334,15 +311,10 @@ export default function CreatableCombobox({
     }
   }, [selectedLabel, hasTyped]);
 
-  useEffect(() => {
-    return () => {
-      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
-    };
-  }, []);
-
   const dropdownContent = dropdownState.isOpen && dropdownState.pos && (
     <div
       id={listboxId}
+      data-no-cell-switch
       role="listbox"
       className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-medium shadow-lg max-h-60 overflow-y-auto scrollbar-auto-hide"
       style={{
