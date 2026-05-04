@@ -1,0 +1,249 @@
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+import { cn } from "../../utils/cn";
+import Modal from "../ui/Modal";
+import { CheckIcon } from "../ui/IconButton";
+import {
+  getFilteredOptions,
+  hasExactMatch,
+  type ComboboxOption,
+} from "./comboboxUtils";
+
+interface MobileEntityPickerProps {
+  open: boolean;
+  title: string;
+  value?: string | number;
+  options: ComboboxOption[];
+  placeholder?: string;
+  emptyMessage?: string;
+  createLabel?: (query: string) => string;
+  createHint?: string;
+  allowCreate?: boolean;
+  allowClear?: boolean;
+  clearLabel?: string;
+  onChange: (id: string | number | undefined) => void;
+  onCreate?: (name: string) => Promise<string | number>;
+  onClose: () => void;
+}
+
+export default function MobileEntityPicker({
+  open,
+  title,
+  value,
+  options,
+  placeholder = "Search…",
+  emptyMessage = "No matches found.",
+  createLabel = (query) => `Add "${query.trim()}"`,
+  createHint = "Type a new name to add it.",
+  allowCreate = false,
+  allowClear = false,
+  clearLabel = "Clear selection",
+  onChange,
+  onCreate,
+  onClose,
+}: MobileEntityPickerProps) {
+  const [query, setQuery] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Reset query when picker opens
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setCreateError(null);
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  const filtered = useMemo(
+    () => getFilteredOptions(options, query),
+    [options, query],
+  );
+
+  const showCreateOption =
+    allowCreate &&
+    onCreate &&
+    query.trim() &&
+    !hasExactMatch(options, query);
+  const showCreateHint = allowCreate && onCreate && !query.trim();
+
+  const handleSelect = useCallback(
+    (id: string | number) => {
+      onChange(id);
+      onClose();
+    },
+    [onChange, onClose],
+  );
+
+  const handleClear = useCallback(() => {
+    onChange(undefined);
+    onClose();
+  }, [onChange, onClose]);
+
+  const handleCreate = useCallback(async () => {
+    if (!onCreate || isCreating) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const newId = await onCreate(trimmed);
+      onChange(newId);
+      onClose();
+    } catch (err) {
+      setCreateError((err as Error).message);
+    } finally {
+      setIsCreating(false);
+    }
+  }, [onCreate, isCreating, query, onChange, onClose]);
+
+  const selectedOption = useMemo(
+    () => options.find((o) => o.id === value),
+    [options, value],
+  );
+
+  const handleSave = useCallback(async () => {
+    if (showCreateOption) {
+      await handleCreate();
+      return;
+    }
+
+    const trimmed = query.trim();
+    if (trimmed && filtered[0]) {
+      handleSelect(filtered[0].id);
+      return;
+    }
+
+    onClose();
+  }, [filtered, handleCreate, handleSelect, onClose, query, showCreateOption]);
+
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title={title}
+      size="full"
+      mobileActionLabel="Save"
+      onMobileAction={handleSave}
+      mobileActionDisabled={isCreating}
+      bodyClassName="overflow-hidden p-0"
+      showCloseButton={false}
+    >
+      <div className="flex h-full min-h-0 flex-col">
+        {/* Search */}
+        <div className="shrink-0 border-b border-theme-border p-3">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setCreateError(null);
+            }}
+            placeholder={placeholder}
+            className="input-theme w-full px-3 py-2.5 text-sm"
+          />
+          {createError && (
+            <p className="mt-1.5 text-theme-danger text-xs">{createError}</p>
+          )}
+          {showCreateHint && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-theme-muted">
+              <span
+                aria-hidden="true"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+              >
+                +
+              </span>
+              <span>{createHint}</span>
+            </div>
+          )}
+        </div>
+
+        {/* List */}
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide p-2 space-y-1">
+          {/* Clear option */}
+          {allowClear && value != null && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="flex min-h-12 w-full items-center gap-3 rounded-theme-medium px-3 py-3 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border"
+            >
+              <span className="min-w-0 truncate">{clearLabel}</span>
+            </button>
+          )}
+
+          {/* Existing options */}
+          {filtered.map((opt) => {
+            const isSelected = opt.id === value;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => handleSelect(opt.id)}
+                className={cn(
+                  "flex min-h-12 w-full items-center justify-between gap-3 rounded-theme-medium px-3 py-3 text-left text-sm transition-colors",
+                  isSelected
+                    ? "bg-theme-primary-subtle text-theme-primary font-medium"
+                    : "text-theme-text hover:bg-theme-border",
+                )}
+              >
+                <span className="min-w-0 truncate">{opt.label}</span>
+                {isSelected && (
+                  <CheckIcon className="w-5 h-5 shrink-0 text-theme-primary" />
+                )}
+              </button>
+            );
+          })}
+
+          {/* Create option */}
+          {showCreateOption && (
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={isCreating}
+              className={cn(
+                "flex min-h-12 w-full items-center gap-3 rounded-theme-medium px-3 py-3 text-left text-sm transition-colors",
+                isCreating
+                  ? "opacity-60 cursor-not-allowed"
+                  : "text-theme-text hover:bg-theme-border",
+              )}
+            >
+              {isCreating ? (
+                <span className="flex items-center gap-2 text-theme-text">
+                  <span className="w-4 h-4 border-2 border-theme-primary border-t-transparent rounded-full animate-spin" />
+                  Adding…
+                </span>
+              ) : (
+                <span className="flex items-center gap-2 text-theme-text">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                  >
+                    +
+                  </span>
+                  <span>{createLabel(query)}</span>
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Empty state */}
+          {filtered.length === 0 && !showCreateOption && (
+            <div className="px-3 py-8 text-sm text-theme-muted text-center">
+              {emptyMessage}
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}

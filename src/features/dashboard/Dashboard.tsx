@@ -7,7 +7,6 @@ import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
 import IncomeModalForm from "../../components/forms/IncomeModalForm";
 import SavingsModalForm from "../../components/forms/SavingsModalForm";
 import { useSettings } from "../../context/settingsContext";
-import { usePayees } from "../../hooks/useLocalData";
 import { useDashboard } from "../../hooks/useDashboard";
 import { normalizeName } from "../../utils/normalizeName";
 import {
@@ -23,28 +22,32 @@ import FilterModal from "./FilterModal";
 import CategoryViewTable from "./CategoryViewTable";
 import CategoryDrilldown from "./CategoryDrilldown";
 import { DASHBOARD_VIEWS } from "./constants";
-import type { Expense, Category } from "../../types";
+import type { Expense, Category, Payee } from "../../types";
 
 interface DashboardProps {
   expenses: Expense[];
   categories: Category[];
+  payees: Payee[];
   onUpdate: (id: number, changes: Partial<Expense>) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onBulkDelete: (ids: number[]) => Promise<void>;
   onSelectionChange?: (active: boolean) => void;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   refreshCategories?: () => Promise<void>;
+  refreshPayees?: () => Promise<void>;
 }
 
 export default function Dashboard({
   expenses,
   categories,
+  payees,
   onUpdate,
   onDelete,
   onBulkDelete,
   onSelectionChange,
   onScroll,
   refreshCategories,
+  refreshPayees,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
 
@@ -58,7 +61,6 @@ export default function Dashboard({
 
   // ── Derived values ──
   const isMobile = dash.viewportWidth < 640;
-  const { payees, refresh: refreshPayees } = usePayees();
   const payeeMap = useMemo(
     () => Object.fromEntries(payees.map((p) => [p.id, p])),
     [payees],

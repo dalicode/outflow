@@ -22,6 +22,7 @@ interface CreatableComboboxProps {
   placeholder?: string;
   emptyMessage?: string;
   createLabel?: (query: string) => string;
+  createHint?: string;
   allowCreate?: boolean;
   required?: boolean;
   disabled?: boolean;
@@ -42,6 +43,7 @@ export default function CreatableCombobox({
   placeholder = "Search...",
   emptyMessage = "No matches found.",
   createLabel = (query) => `Add "${query.trim()}"`,
+  createHint = "Type a new name to add it.",
   allowCreate = false,
   required = false,
   disabled = false,
@@ -91,6 +93,8 @@ export default function CreatableCombobox({
     onCreate &&
     filterText.trim() &&
     !hasExactMatch(options, filterText);
+  const showCreateHint =
+    allowCreate && onCreate && dropdownState.isOpen && !filterText.trim();
 
   const totalItems = filtered.length + (showCreateOption ? 1 : 0);
   const createIndex = filtered.length;
@@ -146,9 +150,10 @@ export default function CreatableCombobox({
       setDisplayQuery(label);
       setHasTyped(false);
       closeDropdown();
+      onChange(id);
       inputRef.current?.focus();
     },
-    [options, closeDropdown],
+    [options, closeDropdown, onChange],
   );
 
   const handleCreate = useCallback(async () => {
@@ -178,6 +183,14 @@ export default function CreatableCombobox({
     }
   }, [onCreate, isCreating, filterText, onChange, closeDropdown]);
 
+  const getDefaultCommitId = useCallback(() => {
+    if (!filterText.trim()) {
+      return options.find((o) => o.label === displayQuery)?.id ?? value;
+    }
+    const highlightedMatch = filtered[highlightedIndex];
+    return highlightedMatch?.id ?? filtered[0]?.id ?? value;
+  }, [displayQuery, filterText, filtered, highlightedIndex, options, value]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (!dropdownState.isOpen) {
@@ -186,9 +199,7 @@ export default function CreatableCombobox({
           openDropdown();
         } else if (e.key === "Tab") {
           e.preventDefault();
-          const selectedId =
-            options.find((o) => o.label === displayQuery)?.id ?? value;
-          onChange(selectedId);
+          onChange(getDefaultCommitId());
           onTab?.(e.shiftKey);
         }
         return;
@@ -244,9 +255,7 @@ export default function CreatableCombobox({
           e.preventDefault();
 
           closeDropdown();
-          const selectedId =
-            options.find((o) => o.label === displayQuery)?.id ?? value;
-          onChange(selectedId);
+          onChange(getDefaultCommitId());
           onTab?.(e.shiftKey);
           break;
         }
@@ -268,6 +277,7 @@ export default function CreatableCombobox({
       value,
       displayQuery,
       onChange,
+      getDefaultCommitId,
     ],
   );
 
@@ -288,7 +298,7 @@ export default function CreatableCombobox({
 
   const handleBlur = () => {
     if (isCreatingRef.current || justCreatedRef.current) return;
-    onChange(options.find((o) => o.label === displayQuery)?.id ?? value);
+    onChange(getDefaultCommitId());
     onCancel?.();
     closeDropdown();
   };
@@ -363,6 +373,19 @@ export default function CreatableCombobox({
           {opt.label}
         </div>
       ))}
+      {showCreateHint && (
+        <div className="border-t border-theme-border px-3 py-2.5">
+          <div className="flex items-center gap-2 text-xs text-theme-muted">
+            <span
+              aria-hidden="true"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+            >
+              +
+            </span>
+            <span>{createHint}</span>
+          </div>
+        </div>
+      )}
       {showCreateOption && (
         <div
           id={`${optionIdPrefix}-${createIndex}`}
@@ -381,7 +404,15 @@ export default function CreatableCombobox({
               Adding...
             </span>
           ) : (
-            <span className="text-theme-text">+ {createLabel(filterText)}</span>
+            <span className="flex items-center gap-2 text-theme-text">
+              <span
+                aria-hidden="true"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+              >
+                +
+              </span>
+              <span>{createLabel(filterText)}</span>
+            </span>
           )}
         </div>
       )}

@@ -269,6 +269,7 @@ export default function ScheduleModal({
                 label: normalizeName(c.name),
               }))}
               placeholder="Search or add category…"
+              createHint="Type a new category name to add it."
               allowCreate
               allowClear
               disabled={isReadOnly}

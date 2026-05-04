@@ -5,7 +5,7 @@ import { StorageService } from "./services/storageService";
 import { useAuth } from "./context/authContext";
 import { useSettings } from "./context/settingsContext";
 import { supabase } from "./services/supabase";
-import { useExpenses, useCategories } from "./hooks/useLocalData";
+import { useExpenses, useCategories, usePayees } from "./hooks/useLocalData";
 import { cn } from "./utils/cn";
 import { ROUTES } from "./constants/routes";
 import Navbar from "./components/layout/Navbar";
@@ -124,6 +124,7 @@ export default function App() {
     setCategories,
     refresh: refreshCategories,
   } = useCategories();
+  const { payees, refresh: refreshPayees } = usePayees();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
   const { direction, onScroll: handleScrollDirection } = useScrollDirection();
@@ -142,6 +143,7 @@ export default function App() {
     if (syncStatus === "idle") {
       refreshExpenses();
       refreshCategories();
+      refreshPayees();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncStatus]);
@@ -247,12 +249,14 @@ export default function App() {
                     <Dashboard
                       expenses={expenses}
                       categories={categories}
+                      payees={payees}
                       onUpdate={handleUpdate}
                       onDelete={handleDelete}
                       onBulkDelete={handleBulkDelete}
                       onSelectionChange={setMobileSelectionActive}
                       onScroll={handlePageScroll}
                       refreshCategories={refreshCategories}
+                      refreshPayees={refreshPayees}
                     />
                   }
                 />
@@ -295,6 +299,7 @@ export default function App() {
                         onRefreshAll={async () => {
                           await refreshExpenses();
                           await refreshCategories();
+                          await refreshPayees();
                         }}
                         triggerSync={triggerSync}
                       />
@@ -309,6 +314,7 @@ export default function App() {
                 onClose={() => setShowForm(false)}
                 categories={categories}
                 onCategoriesChange={handleCategoriesChange}
+                refreshPayees={refreshPayees}
               />
             )}
           </>

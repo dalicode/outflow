@@ -282,6 +282,8 @@ export default function ExpenseTable({
           onUpdate={onUpdate}
           onClose={cancelMobileEdit}
           categories={categories}
+          refreshCategories={refreshCategories}
+          refreshPayees={refreshPayees}
         />
       )}
 

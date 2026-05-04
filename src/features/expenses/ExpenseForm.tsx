@@ -3,7 +3,9 @@ import { useSettings } from "../../context/settingsContext";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
 import CreatableCombobox from "../../components/inputs/CreatableCombobox";
+import MobileEntityPicker from "../../components/inputs/MobileEntityPicker";
 import DatePicker from "../../components/inputs/DatePicker";
+import { ChevronRightIcon } from "../../components/ui/IconButton";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
 import { normalizeName } from "../../utils/normalizeName";
 import { usePayees } from "../../hooks/useLocalData";
@@ -323,6 +325,8 @@ interface ExpenseFormProps {
     payload: { id?: number; name?: string },
   ) => Promise<number | undefined>;
   initialExpense?: Expense;
+  refreshCategories?: () => Promise<void>;
+  refreshPayees?: () => Promise<void>;
 }
 
 export default function ExpenseForm({
@@ -332,6 +336,8 @@ export default function ExpenseForm({
   categories,
   onCategoriesChange,
   initialExpense,
+  refreshCategories: refreshCategoriesProp,
+  refreshPayees: refreshPayeesProp,
 }: ExpenseFormProps) {
   const isEdit = !!initialExpense;
   const { payees, refresh: refreshPayees } = usePayees();
@@ -352,6 +358,8 @@ export default function ExpenseForm({
   const [error, setError] = useState("");
   const [showCatModal, setShowCatModal] = useState(false);
   const [showPayeeModal, setShowPayeeModal] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showPayeePicker, setShowPayeePicker] = useState(false);
 
   const activeCategories = useMemo(
     () => categories.filter((c) => !c.isArchived),
@@ -378,6 +386,13 @@ export default function ExpenseForm({
       activePayees.map((p) => ({ id: p.id!, label: normalizeName(p.name) })),
     [activePayees],
   );
+
+  const selectedCategoryName = categoryOptions.find(
+    (o) => o.id === Number(form.categoryId),
+  )?.label;
+  const selectedPayeeName = payeeOptions.find(
+    (o) => o.id === Number(form.payeeId),
+  )?.label;
 
   const set =
     (field: string) =>
@@ -473,28 +488,75 @@ export default function ExpenseForm({
                   + Manage
                 </button>
               </div>
-              <CreatableCombobox
-                value={form.categoryId ? Number(form.categoryId) : undefined}
-                options={categoryOptions}
-                placeholder="Select or add category"
-                emptyMessage="No categories found."
-                allowCreate
-                required
-                openOnClick
-                onChange={(id) =>
-                  setForm((f) => ({
-                    ...f,
-                    categoryId: id != null ? String(id) : "",
-                  }))
-                }
-                onCreate={async (name) => {
-                  if (onCategoriesChange) {
-                    const newId = await onCategoriesChange("add", { name });
-                    return newId ?? -1; // Return -1 if undefined to indicate failure
+              {/* Desktop */}
+              <div className="hidden sm:block">
+                <CreatableCombobox
+                  value={form.categoryId ? Number(form.categoryId) : undefined}
+                  options={categoryOptions}
+                  placeholder="Select or add category"
+                  emptyMessage="No categories found."
+                  createHint="Type a new category name to add it."
+                  allowCreate
+                  required
+                  openOnClick
+                  onChange={(id) =>
+                    setForm((f) => ({
+                      ...f,
+                      categoryId: id != null ? String(id) : "",
+                    }))
                   }
-                  return await StorageService.addCategory(name);
-                }}
-              />
+                  onCreate={async (name) => {
+                    if (onCategoriesChange) {
+                      const newId = await onCategoriesChange("add", { name });
+                      await refreshCategoriesProp?.();
+                      return newId ?? -1;
+                    }
+                    const newId = await StorageService.addCategory(name);
+                    await refreshCategoriesProp?.();
+                    return newId;
+                  }}
+                />
+              </div>
+              {/* Mobile */}
+              <div className="block sm:hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryPicker(true)}
+                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3 text-left transition-colors hover:bg-theme-border"
+                >
+                  <span className="min-w-0 truncate text-sm text-theme-text">
+                    {selectedCategoryName || "Select category"}
+                  </span>
+                  <ChevronRightIcon className="w-4 h-4 shrink-0 text-theme-muted" />
+                </button>
+                <MobileEntityPicker
+                  open={showCategoryPicker}
+                  title="Choose Category"
+                  value={form.categoryId ? Number(form.categoryId) : undefined}
+                  options={categoryOptions}
+                  placeholder="Search or add category"
+                  emptyMessage="No categories found."
+                  createHint="Type a new category name to add it."
+                  allowCreate
+                  onChange={(id) =>
+                    setForm((f) => ({
+                      ...f,
+                      categoryId: id != null ? String(id) : "",
+                    }))
+                  }
+                  onCreate={async (name) => {
+                    if (onCategoriesChange) {
+                      const newId = await onCategoriesChange("add", { name });
+                      await refreshCategoriesProp?.();
+                      return newId ?? -1;
+                    }
+                    const newId = await StorageService.addCategory(name);
+                    await refreshCategoriesProp?.();
+                    return newId;
+                  }}
+                  onClose={() => setShowCategoryPicker(false)}
+                />
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-1">
@@ -508,25 +570,68 @@ export default function ExpenseForm({
                 + Manage
               </button>
             </div>
-            <CreatableCombobox
-              value={form.payeeId ? Number(form.payeeId) : undefined}
-              options={payeeOptions}
-              placeholder="Select or add payee"
-              emptyMessage="No payees found."
-              allowCreate
-              openOnClick
-              onChange={(id) =>
-                setForm((f) => ({
-                  ...f,
-                  payeeId: id != null ? String(id) : "",
-                }))
-              }
-              onCreate={async (name) => {
-                const newId = await StorageService.addPayee(name);
-                await refreshPayees();
-                return newId;
-              }}
-            />
+            {/* Desktop */}
+            <div className="hidden sm:block">
+              <CreatableCombobox
+                value={form.payeeId ? Number(form.payeeId) : undefined}
+                options={payeeOptions}
+                placeholder="Select or add payee"
+                emptyMessage="No payees found."
+                createHint="Type a new payee name to add it."
+                allowCreate
+                openOnClick
+                onChange={(id) =>
+                  setForm((f) => ({
+                    ...f,
+                    payeeId: id != null ? String(id) : "",
+                  }))
+                }
+                onCreate={async (name) => {
+                  const newId = await StorageService.addPayee(name);
+                  await refreshPayees();
+                  await refreshPayeesProp?.();
+                  return newId;
+                }}
+              />
+            </div>
+            {/* Mobile */}
+            <div className="block sm:hidden">
+              <button
+                type="button"
+                onClick={() => setShowPayeePicker(true)}
+                className="flex min-h-12 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3 text-left transition-colors hover:bg-theme-border"
+              >
+                <span className="min-w-0 truncate text-sm text-theme-text">
+                  {selectedPayeeName || "Select payee"}
+                </span>
+                <ChevronRightIcon className="w-4 h-4 shrink-0 text-theme-muted" />
+              </button>
+              <MobileEntityPicker
+                open={showPayeePicker}
+                title="Choose Payee"
+                value={form.payeeId ? Number(form.payeeId) : undefined}
+                options={payeeOptions}
+                placeholder="Search or add payee"
+                emptyMessage="No payees found."
+                createHint="Type a new payee name to add it."
+                allowCreate
+                allowClear
+                clearLabel="No payee"
+                onChange={(id) =>
+                  setForm((f) => ({
+                    ...f,
+                    payeeId: id != null ? String(id) : "",
+                  }))
+                }
+                onCreate={async (name) => {
+                  const newId = await StorageService.addPayee(name);
+                  await refreshPayees();
+                  await refreshPayeesProp?.();
+                  return newId;
+                }}
+                onClose={() => setShowPayeePicker(false)}
+              />
+            </div>
           </div>
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Description
@@ -558,6 +663,7 @@ export default function ExpenseForm({
         <CategoryModal
           categories={categories}
           onCategoriesChange={onCategoriesChange}
+          refreshCategories={refreshCategoriesProp}
           onClose={() => setShowCatModal(false)}
         />
       )}
@@ -565,6 +671,7 @@ export default function ExpenseForm({
         <PayeeModal
           payees={payees}
           onPayeesChange={refreshPayees}
+          refreshPayees={refreshPayeesProp}
           onClose={() => setShowPayeeModal(false)}
         />
       )}

@@ -10,7 +10,7 @@ export default function ModalFooter({ children, className }: ModalFooterProps) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3",
+        "flex flex-row items-center gap-2 sm:gap-3",
         className,
       )}
     >

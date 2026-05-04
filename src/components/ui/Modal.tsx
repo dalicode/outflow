@@ -9,6 +9,8 @@ import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 
+let modalDepth = 0;
+
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
 interface ModalProps {
@@ -52,6 +54,7 @@ export default function Modal({
 }: ModalProps) {
   const containerRef = useFocusTrap(isOpen);
   const pushedRef = useRef(false);
+  const myDepthRef = useRef(0);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -68,16 +71,18 @@ export default function Modal({
   // Push history state when opening so native back button closes the modal
   useEffect(() => {
     if (isOpen && !pushedRef.current) {
+      myDepthRef.current = ++modalDepth;
       history.pushState({ modal: true }, "");
       pushedRef.current = true;
     }
   }, [isOpen]);
 
-  // Handle popstate (native back button)
+  // Handle popstate (native back button) — only topmost modal responds
   useEffect(() => {
     const handlePop = (e: PopStateEvent) => {
-      if (isOpen) {
-        e.stopPropagation();
+      if (isOpen && myDepthRef.current === modalDepth) {
+        e.stopImmediatePropagation();
+        modalDepth = Math.max(0, modalDepth - 1);
         onClose();
       }
     };
@@ -101,9 +106,11 @@ export default function Modal({
   useEffect(() => {
     if (!isOpen && pushedRef.current) {
       pushedRef.current = false;
-      // Only go back if the top state is ours (avoid interfering with router)
       if (history.state?.modal) {
-        history.back();
+        history.replaceState(null, "");
+      }
+      if (modalDepth >= myDepthRef.current) {
+        modalDepth = Math.max(0, myDepthRef.current - 1);
       }
     }
   }, [isOpen]);

@@ -219,6 +219,7 @@ export function getExpenseColumns({
                   label: normalizeName(p.name),
                 }))}
                 placeholder="Select payee…"
+                createHint="Type a new payee name to add it."
                 allowCreate
                 autoOpen
                 onChange={(id) => {
@@ -294,6 +295,7 @@ export function getExpenseColumns({
                   label: normalizeName(c.name),
                 }))}
                 placeholder="Select category…"
+                createHint="Type a new category name to add it."
                 allowCreate
                 autoOpen
                 onChange={(id) => {
