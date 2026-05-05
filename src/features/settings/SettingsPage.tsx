@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import "./settings.css";
 import { useSettings } from "../../context/settingsContext";
 import { useAuth } from "../../context/authContext";
+import { useToasts } from "../../context/toastContext";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
 import { useScheduleList } from "../../hooks/useScheduleList";
 import Card from "../../components/ui/Card";
+import Modal from "../../components/ui/Modal";
 import EditHistoricalDataModal from "./EditHistoricalDataModal";
 import ScheduleModal from "./ScheduleModal";
 import BackupSection from "./BackupSection";
@@ -16,6 +18,8 @@ import CsvImportCard from "./CsvImportCard";
 import ImportLogPanel from "./ImportLogPanel";
 import ScheduleList from "./ScheduleList";
 import DangerZone from "./DangerZone";
+import ReminderSettingsCard from "./ReminderSettingsCard";
+import PrivacyBackupCard from "./PrivacyBackupCard";
 import type { Expense, Schedule, Category } from "../../types";
 
 interface RowProps {
@@ -60,12 +64,15 @@ export default function SettingsPage({
   const { settings, save, formatDate, formatAmount, currentTheme } =
     useSettings();
   const { user } = useAuth();
+  const { showToast } = useToasts();
 
   const [importStatus, setImportStatus] = useState("");
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [editHistoricalDataYears, setEditHistoricalDataYears] = useState<
     number[]
   >([]);
+  const [showHistoricalCompletionPrompt, setShowHistoricalCompletionPrompt] =
+    useState(false);
   const [isHistoricalDataModalOpen, setIsHistoricalDataModalOpen] =
     useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -92,8 +99,26 @@ export default function SettingsPage({
   }, []);
 
   const handleImportComplete = async (importedYears: number[]) => {
-    setEditHistoricalDataYears(importedYears);
+    if (importedYears.length > 0) {
+      setEditHistoricalDataYears(importedYears);
+      setShowHistoricalCompletionPrompt(true);
+    }
     await onRefreshAll?.();
+  };
+
+  const dismissHistoricalCompletionPrompt = () => {
+    setShowHistoricalCompletionPrompt(false);
+    showToast({
+      message:
+        "You can reopen this later in Settings under the Historical Data card.",
+      tone: "default",
+      durationMs: 7000,
+    });
+  };
+
+  const reviewHistoricalData = () => {
+    setShowHistoricalCompletionPrompt(false);
+    setIsHistoricalDataModalOpen(true);
   };
 
   const handleEditSchedule = (schedule: Schedule) => {
@@ -117,15 +142,21 @@ export default function SettingsPage({
     onRefreshAll?.();
   };
 
-  const availableYears = useMemo(
-    () =>
-      editHistoricalDataYears.length > 0
-        ? editHistoricalDataYears
-        : [
-            ...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10))),
-          ].sort((a, b) => a - b),
-    [editHistoricalDataYears, expenses],
-  );
+  const availableYears = useMemo(() => {
+    const expenseYears = [
+      ...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10))),
+    ].sort((a, b) => a - b);
+
+    if (editHistoricalDataYears.length === 0) {
+      return expenseYears;
+    }
+
+    const importedYearSet = new Set(editHistoricalDataYears);
+    return [
+      ...editHistoricalDataYears,
+      ...expenseYears.filter((year) => !importedYearSet.has(year)),
+    ];
+  }, [editHistoricalDataYears, expenses]);
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -215,7 +246,11 @@ export default function SettingsPage({
             label="Decimals"
             value={settings.decimalPlaces}
             onChange={(v) => save({ decimalPlaces: v })}
-            options={[["0", "0"], ["1", "1"], ["2", "2"]]}
+            options={[
+              ["0", "0"],
+              ["1", "1"],
+              ["2", "2"],
+            ]}
           />
           <Row
             label="Separator"
@@ -258,6 +293,8 @@ export default function SettingsPage({
         </p>
       </Card>
 
+      <ReminderSettingsCard />
+
       {/* Haptics */}
       <Card title="Haptics">
         <p className="text-xs text-theme-muted mb-3">
@@ -296,6 +333,8 @@ export default function SettingsPage({
         />
       </div>
 
+      <PrivacyBackupCard />
+
       {/* Backup */}
       <BackupSection
         user={user}
@@ -306,22 +345,6 @@ export default function SettingsPage({
 
       {/* Import Log */}
       <ImportLogPanel importStatus={importStatus} importErrors={importErrors} />
-
-      {/* Historical Data trigger (post-import) */}
-      {editHistoricalDataYears.length > 0 && (
-        <Card title="Edit Historical Fixed Expenses">
-          <p className="text-xs text-theme-muted mb-2">
-            You imported data for {editHistoricalDataYears.join(", ")}. Add
-            fixed expenses retroactively to those years for accurate analytics.
-          </p>
-          <button
-            onClick={() => setIsHistoricalDataModalOpen(true)}
-            className="settings-action-btn"
-          >
-            Edit Fixed Expenses
-          </button>
-        </Card>
-      )}
 
       {/* Historical Data editor */}
       <Card title="Historical Data">
@@ -346,10 +369,45 @@ export default function SettingsPage({
         defaultSavingsRate={savingsRate}
         onComplete={() => {
           setEditHistoricalDataYears([]);
+          setShowHistoricalCompletionPrompt(false);
           onRefreshAll?.();
           triggerSync?.();
         }}
       />
+
+      <Modal
+        isOpen={
+          showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0
+        }
+        onClose={dismissHistoricalCompletionPrompt}
+        title="Complete Imported Months"
+        size="md"
+        footer={
+          <div className="flex w-full flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={dismissHistoricalCompletionPrompt}
+              className="btn-cancel-sm flex-1"
+            >
+              Later
+            </button>
+            <button
+              type="button"
+              onClick={reviewHistoricalData}
+              className="btn-modal-primary flex-1"
+            >
+              Review Historical Data
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-theme-muted">
+          Your transactions were imported successfully. Add income, fixed
+          expenses, and savings rate for{" "}
+          {editHistoricalDataYears.join(", ") + " "}
+          to make summaries and analytics accurate.
+        </p>
+      </Modal>
 
       {/* Scheduled Changes */}
       <Card title="Scheduled Changes">
@@ -363,10 +421,7 @@ export default function SettingsPage({
           onEdit={handleEditSchedule}
           onDelete={deleteSchedule}
         />
-        <button
-          onClick={handleAddSchedule}
-          className="settings-action-btn"
-        >
+        <button onClick={handleAddSchedule} className="settings-action-btn">
           + Add Schedule
         </button>
       </Card>
@@ -383,7 +438,6 @@ export default function SettingsPage({
 
       {/* Danger Zone */}
       <DangerZone onClearAll={handleClearAll} />
-
     </main>
   );
 }

@@ -1,23 +1,46 @@
 import { useRef, useState } from "react";
 import {
   StorageService,
-  DEFAULT_PAYEES,
   DEFAULT_CATEGORIES,
 } from "../../services/storageService";
 import {
   parseCSV,
   parseDateInput,
   getCsvField,
-  matchPayeeByDescription,
   matchCategoryByDescription,
   matchCategoryByName,
 } from "../../utils/csvHelpers";
+import { getImportPayeeMatchSummary, findBestImportPayeeMatch } from "../../utils/importPayeeMatching";
 import Card from "../../components/ui/Card";
+import ImportReviewModal, {
+  type ImportReviewSelection,
+} from "./ImportReviewModal";
+import type { Payee } from "../../types";
+import type { ImportPayeeMatchResult, ImportPayeeMatchSummary } from "../../utils/importPayeeMatching";
 
 interface CsvImportCardProps {
   onImportComplete: (importedYears: number[]) => void;
   onStatusChange: (status: string) => void;
   onErrorsChange: (errors: string[]) => void;
+}
+
+interface ValidImportRow {
+  rowId: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+  explicitPayee?: string;
+  payeeId?: number;
+}
+
+interface PendingImport {
+  rows: ValidImportRow[];
+  reviewRows: ImportPayeeMatchResult[];
+  summary: ImportPayeeMatchSummary;
+  replaceMode: boolean;
+  activePayees: Payee[];
+  isLoading?: boolean;
 }
 
 export default function CsvImportCard({
@@ -26,10 +49,114 @@ export default function CsvImportCard({
   onErrorsChange,
 }: CsvImportCardProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [replaceMode, setReplaceMode] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+
+  const yieldToBrowser = () =>
+    new Promise<void>((resolve) => {
+      if (typeof window !== "undefined" && window.requestAnimationFrame) {
+        window.requestAnimationFrame(() => resolve());
+        return;
+      }
+      setTimeout(resolve, 0);
+    });
+
+  const clearFileInput = () => {
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const finalizeImport = async (
+    rows: ValidImportRow[],
+    selectedOverrides: ImportReviewSelection[] = [],
+    mode: boolean,
+  ) => {
+    const selectionMap = new Map(
+      selectedOverrides.map((selection) => [selection.rowId, selection]),
+    );
+
+    const existing = await StorageService.getAll();
+    const existingKeys = new Set(
+      (
+        existing as Array<{
+          date: string;
+          amount: number;
+          description?: string;
+        }>
+      ).map((e) => `${e.date}|${e.amount}|${e.description}`),
+    );
+
+    const toAdd = mode
+      ? rows
+      : rows.filter(
+          (row) => !existingKeys.has(`${row.date}|${row.amount}|${row.description}`),
+        );
+
+    const categoryNames = [...new Set(toAdd.map((row) => row.category).filter(Boolean))];
+    const categoryMap: Record<string, number> = {};
+    if (categoryNames.length > 0) {
+      const existingCategories = await StorageService.getCategories();
+      const existingByName = new Map(
+        existingCategories.map((category) => [category.name.toLowerCase(), category]),
+      );
+      for (const name of categoryNames) {
+        const existingCategory = existingByName.get(name.toLowerCase());
+        if (existingCategory && !existingCategory.isArchived) {
+          categoryMap[name] = existingCategory.id!;
+        } else {
+          try {
+            const newId = await StorageService.addCategory(name);
+            categoryMap[name] = newId;
+          } catch {
+            const refreshed = await StorageService.getCategories();
+            const found = refreshed.find(
+              (category) => category.name.toLowerCase() === name.toLowerCase(),
+            );
+            if (found) categoryMap[name] = found.id!;
+          }
+        }
+      }
+    }
+
+    let matchedPayees = 0;
+    let blankPayees = 0;
+
+    for (const row of toAdd) {
+      const override = selectionMap.get(row.rowId);
+      const payeeId = override?.payeeId ?? row.payeeId ?? undefined;
+      if (payeeId != null) {
+        matchedPayees++;
+      } else {
+        blankPayees++;
+      }
+
+      if (override?.saveAlias && payeeId != null && row.description.trim()) {
+        await StorageService.addPayeeAlias(payeeId, row.description);
+      }
+
+      await StorageService.add({
+        date: row.date,
+        amount: row.amount,
+        description: row.description,
+        categoryId: categoryMap[row.category],
+        payeeId,
+      });
+    }
+
+    const importedYears = [
+      ...new Set(toAdd.map((row) => parseInt(row.date.slice(0, 4), 10))),
+    ].sort((a, b) => a - b);
+
+    onImportComplete(importedYears);
+    onStatusChange(
+      `Imported ${toAdd.length} row(s). ${matchedPayees} payee(s) matched, ${blankPayees} left blank.${toAdd.length !== rows.length ? ` Skipped ${rows.length - toAdd.length} duplicate(s).` : ""}`,
+    );
+    setPendingImport(null);
+    clearFileInput();
+  };
 
   const handleImport = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    replaceMode: boolean,
+    nextReplaceMode: boolean,
   ) => {
     e.stopPropagation();
     const file = e.target.files?.[0];
@@ -37,22 +164,36 @@ export default function CsvImportCard({
     onStatusChange("Reading…");
     onErrorsChange([]);
     try {
+      setPendingImport({
+        rows: [],
+        reviewRows: [],
+        summary: {
+          rowsFound: 0,
+          validRows: 0,
+          skippedRows: 0,
+          likelyPayeesFound: 0,
+          confidentMatches: 0,
+          uncertainMatches: 0,
+          unmatchedExpenses: 0,
+          newPayeesSuggested: 0,
+        },
+        replaceMode: nextReplaceMode,
+        activePayees: [],
+        isLoading: true,
+      });
+      await yieldToBrowser();
+
       const text = await file.text();
       const parsed = parseCSV(text);
 
       if (parsed.length === 0) {
         onStatusChange("No data rows found. Check CSV headers and content.");
-        if (fileRef.current) fileRef.current.value = "";
+        setPendingImport(null);
+        clearFileInput();
         return;
       }
 
-      const valid: Array<{
-        date: string;
-        category: string;
-        payee?: string;
-        description: string;
-        amount: number;
-      }> = [];
+      const valid: ValidImportRow[] = [];
       const errors: string[] = [];
       parsed.forEach((row, i) => {
         const rawDate = getCsvField(row, ["date", "timestamp"]);
@@ -81,16 +222,16 @@ export default function CsvImportCard({
           return;
         }
         valid.push({
+          rowId: `row-${i + 2}`,
           date: iso,
           category: getCsvField(row, ["category"]) || "Uncategorized",
-          payee: getCsvField(row, ["payee"]) || undefined,
           description: getCsvField(row, ["description", "item"]) || "",
+          explicitPayee: getCsvField(row, ["payee"]) || undefined,
           amount,
         });
       });
 
       onErrorsChange(errors);
-
       if (errors.length) {
         onStatusChange(
           `${errors.length} row(s) skipped: ${errors.slice(0, 3).join("; ")}`,
@@ -99,162 +240,200 @@ export default function CsvImportCard({
 
       if (valid.length === 0) {
         onStatusChange("No valid rows found. See errors below.");
-        if (fileRef.current) fileRef.current.value = "";
+        setPendingImport(null);
+        clearFileInput();
         return;
       }
 
-      // Match descriptions to preseeded payees when no explicit payee column
-      const hasExplicitPayee = valid.some((r) => r.payee);
-      if (!hasExplicitPayee) {
-        const existingPayees = await StorageService.getPayees();
-        const existingByName = new Map(
-          existingPayees.map((p) => [p.name.toLowerCase(), p]),
-        );
-        // Build a flat string list of payee names from the seed list,
-        // excluding any that are already archived in the DB
-        const matchablePayees = DEFAULT_PAYEES.map((p) => p.name).filter(
-          (name) => {
-            const existing = existingByName.get(name.toLowerCase());
-            return !existing || !existing.isArchived;
-          },
+      // Keep the existing direct path when the CSV explicitly provides payees.
+      const hasExplicitPayee = valid.some((row) => row.explicitPayee);
+      if (hasExplicitPayee) {
+        setPendingImport(null);
+        const rows = [...valid];
+        const existing = await StorageService.getAll();
+        const existingKeys = new Set(
+          (
+            existing as Array<{
+              date: string;
+              amount: number;
+              description?: string;
+            }>
+          ).map((entry) => `${entry.date}|${entry.amount}|${entry.description}`),
         );
 
-        if (matchablePayees.length > 0) {
-          for (const row of valid) {
-            const matched = matchPayeeByDescription(
-              row.description,
-              matchablePayees,
+        const toAdd = nextReplaceMode
+          ? rows
+          : rows.filter(
+              (row) =>
+                !existingKeys.has(`${row.date}|${row.amount}|${row.description}`),
             );
-            if (matched) row.payee = matched;
+
+        const payeeNames = [
+          ...new Set(toAdd.map((row) => row.explicitPayee).filter(Boolean)),
+        ];
+        const payeeMap: Record<string, number> = {};
+        if (payeeNames.length > 0) {
+          const existingPayees = await StorageService.getPayees();
+          const existingByName = new Map(
+            existingPayees.map((p) => [p.name.toLowerCase(), p]),
+          );
+          for (const name of payeeNames) {
+            const existingPayee = existingByName.get(name!.toLowerCase());
+            if (existingPayee && !existingPayee.isArchived) {
+              payeeMap[name!] = existingPayee.id!;
+            } else {
+              try {
+                const newId = await StorageService.addPayee(name!);
+                payeeMap[name!] = newId;
+              } catch {
+                const refreshed = await StorageService.getPayees();
+                const found = refreshed.find(
+                  (payee) => payee.name.toLowerCase() === name!.toLowerCase(),
+                );
+                if (found) payeeMap[name!] = found.id!;
+              }
+            }
           }
         }
-      }
 
-      // Match descriptions to default categories (overrides CSV category if matched)
-      for (const row of valid) {
-        const matched = matchCategoryByDescription(
-          row.description,
-          DEFAULT_CATEGORIES,
+        const categoryNames = [
+          ...new Set(toAdd.map((row) => row.category).filter(Boolean)),
+        ];
+        const categoryMap: Record<string, number> = {};
+        if (categoryNames.length > 0) {
+          const existingCategories = await StorageService.getCategories();
+          const existingByName = new Map(
+            existingCategories.map((c) => [c.name.toLowerCase(), c]),
+          );
+          for (const name of categoryNames) {
+            const existingCategory = existingByName.get(name.toLowerCase());
+            if (existingCategory && !existingCategory.isArchived) {
+              categoryMap[name] = existingCategory.id!;
+            } else {
+              try {
+                const newId = await StorageService.addCategory(name);
+                categoryMap[name] = newId;
+              } catch {
+                const refreshed = await StorageService.getCategories();
+                const found = refreshed.find(
+                  (category) => category.name.toLowerCase() === name.toLowerCase(),
+                );
+                if (found) categoryMap[name] = found.id!;
+              }
+            }
+          }
+        }
+
+        for (const row of toAdd) {
+          await StorageService.add({
+            date: row.date,
+            amount: row.amount,
+            description: row.description,
+            categoryId: categoryMap[row.category],
+            payeeId: row.explicitPayee ? payeeMap[row.explicitPayee] : undefined,
+          });
+        }
+
+        const importedYears = [
+          ...new Set(toAdd.map((row) => parseInt(row.date.slice(0, 4), 10))),
+        ].sort((a, b) => a - b);
+        onImportComplete(importedYears);
+        onStatusChange(
+          `Imported ${toAdd.length} row(s)${toAdd.length !== rows.length ? `, skipped ${rows.length - toAdd.length} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
         );
-        if (matched) row.category = matched;
+        clearFileInput();
+        return;
       }
 
-      // Fallback: match CSV category value against default category aliases
-      for (const row of valid) {
-        const matched = matchCategoryByName(row.category, DEFAULT_CATEGORIES);
-        if (matched) row.category = matched;
-      }
+      const activePayees = await StorageService.getActivePayees();
+      const payeeMatches = valid.map((row) =>
+        {
+          const match = findBestImportPayeeMatch(row.description, activePayees, row.rowId);
+          return match
+            ? { ...match, date: row.date, amount: row.amount }
+            : null;
+        },
+      );
+      const summary = {
+        ...getImportPayeeMatchSummary(
+        valid.map((row) => ({ rowId: row.rowId, description: row.description })),
+        activePayees,
+        ),
+        rowsFound: parsed.length,
+        validRows: valid.length,
+        skippedRows: errors.length,
+      };
 
-      const existing = await StorageService.getAll();
-      const existingKeys = new Set(
-        (
-          existing as Array<{
-            date: string;
-            amount: number;
-            description?: string;
-          }>
-        ).map((e) => `${e.date}|${e.amount}|${e.description}`),
+      const rowsWithMatches = valid.map((row, index) => {
+        const match = payeeMatches[index];
+        return {
+          ...row,
+          payeeId:
+            match?.confidence === "confident" ? match.suggestedPayeeId : undefined,
+        };
+      });
+
+      const reviewRows = payeeMatches.filter(
+        (match): match is ImportPayeeMatchResult =>
+          Boolean(match && match.confidence === "needs_review"),
       );
 
-      const toAdd = replaceMode
-        ? valid
-        : valid.filter(
-            (r) => !existingKeys.has(`${r.date}|${r.amount}|${r.description}`),
-          );
-
-      // Create/link payees for imported rows
-      const payeeNames = [
-        ...new Set(toAdd.map((r) => r.payee).filter(Boolean)),
-      ];
-      const payeeMap: Record<string, number> = {};
-      if (payeeNames.length > 0) {
-        const existingPayees = await StorageService.getPayees();
-        const existingByName = new Map(
-          existingPayees.map((p) => [p.name.toLowerCase(), p]),
-        );
-        for (const name of payeeNames) {
-          const existing = existingByName.get(name!.toLowerCase());
-          if (existing && !existing.isArchived) {
-            payeeMap[name!] = existing.id!;
-          } else {
-            try {
-              const newId = await StorageService.addPayee(name!);
-              payeeMap[name!] = newId;
-            } catch {
-              const refreshed = await StorageService.getPayees();
-              const found = refreshed.find(
-                (p) => p.name.toLowerCase() === name!.toLowerCase(),
-              );
-              if (found) payeeMap[name!] = found.id!;
-            }
-          }
-        }
-      }
-
-      // Create/link categories for imported rows
-      const categoryNames = [
-        ...new Set(toAdd.map((r) => r.category).filter(Boolean)),
-      ];
-      const categoryMap: Record<string, number> = {};
-      if (categoryNames.length > 0) {
-        const existingCategories = await StorageService.getCategories();
-        const existingByName = new Map(
-          existingCategories.map((c) => [c.name.toLowerCase(), c]),
-        );
-        for (const name of categoryNames) {
-          const existing = existingByName.get(name!.toLowerCase());
-          if (existing && !existing.isArchived) {
-            categoryMap[name!] = existing.id!;
-          } else {
-            try {
-              const newId = await StorageService.addCategory(name!);
-              categoryMap[name!] = newId;
-            } catch {
-              const refreshed = await StorageService.getCategories();
-              const found = refreshed.find(
-                (c) => c.name.toLowerCase() === name!.toLowerCase(),
-              );
-              if (found) categoryMap[name!] = found.id!;
-            }
-          }
-        }
-      }
-
-      const skipped = valid.length - toAdd.length;
-
-      for (const row of toAdd) {
-        await StorageService.add({
-          date: row.date,
-          amount: row.amount,
-          description: row.description,
-          categoryId: categoryMap[row.category],
-          payeeId: row.payee ? payeeMap[row.payee] : undefined,
-        });
-      }
-
-      const importedYears = [
-        ...new Set(toAdd.map((r) => parseInt(r.date.slice(0, 4), 10))),
-      ].sort((a, b) => a - b);
-
-      onImportComplete(importedYears);
-
+      setPendingImport({
+        rows: rowsWithMatches,
+        reviewRows,
+        summary,
+        replaceMode: nextReplaceMode,
+        activePayees,
+        isLoading: false,
+      });
       onStatusChange(
-        `Imported ${toAdd.length} row(s)${skipped ? `, skipped ${skipped} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
+        `Found ${summary.likelyPayeesFound} likely payee match${summary.likelyPayeesFound === 1 ? "" : "es"}. Review ${summary.uncertainMatches} uncertain match${summary.uncertainMatches === 1 ? "" : "es"} before importing.`,
       );
     } catch (err) {
       console.error("Import failed:", err);
+      setPendingImport(null);
       onStatusChange(`Import failed: ${(err as Error).message}`);
     }
-    if (fileRef.current) fileRef.current.value = "";
+    clearFileInput();
   };
 
   return (
     <Card title="Import CSV" className="flex-1">
       <p className="text-xs text-theme-muted mb-2">
-        Import expenses from a CSV file. Supports date, category, payee,
-        description, and amount columns.
+        Import expenses from a CSV file. We’ll review uncertain payee matches
+        before anything is saved.
       </p>
       <CsvImportForm fileRef={fileRef} onImport={handleImport} />
+
+      <ImportReviewModal
+        open={Boolean(pendingImport)}
+        isLoading={Boolean(pendingImport?.isLoading)}
+        loadingMessage="Preparing import review…"
+        loadingDescription="We’re scanning descriptions, suggesting payees, and getting your review list ready."
+        summary={pendingImport?.summary ?? null}
+        reviewRows={pendingImport?.reviewRows ?? []}
+        activePayees={pendingImport?.activePayees ?? []}
+        onBack={() => {
+          setPendingImport(null);
+          clearFileInput();
+        }}
+        onSkipReview={() => {
+          if (!pendingImport) return;
+          void finalizeImport(
+            pendingImport.rows,
+            [],
+            pendingImport.replaceMode,
+          );
+        }}
+        onImport={(selections) => {
+          if (!pendingImport) return;
+          void finalizeImport(
+            pendingImport.rows,
+            selections,
+            pendingImport.replaceMode,
+          );
+        }}
+      />
     </Card>
   );
 }
@@ -290,9 +469,7 @@ function CsvImportForm({
           onChange={(e) => onImport(e, replaceMode)}
           className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
         />
-        <span className="settings-action-btn shrink-0">
-          Choose File
-        </span>
+        <span className="settings-action-btn shrink-0">Choose File</span>
       </label>
     </>
   );

@@ -24,6 +24,7 @@ import CategoryViewTable from "./CategoryViewTable";
 import CategoryDrilldown from "./CategoryDrilldown";
 import PayeeViewTable from "./PayeeViewTable";
 import PayeeDrilldown from "./PayeeDrilldown";
+import CheckInReminderCard from "./CheckInReminderCard";
 import { DASHBOARD_VIEWS } from "./constants";
 import type { DashboardView } from "./constants";
 import type { Expense, Category, Payee } from "../../types";
@@ -42,6 +43,7 @@ interface DashboardProps {
   registerCycleView?: (fn: () => void) => void;
   sessionState?: DashboardSessionState;
   onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void;
+  onAddExpense?: () => void;
 }
 
 export default function Dashboard({
@@ -58,6 +60,7 @@ export default function Dashboard({
   registerCycleView,
   sessionState,
   onSessionStateChange,
+  onAddExpense,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
 
@@ -209,17 +212,20 @@ export default function Dashboard({
             dash.monthSpan === 12 ? "max-w-none" : "max-w-7xl",
           )}
         >
-          <div
-            className={cn(
-              "w-full mx-auto",
-              dash.monthSpan <= 3 && "md:max-w-3xl",
-              dash.monthSpan === 6 && "md:max-w-6xl",
-              dash.monthSpan === 12 && "md:max-w-none",
-            )}
-          >
-            <section
-              ref={dash.swipeAreaRef}
-              onTouchStart={dash.handleTouchStart}
+        <div
+          className={cn(
+            "w-full mx-auto",
+            dash.monthSpan <= 3 && "md:max-w-3xl",
+            dash.monthSpan === 6 && "md:max-w-6xl",
+            dash.monthSpan === 12 && "md:max-w-none",
+          )}
+        >
+          {onAddExpense && (
+            <CheckInReminderCard expenses={expenses} onAddExpense={onAddExpense} />
+          )}
+          <section
+            ref={dash.swipeAreaRef}
+            onTouchStart={dash.handleTouchStart}
               onTouchEnd={dash.handleTouchEnd}
               className="relative rounded-theme-medium bg-theme-surface shadow-sm p-4 md:p-5"
             >

@@ -84,13 +84,16 @@ function ScrollablePage({
   children,
   onScroll,
   onRouteChange,
+  bottomSpacerClassName,
 }: {
   children: React.ReactNode;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   onRouteChange?: () => void;
+  bottomSpacerClassName?: string;
 }) {
   const location = useLocation();
   const ref = useRef<HTMLDivElement>(null);
+  const showBottomSpacer = bottomSpacerClassName !== "h-0";
 
   useEffect(() => {
     ref.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -101,12 +104,16 @@ function ScrollablePage({
   return (
     <div
       ref={ref}
-      className="h-full overflow-y-auto scrollbar-auto-hide"
+      className="h-full overflow-y-auto overscroll-contain scrollbar-auto-hide"
       onScroll={onScroll}
     >
       {children}
-      {/* Spacer so content clears the fixed mobile nav bar */}
-      <div className="h-32 sm:hidden" aria-hidden="true" />
+      {showBottomSpacer && (
+        <div
+          className={cn("sm:hidden", bottomSpacerClassName ?? "h-32")}
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }
@@ -140,7 +147,7 @@ function SyncDot({ status }: { status: SyncStatus }) {
 
 function AppShell() {
   const { user, loading, syncStatus, triggerSync, signOut } = useAuth();
-  const { loaded: settingsLoaded } = useSettings();
+  const { loaded: settingsLoaded, save: saveSettings } = useSettings();
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses();
   const {
     categories,
@@ -273,6 +280,9 @@ function AppShell() {
   const handleAdd = async (expense: Omit<Expense, "id">) => {
     await StorageService.add(expense);
     setExpenses(await StorageService.getAll());
+    void saveSettings({ lastCheckInCompletedAt: new Date().toISOString() }).catch(
+      (error) => console.warn("Check-in completion stamp failed:", error),
+    );
     setShowForm(false);
     triggerSync?.();
   };
@@ -453,6 +463,7 @@ function AppShell() {
                       onUpdate={handleUpdate}
                       onDelete={handleDelete}
                       onBulkDelete={handleBulkDelete}
+                      onAddExpense={() => setShowForm(true)}
                       onSelectionChange={setMobileSelectionActive}
                       onScroll={handlePageScroll}
                       refreshCategories={refreshCategories}
@@ -468,7 +479,11 @@ function AppShell() {
                 <Route
                   path={ROUTES.SUMMARY}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      bottomSpacerClassName="h-20"
+                    >
                       <SummaryPage expenses={visibleExpenses} />
                     </ScrollablePage>
                   }

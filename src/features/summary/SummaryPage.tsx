@@ -3,6 +3,7 @@ import IncomeForm from "./IncomeForm";
 import FixedExpensesList from "../fixedExpenses/FixedExpensesList";
 import SavingsForm from "./SavingsForm";
 import BudgetFlow from "./BudgetFlow";
+import BudgetPaceSection from "./BudgetPaceSection";
 import SpendingBreakdown from "./SpendingBreakdown";
 import type { Expense } from "../../types";
 import "./summary.css";
@@ -75,6 +76,13 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
           <BudgetFlow
             summary={financialSummary}
             variableBreakdown={variableBreakdown}
+          />
+        )}
+
+        {financialSummary && (
+          <BudgetPaceSection
+            expenses={expenses}
+            summary={financialSummary}
           />
         )}
 

@@ -14,6 +14,10 @@ const DEFAULTS: AppSettings = {
   thousandSep: ',',
   dateFormat: 'MM/DD/YYYY',
   hapticsEnabled: true,
+  enableCheckInReminders: false,
+  reminderTime: '20:00',
+  reminderDays: ['0', '1', '2', '3', '4', '5', '6'],
+  reminderStyle: 'gentle',
 }
 
 const FONT_MAP: Record<string, string> = {

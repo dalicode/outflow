@@ -1,0 +1,34 @@
+import Card from "../../components/ui/Card";
+import { useSettings } from "../../context/settingsContext";
+
+export default function PrivacyBackupCard() {
+  const { settings } = useSettings();
+
+  const lastBackup =
+    settings.lastBackupAt != null
+      ? new Date(settings.lastBackupAt).toLocaleString()
+      : null;
+
+  return (
+    <Card title="Privacy & backups">
+      <div className="space-y-2 text-xs text-theme-muted">
+        <p>
+          Your data stays on this device unless you enable sync.
+        </p>
+        <p>
+          Outflow is local-first. Your spending history is stored in this browser
+          or device.
+        </p>
+        <p>
+          Export a backup anytime from Settings to protect your history.
+        </p>
+        <p>
+          Clearing browser data may remove local history unless you export a backup.
+        </p>
+        <p>
+          {lastBackup ? `Last backup: ${lastBackup}` : "No backup created yet."}
+        </p>
+      </div>
+    </Card>
+  );
+}

@@ -128,6 +128,13 @@ export interface AppSettings {
   thousandSep: string
   dateFormat: string
   hapticsEnabled: boolean
+  enableCheckInReminders?: boolean
+  reminderTime?: string
+  reminderDays?: string[]
+  reminderStyle?: string
+  lastCheckInDismissedAt?: string
+  lastCheckInCompletedAt?: string
+  lastBackupAt?: string
 }
 
 // ── Finance Engine ──────────────────────────────────────────────────────────

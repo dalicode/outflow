@@ -17,6 +17,7 @@ import {
 import { APP_VERSION } from "../../utils/appVersion";
 import { cn } from "../../utils/cn";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
+import { useSettings } from "../../context/settingsContext";
 import type { User } from "@supabase/supabase-js";
 
 interface BackupSectionProps {
@@ -32,6 +33,7 @@ export default function BackupSection({
   onRefreshAll,
   triggerSync,
 }: BackupSectionProps) {
+  const { save } = useSettings();
   const fileRef = useRef<HTMLInputElement>(null);
   const [replaceMode, setReplaceMode] = useState(false);
 
@@ -90,6 +92,9 @@ export default function BackupSection({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      void save({ lastBackupAt: new Date().toISOString() }).catch((error) =>
+        console.warn("Backup timestamp save failed:", error),
+      );
       onStatus("Encrypted backup exported successfully.");
     } catch (err) {
       console.error("Export failed:", err);
@@ -266,7 +271,7 @@ export default function BackupSection({
         <Card title="Export Backup" className="flex-1">
           <p className="text-xs text-theme-muted mb-2">
             Export your complete dataset as a password-encrypted .ofb backup
-            file. Secure and compact.
+            file. Your data stays local unless you enable sync.
           </p>
           <div className="flex gap-2">
             <button
@@ -281,6 +286,7 @@ export default function BackupSection({
         <Card title="Import Backup" className="flex-1">
           <p className="text-xs text-theme-muted mb-2">
             Restore from an encrypted .ofb backup or a legacy plain JSON file.
+            You can review version details before proceeding.
           </p>
           <label className="flex items-center gap-1.5 text-xs text-theme-text mb-1.5 cursor-pointer">
             <input

@@ -230,21 +230,8 @@ class OutflowDB extends Dexie {
 
     this.on("populate", () => {
       const now = new Date().toISOString();
-      this.categories.bulkAdd(
-        DEFAULT_CATEGORIES.map((c) => ({
-          name: c.name,
-          createdAt: now,
-          isArchived: false,
-        })),
-      );
-      this.payees.bulkAdd(
-        DEFAULT_PAYEES.map(({ name, aliases }) => ({
-          name,
-          aliases: aliases ?? [],
-          createdAt: now,
-          isArchived: false,
-        })),
-      );
+      this.table("categories").bulkAdd(buildDefaultCategories(now));
+      this.table("payees").bulkAdd(buildDefaultPayees(now));
     });
   }
 }
@@ -1012,6 +999,23 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
 
 // ── Income & Savings Snapshots ────────────────────────────
 
+export function buildDefaultCategories(now: string): Category[] {
+  return DEFAULT_CATEGORIES.map((category) => ({
+    name: category.name,
+    createdAt: now,
+    isArchived: false,
+  }));
+}
+
+export function buildDefaultPayees(now: string): Payee[] {
+  return DEFAULT_PAYEES.map(({ name, aliases }) => ({
+    name,
+    aliases: aliases ?? [],
+    createdAt: now,
+    isArchived: false,
+  }));
+}
+
 async function snapshotIncome(year: number, month: number, amount: number) {
   const existing = await db.incomeSnapshots.where({ year, month }).first();
   if (existing) {
@@ -1614,7 +1618,10 @@ export const StorageService = {
     if (!payee) throw new Error("Payee not found");
     const existing = payee.aliases ?? [];
     const trimmed = alias.trim();
-    if (!trimmed || existing.includes(trimmed)) return;
+    if (
+      !trimmed ||
+      existing.some((item) => item.trim().toLowerCase() === trimmed.toLowerCase())
+    ) return;
     const updated = [...existing, trimmed];
     await db.payees.update(id, {
       aliases: updated,
@@ -1757,6 +1764,9 @@ export const StorageService = {
       for (const table of db.tables) {
         await table.clear();
       }
+      const now = new Date().toISOString();
+      await db.table("categories").bulkAdd(buildDefaultCategories(now));
+      await db.table("payees").bulkAdd(buildDefaultPayees(now));
     });
   },
 
