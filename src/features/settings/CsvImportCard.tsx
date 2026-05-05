@@ -269,7 +269,7 @@ function CsvImportForm({
           onChange={(e) => onImport(e, replaceMode)}
           className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
         />
-        <span className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity">
+        <span className="settings-action-btn shrink-0">
           Choose File
         </span>
       </label>

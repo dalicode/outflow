@@ -94,7 +94,11 @@ export function useSummary({ expenses }: UseSummaryParams) {
 
     const byCategory: Record<string, number> = {};
     monthExpenses.forEach((e) => {
-      const cat = categories.find((c) => c.id === e.categoryId);
+      const categoryId = e.categoryId != null ? Number(e.categoryId) : null;
+      const cat =
+        categoryId != null
+          ? categories.find((c) => c.id === categoryId)
+          : undefined;
       const key = cat?.name ?? "Uncategorized";
       byCategory[key] = (byCategory[key] || 0) + (e.amount || 0);
     });
@@ -107,7 +111,7 @@ export function useSummary({ expenses }: UseSummaryParams) {
         pct: total > 0 ? (amount / total) * 100 : 0,
       }))
       .sort((a, b) => b.amount - a.amount);
-  }, [expenses, currentYear, currentMonth]);
+  }, [expenses, categories, currentYear, currentMonth]);
 
   const handleIncomeSave = useCallback(
     async ({

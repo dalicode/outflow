@@ -707,7 +707,7 @@ function ScheduleModalFooter({
 }) {
   return (
     <ModalFooter>
-      <button onClick={onClose} className="btn-modal-cancel flex-1">
+      <button onClick={onClose} className="btn-cancel-sm flex-1">
         {isReadOnly ? "Close" : "Cancel"}
       </button>
       {!isReadOnly && (

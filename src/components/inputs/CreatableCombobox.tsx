@@ -18,13 +18,20 @@ import {
 const DROPDOWN_MAX_HEIGHT = 240;
 const VIEWPORT_MARGIN = 8;
 const DROPDOWN_GAP = 4;
+const DROPDOWN_MIN_WIDTH = 240;
+const DROPDOWN_MAX_WIDTH = 420;
 
 function getDropdownPosition(rect: DOMRect): {
   top: number;
   left: number;
   width: number;
 } {
-  const width = Math.min(rect.width, window.innerWidth - VIEWPORT_MARGIN * 2);
+  const availableWidth = window.innerWidth - VIEWPORT_MARGIN * 2;
+  const preferredWidth = Math.max(
+    rect.width,
+    Math.min(DROPDOWN_MAX_WIDTH, Math.max(DROPDOWN_MIN_WIDTH, rect.width * 1.2)),
+  );
+  const width = Math.min(preferredWidth, availableWidth);
   const left = Math.min(
     Math.max(rect.left, VIEWPORT_MARGIN),
     window.innerWidth - VIEWPORT_MARGIN - width,
@@ -403,8 +410,22 @@ export default function CreatableCombobox({
         top: dropdownState.pos.top,
         left: dropdownState.pos.left,
         width: dropdownState.pos.width,
+        boxSizing: "border-box",
       }}
     >
+      {showCreateHint && (
+        <div className="border-b border-theme-border px-3 py-2">
+          <div className="flex items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
+            <span
+              aria-hidden="true"
+              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+            >
+              +
+            </span>
+            <span className="truncate">{createHint}</span>
+          </div>
+        </div>
+      )}
       {filtered.map((opt, i) => (
         <div
           key={opt.id}
@@ -422,19 +443,6 @@ export default function CreatableCombobox({
           {opt.label}
         </div>
       ))}
-      {showCreateHint && (
-        <div className="border-t border-theme-border px-3 py-2.5">
-          <div className="flex items-center gap-2 text-xs text-theme-muted">
-            <span
-              aria-hidden="true"
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
-            >
-              +
-            </span>
-            <span>{createHint}</span>
-          </div>
-        </div>
-      )}
       {showCreateOption && (
         <div
           id={`${optionIdPrefix}-${createIndex}`}
@@ -474,7 +482,10 @@ export default function CreatableCombobox({
   );
 
   return (
-    <div ref={containerRef} className="relative">
+    <div
+      ref={containerRef}
+      className={cn("relative", variant === "inline" && "w-full")}
+    >
       {label && (
         <label className="block text-xs font-medium text-theme-muted mb-1">
           {label}

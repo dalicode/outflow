@@ -1,5 +1,41 @@
 /* Settings-specific styles */
 
+.settings-action-btn {
+  display: inline-flex;
+  min-height: 2.375rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-small);
+  background-color: var(--theme-primary);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #ffffff;
+  transition: opacity 0.15s ease;
+}
+.settings-action-btn:hover {
+  opacity: 0.9;
+}
+
+.settings-danger-btn {
+  display: inline-flex;
+  min-height: 2.375rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-small);
+  background-color: var(--theme-danger);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #ffffff;
+  transition: opacity 0.15s ease;
+}
+.settings-danger-btn:hover {
+  opacity: 0.9;
+}
+
 /* Schedule list row */
 .schedule-row {
   display: flex;
@@ -20,26 +56,36 @@
 
 /* Small inline action buttons in schedule list */
 .settings-edit-btn {
-  font-size: 0.625rem;
+  min-height: 1.5rem;
+  min-width: 2.25rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--theme-primary);
-  padding: 0.125rem 0.375rem;
+  padding: 0.25rem 0.5rem;
   border-radius: var(--radius-small);
-  transition: opacity 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease;
 }
 .settings-edit-btn:hover {
+  background-color: color-mix(in srgb, var(--theme-primary) 8%, transparent);
   opacity: 0.8;
 }
 
 .settings-del-btn {
-  font-size: 0.625rem;
+  min-height: 1.5rem;
+  min-width: 2.25rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--theme-danger);
-  padding: 0.125rem 0.375rem;
+  padding: 0.25rem 0.5rem;
   border-radius: var(--radius-small);
-  transition: opacity 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease;
 }
 .settings-del-btn:hover {
+  background-color: color-mix(in srgb, var(--theme-danger) 8%, transparent);
   opacity: 0.8;
 }
 

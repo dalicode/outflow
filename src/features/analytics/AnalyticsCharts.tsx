@@ -17,6 +17,7 @@ import {
   Legend,
 } from "recharts";
 import { useSettings } from "../../context/settingsContext";
+import { getCategoryColor } from "../summary/summaryColorUtils";
 import type { AnalyticsData } from "../../types";
 
 const MONTHS = [
@@ -378,7 +379,9 @@ const CategoryBreakdownChart = ({
               fill={
                 /saving/i.test(entry.name)
                   ? colors.success
-                  : colors.chartPalette[i % colors.chartPalette.length]
+                  : /fixed/i.test(entry.name)
+                    ? colors.primary
+                    : getCategoryColor(entry.name)
               }
             />
           ))}
@@ -441,10 +444,10 @@ const PayeeBreakdownChart = ({
           outerRadius={90}
           paddingAngle={2}
         >
-          {pieData.map((_, i) => (
+          {pieData.map((entry, i) => (
             <Cell
               key={i}
-              fill={colors.chartPalette[i % colors.chartPalette.length]}
+              fill={getCategoryColor(entry.name)}
             />
           ))}
         </Pie>

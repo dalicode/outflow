@@ -4,6 +4,7 @@ import { normalizeName } from "../../utils/normalizeName";
 import CreatableCombobox from "../../components/inputs/CreatableCombobox";
 import DatePicker from "../../components/inputs/DatePicker";
 import InlineEditCell from "./InlineEditCell";
+import InlineMoneyEditCell from "./InlineMoneyEditCell";
 import { StorageService } from "../../services/storageService";
 import type { Expense, Category, Payee } from "../../types";
 import type { CellEditingAPI } from "./useExpenseCellEditing";
@@ -413,22 +414,15 @@ export function getExpenseColumns({
           (exp.amount ?? 0) < 0 ? "text-theme-success" : "text-theme-primary";
         if (editing.isCellEditing(exp.id as number, "amount")) {
           return (
-            <InlineEditCell
-              initialValue={
-                exp.amount != null ? exp.amount.toFixed(decimalPlaces) : ""
-              }
-              onCommit={(val) => {
-                const parsed = val ? parseFloat(val) : undefined;
-                editing.createOnCommit(exp.id as number, "amount")(parsed);
+            <InlineMoneyEditCell
+              initialValue={exp.amount ?? 0}
+              onCommit={(value) => {
+                editing.createOnCommit(exp.id as number, "amount")(value);
               }}
               onCancel={editing.createOnCancel()}
               onTab={(shiftKey) =>
                 editing.handleTabNavigation(exp, "amount", shiftKey)
               }
-              validate={(val) => editing.validateField("amount", val)}
-              error={editing.validationError}
-              type="number"
-              className="text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           );
         }

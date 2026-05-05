@@ -1,5 +1,5 @@
 import { useSettings } from "../../context/settingsContext";
-import { cn } from "../../utils/cn";
+import { getCategoryColor } from "./summaryColorUtils";
 
 interface BreakdownItem {
   name: string;
@@ -12,21 +12,8 @@ interface SpendingBreakdownProps {
   total: number;
 }
 
-// Palette cycles through theme tokens via inline style vars
-const BAR_COLORS = [
-  "var(--theme-primary)",
-  "var(--theme-secondary)",
-  "var(--theme-success)",
-  "var(--theme-danger)",
-  "var(--theme-muted)",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-];
-
 export default function SpendingBreakdown({ items, total }: SpendingBreakdownProps) {
-  const { formatAmount } = useSettings();
+  const { formatAmount, currentTheme } = useSettings();
 
   if (items.length === 0) return null;
 
@@ -46,7 +33,7 @@ export default function SpendingBreakdown({ items, total }: SpendingBreakdownPro
       <div className="space-y-3">
         {items.map((item, i) => {
           const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
-          const color = BAR_COLORS[i % BAR_COLORS.length];
+          const color = getCategoryColor(item.name);
 
           return (
             <div key={item.name} className="space-y-1">

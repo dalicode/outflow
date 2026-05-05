@@ -419,11 +419,11 @@ export default function FilterModal({
         <ModalFooter>
           <button
             onClick={handleClearAll}
-            className="summary-cancel-btn rounded-theme-small flex-1"
+            className="btn-cancel-sm flex-1"
           >
             Clear all
           </button>
-          <button onClick={handleDone} className="summary-save-btn flex-1">
+          <button onClick={handleDone} className="btn-modal-primary flex-1">
             Done
           </button>
         </ModalFooter>
@@ -464,16 +464,17 @@ export default function FilterModal({
               placeholder="To"
             />
           </div>
-          <MultiSelectDropdown
-            label="Payees"
-            items={activePayees}
-            selected={draft.selectedPayees}
-            onToggle={togglePayee}
-            onClear={() =>
-              setDraft((d) => ({ ...d, selectedPayees: new Set() }))
-            }
-          />
         </div>
+
+        <MultiSelectDropdown
+          label="Payees"
+          items={activePayees}
+          selected={draft.selectedPayees}
+          onToggle={togglePayee}
+          onClear={() =>
+            setDraft((d) => ({ ...d, selectedPayees: new Set() }))
+          }
+        />
 
         <MultiSelectDropdown
           label="Categories"

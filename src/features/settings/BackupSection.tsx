@@ -271,7 +271,7 @@ export default function BackupSection({
           <div className="flex gap-2">
             <button
               onClick={handleBackupExport}
-              className="btn-primary-sm"
+              className="settings-action-btn"
             >
               Export Backup
             </button>
@@ -299,7 +299,7 @@ export default function BackupSection({
               onChange={handleBackupImport}
               className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
             />
-            <span className="shrink-0 bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-2.5 py-1.5 rounded-theme-small transition-opacity">
+            <span className="settings-action-btn shrink-0">
               Choose File
             </span>
           </label>
@@ -328,13 +328,13 @@ export default function BackupSection({
                 setPasswordError("");
                 setPendingFile(null);
               }}
-              className="btn-cancel-sm flex-1 py-2.5"
+              className="btn-cancel-sm flex-1"
             >
               Cancel
             </button>
             <button
               onClick={handlePasswordSubmit}
-              className="btn-primary-sm flex-1 py-2.5"
+              className="btn-modal-primary flex-1"
             >
               {passwordModalMode === "export"
                 ? "Encrypt & Export"

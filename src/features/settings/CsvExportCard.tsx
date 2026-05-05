@@ -43,28 +43,37 @@ export default function CsvExportCard({ expenses, formatDate }: CsvExportCardPro
       <p className="text-xs text-theme-muted mb-2">
         Download your expenses as a CSV file for a selected date range.
       </p>
-      <div className="flex items-end gap-2">
-        <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
-          <span className="truncate">From</span>
-          <DatePicker
-            value={exportRange.from}
-            onChange={(iso) =>
-              setExportRange((r) => ({ ...r, from: iso }))
-            }
-            placeholder="From"
-          />
-        </label>
-        <label className="flex-1 flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
-          <span className="truncate">To</span>
-          <DatePicker
-            value={exportRange.to}
-            onChange={(iso) =>
-              setExportRange((r) => ({ ...r, to: iso }))
-            }
-            placeholder="To"
-          />
-        </label>
-        <button onClick={handleExport} className="btn-primary-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="grid flex-1 gap-2 sm:grid-cols-2">
+          <label className="flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
+            <span className="truncate">From</span>
+            <DatePicker
+              value={exportRange.from}
+              onChange={(iso) =>
+                setExportRange((r) => ({ ...r, from: iso }))
+              }
+              variant="inline"
+              inputStyle="default"
+              placeholder="From"
+            />
+          </label>
+          <label className="flex flex-col gap-0.5 text-xs text-theme-muted min-w-0">
+            <span className="truncate">To</span>
+            <DatePicker
+              value={exportRange.to}
+              onChange={(iso) =>
+                setExportRange((r) => ({ ...r, to: iso }))
+              }
+              variant="inline"
+              inputStyle="default"
+              placeholder="To"
+            />
+          </label>
+        </div>
+        <button
+          onClick={handleExport}
+          className="settings-action-btn w-full self-end px-3 sm:w-auto"
+        >
           Export
         </button>
       </div>

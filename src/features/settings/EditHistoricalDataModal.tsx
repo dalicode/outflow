@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Modal from "../../components/ui/Modal";
+import ModalFooter from "../../components/ui/ModalFooter";
+import MoneyInput from "../../components/inputs/MoneyInput";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import {
@@ -15,6 +17,7 @@ import {
   type RangeItem,
   flattenRangesToMonthMap,
 } from "../../utils/historicalDataHelpers";
+import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
 import type { Expense, FixedExpense, FixedExpenseSnapshot } from "../../types";
 
 const MONTHS = [
@@ -193,8 +196,8 @@ function MultiRangeList({
   const isIncome = type === "income";
   const label = isIncome ? "Monthly Income" : "Auto Savings %";
   const placeholder = isIncome ? "e.g. 5000" : "e.g. 20";
-  const step = isIncome ? "0.01" : "0.1";
   const inputWidth = isIncome ? "w-36" : "w-28";
+  const moneyConfig = resolveMoneyLocaleConfig("$");
 
   const maxMonth = getMaxMonthForYear(year);
 
@@ -217,14 +220,30 @@ function MultiRangeList({
           const endMonthMax = nextRange ? nextRange.startMonth - 1 : maxMonth;
           return (
             <div key={range.id} className="flex items-center gap-2 flex-wrap">
-              <input
-                type="number"
-                value={range.amount}
-                onChange={(e) => onUpdate(range.id, { amount: e.target.value })}
-                placeholder={placeholder}
-                step={step}
-                className={`${ghostInputCls} ${inputWidth}`}
-              />
+              {isIncome ? (
+                <MoneyInput
+                  value={Number.parseFloat(String(range.amount || "0"))}
+                  onChange={(amount) =>
+                    onUpdate(range.id, { amount: amount.toFixed(2) })
+                  }
+                  currency={moneyConfig.currency}
+                  locale={moneyConfig.locale}
+                  placeholder={placeholder}
+                  size="sm"
+                  className={inputWidth}
+                />
+              ) : (
+                <input
+                  type="number"
+                  value={range.amount}
+                  onChange={(e) =>
+                    onUpdate(range.id, { amount: e.target.value })
+                  }
+                  placeholder={placeholder}
+                  step="0.1"
+                  className={`${ghostInputCls} ${inputWidth}`}
+                />
+              )}
               {/* Start month is read-only — controlled by cascade logic */}
               <span
                 className={`${ghostSelectCls} w-18 inline-block text-center select-none`}
@@ -320,6 +339,7 @@ function FixedExpenseList({
   }, [currentFixedDefs]);
 
   const maxMonth = getMaxMonthForYear(year);
+  const moneyConfig = resolveMoneyLocaleConfig("$");
 
   return (
     <SectionCard title="Fixed Expenses">
@@ -339,13 +359,16 @@ function FixedExpenseList({
                 placeholder="Name"
                 className={`${ghostInputCls} w-36`}
               />
-              <input
-                type="number"
-                value={item.amount}
-                onChange={(e) => onUpdate(item.id, { amount: e.target.value })}
+              <MoneyInput
+                value={Number.parseFloat(String(item.amount || "0"))}
+                onChange={(amount) =>
+                  onUpdate(item.id, { amount: amount.toFixed(2) })
+                }
+                currency={moneyConfig.currency}
+                locale={moneyConfig.locale}
                 placeholder="Amount"
-                step="0.01"
-                className={`${ghostInputCls} w-28`}
+                size="sm"
+                className="w-28"
               />
               <MonthSelect
                 value={item.startMonth}
@@ -1099,6 +1122,24 @@ export default function EditHistoricalDataModal({
       mobileActionLabel="Save"
       onMobileAction={handleConfirm}
       mobileActionDisabled={saving || Object.keys(errors).length > 0}
+      footer={
+        <ModalFooter className="justify-end">
+          <button
+            onClick={handleClose}
+            className="btn-cancel-sm flex-1 sm:min-w-[8.5rem] sm:flex-none"
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            className="btn-modal-primary flex-1 sm:min-w-[9.5rem] sm:flex-none"
+            disabled={saving || Object.keys(errors).length > 0}
+          >
+            {saving ? "Saving…" : "Confirm Save"}
+          </button>
+        </ModalFooter>
+      }
     >
       {loading ? (
         <div className="py-8 text-center text-sm text-theme-muted">
@@ -1241,24 +1282,6 @@ export default function EditHistoricalDataModal({
                 {resultMsg}
               </p>
             )}
-          </div>
-
-          {/* Actions — desktop only */}
-          <div className="hidden sm:flex items-center justify-end gap-2 pt-4">
-            <button
-              onClick={handleClose}
-              className="btn-modal-cancel"
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirm}
-              className="btn-modal-primary"
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Confirm Save"}
-            </button>
           </div>
         </>
       )}

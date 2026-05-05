@@ -34,7 +34,7 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
         </p>
         <button
           onClick={() => setIsClearModalOpen(true)}
-          className="btn-danger-sm"
+          className="settings-danger-btn"
         >
           Clear All Data
         </button>
@@ -58,7 +58,7 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
                 triggerReload();
               }}
               disabled={deleteConfirm !== "DELETE"}
-              className="flex-1 bg-theme-danger hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium py-2 rounded-theme-small transition-opacity"
+              className="btn-modal-destructive flex-1 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Clear Everything
             </button>

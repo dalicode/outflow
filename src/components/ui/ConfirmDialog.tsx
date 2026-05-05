@@ -62,8 +62,8 @@ export default function ConfirmDialog({
             className={cn(
               "flex-1",
               confirmVariant === "destructive"
-                ? "confirm-delete-btn"
-                : "summary-save-btn",
+                ? "btn-modal-destructive"
+                : "btn-modal-primary",
             )}
           >
             {confirmLabel}

@@ -72,6 +72,7 @@ interface DatePickerProps {
   onCancel?: () => void;
   onTab?: (shiftKey: boolean) => void;
   autoOpen?: boolean;
+  autoFocusInput?: boolean;
   placeholder?: string;
   disabled?: boolean;
   variant?: "default" | "inline";
@@ -86,6 +87,7 @@ export default function DatePicker({
   onCancel,
   onTab,
   autoOpen = false,
+  autoFocusInput = false,
   placeholder = "Select date…",
   disabled = false,
   variant = "default",
@@ -518,7 +520,7 @@ export default function DatePicker({
           }}
           placeholder={placeholder}
           disabled={disabled}
-          autoFocus={variant === "inline"}
+          autoFocus={autoFocusInput}
           className={cn(
             "text-sm",
             resolvedInputStyle === "inline"

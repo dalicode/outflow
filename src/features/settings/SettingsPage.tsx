@@ -288,7 +288,7 @@ export default function SettingsPage({
           </p>
           <button
             onClick={() => setIsHistoricalDataModalOpen(true)}
-            className="btn-primary-sm"
+            className="settings-action-btn"
           >
             Edit Fixed Expenses
           </button>
@@ -303,7 +303,7 @@ export default function SettingsPage({
         </p>
         <button
           onClick={() => setIsHistoricalDataModalOpen(true)}
-          className="bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+          className="settings-action-btn"
         >
           Edit Historical Data
         </button>
@@ -337,7 +337,7 @@ export default function SettingsPage({
         />
         <button
           onClick={handleAddSchedule}
-          className="bg-theme-primary hover:opacity-90 text-white text-xs font-medium px-3 py-1.5 rounded-theme-small transition-opacity"
+          className="settings-action-btn"
         >
           + Add Schedule
         </button>

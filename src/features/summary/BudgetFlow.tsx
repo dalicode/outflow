@@ -1,17 +1,60 @@
+import { useState } from "react";
 import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
+import {
+  getCategoryColor,
+  GREEN_TO_RED_SCALE,
+} from "./summaryColorUtils";
 import type { MonthlySummary } from "../../types";
 
 interface BudgetFlowProps {
   summary: MonthlySummary;
+  variableBreakdown: VariableBreakdownItem[];
 }
 
 interface BarSegment {
   label: string;
   value: number;
   pct: number;
-  colorClass: string;
-  bgClass: string;
+  colorClass?: string;
+  bgClass?: string;
+  textColor?: string;
+  bgColor?: string;
+}
+
+interface HoveredBarSegment {
+  label: string;
+  value: number;
+  pct: number;
+  left: number;
+  top: number;
+}
+
+interface VariableBreakdownItem {
+  name: string;
+  amount: number;
+  pct: number;
+}
+
+function getRemainingBarColor(
+  remaining: number,
+  baselineRemaining: number,
+  successColor: string,
+  dangerColor: string,
+): string {
+  if (remaining <= 0 || baselineRemaining <= 0) return dangerColor;
+
+  const remainingPct = (remaining / baselineRemaining) * 100;
+  const scale = [
+    successColor,
+    ...GREEN_TO_RED_SCALE.slice(1, -1).map((item) => item.hex),
+    dangerColor,
+  ];
+
+  if (remainingPct >= 50) return scale[0];
+  const ratioFromHalfToZero = (50 - remainingPct) / 50;
+  const scaledIndex = 1 + Math.floor(ratioFromHalfToZero * (scale.length - 1));
+  return scale[Math.min(scaledIndex, scale.length - 1)];
 }
 
 function pct(value: number, total: number): number {
@@ -19,39 +62,14 @@ function pct(value: number, total: number): number {
   return Math.min(100, Math.max(0, (value / total) * 100));
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const normalized = hex.replace("#", "");
-  const full =
-    normalized.length === 3
-      ? normalized
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : normalized;
-
-  return [
-    parseInt(full.slice(0, 2), 16),
-    parseInt(full.slice(2, 4), 16),
-    parseInt(full.slice(4, 6), 16),
-  ];
-}
-
-function mixHex(startHex: string, endHex: string, amount: number): string {
-  const [sr, sg, sb] = hexToRgb(startHex);
-  const [er, eg, eb] = hexToRgb(endHex);
-  const ratio = clamp(amount, 0, 1);
-  const mix = (start: number, end: number) =>
-    Math.round(start + (end - start) * ratio);
-
-  return `rgb(${mix(sr, er)}, ${mix(sg, eg)}, ${mix(sb, eb)})`;
-}
-
-export default function BudgetFlow({ summary }: BudgetFlowProps) {
+export default function BudgetFlow({
+  summary,
+  variableBreakdown,
+}: BudgetFlowProps) {
   const { formatAmount, currentTheme } = useSettings();
+  const [hoveredSegment, setHoveredSegment] = useState<HoveredBarSegment | null>(
+    null,
+  );
 
   const {
     income,
@@ -62,18 +80,28 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
   } = summary;
 
   const isOverBudget = remaining < 0;
+  const baselineRemaining = Math.max(
+    0,
+    income - Math.max(0, autoSavings) - fixedExpensesTotal,
+  );
   const totalAllocated = fixedExpensesTotal + variableExpenses + Math.max(0, autoSavings);
   const spentPct = pct(totalAllocated, income);
-  const remainingPct = pct(Math.max(0, remaining), income);
-  const steppedRemainingPct = Math.round(remainingPct / 5) * 5;
-  const remainingRatio = steppedRemainingPct / 100;
-  const remainingTone = mixHex(
-    currentTheme.colors.danger,
+  const reservedSavingsColor = currentTheme.colors.text;
+  const remainingTone = getRemainingBarColor(
+    remaining,
+    baselineRemaining,
     currentTheme.colors.success,
-    remainingRatio,
+    currentTheme.colors.danger,
   );
 
   const segments: BarSegment[] = [
+    {
+      label: "Auto Savings",
+      value: Math.max(0, autoSavings),
+      pct: pct(Math.max(0, autoSavings), income),
+      textColor: reservedSavingsColor,
+      bgColor: reservedSavingsColor,
+    },
     {
       label: "Fixed",
       value: fixedExpensesTotal,
@@ -81,20 +109,12 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
       colorClass: "text-theme-primary",
       bgClass: "bg-theme-primary",
     },
-    {
-      label: "Variable",
-      value: variableExpenses,
-      pct: pct(variableExpenses, income),
-      colorClass: "text-theme-secondary",
-      bgClass: "bg-theme-secondary",
-    },
-    {
-      label: "Savings",
-      value: Math.max(0, autoSavings),
-      pct: pct(Math.max(0, autoSavings), income),
-      colorClass: "text-theme-success",
-      bgClass: "bg-theme-success",
-    },
+    ...variableBreakdown.map((item) => ({
+      label: item.name,
+      value: item.amount,
+      pct: pct(item.amount, income),
+      bgColor: getCategoryColor(item.name),
+    })),
   ].filter((s) => s.value > 0);
 
   return (
@@ -123,13 +143,63 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
       {/* Stacked progress bar */}
       {income > 0 && (
         <div className="space-y-2">
-          <div className="flex h-3 w-full overflow-hidden rounded-full bg-theme-background gap-px">
+          <div className="relative pt-7">
+            {hoveredSegment && (
+              <div
+                className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-theme-medium border border-theme-border bg-theme-surface px-2.5 py-1.5 shadow-sm"
+                style={{
+                  left: hoveredSegment.left,
+                  top: hoveredSegment.top,
+                }}
+              >
+                <div className="text-[0.6875rem] font-medium text-theme-text">
+                  {hoveredSegment.label}
+                </div>
+                <div className="text-[0.6875rem] text-theme-muted tabular-nums">
+                  {formatAmount(hoveredSegment.value)} · {hoveredSegment.pct.toFixed(0)}%
+                </div>
+              </div>
+            )}
+            <div
+              className="flex h-3 w-full overflow-hidden rounded-full bg-theme-background gap-px"
+              onMouseLeave={() => setHoveredSegment(null)}
+            >
             {segments.map((seg) =>
               seg.pct > 0 ? (
                 <div
                   key={seg.label}
-                  className={cn("h-full transition-all duration-500", seg.bgClass)}
-                  style={{ width: `${seg.pct}%` }}
+                  className={cn(
+                    "h-full transition-all duration-500",
+                    seg.bgClass,
+                  )}
+                  style={{
+                    width: `${seg.pct}%`,
+                    backgroundColor: seg.bgColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                    if (!parentRect) return;
+                    setHoveredSegment({
+                      label: seg.label,
+                      value: seg.value,
+                      pct: seg.pct,
+                      left: e.clientX - parentRect.left,
+                      top: -10,
+                    });
+                  }}
+                  onMouseMove={(e) => {
+                    const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                    if (!parentRect) return;
+                    setHoveredSegment((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            left: e.clientX - parentRect.left,
+                            top: -10,
+                          }
+                        : prev,
+                    );
+                  }}
                 />
               ) : null,
             )}
@@ -141,8 +211,33 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
                   width: `${pct(remaining, income)}%`,
                   backgroundColor: remainingTone,
                 }}
+                onMouseEnter={(e) => {
+                  const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (!parentRect) return;
+                  setHoveredSegment({
+                    label: "Remaining",
+                    value: remaining,
+                    pct: pct(remaining, income),
+                    left: e.clientX - parentRect.left,
+                    top: -10,
+                  });
+                }}
+                onMouseMove={(e) => {
+                  const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (!parentRect) return;
+                  setHoveredSegment((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          left: e.clientX - parentRect.left,
+                          top: -10,
+                        }
+                      : prev,
+                  );
+                }}
               />
             )}
+          </div>
           </div>
           <div className="flex justify-between text-[0.6875rem] text-theme-muted tabular-nums">
             <span>0%</span>
@@ -168,16 +263,16 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
           label="Variable Expenses"
           value={variableExpenses}
           pct={pct(variableExpenses, income)}
-          colorClass="bg-theme-secondary"
-          textClass="text-theme-secondary"
+          colorClass="bg-theme-danger"
+          textClass="text-theme-danger"
           formatAmount={formatAmount}
         />
         <AllocationRow
           label="Auto Savings"
           value={Math.max(0, autoSavings)}
           pct={pct(Math.max(0, autoSavings), income)}
-          colorClass="bg-theme-success"
-          textClass="text-theme-success"
+          dotColor={reservedSavingsColor}
+          textColor={reservedSavingsColor}
           formatAmount={formatAmount}
         />
 
@@ -189,7 +284,7 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
           <div className="flex items-center gap-2">
             <span className={cn(
               "inline-block w-2 h-2 rounded-full shrink-0",
-              isOverBudget ? "bg-theme-danger" : "bg-theme-success opacity-40",
+              isOverBudget ? "bg-theme-danger" : "bg-theme-success",
             )} />
             <span className="text-sm font-medium text-theme-text">
               {isOverBudget ? "Over Budget" : "Remaining"}
@@ -216,8 +311,10 @@ interface AllocationRowProps {
   label: string;
   value: number;
   pct: number;
-  colorClass: string;
-  textClass: string;
+  colorClass?: string;
+  textClass?: string;
+  dotColor?: string;
+  textColor?: string;
   formatAmount: (n: number) => string;
 }
 
@@ -227,17 +324,25 @@ function AllocationRow({
   pct,
   colorClass,
   textClass,
+  dotColor,
+  textColor,
   formatAmount,
 }: AllocationRowProps) {
   return (
     <div className="flex items-center gap-2 py-1.5">
-      <span className={cn("inline-block w-2 h-2 rounded-full shrink-0", colorClass)} />
+      <span
+        className={cn("inline-block w-2 h-2 rounded-full shrink-0", colorClass)}
+        style={{ backgroundColor: dotColor }}
+      />
       <span className="text-sm text-theme-text flex-1 min-w-0 truncate">{label}</span>
       <div className="flex items-center gap-3">
         <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
           {pct > 0 ? `${pct.toFixed(0)}%` : "—"}
         </span>
-        <span className={cn("text-sm font-semibold tabular-nums w-24 text-right", textClass)}>
+        <span
+          className={cn("text-sm font-semibold tabular-nums w-24 text-right", textClass)}
+          style={{ color: textColor }}
+        >
           {formatAmount(value)}
         </span>
       </div>

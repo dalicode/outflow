@@ -12,6 +12,7 @@ import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
 import MobileEntityPicker from "../../components/inputs/MobileEntityPicker";
 import DatePicker from "../../components/inputs/DatePicker";
+import MoneyInput from "../../components/inputs/MoneyInput";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
 import {
   getFilteredOptions,
@@ -26,6 +27,7 @@ import {
   findBestPayeeMatch,
   normalizePayeeText,
 } from "../../utils/payeeMatching";
+import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
 import type { MatchConfidence } from "../../utils/payeeMatching";
 import "./expenses.css";
 import type { Expense, Category, Payee } from "../../types";
@@ -829,6 +831,7 @@ export default function ExpenseForm({
   const { payees, refresh: refreshPayees } = usePayees();
   const { settings } = useSettings();
   const decimalPlaces = parseInt(settings.decimalPlaces, 10) || 2;
+  const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol);
 
   const [form, setForm] = useState(() => {
     if (!isEdit || !initialExpense) return EMPTY_FORM;
@@ -990,15 +993,6 @@ export default function ExpenseForm({
 
   const inputCls = "input-theme px-3 py-2 w-full";
 
-  const handleAmountBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const val = e.target.value.trim();
-    if (val === "") return;
-    const num = parseFloat(val);
-    if (!isNaN(num)) {
-      setForm((f) => ({ ...f, amount: num.toFixed(decimalPlaces) }));
-    }
-  };
-
   return (
     <>
       <Modal
@@ -1032,6 +1026,8 @@ export default function ExpenseForm({
             <span>Date</span>
             <DatePicker
               value={form.date}
+              variant="inline"
+              inputStyle="default"
               onChange={(iso) => setForm((f) => ({ ...f, date: iso }))}
               placeholder="Select date…"
             />
@@ -1058,7 +1054,7 @@ export default function ExpenseForm({
                 allowCreate
                 allowClear
                 clearLabel="No payee"
-                autoFocus={!isEdit}
+                autoFocus={false}
                 onChange={handlePayeeManualSelect}
                 onCreate={async (name) => {
                   const newId = await StorageService.addPayee(name);
@@ -1118,6 +1114,7 @@ export default function ExpenseForm({
                 emptyMessage="No categories found."
                 createHint="Type a new category name to add it."
                 allowCreate
+                autoFocus={false}
                 onChange={(id) =>
                   setForm((f) => ({
                     ...f,
@@ -1246,20 +1243,24 @@ export default function ExpenseForm({
           {aliasSaved && (
             <p className="text-xs text-theme-success">Alias saved.</p>
           )}
-          <label className="flex flex-col gap-1 text-sm text-theme-muted">
-            Amount ($)
-            <input
-              type="number"
-              value={form.amount}
-              onChange={set("amount")}
-              onBlur={handleAmountBlur}
-              placeholder="0.00"
-              step={Math.pow(10, -decimalPlaces)}
-              required
-              inputMode="decimal"
-              className={inputCls}
-            />
-          </label>
+          <MoneyInput
+            label="Amount"
+            value={Number.parseFloat(form.amount || "0")}
+            onChange={(amount) =>
+              setForm((f) => ({ ...f, amount: amount.toFixed(2) }))
+            }
+            currency={moneyConfig.currency}
+            locale={moneyConfig.locale}
+            allowNegative
+            showSignToggle
+            positiveLabel="Expense"
+            negativeLabel="Refund"
+            negativeIndicatorLabel="Refund"
+            helperText="Type numbers only - 1234 becomes $12.34"
+            showCurrencyCode
+            autoFocus={!isEdit}
+            size="lg"
+          />
         </form>
       </Modal>
       {showCatModal && (

@@ -3,6 +3,8 @@ import { cn } from "../../utils/cn";
 import { useSettings } from "../../context/settingsContext";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
+import MoneyInput from "../../components/inputs/MoneyInput";
+import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
 import "../expenses/expenses.css";
 import type { FixedExpense } from "../../types";
 
@@ -21,7 +23,8 @@ export default function FixedExpensesList({
   onUpdate,
   onDelete,
 }: FixedExpensesListProps) {
-  const { formatAmount } = useSettings();
+  const { formatAmount, settings } = useSettings();
+  const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [editId, setEditId] = useState<number | null>(null);
@@ -149,7 +152,11 @@ export default function FixedExpensesList({
             <button type="button" onClick={closeModal} className="btn-cancel-sm flex-1">
               Cancel
             </button>
-            <button type="submit" form="fixed-expense-form" className="btn-submit-fixed flex-1">
+            <button
+              type="submit"
+              form="fixed-expense-form"
+              className="btn-modal-primary flex-1"
+            >
               {modalMode === "add" ? "Add" : "Save"}
             </button>
           </ModalFooter>
@@ -172,14 +179,15 @@ export default function FixedExpensesList({
           </label>
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Monthly Amount
-            <input
-              type="number"
-              value={form.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              placeholder="0.00"
-              min="0.01"
-              step="0.01"
-              className={inputCls}
+            <MoneyInput
+              value={Number.parseFloat(form.amount || "0")}
+              onChange={(amount) =>
+                setForm((f) => ({ ...f, amount: amount.toFixed(2) }))
+              }
+              currency={moneyConfig.currency}
+              locale={moneyConfig.locale}
+              size="md"
+              showCurrencyCode
             />
           </label>
         </form>
