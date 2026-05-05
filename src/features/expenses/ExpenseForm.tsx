@@ -22,7 +22,11 @@ import { normalizeName } from "../../utils/normalizeName";
 import { usePayees } from "../../hooks/useLocalData";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
-import { findBestPayeeMatch, normalizePayeeText } from "../../utils/payeeMatching";
+import {
+  findBestPayeeMatch,
+  normalizePayeeText,
+} from "../../utils/payeeMatching";
+import type { MatchConfidence } from "../../utils/payeeMatching";
 import "./expenses.css";
 import type { Expense, Category, Payee } from "../../types";
 
@@ -82,11 +86,7 @@ function SingleSelectTrigger({
         viewBox="0 0 24 24"
         aria-hidden="true"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="m6 9 6 6 6-6"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
       </svg>
     </button>
   );
@@ -137,7 +137,7 @@ function DesktopSingleSelectDropdown({
     if (!autoFocus) return;
     const timer = window.setTimeout(() => setIsOpen(true), 50);
     return () => window.clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectedOption = useMemo(
@@ -390,7 +390,11 @@ function AddEntityButton({ label }: AddEntityButtonProps) {
         strokeWidth="2"
         className="h-4 w-4 shrink-0"
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 5v14M5 12h14"
+        />
       </svg>
       <span className="sm:hidden">{label}</span>
     </button>
@@ -411,7 +415,9 @@ function CategoryModal({
 
   const active = categories.filter((c) => !c.isArchived);
   const filteredCategories = active.filter((category) =>
-    normalizeName(category.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    normalizeName(category.name)
+      .toLowerCase()
+      .includes(searchQuery.trim().toLowerCase()),
   );
 
   const addCat = async (e: FormEvent<HTMLFormElement>) => {
@@ -517,7 +523,10 @@ function CategoryModal({
         ) : (
           <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
             {filteredCategories.map((cat) => (
-              <li key={cat.id} className="border-b border-theme-border p-3 last:border-b-0">
+              <li
+                key={cat.id}
+                className="border-b border-theme-border p-3 last:border-b-0"
+              >
                 {editId === cat.id ? (
                   <form
                     onSubmit={saveEdit}
@@ -530,7 +539,10 @@ function CategoryModal({
                       className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
                     />
                     <div className="flex gap-2">
-                      <button type="submit" className="btn-primary-sm flex-1 sm:flex-none">
+                      <button
+                        type="submit"
+                        className="btn-primary-sm flex-1 sm:flex-none"
+                      >
                         Save
                       </button>
                       <button
@@ -564,7 +576,9 @@ function CategoryModal({
                           if (onCategoriesChange) {
                             await onCategoriesChange("delete", { id: cat.id });
                           } else {
-                            await StorageService.deleteCategory(cat.id as number);
+                            await StorageService.deleteCategory(
+                              cat.id as number,
+                            );
                             await refreshCategories?.();
                           }
                         }}
@@ -605,7 +619,9 @@ function PayeeModal({
 
   const active = payees.filter((p) => !p.isArchived);
   const filteredPayees = active.filter((payee) =>
-    normalizeName(payee.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    normalizeName(payee.name)
+      .toLowerCase()
+      .includes(searchQuery.trim().toLowerCase()),
   );
 
   const addPayee = async (e: FormEvent<HTMLFormElement>) => {
@@ -719,7 +735,10 @@ function PayeeModal({
         ) : (
           <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
             {filteredPayees.map((payee) => (
-              <li key={payee.id} className="border-b border-theme-border p-3 last:border-b-0">
+              <li
+                key={payee.id}
+                className="border-b border-theme-border p-3 last:border-b-0"
+              >
                 {editId === payee.id ? (
                   <form
                     onSubmit={saveEdit}
@@ -732,7 +751,10 @@ function PayeeModal({
                       className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
                     />
                     <div className="flex gap-2">
-                      <button type="submit" className="btn-primary-sm flex-1 sm:flex-none">
+                      <button
+                        type="submit"
+                        className="btn-primary-sm flex-1 sm:flex-none"
+                      >
                         Save
                       </button>
                       <button
@@ -825,7 +847,8 @@ export default function ExpenseForm({
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showPayeePicker, setShowPayeePicker] = useState(false);
   const [payeeSuggestion, setPayeeSuggestion] = useState<Payee | null>(null);
-  const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] = useState<"auto" | "confirm" | null>(null);
+  const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] =
+    useState<MatchConfidence | null>(null);
   const [showAliasOffer, setShowAliasOffer] = useState(false);
   const [aliasSaved, setAliasSaved] = useState(false);
 
@@ -872,9 +895,15 @@ export default function ExpenseForm({
     (description: string) => {
       // Don't suggest if payee already selected
       if (form.payeeId) return;
-      if (!description.trim()) { setPayeeSuggestion(null); return; }
+      if (!description.trim()) {
+        setPayeeSuggestion(null);
+        return;
+      }
       const result = findBestPayeeMatch(description, payees);
-      if (!result) { setPayeeSuggestion(null); return; }
+      if (!result) {
+        setPayeeSuggestion(null);
+        return;
+      }
       setPayeeSuggestion(result.payee);
       setPayeeSuggestionConfidence(result.confidence);
       // Auto-apply only if confidence is "auto"
@@ -1157,32 +1186,34 @@ export default function ExpenseForm({
           </label>
 
           {/* Payee suggestion banner */}
-          {payeeSuggestion && !form.payeeId && payeeSuggestionConfidence === "confirm" && (
-            <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
-              <span className="text-theme-muted">
-                Suggested payee:{" "}
-                <span className="font-medium text-theme-text">
-                  {normalizeName(payeeSuggestion.name)}
+          {payeeSuggestion &&
+            !form.payeeId &&
+            payeeSuggestionConfidence === "confirm" && (
+              <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
+                <span className="text-theme-muted">
+                  Suggested payee:{" "}
+                  <span className="font-medium text-theme-text">
+                    {normalizeName(payeeSuggestion.name)}
+                  </span>
                 </span>
-              </span>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={acceptSuggestion}
-                  className="font-medium text-theme-primary hover:opacity-80"
-                >
-                  Use
-                </button>
-                <button
-                  type="button"
-                  onClick={dismissSuggestion}
-                  className="text-theme-muted hover:text-theme-text"
-                >
-                  Dismiss
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={acceptSuggestion}
+                    className="font-medium text-theme-primary hover:opacity-80"
+                  >
+                    Use
+                  </button>
+                  <button
+                    type="button"
+                    onClick={dismissSuggestion}
+                    className="text-theme-muted hover:text-theme-text"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Alias offer banner */}
           {showAliasOffer && !aliasSaved && (

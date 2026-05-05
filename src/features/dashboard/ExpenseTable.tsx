@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSettings } from "../../context/settingsContext";
 import { useContextMenu } from "../../hooks/useContextMenu";
-import { usePayees } from "../../hooks/useLocalData";
 import { cn } from "../../utils/cn";
 import DataTable from "../../components/ui/DataTable";
 import ContextMenu from "../../components/ui/ContextMenu";
@@ -111,10 +110,17 @@ export default function ExpenseTable({
     setMobileEditExpense(null);
   }, []);
 
-  const openExpenseEditor = useCallback((expense: Expense) => {
-    setMobileEditExpense(expense);
-    setShowMobileEditModal(true);
-  }, []);
+  const openExpenseEditor = useCallback(
+    (expense: Expense | null) => {
+      if (expense) {
+        setMobileEditExpense(expense);
+        setShowMobileEditModal(true);
+      } else {
+        cancelMobileEdit();
+      }
+    },
+    [cancelMobileEdit],
+  );
 
   const closeBulkEditModal = useCallback(() => {
     setShowBulkEditModal(false);
@@ -202,7 +208,9 @@ export default function ExpenseTable({
 
   const bulkEditExpenses = useMemo(
     () =>
-      expenses.filter((expense) => bulkEditTargetIds.includes(expense.id as number)),
+      expenses.filter((expense) =>
+        bulkEditTargetIds.includes(expense.id as number),
+      ),
     [expenses, bulkEditTargetIds],
   );
 

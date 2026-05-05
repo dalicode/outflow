@@ -7,7 +7,6 @@ import {
   matchPayeeByDescription,
 } from "../../utils/csvHelpers";
 import Card from "../../components/ui/Card";
-import type { Expense } from "../../types";
 
 interface CsvImportCardProps {
   onImportComplete: (importedYears: number[]) => void;
@@ -22,7 +21,10 @@ export default function CsvImportCard({
 }: CsvImportCardProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>, replaceMode: boolean) => {
+  const handleImport = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    replaceMode: boolean,
+  ) => {
     e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file) return;
@@ -104,12 +106,12 @@ export default function CsvImportCard({
         );
         // Build a flat string list of payee names from the seed list,
         // excluding any that are already archived in the DB
-        const matchablePayees = DEFAULT_PAYEES
-          .map((p) => p.name)
-          .filter((name) => {
+        const matchablePayees = DEFAULT_PAYEES.map((p) => p.name).filter(
+          (name) => {
             const existing = existingByName.get(name.toLowerCase());
             return !existing || !existing.isArchived;
-          });
+          },
+        );
 
         if (matchablePayees.length > 0) {
           for (const row of valid) {
@@ -124,9 +126,13 @@ export default function CsvImportCard({
 
       const existing = await StorageService.getAll();
       const existingKeys = new Set(
-        (existing as Array<{ date: string; amount: number; description?: string }>).map(
-          (e) => `${e.date}|${e.amount}|${e.description}`,
-        ),
+        (
+          existing as Array<{
+            date: string;
+            amount: number;
+            description?: string;
+          }>
+        ).map((e) => `${e.date}|${e.amount}|${e.description}`),
       );
 
       const toAdd = replaceMode
@@ -136,12 +142,14 @@ export default function CsvImportCard({
           );
 
       // Create/link payees for imported rows
-      const payeeNames = [...new Set(toAdd.map((r) => r.payee).filter(Boolean))];
+      const payeeNames = [
+        ...new Set(toAdd.map((r) => r.payee).filter(Boolean)),
+      ];
       const payeeMap: Record<string, number> = {};
       if (payeeNames.length > 0) {
         const existingPayees = await StorageService.getPayees();
         const existingByName = new Map(
-          existingPayees.map((p) => [p.name.toLowerCase(), p])
+          existingPayees.map((p) => [p.name.toLowerCase(), p]),
         );
         for (const name of payeeNames) {
           const existing = existingByName.get(name!.toLowerCase());
@@ -153,7 +161,9 @@ export default function CsvImportCard({
               payeeMap[name!] = newId;
             } catch {
               const refreshed = await StorageService.getPayees();
-              const found = refreshed.find((p) => p.name.toLowerCase() === name!.toLowerCase());
+              const found = refreshed.find(
+                (p) => p.name.toLowerCase() === name!.toLowerCase(),
+              );
               if (found) payeeMap[name!] = found.id!;
             }
           }
@@ -161,12 +171,14 @@ export default function CsvImportCard({
       }
 
       // Create/link categories for imported rows
-      const categoryNames = [...new Set(toAdd.map((r) => r.category).filter(Boolean))];
+      const categoryNames = [
+        ...new Set(toAdd.map((r) => r.category).filter(Boolean)),
+      ];
       const categoryMap: Record<string, number> = {};
       if (categoryNames.length > 0) {
         const existingCategories = await StorageService.getCategories();
         const existingByName = new Map(
-          existingCategories.map((c) => [c.name.toLowerCase(), c])
+          existingCategories.map((c) => [c.name.toLowerCase(), c]),
         );
         for (const name of categoryNames) {
           const existing = existingByName.get(name!.toLowerCase());
@@ -178,7 +190,9 @@ export default function CsvImportCard({
               categoryMap[name!] = newId;
             } catch {
               const refreshed = await StorageService.getCategories();
-              const found = refreshed.find((c) => c.name.toLowerCase() === name!.toLowerCase());
+              const found = refreshed.find(
+                (c) => c.name.toLowerCase() === name!.toLowerCase(),
+              );
               if (found) categoryMap[name!] = found.id!;
             }
           }
@@ -228,8 +242,11 @@ function CsvImportForm({
   fileRef,
   onImport,
 }: {
-  fileRef: React.RefObject<HTMLInputElement>;
-  onImport: (e: React.ChangeEvent<HTMLInputElement>, replaceMode: boolean) => void;
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  onImport: (
+    e: React.ChangeEvent<HTMLInputElement>,
+    replaceMode: boolean,
+  ) => void;
 }) {
   const [replaceMode, setReplaceMode] = useState(false);
 
