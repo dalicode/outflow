@@ -9,11 +9,12 @@ import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
 } from "../utils/dashboardHelpers";
-import type { Expense, Category } from "../types";
+import type { Expense, Category, Payee } from "../types";
 
 export function useDashboard(
   expenses: Expense[],
   categories: Category[],
+  payees: Payee[],
   onBulkDelete: (ids: number[]) => void,
   onSelectionChange?: (active: boolean) => void,
 ) {
@@ -30,7 +31,7 @@ export function useDashboard(
     monthNav.monthSpan,
     dataRefreshKey,
   );
-  const filters = useDashboardFilters(expenses, data.monthKeys, categories);
+  const filters = useDashboardFilters(expenses, data.monthKeys, categories, payees);
   const selection = useDashboardSelection(
     filters.filteredExpenses,
     onBulkDelete,
@@ -62,6 +63,26 @@ export function useDashboard(
     [data.monthSummaries],
   );
 
+  const payeeById = useMemo(
+    () => Object.fromEntries(payees.map((p) => [p.id, p])),
+    [payees],
+  );
+
+  const getExpensePayeeName = useCallback(
+    (exp: Expense) => payeeById[exp.payeeId as number]?.name ?? "—",
+    [payeeById],
+  );
+
+  const multiPayeeRows = useMemo(
+    () =>
+      computeMultiMonthCategoryRows(
+        filters.filteredExpenses,
+        data.monthKeys,
+        getExpensePayeeName,
+      ),
+    [filters.filteredExpenses, data.monthKeys, getExpensePayeeName],
+  );
+
   const drilldownExpenses = useMemo(() => {
     if (!view.drilldownCategory) return [];
     const mk = data.monthKeys[view.drilldownCategoryMonthIndex];
@@ -79,6 +100,24 @@ export function useDashboard(
     filters.filteredExpenses,
     data.monthKeys,
     filters.getExpenseCategoryName,
+  ]);
+
+  const drilldownPayeeExpenses = useMemo(() => {
+    if (!view.drilldownPayee) return [];
+    const mk = data.monthKeys[view.drilldownPayeeMonthIndex];
+    return filters.filteredExpenses
+      .filter((e) => {
+        const matchesMonth = e.date.startsWith(mk.key);
+        const matchesPayee = getExpensePayeeName(e) === view.drilldownPayee;
+        return matchesMonth && matchesPayee;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [
+    view.drilldownPayee,
+    view.drilldownPayeeMonthIndex,
+    filters.filteredExpenses,
+    data.monthKeys,
+    getExpensePayeeName,
   ]);
 
   const groupedDrilldownExpenses = useMemo(() => {
@@ -119,7 +158,10 @@ export function useDashboard(
     // Derived
     multiCategoryRows,
     multiFixedRows,
+    multiPayeeRows,
+    getExpensePayeeName,
     drilldownExpenses,
+    drilldownPayeeExpenses,
     groupedDrilldownExpenses,
     spanVariableTotal,
     mobileEditTrigger,

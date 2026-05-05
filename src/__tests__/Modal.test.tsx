@@ -4,6 +4,32 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import Modal from '../components/ui/Modal'
 
 describe('Modal', () => {
+  const setVisualViewport = (
+    width: number,
+    height: number,
+    offsetTop = 0,
+    layoutHeight = height,
+  ) => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: width,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: layoutHeight,
+    })
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: {
+        width,
+        height,
+        offsetTop,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      },
+    })
+  }
+
   it('renders when open', () => {
     render(
       <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
@@ -95,16 +121,17 @@ describe('Modal', () => {
   })
 
   it('renders mobile full-screen header for xl size', () => {
+    setVisualViewport(390, 844)
     render(
       <Modal isOpen={true} onClose={vi.fn()} title="Test" size="xl">
         Content
       </Modal>,
     )
-    // Two Cancel buttons (left and right) when no action is provided
-    expect(screen.getAllByText('Cancel').length).toBe(2)
+    expect(screen.getAllByText('Cancel').length).toBe(1)
   })
 
   it('does not render mobile header for md size', () => {
+    setVisualViewport(390, 844)
     render(
       <Modal isOpen={true} onClose={vi.fn()} title="Test" size="md">
         Content
@@ -114,8 +141,32 @@ describe('Modal', () => {
     expect(screen.queryByLabelText('Cancel')).not.toBeInTheDocument()
   })
 
+  it('supports mobile full-screen behavior without changing desktop size', () => {
+    setVisualViewport(390, 844)
+    render(
+      <Modal
+        isOpen={true}
+        onClose={vi.fn()}
+        title="Test"
+        size="md"
+        mobileFullScreen
+      >
+        Content
+      </Modal>,
+    )
+
+    const overlay = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const modalCard = overlay.firstElementChild as HTMLElement
+
+    expect(screen.getAllByText('Cancel').length).toBe(1)
+    expect(modalCard).toHaveClass('w-screen')
+    expect(modalCard).toHaveClass('sm:max-w-md')
+    expect(modalCard.style.height).toBe('844px')
+  })
+
   it('calls onClose when clicking mobile Cancel button', () => {
     const onClose = vi.fn()
+    setVisualViewport(390, 844)
     render(
       <Modal isOpen={true} onClose={onClose} title="Test" size="full">
         Content
@@ -125,19 +176,22 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('renders mobile action button when onMobileAction is provided', () => {
+  it('renders mobile action button in the footer when onMobileAction is provided', () => {
     const onAction = vi.fn()
+    setVisualViewport(390, 844)
     render(
       <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={onAction}>
         Content
       </Modal>,
     )
-    expect(screen.getByText('Save')).toBeInTheDocument()
-    expect(screen.queryByText('Cancel')).toBeInTheDocument()
+    const action = screen.getByRole('button', { name: 'Save' })
+    expect(action).toHaveClass('w-full')
+    expect(screen.getAllByText('Cancel').length).toBe(1)
   })
 
   it('calls onMobileAction when clicking mobile action button', () => {
     const onAction = vi.fn()
+    setVisualViewport(390, 844)
     render(
       <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={onAction}>
         Content
@@ -161,6 +215,56 @@ describe('Modal', () => {
       fireEvent.scroll(contentDiv)
       expect(contentDiv).toHaveClass('is-scrolling')
     }
+  })
+
+  it('sizes full-screen mobile modals to the visual viewport', () => {
+    setVisualViewport(390, 620, 24)
+
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full">
+        Content
+      </Modal>,
+    )
+
+    const overlay = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const modalCard = overlay.firstElementChild as HTMLElement
+
+    expect(overlay.style.top).toBe('24px')
+    expect(overlay.style.height).toBe('620px')
+    expect(modalCard.style.height).toBe('620px')
+  })
+
+  it('centers mobile card modals within the keyboard-shrunken visual viewport', () => {
+    setVisualViewport(390, 540, 0, 844)
+
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="md">
+        Content
+      </Modal>,
+    )
+
+    const overlay = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const modalCard = overlay.firstElementChild as HTMLElement
+
+    expect(overlay).toHaveClass('items-center')
+    expect(overlay.style.paddingBottom).toBe('')
+    expect(modalCard.style.maxHeight).toBe('516px')
+  })
+
+  it('caps mobile card modal height to stay inside the visible viewport', () => {
+    setVisualViewport(390, 180, 0, 844)
+
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="md">
+        Content
+      </Modal>,
+    )
+
+    const overlay = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const modalCard = overlay.firstElementChild as HTMLElement
+
+    expect(overlay.style.height).toBe('180px')
+    expect(modalCard.style.maxHeight).toBe('156px')
   })
 
   describe('focus trap', () => {

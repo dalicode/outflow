@@ -20,7 +20,6 @@ interface GetExpenseColumnsParams {
   activeCategories: Category[];
   activePayees: Payee[];
   payeeMap: Record<number, Payee>;
-  optimistic: Record<number, Partial<Expense>>;
   refreshCategories?: () => Promise<void>;
   refreshPayees?: () => Promise<void>;
   decimalPlaces: number;
@@ -62,7 +61,6 @@ export function getExpenseColumns({
   activeCategories,
   activePayees,
   payeeMap,
-  optimistic,
   refreshCategories,
   refreshPayees,
   decimalPlaces,
@@ -168,7 +166,6 @@ export function getExpenseColumns({
       header: "Date",
       cell: ({ row }) => {
         const exp = row.original;
-        const optDate = optimistic[exp.id as number]?.date ?? exp.date;
         if (editing.isCellEditing(exp.id as number, "date")) {
           return (
             <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
@@ -195,7 +192,7 @@ export function getExpenseColumns({
             {...editableCellActivate(editing, exp, "date")}
             className="cursor-pointer"
           >
-            {formatDate(optDate)}
+            {formatDate(exp.date)}
           </span>
         );
       },
@@ -212,12 +209,11 @@ export function getExpenseColumns({
       header: "Payee",
       cell: ({ row }) => {
         const exp = row.original;
-        const optPayeeId = optimistic[exp.id as number]?.payeeId ?? exp.payeeId;
         if (editing.isCellEditing(exp.id as number, "payeeId")) {
           return (
             <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
               <CreatableCombobox
-                value={optPayeeId}
+                value={exp.payeeId}
                 variant="inline"
                 options={activePayees.map((p) => ({
                   id: p.id as number,
@@ -264,14 +260,14 @@ export function getExpenseColumns({
             {...editableCellActivate(editing, exp, "payeeId")}
             className={cn(
               "cursor-pointer",
-              payeeMap[optPayeeId as number]?.isArchived
+              payeeMap[exp.payeeId as number]?.isArchived
                 ? "text-theme-muted italic"
                 : "text-theme-text font-medium",
             )}
           >
-            {optPayeeId && payeeMap[optPayeeId as number]
-              ? normalizeName(payeeMap[optPayeeId as number].name)
-              : optPayeeId
+            {exp.payeeId && payeeMap[exp.payeeId as number]
+              ? normalizeName(payeeMap[exp.payeeId as number].name)
+              : exp.payeeId
                 ? (editing.getPendingName(exp.id as number, "payeeId") ?? "—")
                 : "—"}
           </span>
@@ -292,13 +288,11 @@ export function getExpenseColumns({
       header: "Category",
       cell: ({ row }) => {
         const exp = row.original;
-        const optCatId =
-          optimistic[exp.id as number]?.categoryId ?? exp.categoryId;
         if (editing.isCellEditing(exp.id as number, "categoryId")) {
           return (
             <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
               <CreatableCombobox
-                value={optCatId}
+                value={exp.categoryId}
                 variant="inline"
                 options={activeCategories.map((c) => ({
                   id: c.id as number,
@@ -346,15 +340,15 @@ export function getExpenseColumns({
             {...editableCellActivate(editing, exp, "categoryId")}
             className={cn(
               "cursor-pointer",
-              catMap[optCatId as number]?.isArchived
+              catMap[exp.categoryId as number]?.isArchived
                 ? "text-theme-muted italic"
                 : "text-theme-text font-medium",
             )}
           >
-            {catMap[optCatId as number]
-              ? catMap[optCatId as number].isArchived
-                ? `${normalizeName(catMap[optCatId as number].name)} (deleted)`
-                : normalizeName(catMap[optCatId as number].name)
+            {catMap[exp.categoryId as number]
+              ? catMap[exp.categoryId as number].isArchived
+                ? `${normalizeName(catMap[exp.categoryId as number].name)} (deleted)`
+                : normalizeName(catMap[exp.categoryId as number].name)
               : (editing.getPendingName(exp.id as number, "categoryId") ??
                 "Uncategorized")}
           </span>
@@ -375,8 +369,6 @@ export function getExpenseColumns({
       header: "Description",
       cell: ({ row }) => {
         const exp = row.original;
-        const optDesc =
-          optimistic[exp.id as number]?.description ?? exp.description;
         if (editing.isCellEditing(exp.id as number, "description")) {
           return (
             <InlineEditCell
@@ -397,7 +389,7 @@ export function getExpenseColumns({
             {...editableCellActivate(editing, exp, "description")}
             className="cursor-pointer"
           >
-            {optDesc || <span className="text-theme-muted">—</span>}
+            {exp.description || <span className="text-theme-muted">—</span>}
           </span>
         );
       },
@@ -415,9 +407,8 @@ export function getExpenseColumns({
       header: "Amount",
       cell: ({ row }) => {
         const exp = row.original;
-        const optAmount = optimistic[exp.id as number]?.amount ?? exp.amount;
         const amountColor =
-          (optAmount ?? 0) < 0 ? "text-theme-success" : "text-theme-primary";
+          (exp.amount ?? 0) < 0 ? "text-theme-success" : "text-theme-primary";
         if (editing.isCellEditing(exp.id as number, "amount")) {
           return (
             <InlineEditCell
@@ -447,7 +438,7 @@ export function getExpenseColumns({
             {...editableCellActivate(editing, exp, "amount")}
             className={cn("cursor-pointer", amountColor)}
           >
-            {formatAmount(optAmount ?? 0)}
+            {formatAmount(exp.amount ?? 0)}
           </span>
         );
       },

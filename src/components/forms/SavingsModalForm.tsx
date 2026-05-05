@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import Modal from "../ui/Modal";
+import ModalFooter from "../ui/ModalFooter";
 
 interface SavingsModalFormProps {
   isOpen: boolean;
@@ -75,8 +76,23 @@ export default function SavingsModalForm({
   const displayError = externalError || error;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size={size}>
-      <form onSubmit={submit} className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      size={size}
+      footer={
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="btn-cancel-sm flex-1">
+            Cancel
+          </button>
+          <button type="submit" form="savings-modal-form" className="btn-modal-primary flex-1">
+            Save
+          </button>
+        </ModalFooter>
+      }
+    >
+      <form id="savings-modal-form" onSubmit={submit} className="space-y-4">
         {description && (
           <p className="text-xs text-theme-muted">{description}</p>
         )}
@@ -125,18 +141,6 @@ export default function SavingsModalForm({
             Set your income first to enable amount-based editing.
           </p>
         )}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button type="submit" className="summary-save-btn">
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="summary-cancel-btn rounded-theme-small"
-          >
-            Cancel
-          </button>
-        </div>
       </form>
     </Modal>
   );

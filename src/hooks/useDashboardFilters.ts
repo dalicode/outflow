@@ -1,16 +1,18 @@
 import { useState, useMemo } from "react";
-import type { Expense, Category } from "../types";
+import type { Expense, Category, Payee } from "../types";
 
 export function useDashboardFilters(
   expenses: Expense[],
   monthKeys: Array<{ key: string }>,
   categories: Category[],
+  payees: Payee[],
 ) {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [filterGlobal, setFilterGlobal] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterPayee, setFilterPayee] = useState("");
   const [filterDescription, setFilterDescription] = useState("");
   const [filterAmount, setFilterAmount] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
@@ -24,6 +26,14 @@ export function useDashboardFilters(
 
   const getExpenseCategoryName = (exp: Expense) =>
     categoryById[exp.categoryId as number]?.name ?? "Uncategorized";
+
+  const payeeById = useMemo(
+    () => Object.fromEntries(payees.map((p) => [p.id, p])),
+    [payees],
+  );
+
+  const getExpensePayeeName = (exp: Expense) =>
+    payeeById[exp.payeeId as number]?.name ?? "—";
 
   const expensesInSelectedSpan = useMemo(() => {
     const keys = new Set(monthKeys.map((m) => m.key));
@@ -45,6 +55,7 @@ export function useDashboardFilters(
         (e) =>
           e.description?.toLowerCase().includes(q) ||
           getExpenseCategoryName(e).toLowerCase().includes(q) ||
+          getExpensePayeeName(e).toLowerCase().includes(q) ||
           String(e.amount).includes(q),
       );
     }
@@ -58,6 +69,10 @@ export function useDashboardFilters(
 
     if (filterCategory) {
       result = result.filter((e) => getExpenseCategoryName(e) === filterCategory);
+    }
+
+    if (filterPayee) {
+      result = result.filter((e) => getExpensePayeeName(e) === filterPayee);
     }
 
     if (filterDescription) {
@@ -74,10 +89,12 @@ export function useDashboardFilters(
     expensesInSelectedSpan,
     selectedCategories,
     getExpenseCategoryName,
+    getExpensePayeeName,
     filterGlobal,
     filterDateFrom,
     filterDateTo,
     filterCategory,
+    filterPayee,
     filterDescription,
     filterAmount,
   ]);
@@ -87,6 +104,7 @@ export function useDashboardFilters(
     filterDateFrom,
     filterDateTo,
     filterCategory,
+    filterPayee,
     filterDescription,
     filterAmount,
   ].filter(Boolean).length;
@@ -96,6 +114,7 @@ export function useDashboardFilters(
     setFilterDateFrom("");
     setFilterDateTo("");
     setFilterCategory("");
+    setFilterPayee("");
     setFilterDescription("");
     setFilterAmount("");
   };
@@ -111,6 +130,8 @@ export function useDashboardFilters(
     setFilterDateTo,
     filterCategory,
     setFilterCategory,
+    filterPayee,
+    setFilterPayee,
     filterDescription,
     setFilterDescription,
     filterAmount,
@@ -121,6 +142,7 @@ export function useDashboardFilters(
     activeFilterCount,
     clearAllFilters,
     getExpenseCategoryName,
+    getExpensePayeeName,
     expensesInSelectedSpan,
   };
 }

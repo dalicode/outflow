@@ -1,5 +1,6 @@
 export const DASHBOARD_VIEWS = {
   CATEGORIES: "categories",
+  PAYEES: "payees",
   EXPENSES: "expenses",
 } as const;
 

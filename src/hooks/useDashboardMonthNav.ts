@@ -17,6 +17,22 @@ import {
   partsToMonthKey,
 } from "../utils/urlParams";
 
+let didHandleInitialDashboardReload = false;
+
+function isReloadNavigation(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const navigationEntry = window.performance
+    .getEntriesByType("navigation")
+    .at(0) as PerformanceNavigationTiming | undefined;
+
+  if (navigationEntry) {
+    return navigationEntry.type === "reload";
+  }
+
+  return window.performance.navigation?.type === 1;
+}
+
 export function useDashboardMonthNav() {
   const [searchParams, setSearchParams] = useSearchParams();
   const now = new Date();
@@ -49,6 +65,23 @@ export function useDashboardMonthNav() {
     );
     return allowed.length > 0 ? allowed[allowed.length - 1] : 1;
   }, [viewportWidth]);
+
+  useEffect(() => {
+    if (didHandleInitialDashboardReload) return;
+    didHandleInitialDashboardReload = true;
+
+    if (!isReloadNavigation()) return;
+    if (!searchParams.has(DASHBOARD_QUERY_PARAMS.MONTH)) return;
+
+    setSearchParams(
+      (currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+        nextParams.delete(DASHBOARD_QUERY_PARAMS.MONTH);
+        return nextParams;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const target = isSpanSelectorVisible ? maxAvailableSpan : 1;

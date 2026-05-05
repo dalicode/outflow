@@ -4,6 +4,8 @@ import {
   useRef,
   type ReactNode,
   type MouseEventHandler,
+  type PointerEventHandler,
+  type CSSProperties,
 } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
@@ -267,11 +269,36 @@ interface NavItemConfig {
 }
 
 const NAV_ITEMS: NavItemConfig[] = [
-  { pageKey: "dashboard", basePath: ROUTES.DASHBOARD, label: "Dashboard", icon: DashboardIcon },
-  { pageKey: "summary", basePath: ROUTES.SUMMARY, label: "Summary", icon: SummaryIcon },
-  { pageKey: "analytics", basePath: ROUTES.ANALYTICS, label: "Analytics", icon: AnalyticsIcon },
-  { pageKey: "payees", basePath: ROUTES.PAYEES, label: "Payees", icon: PayeesIcon },
-  { pageKey: "settings", basePath: ROUTES.SETTINGS, label: "Settings", icon: SettingsIcon },
+  {
+    pageKey: "dashboard",
+    basePath: ROUTES.DASHBOARD,
+    label: "Dashboard",
+    icon: DashboardIcon,
+  },
+  {
+    pageKey: "summary",
+    basePath: ROUTES.SUMMARY,
+    label: "Summary",
+    icon: SummaryIcon,
+  },
+  {
+    pageKey: "analytics",
+    basePath: ROUTES.ANALYTICS,
+    label: "Analytics",
+    icon: AnalyticsIcon,
+  },
+  {
+    pageKey: "payees",
+    basePath: ROUTES.PAYEES,
+    label: "Payees",
+    icon: PayeesIcon,
+  },
+  {
+    pageKey: "settings",
+    basePath: ROUTES.SETTINGS,
+    label: "Settings",
+    icon: SettingsIcon,
+  },
 ];
 
 interface NavbarProps {
@@ -280,6 +307,7 @@ interface NavbarProps {
   onSignOut?: MouseEventHandler<HTMLButtonElement>;
   userEmail?: string;
   scrollDirection?: "up" | "down" | null;
+  isScrolling?: boolean;
   hidden?: boolean;
 }
 
@@ -289,11 +317,20 @@ export default function Navbar({
   onSignOut,
   userEmail,
   scrollDirection,
+  isScrolling = false,
   hidden = false,
 }: NavbarProps) {
+  const mobileCollapsedHeight = 64;
+  const mobileExpandedHeight = 132;
+  const mobileDragRange = mobileExpandedHeight - mobileCollapsedHeight;
   const [collapsed, setCollapsed] = useState(true);
   const [peekExpanded, setPeekExpanded] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileDragOffset, setMobileDragOffset] = useState(0);
+  const [mobileAutoHidden, setMobileAutoHidden] = useState(false);
   const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mobileDragStartYRef = useRef<number | null>(null);
+  const mobileDragMovedRef = useRef(false);
   const location = useLocation();
   const { getRememberedUrl } = useLastVisitedUrls();
 
@@ -309,6 +346,144 @@ export default function Navbar({
   }, [peekExpanded]);
 
   const sidebarWidth = collapsed ? "w-14" : "w-44";
+  const mobilePrimaryItems = NAV_ITEMS.filter(({ pageKey }) =>
+    ["dashboard", "summary", "analytics", "settings"].includes(pageKey),
+  );
+  const mobileSecondaryItems = NAV_ITEMS.filter(({ pageKey }) =>
+    ["payees"].includes(pageKey),
+  );
+  const mobileBaseHeight = mobileExpanded
+    ? mobileExpandedHeight
+    : mobileCollapsedHeight;
+  const mobileVisibleHeight = Math.max(
+    mobileCollapsedHeight,
+    Math.min(mobileExpandedHeight, mobileBaseHeight + mobileDragOffset),
+  );
+  const mobileExpansionProgress =
+    (mobileVisibleHeight - mobileCollapsedHeight) / mobileDragRange;
+  const mobileNavStyle = {
+    "--mobile-nav-height": `${mobileVisibleHeight}px`,
+    "--mobile-nav-progress": `${mobileExpansionProgress}`,
+  } as CSSProperties;
+  const shouldAutoHideAfterScroll = !isScrolling && scrollDirection === "down";
+  const isMobileNavHidden = !peekExpanded && (hidden || mobileAutoHidden);
+  const renderMobileNavLink = ({
+    pageKey,
+    basePath,
+    label,
+    icon: Icon,
+  }: NavItemConfig) => {
+    const to = getRememberedUrl(pageKey);
+    const isCurrent = location.pathname === basePath;
+
+    return (
+      <NavLink
+        key={pageKey}
+        to={to}
+        end
+        aria-label={label}
+        className={({ isActive }) =>
+          cn(
+            "mobile-nav-link nav-item-hover",
+            isActive ? "text-theme-primary" : "text-theme-muted",
+            isMobileNavHidden && "opacity-0",
+          )
+        }
+      >
+        <Icon active={isCurrent} />
+      </NavLink>
+    );
+  };
+  const handleMobileHandleClick = () => {
+    if (isMobileNavHidden) return;
+    if (mobileDragMovedRef.current) {
+      mobileDragMovedRef.current = false;
+      return;
+    }
+
+    setMobileAutoHidden(false);
+    if (mobileExpanded) {
+      setMobileExpanded(false);
+      setPeekExpanded(true);
+    } else {
+      setPeekExpanded((expanded) => !expanded);
+    }
+    setMobileDragOffset(0);
+  };
+  const handleMobileHandlePointerDown: PointerEventHandler<
+    HTMLButtonElement
+  > = (event) => {
+    if (isMobileNavHidden) return;
+    mobileDragStartYRef.current = event.clientY;
+    mobileDragMovedRef.current = false;
+    setMobileAutoHidden(false);
+    setPeekExpanded(true);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const handleMobileHandlePointerMove: PointerEventHandler<
+    HTMLButtonElement
+  > = (event) => {
+    if (mobileDragStartYRef.current === null) return;
+    const deltaY = mobileDragStartYRef.current - event.clientY;
+    if (Math.abs(deltaY) > 8) {
+      mobileDragMovedRef.current = true;
+    }
+    setMobileDragOffset(deltaY);
+  };
+  const handleMobileHandlePointerUp: PointerEventHandler<HTMLButtonElement> = (
+    event,
+  ) => {
+    if (mobileDragStartYRef.current === null) return;
+
+    const dragDistance = mobileDragStartYRef.current - event.clientY;
+    if (dragDistance > 18 || mobileExpansionProgress > 0.55) {
+      setMobileExpanded(true);
+      setPeekExpanded(true);
+    } else if (dragDistance < -18 || mobileExpansionProgress < 0.45) {
+      setMobileExpanded(false);
+      setPeekExpanded(true);
+    }
+
+    setMobileDragOffset(0);
+    mobileDragMovedRef.current = false;
+    mobileDragStartYRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+  const handleMobileHandlePointerCancel: PointerEventHandler<
+    HTMLButtonElement
+  > = (event) => {
+    mobileDragStartYRef.current = null;
+    mobileDragMovedRef.current = false;
+    setMobileDragOffset(0);
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+
+  useEffect(() => {
+    if (scrollDirection === "up") {
+      if (!isScrolling && !hidden) {
+        setMobileAutoHidden(false);
+      }
+      return;
+    }
+
+    if (peekExpanded && !mobileExpanded && !mobileAutoHidden) return;
+    if (isScrolling) return;
+    if (mobileDragStartYRef.current !== null) return;
+    if (scrollDirection !== "down" && !hidden) return;
+
+    setMobileAutoHidden(shouldAutoHideAfterScroll);
+    setMobileExpanded(false);
+    setMobileDragOffset(0);
+    setPeekExpanded(false);
+  }, [
+    hidden,
+    isScrolling,
+    mobileAutoHidden,
+    mobileExpanded,
+    peekExpanded,
+    scrollDirection,
+    shouldAutoHideAfterScroll,
+  ]);
 
   return (
     <>
@@ -459,92 +634,72 @@ export default function Navbar({
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed inset-x-0 bottom-0 z-30 h-24 pointer-events-none sm:hidden">
+      <div
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-30 pointer-events-none sm:hidden",
+          mobileExpanded ? "h-44" : "h-28",
+        )}
+      >
         {/* Static background coverage layer — only as tall as the nav */}
         <div className="absolute inset-x-0 bottom-0 h-[calc(0.5rem+env(safe-area-inset-bottom))] bg-theme-background" />
 
         {/* Animated navbar UI */}
         <nav
           className={cn(
-            "pointer-events-auto absolute inset-x-0 bottom-0",
+            "absolute inset-x-0 bottom-0",
+            isMobileNavHidden ? "pointer-events-none" : "pointer-events-auto",
             "mobile-nav-bounce",
-            !peekExpanded &&
-              (scrollDirection === "down" || hidden) &&
-              "translate-y-[calc(100%-12px)] overflow-hidden",
+            isMobileNavHidden &&
+              "translate-y-[calc(100%-18px)] overflow-hidden",
           )}
         >
-          <div className="mobile-nav-container">
-            {NAV_ITEMS.slice(0, 2).map(({ pageKey, basePath, icon: Icon }) => {
-              const to = getRememberedUrl(pageKey);
-              return (
-                <NavLink
-                  key={pageKey}
-                  to={to}
-                  end
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center justify-center w-14 h-16 nav-item-hover",
-                      isActive ? "text-theme-primary" : "text-theme-muted",
-                      !peekExpanded &&
-                        (scrollDirection === "down" || hidden) &&
-                        "opacity-0",
-                    )
-                  }
-                >
-                  <Icon active={location.pathname === basePath} />
-                </NavLink>
-              );
-            })}
-
+          <div
+            className="mobile-nav-container"
+            data-expanded={mobileExpanded ? "true" : "false"}
+            data-dragging={
+              mobileDragStartYRef.current !== null ? "true" : "false"
+            }
+            style={mobileNavStyle}
+          >
             <button
-              onClick={onAddExpense}
-              className={cn(
-                "mobile-add-btn",
-                !peekExpanded &&
-                  (scrollDirection === "down" || hidden) &&
-                  "opacity-0",
-              )}
-              aria-label="Add expense"
+              type="button"
+              onClick={handleMobileHandleClick}
+              onPointerDown={handleMobileHandlePointerDown}
+              onPointerMove={handleMobileHandlePointerMove}
+              onPointerUp={handleMobileHandlePointerUp}
+              onPointerCancel={handleMobileHandlePointerCancel}
+              className="mobile-nav-handle"
+              aria-label={
+                mobileExpanded ? "Collapse navigation" : "Expand navigation"
+              }
+              aria-expanded={mobileExpanded}
             >
-              <PlusIcon />
+              <span />
             </button>
 
-            {NAV_ITEMS.slice(2).map(({ pageKey, basePath, icon: Icon }) => {
-              const to = getRememberedUrl(pageKey);
-              return (
-                <NavLink
-                  key={pageKey}
-                  to={to}
-                  end
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center justify-center w-14 h-16 nav-item-hover",
-                      isActive ? "text-theme-primary" : "text-theme-muted",
-                      !peekExpanded &&
-                        (scrollDirection === "down" || hidden) &&
-                        "opacity-0",
-                    )
-                  }
-                >
-                  <Icon active={location.pathname === basePath} />
-                </NavLink>
-              );
-            })}
+            <div className="mobile-nav-row">
+              {renderMobileNavLink(mobilePrimaryItems[0])}
+              {renderMobileNavLink(mobilePrimaryItems[1])}
+              <button
+                onClick={onAddExpense}
+                className={cn(
+                  "mobile-add-btn",
+                  isMobileNavHidden && "opacity-0",
+                )}
+                aria-label="Add expense"
+              >
+                <PlusIcon />
+              </button>
+              {renderMobileNavLink(mobilePrimaryItems[2])}
+              {renderMobileNavLink(mobilePrimaryItems[3])}
+            </div>
+
+            {mobileExpansionProgress > 0 && (
+              <div className="mobile-nav-row mobile-nav-row-secondary">
+                {mobileSecondaryItems.map(renderMobileNavLink)}
+              </div>
+            )}
           </div>
-
-          {/* Peek handle — visible when nav is partially hidden */}
-          {!peekExpanded && (scrollDirection === "down" || hidden) && (
-            <button
-              onClick={() => setPeekExpanded(true)}
-              className="absolute top-0 left-0 right-0 h-3 flex items-center justify-center z-10"
-              aria-label="Show navigation"
-            >
-              <span
-                className="w-8 h-1 rounded-full"
-                style={{ backgroundColor: "var(--theme-muted)", opacity: 0.6 }}
-              />
-            </button>
-          )}
         </nav>
       </div>
     </>

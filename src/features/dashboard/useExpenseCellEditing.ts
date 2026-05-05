@@ -62,10 +62,6 @@ export interface CellEditingAPI {
 interface UseExpenseCellEditingParams {
   expenses: Expense[];
   onUpdate: (id: number, changes: Partial<Expense>) => void;
-  optimistic: Record<number, Partial<Expense>>;
-  setOptimistic: React.Dispatch<
-    React.SetStateAction<Record<number, Partial<Expense>>>
-  >;
   isMobile: boolean;
   selectedIds: Set<number>;
   onToggleSelect: (id: number) => void;
@@ -76,8 +72,6 @@ interface UseExpenseCellEditingParams {
 export function useExpenseCellEditing({
   expenses,
   onUpdate,
-  optimistic: _optimistic,
-  setOptimistic,
   isMobile,
   selectedIds,
   onToggleSelect,
@@ -237,10 +231,6 @@ export function useExpenseCellEditing({
         }
 
         onUpdate(expenseId, { [field]: value } as Partial<Expense>);
-        setOptimistic((prev) => ({
-          ...prev,
-          [expenseId]: { ...prev[expenseId], [field]: value },
-        }));
 
         if (options?.stayInEdit) return;
 
@@ -256,7 +246,7 @@ export function useExpenseCellEditing({
         }
       };
     },
-    [onUpdate, setOptimistic],
+    [onUpdate],
   );
 
   const createOnCancel = useCallback(() => {

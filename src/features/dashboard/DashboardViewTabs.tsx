@@ -7,6 +7,7 @@ interface DashboardViewTabsProps {
   activeFilterCount: number;
   hasCategoryFilter: boolean;
   onSwitchToCategories: () => void;
+  onSwitchToPayees: () => void;
   onSwitchToExpenses: () => void;
   onOpenFilters: () => void;
   onResetCategoryFilter: () => void;
@@ -17,6 +18,7 @@ export default function DashboardViewTabs({
   viewMode,
   activeFilterCount,
   onSwitchToCategories,
+  onSwitchToPayees,
   onSwitchToExpenses,
   onOpenFilters,
   monthSpan,
@@ -48,6 +50,17 @@ export default function DashboardViewTabs({
               )}
             >
               Categories
+            </button>
+            <button
+              onClick={onSwitchToPayees}
+              className={cn(
+                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-colors",
+                viewMode === DASHBOARD_VIEWS.PAYEES
+                  ? "bg-theme-surface text-theme-text"
+                  : "bg-theme-background text-theme-muted hover:text-theme-text",
+              )}
+            >
+              Payees
             </button>
             <button
               onClick={onSwitchToExpenses}

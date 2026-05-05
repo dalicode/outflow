@@ -49,9 +49,9 @@
   flex: 1 1 0%;
   background-color: var(--theme-primary);
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0;
   border-radius: var(--radius-small);
   transition: opacity 0.15s ease;
 }

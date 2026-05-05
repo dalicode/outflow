@@ -57,27 +57,6 @@ export default function ExpenseTable({
     null,
   );
 
-  const [optimistic, setOptimistic] = useState<
-    Record<number, Partial<Expense>>
-  >({});
-
-  useEffect(() => {
-    setOptimistic((prev) => {
-      const next: Record<number, Partial<Expense>> = {};
-      for (const [idStr, overrides] of Object.entries(prev)) {
-        const id = Number(idStr);
-        const exp = expenses.find((e) => e.id === id);
-        if (!exp) continue;
-        const stillHasOverride = Object.entries(overrides).some(
-          ([key, val]) =>
-            (exp as unknown as Record<string, unknown>)[key] !== val,
-        );
-        if (stillHasOverride) next[id] = overrides;
-      }
-      return next;
-    });
-  }, [expenses]);
-
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
 
@@ -132,8 +111,6 @@ export default function ExpenseTable({
   const editing = useExpenseCellEditing({
     expenses,
     onUpdate,
-    optimistic,
-    setOptimistic,
     isMobile,
     selectedIds,
     onToggleSelect,
@@ -208,7 +185,6 @@ export default function ExpenseTable({
         activeCategories,
         activePayees,
         payeeMap,
-        optimistic,
         refreshCategories,
         refreshPayees,
         decimalPlaces: parseInt(settings.decimalPlaces, 10) || 2,
@@ -225,7 +201,6 @@ export default function ExpenseTable({
       activeCategories,
       activePayees,
       payeeMap,
-      optimistic,
       refreshCategories,
       refreshPayees,
       settings.decimalPlaces,

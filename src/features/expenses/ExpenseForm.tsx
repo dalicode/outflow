@@ -447,19 +447,20 @@ export default function ExpenseForm({
         onClose={onClose}
         title={isEdit ? "Edit Expense" : "Add Expense"}
         size="md"
+        mobileFullScreen
         footer={
           <ModalFooter>
             <button
               type="button"
               onClick={onClose}
-              className="btn-cancel-sm flex-1"
+              className="btn-cancel-sm hidden flex-1 sm:inline-flex"
             >
               Cancel
             </button>
             <button
               type="submit"
               form="expense-form"
-              className="btn-save-expense flex-1"
+              className="btn-save-expense min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
             >
               {isEdit ? "Save Changes" : "Save Expense"}
             </button>

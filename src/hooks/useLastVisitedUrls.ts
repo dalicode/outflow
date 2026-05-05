@@ -14,6 +14,9 @@ const PAGE_KEYS: Record<string, string> = {
 
 type PageKey = keyof typeof PAGE_KEYS;
 
+const TRANSIENT_PAGE_KEYS = new Set<PageKey>(["dashboard"]);
+const transientLastUrls: Partial<Record<PageKey, string>> = {};
+
 function getPageKeyFromPathname(pathname: string): PageKey | null {
   for (const [key, route] of Object.entries(PAGE_KEYS)) {
     if (route === "/") {
@@ -54,8 +57,14 @@ export function useLastVisitedUrls() {
     if (!pageKey) return;
 
     const currentUrl = `${location.pathname}${location.search}`;
-    const lastUrls = loadLastUrls();
+    if (TRANSIENT_PAGE_KEYS.has(pageKey)) {
+      if (transientLastUrls[pageKey] === currentUrl) return;
+      transientLastUrls[pageKey] = currentUrl;
+      savedRef.current = currentUrl;
+      return;
+    }
 
+    const lastUrls = loadLastUrls();
     if (lastUrls[pageKey] === currentUrl) return;
 
     lastUrls[pageKey] = currentUrl;
@@ -64,6 +73,10 @@ export function useLastVisitedUrls() {
   }, [location.pathname, location.search]);
 
   const getRememberedUrl = useCallback((pageKey: PageKey): string => {
+    if (TRANSIENT_PAGE_KEYS.has(pageKey)) {
+      return transientLastUrls[pageKey] ?? PAGE_KEYS[pageKey];
+    }
+
     const lastUrls = loadLastUrls();
     return lastUrls[pageKey] ?? PAGE_KEYS[pageKey];
   }, []);

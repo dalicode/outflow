@@ -31,6 +31,10 @@ export function useDashboardView(
     useState<number>(0);
   const drilldownRef = useRef<HTMLDivElement>(null);
 
+  const [drilldownPayee, setDrilldownPayee] = useState<string | null>(null);
+  const [drilldownPayeeMonthIndex, setDrilldownPayeeMonthIndex] =
+    useState<number>(0);
+
   useEffect(() => {
     scrollableRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [location.pathname]);
@@ -88,10 +92,18 @@ export function useDashboardView(
       const deltaX = e.changedTouches[0].clientX - touchStartX;
       if (Math.abs(deltaX) < 80) return;
 
-      if (deltaX < 0 && viewMode === DASHBOARD_VIEWS.CATEGORIES) {
-        setViewMode(DASHBOARD_VIEWS.EXPENSES, "slide-right");
-      } else if (deltaX > 0 && viewMode === DASHBOARD_VIEWS.EXPENSES) {
-        setViewMode(DASHBOARD_VIEWS.CATEGORIES, "slide-left");
+      if (deltaX < 0) {
+        if (viewMode === DASHBOARD_VIEWS.CATEGORIES) {
+          setViewMode(DASHBOARD_VIEWS.PAYEES, "slide-right");
+        } else if (viewMode === DASHBOARD_VIEWS.PAYEES) {
+          setViewMode(DASHBOARD_VIEWS.EXPENSES, "slide-right");
+        }
+      } else if (deltaX > 0) {
+        if (viewMode === DASHBOARD_VIEWS.EXPENSES) {
+          setViewMode(DASHBOARD_VIEWS.PAYEES, "slide-left");
+        } else if (viewMode === DASHBOARD_VIEWS.PAYEES) {
+          setViewMode(DASHBOARD_VIEWS.CATEGORIES, "slide-left");
+        }
       }
       setTouchStartX(null);
     },
@@ -117,9 +129,35 @@ export function useDashboardView(
     setDrilldownCategory(null);
   }, []);
 
+  const handlePayeeClick = useCallback(
+    (name: string, monthIndex: number) => {
+      if (
+        drilldownPayee === name &&
+        drilldownPayeeMonthIndex === monthIndex
+      ) {
+        setDrilldownPayee(null);
+      } else {
+        setDrilldownPayee(name);
+        setDrilldownPayeeMonthIndex(monthIndex);
+      }
+    },
+    [drilldownPayee, drilldownPayeeMonthIndex],
+  );
+
+  const closePayeeDrilldown = useCallback(() => {
+    setDrilldownPayee(null);
+  }, []);
+
   const switchToCategories = useCallback(() => {
     setViewMode(DASHBOARD_VIEWS.CATEGORIES, "slide-left");
   }, [setViewMode]);
+
+  const switchToPayees = useCallback(() => {
+    setViewMode(
+      DASHBOARD_VIEWS.PAYEES,
+      viewMode === DASHBOARD_VIEWS.CATEGORIES ? "slide-right" : "slide-left",
+    );
+  }, [setViewMode, viewMode]);
 
   const switchToExpenses = useCallback(() => {
     setViewMode(DASHBOARD_VIEWS.EXPENSES, "slide-right");
@@ -137,7 +175,12 @@ export function useDashboardView(
     handleTouchEnd,
     handleCategoryClick,
     closeDrilldown,
+    drilldownPayee,
+    drilldownPayeeMonthIndex,
+    handlePayeeClick,
+    closePayeeDrilldown,
     switchToCategories,
+    switchToPayees,
     switchToExpenses,
   };
 }

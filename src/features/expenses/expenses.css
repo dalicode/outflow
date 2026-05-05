@@ -10,11 +10,11 @@
 /* Full-width save button (ExpenseForm) */
 .btn-save-expense {
   width: 100%;
-  border-radius: var(--radius-medium);
+  border-radius: var(--radius-small);
   background-color: var(--theme-primary);
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  font-size: 0.875rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: #ffffff;
   transition: opacity 0.15s ease;

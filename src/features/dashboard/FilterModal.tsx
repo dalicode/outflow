@@ -3,13 +3,14 @@ import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
 import DatePicker from "../../components/inputs/DatePicker";
 import { normalizeName } from "../../utils/normalizeName";
-import type { Category } from "../../types";
+import type { Category, Payee } from "../../types";
 
 interface FilterDraft {
   filterGlobal: string;
   filterDateFrom: string;
   filterDateTo: string;
   filterCategory: string;
+  filterPayee: string;
   filterDescription: string;
   filterAmount: string;
 }
@@ -20,6 +21,7 @@ interface FilterModalProps {
   appliedFilters: FilterDraft;
   onApply: (filters: FilterDraft) => void;
   categories: Category[];
+  payees: Payee[];
 }
 
 const EMPTY_DRAFT: FilterDraft = {
@@ -27,6 +29,7 @@ const EMPTY_DRAFT: FilterDraft = {
   filterDateFrom: "",
   filterDateTo: "",
   filterCategory: "",
+  filterPayee: "",
   filterDescription: "",
   filterAmount: "",
 };
@@ -37,6 +40,7 @@ export default function FilterModal({
   appliedFilters,
   onApply,
   categories,
+  payees,
 }: FilterModalProps) {
   const [draft, setDraft] = useState<FilterDraft>(EMPTY_DRAFT);
 
@@ -114,22 +118,44 @@ export default function FilterModal({
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-theme-muted mb-1">
-            Category
-          </label>
-          <select
-            value={draft.filterCategory}
-            onChange={(e) => set("filterCategory")(e.target.value)}
-            className="input-theme w-full px-3 py-2 text-sm"
-          >
-            <option value="">All categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>
-                {normalizeName(c.name)}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-theme-muted mb-1">
+              Category
+            </label>
+            <select
+              value={draft.filterCategory}
+              onChange={(e) => set("filterCategory")(e.target.value)}
+              className="input-theme w-full px-3 py-2 text-sm"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {normalizeName(c.name)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-theme-muted mb-1">
+              Payee
+            </label>
+            <select
+              value={draft.filterPayee}
+              onChange={(e) => set("filterPayee")(e.target.value)}
+              className="input-theme w-full px-3 py-2 text-sm"
+            >
+              <option value="">All payees</option>
+              {payees
+                .filter((p) => !p.isArchived)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {normalizeName(p.name)}
+                  </option>
+                ))}
+            </select>
+          </div>
         </div>
 
         <div>

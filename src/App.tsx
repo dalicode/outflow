@@ -196,9 +196,29 @@ export default function App() {
   };
 
   const handleUpdate = async (id: number, changes: Partial<Expense>) => {
-    await StorageService.update(id, changes);
-    setExpenses(await StorageService.getAll());
-    triggerSync?.();
+    let previousExpense: Expense | null = null;
+
+    setExpenses((prev) =>
+      prev.map((expense) => {
+        if (expense.id !== id) return expense;
+        previousExpense = expense;
+        return { ...expense, ...changes };
+      }),
+    );
+
+    try {
+      await StorageService.update(id, changes);
+      triggerSync?.();
+    } catch (error) {
+      if (previousExpense) {
+        setExpenses((prev) =>
+          prev.map((expense) =>
+            expense.id === id ? previousExpense! : expense,
+          ),
+        );
+      }
+      throw error;
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -234,6 +254,7 @@ export default function App() {
               onSignOut={supabase ? signOut : undefined}
               userEmail={user?.email}
               scrollDirection={direction}
+              isScrolling={isScrolling}
               hidden={mobileSelectionActive}
             />
             <main

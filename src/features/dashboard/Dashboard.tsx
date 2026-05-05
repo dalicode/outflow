@@ -21,6 +21,8 @@ import ExpensesView from "./ExpensesView";
 import FilterModal from "./FilterModal";
 import CategoryViewTable from "./CategoryViewTable";
 import CategoryDrilldown from "./CategoryDrilldown";
+import PayeeViewTable from "./PayeeViewTable";
+import PayeeDrilldown from "./PayeeDrilldown";
 import { DASHBOARD_VIEWS } from "./constants";
 import type { Expense, Category, Payee } from "../../types";
 
@@ -55,6 +57,7 @@ export default function Dashboard({
   const dash = useDashboard(
     expenses,
     categories,
+    payees,
     onBulkDelete,
     onSelectionChange,
   );
@@ -161,6 +164,7 @@ export default function Dashboard({
         activeFilterCount={dash.activeFilterCount}
         hasCategoryFilter={dash.selectedCategories.size > 0}
         onSwitchToCategories={dash.switchToCategories}
+        onSwitchToPayees={dash.switchToPayees}
         onSwitchToExpenses={dash.switchToExpenses}
         onOpenFilters={() => dash.setIsFilterModalOpen(true)}
         onResetCategoryFilter={() => dash.setSelectedCategories(new Set())}
@@ -276,6 +280,47 @@ export default function Dashboard({
                     />
                   )}
                 </div>
+              ) : dash.viewMode === DASHBOARD_VIEWS.PAYEES ? (
+                <div
+                  className={cn(
+                    "space-y-4",
+                    dash.viewAnimation === "slide-left" && "view-slide-left",
+                    dash.viewAnimation === "slide-right" && "view-slide-right",
+                  )}
+                >
+                  <PayeeViewTable
+                    multiPayeeRows={dash.multiPayeeRows}
+                    monthKeys={dash.monthKeys}
+                    monthSpan={dash.monthSpan}
+                    showGrandTotal={dash.showGrandTotal}
+                    onPayeeClick={dash.handlePayeeClick}
+                    formatAmount={formatAmount}
+                    getNumberColorClass={getNumberColorClass}
+                  />
+
+                  {dash.drilldownPayee && dash.drilldownPayeeExpenses.length > 0 && (
+                    <PayeeDrilldown
+                      ref={dash.drilldownRef}
+                      payee={dash.drilldownPayee}
+                      monthName={
+                        dash.monthKeys[dash.drilldownPayeeMonthIndex].name
+                      }
+                      year={
+                        dash.monthKeys[dash.drilldownPayeeMonthIndex].year
+                      }
+                      expenses={dash.drilldownPayeeExpenses}
+                      formatDate={formatDate}
+                      formatAmount={formatAmount}
+                      resolveName={dash.getExpenseCategoryName}
+                      resolvePayeeName={(exp) => {
+                        const p = payeeMap[exp.payeeId as number];
+                        return p ? normalizeName(p.name) : "";
+                      }}
+                      onClose={dash.closePayeeDrilldown}
+                      isMobile={isMobile}
+                    />
+                  )}
+                </div>
               ) : (
                 <ExpensesView
                   expenses={dash.filteredExpenses}
@@ -342,6 +387,7 @@ export default function Dashboard({
             filterDateFrom: dash.filterDateFrom,
             filterDateTo: dash.filterDateTo,
             filterCategory: dash.filterCategory,
+            filterPayee: dash.filterPayee,
             filterDescription: dash.filterDescription,
             filterAmount: dash.filterAmount,
           }}
@@ -350,10 +396,12 @@ export default function Dashboard({
             dash.setFilterDateFrom(draft.filterDateFrom);
             dash.setFilterDateTo(draft.filterDateTo);
             dash.setFilterCategory(draft.filterCategory);
+            dash.setFilterPayee(draft.filterPayee);
             dash.setFilterDescription(draft.filterDescription);
             dash.setFilterAmount(draft.filterAmount);
           }}
           categories={categories}
+          payees={payees}
         />
       </div>
     </div>

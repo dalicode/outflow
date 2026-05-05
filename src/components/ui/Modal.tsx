@@ -21,6 +21,7 @@ interface ModalProps {
   children?: ReactNode;
   footer?: ReactNode;
   size?: ModalSize;
+  mobileFullScreen?: boolean;
   mobileActionLabel?: string;
   onMobileAction?: () => void;
   mobileActionDisabled?: boolean;
@@ -37,6 +38,41 @@ const sizeMap: Record<ModalSize, string> = {
   full: "sm:max-w-3xl",
 };
 
+interface ViewportMetrics {
+  width: number;
+  height: number;
+  offsetTop: number;
+  keyboardInset: number;
+}
+
+function getViewportMetrics(): ViewportMetrics {
+  if (typeof window === "undefined") {
+    return { width: 0, height: 0, offsetTop: 0, keyboardInset: 0 };
+  }
+
+  const viewport = window.visualViewport;
+  if (!viewport) {
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      offsetTop: 0,
+      keyboardInset: 0,
+    };
+  }
+
+  const keyboardInset = Math.max(
+    0,
+    window.innerHeight - viewport.height - viewport.offsetTop,
+  );
+
+  return {
+    width: viewport.width,
+    height: viewport.height,
+    offsetTop: viewport.offsetTop,
+    keyboardInset,
+  };
+}
+
 export default function Modal({
   isOpen,
   onClose,
@@ -45,6 +81,7 @@ export default function Modal({
   children,
   footer,
   size = "md",
+  mobileFullScreen = false,
   mobileActionLabel,
   onMobileAction,
   mobileActionDisabled,
@@ -57,6 +94,8 @@ export default function Modal({
   const myDepthRef = useRef(0);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [viewportMetrics, setViewportMetrics] =
+    useState<ViewportMetrics>(getViewportMetrics);
 
   const handleScroll = useCallback(() => {
     setIsScrolling(true);
@@ -124,25 +163,64 @@ export default function Modal({
     [onClose, closeOnBackdropClick],
   );
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
 
-  const isFullScreenMobile = size === "xl" || size === "full";
+    const updateViewportMetrics = () => {
+      setViewportMetrics(getViewportMetrics());
+    };
+
+    updateViewportMetrics();
+
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", updateViewportMetrics);
+    viewport?.addEventListener("scroll", updateViewportMetrics);
+    window.addEventListener("resize", updateViewportMetrics);
+
+    return () => {
+      viewport?.removeEventListener("resize", updateViewportMetrics);
+      viewport?.removeEventListener("scroll", updateViewportMetrics);
+      window.removeEventListener("resize", updateViewportMetrics);
+    };
+  }, [isOpen]);
+
+  const isFullScreenMobile =
+    mobileFullScreen || size === "xl" || size === "full";
   const hasHeader = title || description;
+  const isMobileViewport = viewportMetrics.width < 640;
+  const mobileCardMaxHeight = Math.max(0, viewportMetrics.height - 24);
+  const hasMobileAction = isFullScreenMobile && Boolean(onMobileAction);
+
+  const overlayStyle = isMobileViewport
+    ? {
+        top: `${viewportMetrics.offsetTop}px`,
+        height: `${viewportMetrics.height}px`,
+      }
+    : undefined;
+
+  const modalCardStyle = isMobileViewport
+    ? isFullScreenMobile
+      ? { height: `${viewportMetrics.height}px` }
+      : { maxHeight: `${mobileCardMaxHeight}px` }
+    : undefined;
+
+  if (!isOpen) return null;
 
   const modalContent = (
     <div
       className={cn(
         "fixed left-0 top-0 right-0 bottom-0 z-50",
-        "flex items-start justify-center",
+        "flex justify-center",
         isFullScreenMobile
-          ? "bg-theme-surface sm:bg-black/40 sm:pt-[10vh]"
-          : "bg-black/40 p-4 pt-[20vh]",
+          ? "items-stretch bg-theme-surface sm:items-start sm:bg-black/40 sm:pt-[10vh]"
+          : "items-center bg-black/40 p-3 sm:items-start sm:p-4 sm:pt-[20vh]",
       )}
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? "modal-title" : undefined}
       aria-describedby={description ? "modal-description" : undefined}
+      style={overlayStyle}
     >
       <div
         ref={containerRef}
@@ -150,10 +228,11 @@ export default function Modal({
         className={cn(
           "m-0 flex flex-col overflow-hidden bg-theme-surface",
           isFullScreenMobile
-            ? "h-[100dvh] w-screen rounded-none sm:h-auto sm:max-h-[80vh] sm:w-full sm:rounded-theme-large sm:border border-theme-border sm:shadow-xl"
-            : "h-auto max-h-[85vh] w-full rounded-theme-large border border-theme-border shadow-lg",
+            ? "h-full w-screen rounded-none sm:h-auto sm:max-h-[80vh] sm:w-full sm:rounded-theme-large sm:border border-theme-border sm:shadow-xl"
+            : "h-auto w-full rounded-theme-large border border-theme-border shadow-lg sm:max-h-[85vh]",
           sizeMap[size],
         )}
+        style={modalCardStyle}
       >
         {/* Mobile full-screen header */}
         {isFullScreenMobile && (
@@ -174,29 +253,7 @@ export default function Modal({
                 {title}
               </h2>
             )}
-            {onMobileAction ? (
-              <button
-                type="button"
-                onClick={onMobileAction}
-                disabled={mobileActionDisabled}
-                className={cn(
-                  "text-sm font-semibold",
-                  mobileActionDisabled
-                    ? "text-theme-muted opacity-50 cursor-not-allowed"
-                    : "text-theme-primary",
-                )}
-              >
-                {mobileActionLabel}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-sm font-medium text-theme-muted hover:text-theme-text"
-              >
-                Cancel
-              </button>
-            )}
+            <div className="w-14" aria-hidden="true" />
           </div>
         )}
 
@@ -251,10 +308,32 @@ export default function Modal({
         </div>
 
         {/* Footer */}
+        {hasMobileAction && (
+          <div
+            className={cn(
+              "shrink-0 border-t border-theme-border bg-theme-surface sm:hidden",
+              "px-4 py-3",
+              "pb-[max(env(safe-area-inset-bottom),0.75rem)]",
+            )}
+          >
+            <button
+              type="button"
+              onClick={onMobileAction}
+              disabled={mobileActionDisabled}
+              className={cn(
+                "btn-modal-primary min-h-12 w-full text-base",
+                mobileActionDisabled && "cursor-not-allowed opacity-50",
+              )}
+            >
+              {mobileActionLabel}
+            </button>
+          </div>
+        )}
         {footer && (
           <div
             className={cn(
               "shrink-0 border-t border-theme-border bg-theme-surface",
+              hasMobileAction && "hidden sm:block",
               "px-4 py-3 sm:px-5",
               "pb-[max(env(safe-area-inset-bottom),0.75rem)]",
             )}

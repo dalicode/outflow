@@ -127,4 +127,133 @@ describe('Navbar', () => {
     expect(collapseButton).toHaveClass('opacity-0')
     expect(collapseButton).toHaveClass('group-hover:opacity-100')
   })
+
+  it('keeps mobile navigation to five primary actions on click and reserves payees for drag expansion', () => {
+    renderNavbar({ onAddExpense: vi.fn() })
+
+    expect(screen.getByLabelText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByLabelText('Summary')).toBeInTheDocument()
+    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
+    expect(screen.getByLabelText('Settings')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Expand navigation'))
+
+    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  it('expands and collapses mobile navigation with a vertical drag', () => {
+    renderNavbar({ onAddExpense: vi.fn() })
+
+    const expandHandle = screen.getByLabelText('Expand navigation')
+    fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
+    fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
+    fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
+
+    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+
+    const collapseHandle = screen.getByLabelText('Collapse navigation')
+    fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
+    fireEvent.pointerMove(collapseHandle, { clientY: 120, pointerId: 1 })
+    fireEvent.pointerUp(collapseHandle, { clientY: 120, pointerId: 1 })
+
+    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+  })
+
+  it('collapses the second row back to the first row on click', () => {
+    renderNavbar({ onAddExpense: vi.fn() })
+
+    const expandHandle = screen.getByLabelText('Expand navigation')
+    fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
+    fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
+    fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
+
+    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Collapse navigation'))
+
+    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  it('waits for downward scrolling to stop before auto-collapsing the mobile navbar', () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <Navbar onAddExpense={vi.fn()} scrollDirection={null} isScrolling={false} />
+      </MemoryRouter>,
+    )
+
+    const expandHandle = screen.getByLabelText('Expand navigation')
+    fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
+    fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
+    fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
+
+    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+
+    rerender(
+      <MemoryRouter>
+        <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+
+    rerender(
+      <MemoryRouter>
+        <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
+      'translate-y-[calc(100%-18px)]',
+    )
+
+    fireEvent.click(screen.getByLabelText('Expand navigation'))
+
+    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
+      'translate-y-[calc(100%-18px)]',
+    )
+
+    rerender(
+      <MemoryRouter>
+        <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />
+      </MemoryRouter>,
+    )
+
+    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
+      'translate-y-[calc(100%-18px)]',
+    )
+
+    rerender(
+      <MemoryRouter>
+        <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />
+      </MemoryRouter>,
+    )
+
+    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
+      'translate-y-[calc(100%-18px)]',
+    )
+
+    rerender(
+      <MemoryRouter>
+        <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />
+      </MemoryRouter>,
+    )
+
+    expect(document.body.querySelector('nav.mobile-nav-bounce')).not.toHaveClass(
+      'translate-y-[calc(100%-18px)]',
+    )
+  })
 })
