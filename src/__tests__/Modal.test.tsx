@@ -98,6 +98,36 @@ describe('Modal', () => {
     expect(document.body.querySelector('.sm\\:max-w-lg')).toBeInTheDocument()
   })
 
+  it('positions small desktop modals 15 percent from the top', () => {
+    setVisualViewport(1280, 900)
+
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="md">
+        Content
+      </Modal>,
+    )
+
+    const overlay = document.body.querySelector('[role="dialog"]') as HTMLElement
+
+    expect(overlay).toHaveClass('sm:items-start')
+    expect(overlay).toHaveClass('sm:pt-[15vh]')
+  })
+
+  it('centers large desktop modals', () => {
+    setVisualViewport(1280, 900)
+
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="xl">
+        Content
+      </Modal>,
+    )
+
+    const overlay = document.body.querySelector('[role="dialog"]') as HTMLElement
+
+    expect(overlay).toHaveClass('sm:items-center')
+    expect(overlay).toHaveClass('sm:pt-4')
+  })
+
   it('calls onClose when pressing Escape', () => {
     const onClose = vi.fn()
     render(

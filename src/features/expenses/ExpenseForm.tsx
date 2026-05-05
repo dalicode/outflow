@@ -1,15 +1,27 @@
-import { useState, useMemo, type FormEvent } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+  type FormEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import { useSettings } from "../../context/settingsContext";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
-import CreatableCombobox from "../../components/inputs/CreatableCombobox";
 import MobileEntityPicker from "../../components/inputs/MobileEntityPicker";
 import DatePicker from "../../components/inputs/DatePicker";
-import { ChevronRightIcon } from "../../components/ui/IconButton";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
+import {
+  getFilteredOptions,
+  hasExactMatch,
+  type ComboboxOption,
+} from "../../components/inputs/comboboxUtils";
 import { normalizeName } from "../../utils/normalizeName";
 import { usePayees } from "../../hooks/useLocalData";
 import { StorageService } from "../../services/storageService";
+import { cn } from "../../utils/cn";
 import "./expenses.css";
 import type { Expense, Category, Payee } from "../../types";
 
@@ -29,6 +41,312 @@ function getFormFromExpense(expense: Expense) {
     description: expense.description ?? "",
     amount: String(expense.amount ?? ""),
   };
+}
+
+interface SingleSelectTriggerProps {
+  value?: string;
+  placeholder: string;
+  isOpen: boolean;
+  onClick: () => void;
+}
+
+function SingleSelectTrigger({
+  value,
+  placeholder,
+  isOpen,
+  onClick,
+}: SingleSelectTriggerProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-left text-sm transition-colors"
+    >
+      <span
+        className={cn(
+          "min-w-0 truncate",
+          value ? "text-theme-text" : "text-theme-muted",
+        )}
+      >
+        {value || placeholder}
+      </span>
+      <svg
+        className={cn(
+          "h-4 w-4 shrink-0 text-theme-muted transition-transform",
+          isOpen && "rotate-180",
+        )}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="m6 9 6 6 6-6"
+        />
+      </svg>
+    </button>
+  );
+}
+
+interface DesktopSingleSelectDropdownProps {
+  value?: string | number;
+  options: ComboboxOption[];
+  placeholder: string;
+  emptyMessage: string;
+  createHint?: string;
+  allowCreate?: boolean;
+  allowClear?: boolean;
+  clearLabel?: string;
+  onChange: (id: string | number | undefined) => void;
+  onCreate?: (name: string) => Promise<string | number>;
+}
+
+function DesktopSingleSelectDropdown({
+  value,
+  options,
+  placeholder,
+  emptyMessage,
+  createHint = "Type a new name to add it.",
+  allowCreate = false,
+  allowClear = false,
+  clearLabel = "Clear selection",
+  onChange,
+  onCreate,
+}: DesktopSingleSelectDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [panelStyle, setPanelStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedOption = useMemo(
+    () => options.find((option) => option.id === value),
+    [options, value],
+  );
+
+  const filteredOptions = useMemo(
+    () => getFilteredOptions(options, query),
+    [options, query],
+  );
+
+  const showCreateOption =
+    allowCreate && onCreate && query.trim() && !hasExactMatch(options, query);
+  const showCreateHint = allowCreate && onCreate && !query.trim();
+
+  const updatePanelPosition = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    setPanelStyle({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setQuery("");
+      setCreateError(null);
+      setPanelStyle(null);
+      return;
+    }
+
+    updatePanelPosition();
+
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        triggerRef.current?.contains(target) ||
+        panelRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    window.addEventListener("resize", updatePanelPosition);
+    window.addEventListener("scroll", updatePanelPosition, true);
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", updatePanelPosition);
+      window.removeEventListener("scroll", updatePanelPosition, true);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isOpen, updatePanelPosition]);
+
+  const handleSelect = (id: string | number | undefined) => {
+    onChange(id);
+    setIsOpen(false);
+  };
+
+  const handleCreate = async () => {
+    if (!onCreate || isCreating) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const newId = await onCreate(trimmed);
+      onChange(newId);
+      setIsOpen(false);
+    } catch (err) {
+      setCreateError((err as Error).message);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  return (
+    <div ref={triggerRef} className="relative">
+      <SingleSelectTrigger
+        value={selectedOption?.label}
+        placeholder={placeholder}
+        isOpen={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+      />
+      {isOpen &&
+        panelStyle &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="fixed z-[70] rounded-theme-medium border border-theme-border bg-theme-background p-2 shadow-lg"
+            style={{
+              top: panelStyle.top,
+              left: panelStyle.left,
+              width: panelStyle.width,
+            }}
+          >
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setCreateError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (showCreateOption && filteredOptions.length === 0) {
+                  void handleCreate();
+                  return;
+                }
+                if (filteredOptions[0]) {
+                  handleSelect(filteredOptions[0].id);
+                }
+              }}
+              placeholder={placeholder}
+              className="input-theme w-full px-3 py-2 text-sm"
+            />
+            {createError && (
+              <p className="mt-1.5 text-xs text-theme-danger">{createError}</p>
+            )}
+            {showCreateHint && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-theme-muted">
+                <span
+                  aria-hidden="true"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                >
+                  +
+                </span>
+                <span>{createHint}</span>
+              </div>
+            )}
+            <div className="mt-2 max-h-52 overflow-y-auto scrollbar-auto-hide">
+              <div>
+                {allowClear && value != null && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(undefined)}
+                    className="flex min-h-8 w-full items-center border-b border-theme-border px-2 py-1 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border"
+                  >
+                    <span className="min-w-0 truncate">{clearLabel}</span>
+                  </button>
+                )}
+                {filteredOptions.map((option) => {
+                  const isSelected = option.id === value;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => handleSelect(option.id)}
+                      className={cn(
+                        "flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                        isSelected
+                          ? "bg-theme-primary-subtle text-theme-primary font-medium"
+                          : "text-theme-text hover:bg-theme-border",
+                      )}
+                    >
+                      <span className="min-w-0 truncate">{option.label}</span>
+                      {isSelected && (
+                        <span className="text-xs font-medium text-theme-primary">
+                          Selected
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {showCreateOption && (
+                  <button
+                    type="button"
+                    onClick={() => void handleCreate()}
+                    disabled={isCreating}
+                    className={cn(
+                      "flex min-h-8 w-full items-center gap-2 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                      isCreating
+                        ? "cursor-not-allowed opacity-60"
+                        : "text-theme-text hover:bg-theme-border",
+                    )}
+                  >
+                    {isCreating ? (
+                      <span className="flex items-center gap-2 text-theme-text">
+                        <span className="h-4 w-4 rounded-full border-2 border-theme-primary border-t-transparent animate-spin" />
+                        Adding...
+                      </span>
+                    ) : (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                        >
+                          +
+                        </span>
+                        <span>Add "{query.trim()}"</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                {filteredOptions.length === 0 && !showCreateOption && (
+                  <div className="px-2.5 py-3 text-center text-xs text-theme-muted">
+                    {emptyMessage}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
 }
 
 interface CategoryModalProps {
@@ -469,97 +787,14 @@ export default function ExpenseForm({
       >
         <form id="expense-form" onSubmit={submit} className="space-y-4">
           {error && <p className="text-theme-danger text-sm">{error}</p>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1 text-sm text-theme-muted">
-              Date
-              <DatePicker
-                value={form.date}
-                onChange={(iso) => setForm((f) => ({ ...f, date: iso }))}
-                placeholder="Select date…"
-              />
-            </label>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-sm text-theme-muted">Category</label>
-                <button
-                  type="button"
-                  onClick={() => setShowCatModal(true)}
-                  className="text-xs text-theme-primary hover:opacity-80 font-medium"
-                >
-                  + Manage
-                </button>
-              </div>
-              {/* Desktop */}
-              <div className="hidden sm:block">
-                <CreatableCombobox
-                  value={form.categoryId ? Number(form.categoryId) : undefined}
-                  options={categoryOptions}
-                  placeholder="Select or add category"
-                  emptyMessage="No categories found."
-                  createHint="Type a new category name to add it."
-                  allowCreate
-                  required
-                  openOnClick
-                  onChange={(id) =>
-                    setForm((f) => ({
-                      ...f,
-                      categoryId: id != null ? String(id) : "",
-                    }))
-                  }
-                  onCreate={async (name) => {
-                    if (onCategoriesChange) {
-                      const newId = await onCategoriesChange("add", { name });
-                      await refreshCategoriesProp?.();
-                      return newId ?? -1;
-                    }
-                    const newId = await StorageService.addCategory(name);
-                    await refreshCategoriesProp?.();
-                    return newId;
-                  }}
-                />
-              </div>
-              {/* Mobile */}
-              <div className="block sm:hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowCategoryPicker(true)}
-                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3 text-left transition-colors hover:bg-theme-border"
-                >
-                  <span className="min-w-0 truncate text-sm text-theme-text">
-                    {selectedCategoryName || "Select category"}
-                  </span>
-                  <ChevronRightIcon className="w-4 h-4 shrink-0 text-theme-muted" />
-                </button>
-                <MobileEntityPicker
-                  open={showCategoryPicker}
-                  title="Choose Category"
-                  value={form.categoryId ? Number(form.categoryId) : undefined}
-                  options={categoryOptions}
-                  placeholder="Search or add category"
-                  emptyMessage="No categories found."
-                  createHint="Type a new category name to add it."
-                  allowCreate
-                  onChange={(id) =>
-                    setForm((f) => ({
-                      ...f,
-                      categoryId: id != null ? String(id) : "",
-                    }))
-                  }
-                  onCreate={async (name) => {
-                    if (onCategoriesChange) {
-                      const newId = await onCategoriesChange("add", { name });
-                      await refreshCategoriesProp?.();
-                      return newId ?? -1;
-                    }
-                    const newId = await StorageService.addCategory(name);
-                    await refreshCategoriesProp?.();
-                    return newId;
-                  }}
-                  onClose={() => setShowCategoryPicker(false)}
-                />
-              </div>
-            </div>
-          </div>
+          <label className="flex flex-col gap-1 text-sm text-theme-muted">
+            Date
+            <DatePicker
+              value={form.date}
+              onChange={(iso) => setForm((f) => ({ ...f, date: iso }))}
+              placeholder="Select date…"
+            />
+          </label>
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <label className="text-sm text-theme-muted">Payee</label>
@@ -573,14 +808,15 @@ export default function ExpenseForm({
             </div>
             {/* Desktop */}
             <div className="hidden sm:block">
-              <CreatableCombobox
+              <DesktopSingleSelectDropdown
                 value={form.payeeId ? Number(form.payeeId) : undefined}
                 options={payeeOptions}
-                placeholder="Select or add payee"
+                placeholder="Select payee"
                 emptyMessage="No payees found."
                 createHint="Type a new payee name to add it."
                 allowCreate
-                openOnClick
+                allowClear
+                clearLabel="No payee"
                 onChange={(id) =>
                   setForm((f) => ({
                     ...f,
@@ -597,16 +833,12 @@ export default function ExpenseForm({
             </div>
             {/* Mobile */}
             <div className="block sm:hidden">
-              <button
-                type="button"
+              <SingleSelectTrigger
+                value={selectedPayeeName}
+                placeholder="Select payee"
+                isOpen={showPayeePicker}
                 onClick={() => setShowPayeePicker(true)}
-                className="flex min-h-12 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3 text-left transition-colors hover:bg-theme-border"
-              >
-                <span className="min-w-0 truncate text-sm text-theme-text">
-                  {selectedPayeeName || "Select payee"}
-                </span>
-                <ChevronRightIcon className="w-4 h-4 shrink-0 text-theme-muted" />
-              </button>
+              />
               <MobileEntityPicker
                 open={showPayeePicker}
                 title="Choose Payee"
@@ -631,6 +863,81 @@ export default function ExpenseForm({
                   return newId;
                 }}
                 onClose={() => setShowPayeePicker(false)}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-theme-muted">Category</label>
+              <button
+                type="button"
+                onClick={() => setShowCatModal(true)}
+                className="text-xs text-theme-primary hover:opacity-80 font-medium"
+              >
+                + Manage
+              </button>
+            </div>
+            {/* Desktop */}
+            <div className="hidden sm:block">
+              <DesktopSingleSelectDropdown
+                value={form.categoryId ? Number(form.categoryId) : undefined}
+                options={categoryOptions}
+                placeholder="Select category"
+                emptyMessage="No categories found."
+                createHint="Type a new category name to add it."
+                allowCreate
+                onChange={(id) =>
+                  setForm((f) => ({
+                    ...f,
+                    categoryId: id != null ? String(id) : "",
+                  }))
+                }
+                onCreate={async (name) => {
+                  if (onCategoriesChange) {
+                    const newId = await onCategoriesChange("add", { name });
+                    await refreshCategoriesProp?.();
+                    return newId ?? -1;
+                  }
+                  const newId = await StorageService.addCategory(name);
+                  await refreshCategoriesProp?.();
+                  return newId;
+                }}
+              />
+            </div>
+            {/* Mobile */}
+            <div className="block sm:hidden">
+              <SingleSelectTrigger
+                value={selectedCategoryName}
+                placeholder="Select category"
+                isOpen={showCategoryPicker}
+                onClick={() => setShowCategoryPicker(true)}
+              />
+              <MobileEntityPicker
+                open={showCategoryPicker}
+                title="Choose Category"
+                value={form.categoryId ? Number(form.categoryId) : undefined}
+                options={categoryOptions}
+                placeholder="Search or add category"
+                emptyMessage="No categories found."
+                createHint="Type a new category name to add it."
+                allowCreate
+                onChange={(id) =>
+                  setForm((f) => ({
+                    ...f,
+                    categoryId: id != null ? String(id) : "",
+                  }))
+                }
+                onCreate={async (name) => {
+                  if (onCategoriesChange) {
+                    const newId = await onCategoriesChange("add", { name });
+                    await refreshCategoriesProp?.();
+                    return newId ?? -1;
+                  }
+                  const newId = await StorageService.addCategory(name);
+                  await refreshCategoriesProp?.();
+                  return newId;
+                }}
+                onClose={() => setShowCategoryPicker(false)}
               />
             </div>
           </div>

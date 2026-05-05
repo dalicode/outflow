@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { cn } from "../../utils/cn";
-import { getSavingsGradientColor } from "../../utils/colorHelpers";
 import type { MultiMonthCategoryRow, MonthKey } from "../../types";
 
 interface PayeeViewTableProps {
@@ -110,33 +109,11 @@ export default function PayeeViewTable({
                             type="button"
                             onClick={() => onPayeeClick(row.name, dataIdx)}
                             className={cn(
-                              "px-1.5 sm:px-2 md:px-3 rounded-theme-small transition-colors",
-                              "hover:bg-theme-border",
+                              "px-1.5 sm:px-2 md:px-3 rounded-theme-small font-semibold transition-colors hover:bg-theme-border hover:underline",
+                              getNumberColorClass(amount),
                             )}
                           >
-                            <span
-                              className={getNumberColorClass(-amount)}
-                              style={{
-                                backgroundImage:
-                                  amount < 0
-                                    ? getSavingsGradientColor(-amount)
-                                    : undefined,
-                                WebkitBackgroundClip:
-                                  amount < 0 ? "text" : undefined,
-                                backgroundClip:
-                                  amount < 0 ? "text" : undefined,
-                                color:
-                                  amount < 0
-                                    ? undefined
-                                    : getNumberColorClass(-amount).includes(
-                                          "negative",
-                                        )
-                                      ? undefined
-                                      : undefined,
-                              }}
-                            >
-                              {formatAmount(-amount)}
-                            </span>
+                            {formatAmount(amount)}
                           </button>
                         ) : (
                           <span className="px-1.5 sm:px-2 md:px-3 text-theme-muted">
@@ -148,7 +125,7 @@ export default function PayeeViewTable({
                   })}
                   {showGrandTotal && (
                     <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums text-theme-text font-medium">
-                      {formatAmount(-grandTotal)}
+                      {formatAmount(grandTotal)}
                     </td>
                   )}
                 </>
@@ -161,11 +138,12 @@ export default function PayeeViewTable({
                     <button
                       type="button"
                       onClick={() => onPayeeClick(row.name, 0)}
-                      className="px-1.5 sm:px-2 md:px-3 rounded-theme-small transition-colors hover:bg-theme-border"
+                      className={cn(
+                        "px-1.5 sm:px-2 md:px-3 rounded-theme-small font-semibold transition-colors hover:bg-theme-border hover:underline",
+                        getNumberColorClass(row.monthlyAmounts[0]),
+                      )}
                     >
-                      <span className={getNumberColorClass(-row.monthlyAmounts[0])}>
-                        {formatAmount(-row.monthlyAmounts[0])}
-                      </span>
+                      {formatAmount(row.monthlyAmounts[0])}
                     </button>
                   </td>
                 </>

@@ -177,13 +177,13 @@ export default function MobileEntityPicker({
         </div>
 
         {/* List */}
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide p-2 space-y-1">
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide p-2">
           {/* Clear option */}
           {allowClear && value != null && (
             <button
               type="button"
               onClick={handleClear}
-              className="flex min-h-12 w-full items-center gap-3 rounded-theme-medium px-3 py-3 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border"
+              className="flex min-h-10 w-full items-center gap-3 border-b border-theme-border px-2 py-1.5 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border"
             >
               <span className="min-w-0 truncate">{clearLabel}</span>
             </button>
@@ -198,7 +198,7 @@ export default function MobileEntityPicker({
                 type="button"
                 onClick={() => handleSelect(opt.id)}
                 className={cn(
-                  "flex min-h-12 w-full items-center justify-between gap-3 rounded-theme-medium px-3 py-3 text-left text-sm transition-colors",
+                  "flex min-h-10 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1.5 text-left text-sm transition-colors",
                   isSelected
                     ? "bg-theme-primary-subtle text-theme-primary font-medium"
                     : "text-theme-text hover:bg-theme-border",
@@ -219,7 +219,7 @@ export default function MobileEntityPicker({
               onClick={handleCreate}
               disabled={isCreating}
               className={cn(
-                "flex min-h-12 w-full items-center gap-3 rounded-theme-medium px-3 py-3 text-left text-sm transition-colors",
+                "flex min-h-10 w-full items-center gap-3 border-b border-theme-border px-2 py-1.5 text-left text-sm transition-colors",
                 isCreating
                   ? "opacity-60 cursor-not-allowed"
                   : cn(

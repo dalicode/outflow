@@ -38,6 +38,14 @@ const sizeMap: Record<ModalSize, string> = {
   full: "sm:max-w-3xl",
 };
 
+const desktopPlacementMap: Record<ModalSize, string> = {
+  sm: "sm:items-start sm:pt-[15vh]",
+  md: "sm:items-start sm:pt-[15vh]",
+  lg: "sm:items-center sm:pt-4",
+  xl: "sm:items-center sm:pt-4",
+  full: "sm:items-center sm:pt-4",
+};
+
 interface ViewportMetrics {
   width: number;
   height: number;
@@ -190,6 +198,7 @@ export default function Modal({
   const isMobileViewport = viewportMetrics.width < 640;
   const mobileCardMaxHeight = Math.max(0, viewportMetrics.height - 24);
   const hasMobileAction = isFullScreenMobile && Boolean(onMobileAction);
+  const desktopPlacementClass = desktopPlacementMap[size];
 
   const overlayStyle = isMobileViewport
     ? {
@@ -212,8 +221,9 @@ export default function Modal({
         "fixed left-0 top-0 right-0 bottom-0 z-50",
         "flex justify-center",
         isFullScreenMobile
-          ? "items-stretch bg-theme-surface sm:items-start sm:bg-black/40 sm:pt-[10vh]"
-          : "items-center bg-black/40 p-3 sm:items-start sm:p-4 sm:pt-[20vh]",
+          ? "items-stretch bg-theme-surface sm:bg-black/40"
+          : "items-center bg-black/40 p-3 sm:p-4",
+        desktopPlacementClass,
       )}
       onClick={handleBackdropClick}
       role="dialog"
