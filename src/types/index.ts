@@ -127,6 +127,7 @@ export interface AppSettings {
   decimalPlaces: string
   thousandSep: string
   dateFormat: string
+  hapticsEnabled: boolean
 }
 
 // ── Finance Engine ──────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import MoneyInput from "../components/inputs/MoneyInput";
 import {
   centsToSignedDollars,
@@ -9,6 +9,18 @@ import {
   parsePastedMoneyInput,
   parsePastedMoney,
 } from "../utils/moneyInput";
+
+// useHaptics → useSettings needs a provider; mock it out for unit tests
+vi.mock("../hooks/useHaptics", () => ({
+  useHaptics: () => ({
+    selection: vi.fn(),
+    light: vi.fn(),
+    medium: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+  }),
+}));
 
 function MoneyInputHarness({
   allowNegative = false,

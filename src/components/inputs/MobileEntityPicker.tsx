@@ -13,6 +13,7 @@ import {
   hasExactMatch,
   type ComboboxOption,
 } from "./comboboxUtils";
+import { useHaptics } from "../../hooks/useHaptics";
 
 interface MobileEntityPickerProps {
   open: boolean;
@@ -51,6 +52,7 @@ export default function MobileEntityPicker({
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const haptics = useHaptics();
 
   // Reset query when picker opens
   useEffect(() => {
@@ -80,8 +82,9 @@ export default function MobileEntityPicker({
     (id: string | number) => {
       onChange(id);
       onClose();
+      haptics.selection();
     },
-    [onChange, onClose],
+    [haptics, onChange, onClose],
   );
 
   const handleClear = useCallback(() => {
@@ -99,12 +102,13 @@ export default function MobileEntityPicker({
       const newId = await onCreate(trimmed);
       onChange(newId);
       onClose();
+      haptics.light();
     } catch (err) {
       setCreateError((err as Error).message);
     } finally {
       setIsCreating(false);
     }
-  }, [onCreate, isCreating, query, onChange, onClose]);
+  }, [haptics, onCreate, isCreating, query, onChange, onClose]);
 
   const selectedOption = useMemo(
     () => options.find((o) => o.id === value),

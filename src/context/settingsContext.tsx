@@ -13,6 +13,7 @@ const DEFAULTS: AppSettings = {
   decimalPlaces: '2',
   thousandSep: ',',
   dateFormat: 'MM/DD/YYYY',
+  hapticsEnabled: true,
 }
 
 const FONT_MAP: Record<string, string> = {

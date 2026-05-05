@@ -258,6 +258,34 @@ export default function SettingsPage({
         </p>
       </Card>
 
+      {/* Haptics */}
+      <Card title="Haptics">
+        <p className="text-xs text-theme-muted mb-3">
+          Subtle vibration feedback for important mobile actions such as saving
+          expenses, switching views, and selecting options.
+        </p>
+        <label className="flex items-center justify-between gap-3 cursor-pointer">
+          <span className="text-sm text-theme-text">Enable haptics</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.hapticsEnabled}
+            onClick={() => save({ hapticsEnabled: !settings.hapticsEnabled })}
+            className={cn(
+              "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200",
+              settings.hapticsEnabled ? "bg-theme-primary" : "bg-theme-border",
+            )}
+          >
+            <span
+              className={cn(
+                "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+                settings.hapticsEnabled ? "translate-x-5" : "translate-x-0",
+              )}
+            />
+          </button>
+        </label>
+      </Card>
+
       {/* Export + Import */}
       <div className="flex flex-col sm:flex-row gap-3">
         <CsvExportCard expenses={expenses} formatDate={formatDate} />

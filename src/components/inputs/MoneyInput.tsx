@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "../../utils/cn";
+import { useHaptics } from "../../hooks/useHaptics";
 import {
   clampMoneyCents,
   centsToSignedDollars,
@@ -77,6 +78,7 @@ export default function MoneyInput({
   onTabValue,
 }: MoneyInputProps) {
   const inputId = useId();
+  const haptics = useHaptics();
   const [absoluteCents, setAbsoluteCents] = useState(() =>
     clampMoneyCents(dollarsToCents(value), {
       allowNegative: false,
@@ -173,8 +175,8 @@ export default function MoneyInput({
 
     if (allowNegative && event.key === "-") {
       event.preventDefault();
+      haptics.selection();
       if (absoluteCents === 0) {
-        // No value yet — just flip the mode visually without emitting
         setIsNegative(true);
       } else {
         emitValue(absoluteCents, !isNegativeMode);
@@ -184,6 +186,7 @@ export default function MoneyInput({
 
     if (allowNegative && event.key === "+") {
       event.preventDefault();
+      haptics.selection();
       if (absoluteCents === 0) {
         setIsNegative(false);
       } else {
@@ -232,6 +235,7 @@ export default function MoneyInput({
 
   const toggleSign = () => {
     if (!allowNegative || disabled) return;
+    haptics.selection();
     if (absoluteCents === 0) {
       setIsNegative((prev) => !prev);
     } else {

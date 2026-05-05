@@ -1,4 +1,6 @@
 import { useRef, useLayoutEffect, type ReactNode } from "react";
+import { cn } from "../../utils/cn";
+import { useHaptics } from "../../hooks/useHaptics";
 
 interface StripProps {
   maxVisible: number;
@@ -123,6 +125,7 @@ export default function Strip({
 }: StripProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasCenteredRef = useRef(false);
+  const haptics = useHaptics();
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -180,15 +183,38 @@ export default function Strip({
   const hasNav =
     onJumpBack || onStepBack || onStepForward || onJumpForward;
 
+  const handleJumpBack = () => {
+    haptics.selection();
+    onJumpBack?.();
+  };
+
+  const handleStepBack = () => {
+    haptics.selection();
+    onStepBack?.();
+  };
+
+  const handleStepForward = () => {
+    haptics.selection();
+    onStepForward?.();
+  };
+
+  const handleJumpForward = () => {
+    haptics.selection();
+    onJumpForward?.();
+  };
+
   return (
     <div className={`flex items-${align} justify-center`}>
       {hasNav && (
         <>
           {onJumpBack && (
             <button
-              onClick={onJumpBack}
+              onClick={handleJumpBack}
               disabled={disableJumpBack}
-              className={`strip-nav-btn${disableJumpBack ? " opacity-40 cursor-not-allowed" : ""}`}
+              className={cn(
+                "strip-nav-btn",
+                disableJumpBack && "cursor-not-allowed opacity-40",
+              )}
               aria-label={jumpBackLabel}
             >
               <DoubleChevronLeft />
@@ -196,9 +222,12 @@ export default function Strip({
           )}
           {onStepBack && (
             <button
-              onClick={onStepBack}
+              onClick={handleStepBack}
               disabled={disableStepBack}
-              className={`strip-nav-btn${disableStepBack ? " opacity-40 cursor-not-allowed" : ""}`}
+              className={cn(
+                "strip-nav-btn",
+                disableStepBack && "cursor-not-allowed opacity-40",
+              )}
               aria-label={stepBackLabel}
             >
               <ChevronLeft />
@@ -219,9 +248,12 @@ export default function Strip({
         <>
           {onStepForward && (
             <button
-              onClick={onStepForward}
+              onClick={handleStepForward}
               disabled={disableStepForward}
-              className={`strip-nav-btn${disableStepForward ? " opacity-40 cursor-not-allowed" : ""}`}
+              className={cn(
+                "strip-nav-btn",
+                disableStepForward && "cursor-not-allowed opacity-40",
+              )}
               aria-label={stepForwardLabel}
             >
               <ChevronRight />
@@ -229,9 +261,12 @@ export default function Strip({
           )}
           {onJumpForward && (
             <button
-              onClick={onJumpForward}
+              onClick={handleJumpForward}
               disabled={disableJumpForward}
-              className={`strip-nav-btn${disableJumpForward ? " opacity-40 cursor-not-allowed" : ""}`}
+              className={cn(
+                "strip-nav-btn",
+                disableJumpForward && "cursor-not-allowed opacity-40",
+              )}
               aria-label={jumpForwardLabel}
             >
               <DoubleChevronRight />

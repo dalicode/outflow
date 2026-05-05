@@ -30,6 +30,7 @@ import {
 import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
 import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
 import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
+import { useHaptics } from "../../hooks/useHaptics";
 import type { MatchConfidence } from "../../utils/payeeMatching";
 import "./expenses.css";
 import type { Expense, Category, Payee } from "../../types";
@@ -972,6 +973,7 @@ export default function ExpenseForm({
   const [payeeSuggestion, setPayeeSuggestion] = useState<Payee | null>(null);
   const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] =
     useState<MatchConfidence | null>(null);
+  const haptics = useHaptics();
   const [showAliasOffer, setShowAliasOffer] = useState(false);
   const [aliasSaved, setAliasSaved] = useState(false);
 
@@ -1084,6 +1086,7 @@ export default function ExpenseForm({
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.categoryId) {
+      haptics.error();
       setError("Please select a category.");
       return;
     }
@@ -1092,6 +1095,7 @@ export default function ExpenseForm({
       isNaN(Number(form.amount)) ||
       Number(form.amount) === 0
     ) {
+      haptics.error();
       setError("Amount cannot be zero.");
       return;
     }
@@ -1103,8 +1107,10 @@ export default function ExpenseForm({
       amount: parseFloat(form.amount),
     };
     if (isEdit && initialExpense) {
+      haptics.success();
       onUpdate?.(initialExpense.id as number, payload);
     } else {
+      haptics.success();
       onAdd?.(payload);
       setForm(EMPTY_FORM);
     }

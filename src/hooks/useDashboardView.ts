@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { DASHBOARD_VIEWS } from "../features/dashboard/constants";
 import type { DashboardView } from "../features/dashboard/constants";
+import { triggerHaptic } from "../utils/haptics";
+import { useSettings } from "../context/settingsContext";
 
 export function useDashboardView(
   onSelectionChange?: (active: boolean) => void,
@@ -8,6 +10,8 @@ export function useDashboardView(
   initialViewMode?: DashboardView,
   onViewModeChange?: (v: DashboardView) => void,
 ) {
+  const { settings } = useSettings();
+  const hapticsEnabled = settings.hapticsEnabled;
   const [viewMode, setViewModeState] = useState<DashboardView>(
     initialViewMode ?? DASHBOARD_VIEWS.CATEGORIES,
   );
@@ -62,8 +66,9 @@ export function useDashboardView(
       setViewAnimation(animation);
       setViewModeState(next);
       onViewModeChange?.(next);
+      triggerHaptic("selection", hapticsEnabled);
     },
-    [onViewModeChange],
+    [onViewModeChange, hapticsEnabled],
   );
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {

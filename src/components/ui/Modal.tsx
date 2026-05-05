@@ -9,9 +9,10 @@ import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 
-// Track how many modals are currently open so each knows its depth.
-// This is only used to determine which modal is "topmost" for popstate.
 let modalDepth = 0;
+// Shared flag: true while a modal is programmatically calling history.back()
+// to clean up its own entry. Prevents other modals from responding to that pop.
+let programmaticBack = false;
 
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
@@ -136,14 +137,13 @@ export default function Modal({
     const handlePop = (e: PopStateEvent) => {
       if (!isOpen || !pushedRef.current) return;
       if (myDepthRef.current !== modalDepth) return; // not topmost
+      if (programmaticBack) return; // another modal is cleaning up its entry
 
       e.stopImmediatePropagation();
       modalDepth = Math.max(0, modalDepth - 1);
       pushedRef.current = false;
       closingViaBackRef.current = true;
       onClose();
-      // Reset the flag after the event loop so the close handler doesn't
-      // try to call history.back() again
       setTimeout(() => { closingViaBackRef.current = false; }, 0);
     };
     window.addEventListener("popstate", handlePop);
@@ -172,13 +172,13 @@ export default function Modal({
       modalDepth = Math.max(0, myDepthRef.current - 1);
 
       if (!closingViaBackRef.current) {
-        // Remove our history entry without triggering another popstate
-        // by using history.go(-1) — but we need to suppress the resulting
-        // popstate from re-triggering onClose. We do this by marking
-        // closingViaBackRef before calling back().
         closingViaBackRef.current = true;
+        programmaticBack = true;
         history.back();
-        setTimeout(() => { closingViaBackRef.current = false; }, 100);
+        setTimeout(() => {
+          closingViaBackRef.current = false;
+          programmaticBack = false;
+        }, 100);
       }
     }
   }, [isOpen]);

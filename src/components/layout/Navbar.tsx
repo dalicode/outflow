@@ -11,6 +11,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import { ROUTES } from "../../constants/routes";
+import { useHaptics } from "../../hooks/useHaptics";
 
 interface NavIconProps {
   active: boolean;
@@ -338,6 +339,7 @@ export default function Navbar({
   const location = useLocation();
   const isOnDashboard = location.pathname === ROUTES.DASHBOARD;
   const justNavigatedRef = useRef(false);
+  const haptics = useHaptics();
 
   const prevLocationKeyRef = useRef(location.key);
 
@@ -354,13 +356,14 @@ export default function Navbar({
     setMobileDragOffset(0);
   }, [location.pathname, location.key]);
 
-  const handleDashboardClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (!isOnDashboard) return; // let NavLink navigate normally
+  const handleNavLinkClick = useCallback(
+    (pageKey: NavItemConfig["pageKey"], e: React.MouseEvent) => {
+      haptics.selection();
+      if (pageKey !== "dashboard" || !isOnDashboard) return;
       e.preventDefault();
       onCycleDashboardView?.();
     },
-    [isOnDashboard, onCycleDashboardView],
+    [haptics, isOnDashboard, onCycleDashboardView],
   );
 
   useEffect(() => {
@@ -411,7 +414,7 @@ export default function Navbar({
         to={basePath}
         end
         aria-label={label}
-        onClick={isDashboard ? handleDashboardClick : undefined}
+        onClick={(e) => handleNavLinkClick(pageKey, e)}
         className={({ isActive }) =>
           cn(
             "mobile-nav-link nav-item-hover",
@@ -565,7 +568,10 @@ export default function Navbar({
           )}
           {!collapsed && (
             <button
-              onClick={() => setCollapsed(true)}
+              onClick={() => {
+                haptics.selection();
+                setCollapsed(true);
+              }}
               className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               aria-label="Collapse sidebar"
               title="Collapse"
@@ -584,10 +590,13 @@ export default function Navbar({
         </div>
 
         {/* Expand toggle (visible only when collapsed) */}
-        {collapsed && (
-          <div className="flex justify-center pb-2">
-            <button
-              onClick={() => setCollapsed(false)}
+          {collapsed && (
+            <div className="flex justify-center pb-2">
+              <button
+                onClick={() => {
+                  haptics.selection();
+                setCollapsed(false);
+              }}
               className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               aria-label="Expand sidebar"
               title="Expand"
@@ -609,13 +618,12 @@ export default function Navbar({
         <nav className="flex-1 px-2 space-y-1">
           {NAV_ITEMS.map(({ pageKey, basePath, label, icon: Icon }) => {
             const isActive = location.pathname === basePath;
-            const isDashboard = pageKey === "dashboard";
             return (
               <NavLink
                 key={pageKey}
                 to={basePath}
                 end
-                onClick={isDashboard ? handleDashboardClick : undefined}
+                onClick={(e) => handleNavLinkClick(pageKey, e)}
                 className={cn(
                   "flex items-center rounded-theme-medium nav-item-hover",
                   collapsed
@@ -639,7 +647,10 @@ export default function Navbar({
         <div className="pb-4 space-y-1">
           {/* Add expense */}
           <button
-            onClick={onAddExpense}
+            onClick={(e) => {
+              haptics.selection();
+              onAddExpense(e);
+            }}
             className={cn(
               "w-full flex items-center rounded-theme-medium text-theme-primary nav-item-hover hover:bg-theme-primary-subtle active:scale-95",
               collapsed
@@ -666,7 +677,10 @@ export default function Navbar({
 
           {onSignOut && (
             <button
-              onClick={onSignOut}
+              onClick={(e) => {
+                haptics.selection();
+                onSignOut(e);
+              }}
               className={cn(
                 "w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger-subtle",
                 collapsed
@@ -740,7 +754,10 @@ export default function Navbar({
             <div className="mobile-nav-row mobile-nav-row-primary">
               {renderMobileNavLink(mobilePrimaryItems[0])}
               <button
-                onClick={onAddExpense}
+                onClick={(e) => {
+                  haptics.selection();
+                  onAddExpense(e);
+                }}
                 className={cn(
                   "mobile-add-btn",
                   isMobileNavHidden && "opacity-0",

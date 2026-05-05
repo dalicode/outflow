@@ -18,6 +18,7 @@ import {
 import { createPortal } from "react-dom";
 import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
+import { triggerHaptic } from "../../utils/haptics";
 import {
   getCalendarGrid,
   getMonthName,
@@ -192,6 +193,7 @@ export default function DatePicker({
 }: DatePickerProps) {
   const { settings } = useSettings();
   const dateFormat = settings.dateFormat;
+  const hapticsEnabled = settings.hapticsEnabled;
   const resolvedInputStyle = inputStyle ?? variant;
 
   const [activeDate, setActiveDate] = useState<Date>(() => {
@@ -287,9 +289,10 @@ export default function DatePicker({
     (day: CalendarDay) => {
       const d = new Date(day.year, day.month, day.date);
       updateActiveDate(d);
+      if (isMobile) triggerHaptic("selection", hapticsEnabled);
       commitDate(d);
     },
-    [updateActiveDate, commitDate],
+    [updateActiveDate, commitDate, isMobile, hapticsEnabled],
   );
 
   const goToPrevMonth = useCallback(() => setViewDate((vd) => addMonths(vd, -1)), []);
