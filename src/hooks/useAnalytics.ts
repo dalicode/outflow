@@ -80,16 +80,13 @@ export function useAnalytics({
 
   const jumpBackMonths = useCallback(() => {
     setYear((y) => y - 1);
-  }, [setYear]);
+    setSelectedMonth(null);
+  }, [setYear, setSelectedMonth]);
 
   const jumpToCurrentMonth = useCallback(() => {
-    if (year < currentYear) {
-      setYear((y) => y + 1);
-    } else {
-      setYear(currentYear);
-      setSelectedMonth(currentMonth);
-    }
-  }, [year, currentYear, currentMonth, setYear, setSelectedMonth]);
+    setYear(currentYear);
+    setSelectedMonth(currentMonth);
+  }, [currentYear, currentMonth, setYear, setSelectedMonth]);
 
   const isAtCurrentMonth =
     year === currentYear && selectedMonth === currentMonth;

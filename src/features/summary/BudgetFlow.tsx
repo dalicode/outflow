@@ -19,8 +19,39 @@ function pct(value: number, total: number): number {
   return Math.min(100, Math.max(0, (value / total) * 100));
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.replace("#", "");
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : normalized;
+
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ];
+}
+
+function mixHex(startHex: string, endHex: string, amount: number): string {
+  const [sr, sg, sb] = hexToRgb(startHex);
+  const [er, eg, eb] = hexToRgb(endHex);
+  const ratio = clamp(amount, 0, 1);
+  const mix = (start: number, end: number) =>
+    Math.round(start + (end - start) * ratio);
+
+  return `rgb(${mix(sr, er)}, ${mix(sg, eg)}, ${mix(sb, eb)})`;
+}
+
 export default function BudgetFlow({ summary }: BudgetFlowProps) {
-  const { formatAmount } = useSettings();
+  const { formatAmount, currentTheme } = useSettings();
 
   const {
     income,
@@ -33,6 +64,14 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
   const isOverBudget = remaining < 0;
   const totalAllocated = fixedExpensesTotal + variableExpenses + Math.max(0, autoSavings);
   const spentPct = pct(totalAllocated, income);
+  const remainingPct = pct(Math.max(0, remaining), income);
+  const steppedRemainingPct = Math.round(remainingPct / 5) * 5;
+  const remainingRatio = steppedRemainingPct / 100;
+  const remainingTone = mixHex(
+    currentTheme.colors.danger,
+    currentTheme.colors.success,
+    remainingRatio,
+  );
 
   const segments: BarSegment[] = [
     {
@@ -97,8 +136,11 @@ export default function BudgetFlow({ summary }: BudgetFlowProps) {
             {/* Remaining portion */}
             {!isOverBudget && remaining > 0 && (
               <div
-                className="h-full bg-theme-success opacity-20 transition-all duration-500"
-                style={{ width: `${pct(remaining, income)}%` }}
+                className="h-full transition-all duration-500"
+                style={{
+                  width: `${pct(remaining, income)}%`,
+                  backgroundColor: remainingTone,
+                }}
               />
             )}
           </div>

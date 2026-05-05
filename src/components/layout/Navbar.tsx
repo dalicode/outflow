@@ -355,10 +355,10 @@ export default function Navbar({
 
   const sidebarWidth = collapsed ? "w-14" : "w-44";
   const mobilePrimaryItems = NAV_ITEMS.filter(({ pageKey }) =>
-    ["dashboard", "summary", "analytics", "settings"].includes(pageKey),
+    ["summary", "dashboard"].includes(pageKey),
   );
   const mobileSecondaryItems = NAV_ITEMS.filter(({ pageKey }) =>
-    ["payees"].includes(pageKey),
+    ["analytics", "payees", "settings"].includes(pageKey),
   );
   const mobileBaseHeight = mobileExpanded
     ? mobileExpandedHeight
@@ -688,9 +688,8 @@ export default function Navbar({
               <span />
             </button>
 
-            <div className="mobile-nav-row">
+            <div className="mobile-nav-row mobile-nav-row-primary">
               {renderMobileNavLink(mobilePrimaryItems[0])}
-              {renderMobileNavLink(mobilePrimaryItems[1])}
               <button
                 onClick={onAddExpense}
                 className={cn(
@@ -701,8 +700,7 @@ export default function Navbar({
               >
                 <PlusIcon />
               </button>
-              {renderMobileNavLink(mobilePrimaryItems[2])}
-              {renderMobileNavLink(mobilePrimaryItems[3])}
+              {renderMobileNavLink(mobilePrimaryItems[1])}
             </div>
 
             {mobileExpansionProgress > 0 && (

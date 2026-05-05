@@ -35,6 +35,7 @@ function editableCellActivate(
   };
   return {
     onPointerDown: (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
       e.preventDefault();
       if (
         e.target instanceof Element &&
@@ -43,7 +44,8 @@ function editableCellActivate(
         return;
       activate();
     },
-    onClick: () => {
+    onClick: (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
       activate();
     },
   };

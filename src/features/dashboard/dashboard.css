@@ -115,6 +115,7 @@
   align-items: flex-end;
   gap: 0;
   overflow-x: auto;
+  overflow-anchor: none;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -161,8 +162,6 @@
   border: none;
   cursor: pointer;
   transition:
-    background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .month-pill:hover:not(.month-pill-selected) {

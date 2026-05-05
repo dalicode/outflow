@@ -30,61 +30,58 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
   const incomeIsSet = parseFloat(String(incomeRaw || 0)) > 0;
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-6 space-y-3">
+    <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">
         Budget
       </h1>
+      <div className="w-full mx-auto md:max-w-3xl space-y-4">
+        {!incomeIsSet && (
+          <div className="rounded-theme-large border border-dashed border-theme-border bg-theme-surface p-5 text-center space-y-1">
+            <p className="text-sm font-medium text-theme-text">
+              Set up your budget
+            </p>
+            <p className="text-xs text-theme-muted">
+              Add your income below to see your budget breakdown.
+            </p>
+          </div>
+        )}
 
-      {/* ── Setup prompt (new users) ── */}
-      {!incomeIsSet && (
-        <div className="rounded-theme-large border border-dashed border-theme-border bg-theme-surface p-5 text-center space-y-1">
-          <p className="text-sm font-medium text-theme-text">Set up your budget</p>
-          <p className="text-xs text-theme-muted">
-            Add your income below to see your budget breakdown.
-          </p>
+        <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+          <IncomeForm
+            income={incomeRaw}
+            frequency={incomeFreq}
+            onSave={handleIncomeSave}
+          />
         </div>
-      )}
 
-      {/* ── Income ── */}
-      <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
-        <IncomeForm
-          income={incomeRaw}
-          frequency={incomeFreq}
-          onSave={handleIncomeSave}
-        />
+        <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+          <SavingsForm
+            savingsRate={savingsRate}
+            monthlyIncome={monthlyIncome}
+            onSave={handleSavingsRateSave}
+          />
+        </div>
+
+        <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+          <FixedExpensesList
+            items={fixedExpenses}
+            onAdd={handleAddFixed}
+            onUpdate={handleUpdateFixed}
+            onDelete={handleDeleteFixed}
+          />
+        </div>
+
+        {financialSummary && incomeIsSet && (
+          <BudgetFlow summary={financialSummary} />
+        )}
+
+        {variableBreakdown.length > 0 && (
+          <SpendingBreakdown
+            items={variableBreakdown}
+            total={financialSummary?.variableExpenses ?? 0}
+          />
+        )}
       </div>
-
-      {/* ── Auto Savings ── */}
-      <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
-        <SavingsForm
-          savingsRate={savingsRate}
-          monthlyIncome={monthlyIncome}
-          onSave={handleSavingsRateSave}
-        />
-      </div>
-
-      {/* ── Fixed Expenses ── */}
-      <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
-        <FixedExpensesList
-          items={fixedExpenses}
-          onAdd={handleAddFixed}
-          onUpdate={handleUpdateFixed}
-          onDelete={handleDeleteFixed}
-        />
-      </div>
-
-      {/* ── Budget flow (only when income is set) ── */}
-      {financialSummary && incomeIsSet && (
-        <BudgetFlow summary={financialSummary} />
-      )}
-
-      {/* ── Variable spending breakdown ── */}
-      {variableBreakdown.length > 0 && (
-        <SpendingBreakdown
-          items={variableBreakdown}
-          total={financialSummary?.variableExpenses ?? 0}
-        />
-      )}
     </main>
   );
 }

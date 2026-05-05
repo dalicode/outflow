@@ -1,6 +1,11 @@
 import { useRef, useState } from "react";
-import { StorageService } from "../../services/storageService";
-import { parseCSV, parseDateInput, getCsvField } from "../../utils/csvHelpers";
+import { StorageService, DEFAULT_PAYEES } from "../../services/storageService";
+import {
+  parseCSV,
+  parseDateInput,
+  getCsvField,
+  matchPayeeByDescription,
+} from "../../utils/csvHelpers";
 import Card from "../../components/ui/Card";
 import type { Expense } from "../../types";
 
@@ -88,6 +93,33 @@ export default function CsvImportCard({
         onStatusChange("No valid rows found. See errors below.");
         if (fileRef.current) fileRef.current.value = "";
         return;
+      }
+
+      // Match descriptions to preseeded payees when no explicit payee column
+      const hasExplicitPayee = valid.some((r) => r.payee);
+      if (!hasExplicitPayee) {
+        const existingPayees = await StorageService.getPayees();
+        const existingByName = new Map(
+          existingPayees.map((p) => [p.name.toLowerCase(), p]),
+        );
+        // Build a flat string list of payee names from the seed list,
+        // excluding any that are already archived in the DB
+        const matchablePayees = DEFAULT_PAYEES
+          .map((p) => p.name)
+          .filter((name) => {
+            const existing = existingByName.get(name.toLowerCase());
+            return !existing || !existing.isArchived;
+          });
+
+        if (matchablePayees.length > 0) {
+          for (const row of valid) {
+            const matched = matchPayeeByDescription(
+              row.description,
+              matchablePayees,
+            );
+            if (matched) row.payee = matched;
+          }
+        }
       }
 
       const existing = await StorageService.getAll();

@@ -1,5 +1,5 @@
 export function normalizeName(name: string): string {
-  if (!name) return name;
+  if (!name || typeof name !== "string") return String(name ?? "");
   return name
     .trim()
     .split(/\s+/)

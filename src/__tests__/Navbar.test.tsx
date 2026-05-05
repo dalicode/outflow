@@ -128,18 +128,18 @@ describe('Navbar', () => {
     expect(collapseButton).toHaveClass('group-hover:opacity-100')
   })
 
-  it('keeps mobile navigation to five primary actions on click and reserves payees for drag expansion', () => {
+  it('keeps mobile navigation to two primary actions on click and reserves analytics/payees/settings for drag expansion', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
     expect(screen.getByLabelText('Dashboard')).toBeInTheDocument()
     expect(screen.getByLabelText('Budget')).toBeInTheDocument()
-    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
-    expect(screen.getByLabelText('Settings')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Settings')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Expand navigation'))
 
-    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -154,14 +154,18 @@ describe('Navbar', () => {
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
+    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
     expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+    expect(screen.getByLabelText('Settings')).toBeInTheDocument()
 
     const collapseHandle = screen.getByLabelText('Collapse navigation')
     fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerMove(collapseHandle, { clientY: 120, pointerId: 1 })
     fireEvent.pointerUp(collapseHandle, { clientY: 120, pointerId: 1 })
 
+    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Settings')).not.toBeInTheDocument()
   })
 
   it('collapses the second row back to the first row on click', () => {
@@ -172,11 +176,11 @@ describe('Navbar', () => {
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Collapse navigation'))
 
-    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -195,7 +199,7 @@ describe('Navbar', () => {
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
 
     rerender(
       <MemoryRouter>
@@ -203,7 +207,7 @@ describe('Navbar', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
 
     rerender(
       <MemoryRouter>
@@ -211,7 +215,7 @@ describe('Navbar', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
       'aria-expanded',
       'false',

@@ -22,6 +22,7 @@ import { normalizeName } from "../../utils/normalizeName";
 import { usePayees } from "../../hooks/useLocalData";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
+import { findBestPayeeMatch, normalizePayeeText } from "../../utils/payeeMatching";
 import "./expenses.css";
 import type { Expense, Category, Payee } from "../../types";
 
@@ -100,6 +101,7 @@ interface DesktopSingleSelectDropdownProps {
   allowCreate?: boolean;
   allowClear?: boolean;
   clearLabel?: string;
+  autoFocus?: boolean;
   onChange: (id: string | number | undefined) => void;
   onCreate?: (name: string) => Promise<string | number>;
 }
@@ -113,6 +115,7 @@ function DesktopSingleSelectDropdown({
   allowCreate = false,
   allowClear = false,
   clearLabel = "Clear selection",
+  autoFocus = false,
   onChange,
   onCreate,
 }: DesktopSingleSelectDropdownProps) {
@@ -128,6 +131,14 @@ function DesktopSingleSelectDropdown({
   const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-open on mount when autoFocus is set
+  useEffect(() => {
+    if (!autoFocus) return;
+    const timer = window.setTimeout(() => setIsOpen(true), 50);
+    return () => window.clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectedOption = useMemo(
     () => options.find((option) => option.id === value),
@@ -356,7 +367,34 @@ interface CategoryModalProps {
     payload: { id?: number; name?: string },
   ) => Promise<number | undefined>;
   onClose: () => void;
-  refreshCategories?: () => void;
+  refreshCategories?: () => void | Promise<void>;
+}
+
+interface AddEntityButtonProps {
+  label: string;
+}
+
+function AddEntityButton({ label }: AddEntityButtonProps) {
+  return (
+    <button
+      type="submit"
+      className="flex min-h-10 w-full items-center justify-center gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 text-sm font-medium text-theme-text transition-colors hover:bg-theme-border sm:h-10 sm:min-h-0 sm:w-10 sm:shrink-0 sm:self-center sm:px-0"
+      aria-label={label}
+      title={label}
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        className="h-4 w-4 shrink-0"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+      </svg>
+      <span className="sm:hidden">{label}</span>
+    </button>
+  );
 }
 
 function CategoryModal({
@@ -369,8 +407,12 @@ function CategoryModal({
   const [newError, setNewError] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const active = categories.filter((c) => !c.isArchived);
+  const filteredCategories = active.filter((category) =>
+    normalizeName(category.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
 
   const addCat = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -413,81 +455,131 @@ function CategoryModal({
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Manage Categories" size="md">
-      <form onSubmit={addCat} className="flex gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New category…"
-          autoFocus
-          className="input-theme text-sm flex-1 px-3 py-2"
-        />
-        <button type="submit" className="btn-primary-sm">
-          Add
-        </button>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Manage Categories"
+      size="lg"
+      mobileFullScreen
+      bodyClassName="flex flex-col gap-4 overflow-hidden"
+      footer={
+        <ModalFooter>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-modal-primary min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
+          >
+            Done
+          </button>
+        </ModalFooter>
+      }
+    >
+      <form
+        onSubmit={addCat}
+        className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
+      >
+        <div className="min-w-0 flex-1">
+          <input
+            value={newName}
+            onChange={(e) => {
+              setNewName(e.target.value);
+              setNewError("");
+            }}
+            placeholder="New category…"
+            autoFocus
+            className="input-theme w-full px-3 py-2 text-sm"
+          />
+          {newError && (
+            <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
+          )}
+        </div>
+        <AddEntityButton label="Add category" />
       </form>
-      {newError && (
-        <p className="text-theme-danger text-xs -mt-2">{newError}</p>
-      )}
-      <ul className="space-y-1 max-h-64 overflow-y-auto scrollbar-themed">
-        {active.map((cat) => (
-          <li key={cat.id} className="flex items-center gap-2 text-sm">
-            {editId === cat.id ? (
-              <form onSubmit={saveEdit} className="flex gap-2 flex-1">
-                <input
-                  autoFocus
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="input-theme text-sm flex-1 px-2 py-1"
-                />
-                <button
-                  type="submit"
-                  className="text-theme-success hover:opacity-80 font-medium"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditId(null)}
-                  className="text-theme-muted hover:text-theme-text"
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <>
-                <span className="flex-1 text-theme-text">
-                  {normalizeName(cat.name)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditId(cat.id as number);
-                    setEditName(cat.name);
-                  }}
-                  className="text-theme-primary hover:opacity-80"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (onCategoriesChange) {
-                      await onCategoriesChange("delete", { id: cat.id });
-                    } else {
-                      await StorageService.deleteCategory(cat.id as number);
-                      refreshCategories?.();
-                    }
-                  }}
-                  className="text-theme-danger hover:opacity-80"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background">
+        <div className="border-b border-theme-border p-3">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search categories..."
+            className="input-theme w-full px-3 py-2 text-sm"
+          />
+        </div>
+        {active.length === 0 ? (
+          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+            No categories yet.
+          </div>
+        ) : filteredCategories.length === 0 ? (
+          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+            No categories match your search.
+          </div>
+        ) : (
+          <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
+            {filteredCategories.map((cat) => (
+              <li key={cat.id} className="border-b border-theme-border p-3 last:border-b-0">
+                {editId === cat.id ? (
+                  <form
+                    onSubmit={saveEdit}
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center"
+                  >
+                    <input
+                      autoFocus
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <button type="submit" className="btn-primary-sm flex-1 sm:flex-none">
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditId(null)}
+                        className="btn-cancel-sm flex-1 sm:flex-none"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
+                      {normalizeName(cat.name)}
+                    </span>
+                    <div className="flex gap-3 text-sm sm:gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditId(cat.id as number);
+                          setEditName(cat.name);
+                        }}
+                        className="font-medium text-theme-primary hover:opacity-80"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (onCategoriesChange) {
+                            await onCategoriesChange("delete", { id: cat.id });
+                          } else {
+                            await StorageService.deleteCategory(cat.id as number);
+                            await refreshCategories?.();
+                          }
+                        }}
+                        className="font-medium text-theme-danger hover:opacity-80"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Modal>
   );
 }
@@ -496,7 +588,7 @@ interface PayeeModalProps {
   payees: Payee[];
   onPayeesChange?: () => void;
   onClose: () => void;
-  refreshPayees?: () => void;
+  refreshPayees?: () => void | Promise<void>;
 }
 
 function PayeeModal({
@@ -509,8 +601,12 @@ function PayeeModal({
   const [newError, setNewError] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const active = payees.filter((p) => !p.isArchived);
+  const filteredPayees = active.filter((payee) =>
+    normalizeName(payee.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
 
   const addPayee = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -561,74 +657,124 @@ function PayeeModal({
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Manage Payees" size="md">
-      <form onSubmit={addPayee} className="flex gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New payee…"
-          autoFocus
-          className="input-theme text-sm flex-1 px-3 py-2"
-        />
-        <button type="submit" className="btn-primary-sm">
-          Add
-        </button>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Manage Payees"
+      size="lg"
+      mobileFullScreen
+      bodyClassName="flex flex-col gap-4 overflow-hidden"
+      footer={
+        <ModalFooter>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-modal-primary min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
+          >
+            Done
+          </button>
+        </ModalFooter>
+      }
+    >
+      <form
+        onSubmit={addPayee}
+        className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
+      >
+        <div className="min-w-0 flex-1">
+          <input
+            value={newName}
+            onChange={(e) => {
+              setNewName(e.target.value);
+              setNewError("");
+            }}
+            placeholder="New payee…"
+            autoFocus
+            className="input-theme w-full px-3 py-2 text-sm"
+          />
+          {newError && (
+            <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
+          )}
+        </div>
+        <AddEntityButton label="Add payee" />
       </form>
-      {newError && (
-        <p className="text-theme-danger text-xs -mt-2">{newError}</p>
-      )}
-      <ul className="space-y-1 max-h-64 overflow-y-auto scrollbar-themed">
-        {active.map((payee) => (
-          <li key={payee.id} className="flex items-center gap-2 text-sm">
-            {editId === payee.id ? (
-              <form onSubmit={saveEdit} className="flex gap-2 flex-1">
-                <input
-                  autoFocus
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="input-theme text-sm flex-1 px-2 py-1"
-                />
-                <button
-                  type="submit"
-                  className="text-theme-success hover:opacity-80 font-medium"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditId(null)}
-                  className="text-theme-muted hover:text-theme-text"
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <>
-                <span className="flex-1 text-theme-text">
-                  {normalizeName(payee.name)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditId(payee.id as number);
-                    setEditName(payee.name);
-                  }}
-                  className="text-theme-primary hover:opacity-80"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleArchive(payee.id as number)}
-                  className="text-theme-danger hover:opacity-80"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background">
+        <div className="border-b border-theme-border p-3">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search payees..."
+            className="input-theme w-full px-3 py-2 text-sm"
+          />
+        </div>
+        {active.length === 0 ? (
+          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+            No payees yet.
+          </div>
+        ) : filteredPayees.length === 0 ? (
+          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+            No payees match your search.
+          </div>
+        ) : (
+          <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
+            {filteredPayees.map((payee) => (
+              <li key={payee.id} className="border-b border-theme-border p-3 last:border-b-0">
+                {editId === payee.id ? (
+                  <form
+                    onSubmit={saveEdit}
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center"
+                  >
+                    <input
+                      autoFocus
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <button type="submit" className="btn-primary-sm flex-1 sm:flex-none">
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditId(null)}
+                        className="btn-cancel-sm flex-1 sm:flex-none"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
+                      {normalizeName(payee.name)}
+                    </span>
+                    <div className="flex gap-3 text-sm sm:gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditId(payee.id as number);
+                          setEditName(payee.name);
+                        }}
+                        className="font-medium text-theme-primary hover:opacity-80"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleArchive(payee.id as number)}
+                        className="font-medium text-theme-danger hover:opacity-80"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Modal>
   );
 }
@@ -678,6 +824,10 @@ export default function ExpenseForm({
   const [showPayeeModal, setShowPayeeModal] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showPayeePicker, setShowPayeePicker] = useState(false);
+  const [payeeSuggestion, setPayeeSuggestion] = useState<Payee | null>(null);
+  const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] = useState<"auto" | "confirm" | null>(null);
+  const [showAliasOffer, setShowAliasOffer] = useState(false);
+  const [aliasSaved, setAliasSaved] = useState(false);
 
   const activeCategories = useMemo(
     () => categories.filter((c) => !c.isArchived),
@@ -716,6 +866,68 @@ export default function ExpenseForm({
     (field: string) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  // Run payee matching when description changes (debounced on blur)
+  const runPayeeMatch = useCallback(
+    (description: string) => {
+      // Don't suggest if payee already selected
+      if (form.payeeId) return;
+      if (!description.trim()) { setPayeeSuggestion(null); return; }
+      const result = findBestPayeeMatch(description, payees);
+      if (!result) { setPayeeSuggestion(null); return; }
+      setPayeeSuggestion(result.payee);
+      setPayeeSuggestionConfidence(result.confidence);
+      // Auto-apply only if confidence is "auto"
+      if (result.confidence === "auto") {
+        setForm((f) => ({ ...f, payeeId: String(result.payee.id) }));
+      }
+    },
+    [form.payeeId, payees],
+  );
+
+  const handleDescriptionBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    runPayeeMatch(e.target.value);
+  };
+
+  const acceptSuggestion = () => {
+    if (!payeeSuggestion) return;
+    setForm((f) => ({ ...f, payeeId: String(payeeSuggestion.id) }));
+    setPayeeSuggestion(null);
+    setPayeeSuggestionConfidence(null);
+  };
+
+  const dismissSuggestion = () => {
+    setPayeeSuggestion(null);
+    setPayeeSuggestionConfidence(null);
+  };
+
+  // When user manually picks a payee while description is filled,
+  // offer to save the normalized description as an alias
+  const handlePayeeManualSelect = useCallback(
+    (id: string | number | undefined) => {
+      setForm((f) => ({ ...f, payeeId: id != null ? String(id) : "" }));
+      setPayeeSuggestion(null);
+      setPayeeSuggestionConfidence(null);
+      setAliasSaved(false);
+      // Offer alias if description is set and payee was manually chosen
+      if (id != null && form.description.trim()) {
+        const normalized = normalizePayeeText(form.description);
+        if (normalized) setShowAliasOffer(true);
+      } else {
+        setShowAliasOffer(false);
+      }
+    },
+    [form.description],
+  );
+
+  const saveAlias = async () => {
+    if (!form.payeeId || !form.description.trim()) return;
+    const normalized = normalizePayeeText(form.description);
+    if (!normalized) return;
+    await StorageService.addPayeeAlias(Number(form.payeeId), normalized);
+    setShowAliasOffer(false);
+    setAliasSaved(true);
+  };
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -787,14 +999,14 @@ export default function ExpenseForm({
       >
         <form id="expense-form" onSubmit={submit} className="space-y-4">
           {error && <p className="text-theme-danger text-sm">{error}</p>}
-          <label className="flex flex-col gap-1 text-sm text-theme-muted">
-            Date
+          <div className="flex flex-col gap-1 text-sm text-theme-muted">
+            <span>Date</span>
             <DatePicker
               value={form.date}
               onChange={(iso) => setForm((f) => ({ ...f, date: iso }))}
               placeholder="Select date…"
             />
-          </label>
+          </div>
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <label className="text-sm text-theme-muted">Payee</label>
@@ -817,12 +1029,8 @@ export default function ExpenseForm({
                 allowCreate
                 allowClear
                 clearLabel="No payee"
-                onChange={(id) =>
-                  setForm((f) => ({
-                    ...f,
-                    payeeId: id != null ? String(id) : "",
-                  }))
-                }
+                autoFocus={!isEdit}
+                onChange={handlePayeeManualSelect}
                 onCreate={async (name) => {
                   const newId = await StorageService.addPayee(name);
                   await refreshPayees();
@@ -850,12 +1058,7 @@ export default function ExpenseForm({
                 allowCreate
                 allowClear
                 clearLabel="No payee"
-                onChange={(id) =>
-                  setForm((f) => ({
-                    ...f,
-                    payeeId: id != null ? String(id) : "",
-                  }))
-                }
+                onChange={handlePayeeManualSelect}
                 onCreate={async (name) => {
                   const newId = await StorageService.addPayee(name);
                   await refreshPayees();
@@ -947,10 +1150,71 @@ export default function ExpenseForm({
               type="text"
               value={form.description}
               onChange={set("description")}
+              onBlur={handleDescriptionBlur}
               placeholder="Optional"
               className={inputCls}
             />
           </label>
+
+          {/* Payee suggestion banner */}
+          {payeeSuggestion && !form.payeeId && payeeSuggestionConfidence === "confirm" && (
+            <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
+              <span className="text-theme-muted">
+                Suggested payee:{" "}
+                <span className="font-medium text-theme-text">
+                  {normalizeName(payeeSuggestion.name)}
+                </span>
+              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={acceptSuggestion}
+                  className="font-medium text-theme-primary hover:opacity-80"
+                >
+                  Use
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissSuggestion}
+                  className="text-theme-muted hover:text-theme-text"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Alias offer banner */}
+          {showAliasOffer && !aliasSaved && (
+            <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
+              <span className="text-theme-muted">
+                Save{" "}
+                <span className="font-medium text-theme-text">
+                  "{normalizePayeeText(form.description)}"
+                </span>{" "}
+                as an alias for faster matching next time?
+              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={saveAlias}
+                  className="font-medium text-theme-primary hover:opacity-80"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAliasOffer(false)}
+                  className="text-theme-muted hover:text-theme-text"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          )}
+          {aliasSaved && (
+            <p className="text-xs text-theme-success">Alias saved.</p>
+          )}
           <label className="flex flex-col gap-1 text-sm text-theme-muted">
             Amount ($)
             <input

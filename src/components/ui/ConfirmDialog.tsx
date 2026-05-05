@@ -44,7 +44,6 @@ export default function ConfirmDialog({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      description={description}
       size={size}
       footer={
         <ModalFooter>
@@ -57,6 +56,7 @@ export default function ConfirmDialog({
           </button>
           <button
             type="button"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={handleConfirm}
             disabled={confirmDisabled}
             className={cn(
@@ -71,7 +71,9 @@ export default function ConfirmDialog({
         </ModalFooter>
       }
     >
-      {/* Content is empty since title+description handle the message */}
+      {description && (
+        <div className="pb-1">{description}</div>
+      )}
     </Modal>
   );
 }

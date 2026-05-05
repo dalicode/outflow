@@ -15,6 +15,36 @@ import {
   type ComboboxOption,
 } from "./comboboxUtils";
 
+const DROPDOWN_MAX_HEIGHT = 240;
+const VIEWPORT_MARGIN = 8;
+const DROPDOWN_GAP = 4;
+
+function getDropdownPosition(rect: DOMRect): {
+  top: number;
+  left: number;
+  width: number;
+} {
+  const width = Math.min(rect.width, window.innerWidth - VIEWPORT_MARGIN * 2);
+  const left = Math.min(
+    Math.max(rect.left, VIEWPORT_MARGIN),
+    window.innerWidth - VIEWPORT_MARGIN - width,
+  );
+
+  const spaceAbove = rect.top - VIEWPORT_MARGIN;
+  const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN;
+  const shouldOpenBelow =
+    spaceBelow >= DROPDOWN_MAX_HEIGHT || spaceBelow >= spaceAbove;
+
+  const top = shouldOpenBelow
+    ? rect.bottom + DROPDOWN_GAP
+    : Math.max(
+        VIEWPORT_MARGIN,
+        rect.top - Math.min(DROPDOWN_MAX_HEIGHT, Math.max(spaceAbove, 0)) - DROPDOWN_GAP,
+      );
+
+  return { top, left, width };
+}
+
 interface CreatableComboboxProps {
   label?: string;
   value?: string | number;
@@ -104,15 +134,9 @@ export default function CreatableCombobox({
   const updateDropdownPosition = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const dropdownHeight = 240; // max-h-60
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const top =
-      spaceBelow >= dropdownHeight
-        ? rect.bottom + 4
-        : rect.top - dropdownHeight - 4;
     setDropdownState((prev) => ({
       ...prev,
-      pos: { top, left: rect.left, width: rect.width },
+      pos: getDropdownPosition(rect),
     }));
   }, []);
 
@@ -125,18 +149,7 @@ export default function CreatableCombobox({
     inputRef.current?.select();
 
     const rect = containerRef.current?.getBoundingClientRect();
-    const dropdownHeight = 240;
-    const spaceBelow = rect ? window.innerHeight - rect.bottom : 0;
-    const pos = rect
-      ? {
-          top:
-            spaceBelow >= dropdownHeight
-              ? rect.bottom + 4
-              : rect.top - dropdownHeight - 4,
-          left: rect.left,
-          width: rect.width,
-        }
-      : null;
+    const pos = rect ? getDropdownPosition(rect) : null;
 
     setDropdownState({ isOpen: true, pos });
   }, [disabled, isCreating, selectedLabel]);
@@ -312,7 +325,11 @@ export default function CreatableCombobox({
     setHighlightedIndex(0);
     setLocalError(null);
     if (!dropdownState.isOpen) {
-      setDropdownState((prev) => ({ ...prev, isOpen: true }));
+      const rect = containerRef.current?.getBoundingClientRect();
+      setDropdownState({
+        isOpen: true,
+        pos: rect ? getDropdownPosition(rect) : null,
+      });
     }
   };
 
@@ -341,11 +358,14 @@ export default function CreatableCombobox({
       }
     };
     const handleResize = () => updateDropdownPosition();
+    const handleScroll = () => updateDropdownPosition();
     document.addEventListener("mousedown", handleClick);
     window.addEventListener("resize", handleResize);
+    window.addEventListener("scroll", handleScroll, true);
     return () => {
       document.removeEventListener("mousedown", handleClick);
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [
     dropdownState.isOpen,

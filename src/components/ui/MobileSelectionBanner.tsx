@@ -37,12 +37,9 @@ export default function MobileSelectionBanner({
       <div className="flex items-center gap-3">
         <button
           onClick={onEdit}
-          disabled={count > 1}
           className={cn(
             "text-sm font-medium px-3 py-1.5 rounded-theme-medium transition-colors",
-            count > 1
-              ? "text-theme-muted opacity-40 cursor-not-allowed"
-              : "text-theme-primary hover:bg-theme-primary-subtle",
+            "text-theme-primary hover:bg-theme-primary-subtle",
           )}
         >
           Edit

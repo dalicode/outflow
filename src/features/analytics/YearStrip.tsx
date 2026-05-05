@@ -16,10 +16,11 @@ export default function YearStrip({
 }: YearStripProps) {
   const canGoForward = year < currentYear;
   const visibleCount = Math.min(maxVisible, 5);
+  const rangeStart = Math.min(year, currentYear) - 50;
 
   const years = [];
-  for (let i = -50; i <= 1; i++) {
-    years.push(year + i);
+  for (let y = rangeStart; y <= currentYear; y++) {
+    years.push(y);
   }
 
   return (
@@ -28,6 +29,8 @@ export default function YearStrip({
       scrollClass="year-strip-scroll"
       scrollSelector="[data-selected='true']"
       selectedKey={year}
+      smoothScrollThreshold={0}
+      scrollMode="nearest"
       onJumpBack={() => onYearChange(year - visibleCount)}
       onStepBack={() => onYearChange(year - 1)}
       onStepForward={() => canGoForward && onYearChange(year + 1)}

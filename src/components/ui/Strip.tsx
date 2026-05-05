@@ -20,6 +20,8 @@ interface StripProps {
   jumpForwardLabel: string;
   beforeScroll?: ReactNode;
   afterScroll?: ReactNode;
+  smoothScrollThreshold?: number;
+  scrollMode?: "center" | "nearest";
   children: ReactNode;
 }
 
@@ -115,20 +117,63 @@ export default function Strip({
   jumpForwardLabel,
   beforeScroll,
   afterScroll,
+  smoothScrollThreshold = 240,
+  scrollMode = "center",
   children,
 }: StripProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasCenteredRef = useRef(false);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const target = container.querySelector(scrollSelector) as HTMLElement | null;
     if (target) {
-      target.scrollIntoView({
-        inline: "center",
-        block: "nearest",
-        behavior: "auto",
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetCenter =
+        targetRect.left -
+        containerRect.left +
+        container.scrollLeft +
+        targetRect.width / 2;
+      const targetLeft =
+        targetRect.left - containerRect.left + container.scrollLeft;
+      const targetRight = targetLeft + targetRect.width;
+      const visibleLeft = container.scrollLeft;
+      const visibleRight = visibleLeft + container.clientWidth;
+      const nextScrollLeft =
+        scrollMode === "nearest"
+          ? targetLeft < visibleLeft
+            ? targetLeft
+            : targetRight > visibleRight
+              ? targetRight - container.clientWidth
+              : visibleLeft
+          : targetCenter - container.clientWidth / 2;
+      const maxScrollLeft = Math.max(
+        0,
+        container.scrollWidth - container.clientWidth,
+      );
+
+      const left = Math.min(
+        Math.max(0, nextScrollLeft),
+        maxScrollLeft,
+      );
+      const distance = Math.abs(left - container.scrollLeft);
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      container.scrollTo({
+        left,
+        behavior:
+          hasCenteredRef.current &&
+          !prefersReducedMotion &&
+          distance > 0 &&
+          distance <= smoothScrollThreshold
+            ? "smooth"
+            : "auto",
       });
+      hasCenteredRef.current = true;
     }
   }, [scrollSelector, selectedKey]);
 

@@ -34,14 +34,15 @@ export default function MonthStrip({
   canNextMonth,
   isAtCurrentMonth,
 }: MonthStripProps) {
-  const scrollSelector = `[data-month="${selectedMonth ?? (year === currentYear ? currentMonth : 0)}"]`;
+  const scrollTarget = selectedMonth === null ? "yr" : selectedMonth;
+  const scrollSelector = `[data-month="${scrollTarget}"]`;
 
   return (
     <Strip
       maxVisible={maxVisible}
       scrollClass="month-strip-scroll"
       scrollSelector={scrollSelector}
-      selectedKey={selectedMonth ?? "yr"}
+      selectedKey={`${year}-${scrollTarget}`}
       align="end"
       onJumpBack={onJumpBack}
       onStepBack={onPrevMonth}

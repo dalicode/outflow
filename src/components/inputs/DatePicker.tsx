@@ -36,6 +36,36 @@ import {
 } from "../../utils/datePickerHelpers";
 import type { CalendarDay } from "../../utils/datePickerHelpers";
 
+const POPUP_MAX_HEIGHT = 280;
+const VIEWPORT_MARGIN = 8;
+const POPUP_GAP = 4;
+
+function getPopupPosition(rect: DOMRect): {
+  top: number;
+  left: number;
+  width: number;
+} {
+  const width = Math.min(rect.width, window.innerWidth - VIEWPORT_MARGIN * 2);
+  const left = Math.min(
+    Math.max(rect.left, VIEWPORT_MARGIN),
+    window.innerWidth - VIEWPORT_MARGIN - width,
+  );
+
+  const spaceAbove = rect.top - VIEWPORT_MARGIN;
+  const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN;
+  const shouldOpenBelow =
+    spaceBelow >= POPUP_MAX_HEIGHT || spaceBelow >= spaceAbove;
+
+  const top = shouldOpenBelow
+    ? rect.bottom + POPUP_GAP
+    : Math.max(
+        VIEWPORT_MARGIN,
+        rect.top - Math.min(POPUP_MAX_HEIGHT, Math.max(spaceAbove, 0)) - POPUP_GAP,
+      );
+
+  return { top, left, width };
+}
+
 interface DatePickerProps {
   value: string;
   onChange: (iso: string) => void;
@@ -45,6 +75,7 @@ interface DatePickerProps {
   placeholder?: string;
   disabled?: boolean;
   variant?: "default" | "inline";
+  inputStyle?: "default" | "inline";
 }
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -58,9 +89,11 @@ export default function DatePicker({
   placeholder = "Select date…",
   disabled = false,
   variant = "default",
+  inputStyle,
 }: DatePickerProps) {
   const { settings } = useSettings();
   const dateFormat = settings.dateFormat;
+  const resolvedInputStyle = inputStyle ?? variant;
 
   /* ── state ──────────────────────────────────────────────────────── */
 
@@ -132,18 +165,7 @@ export default function DatePicker({
     setViewDate(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
 
     const rect = containerRef.current?.getBoundingClientRect();
-    const popupHeight = 280;
-    const spaceBelow = rect ? window.innerHeight - rect.bottom : 0;
-    const pos = rect
-      ? {
-          top:
-            spaceBelow >= popupHeight
-              ? rect.bottom + 4
-              : Math.max(4, rect.top - popupHeight - 4),
-          left: rect.left,
-          width: rect.width,
-        }
-      : null;
+    const pos = rect ? getPopupPosition(rect) : null;
 
     setPopupState({ isOpen: true, pos });
   }, [disabled, value, dateFormat]);
@@ -194,6 +216,11 @@ export default function DatePicker({
 
   useEffect(() => {
     if (!popupState.isOpen) return;
+    const updatePopupPosition = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPopupState((prev) => ({ ...prev, pos: getPopupPosition(rect) }));
+    };
     const handleClick = (e: MouseEvent) => {
       if (containerRef.current?.contains(e.target as Node)) return;
       if (popupRef.current?.contains(e.target as Node)) return;
@@ -204,8 +231,14 @@ export default function DatePicker({
       commitActiveDate();
       closePopup();
     };
+    window.addEventListener("resize", updatePopupPosition);
+    window.addEventListener("scroll", updatePopupPosition, true);
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    return () => {
+      window.removeEventListener("resize", updatePopupPosition);
+      window.removeEventListener("scroll", updatePopupPosition, true);
+      document.removeEventListener("mousedown", handleClick);
+    };
   }, [popupState.isOpen, commitActiveDate, closePopup]);
 
   /* ── document-level Escape (when input is not focused) ──────────── */
@@ -488,7 +521,7 @@ export default function DatePicker({
           autoFocus={variant === "inline"}
           className={cn(
             "text-sm",
-            variant === "inline"
+            resolvedInputStyle === "inline"
               ? "input-inline pr-5"
               : "input-theme w-full px-3 py-2 pr-9",
             isInvalid && (variant === "inline" ? "" : "border-theme-danger"),

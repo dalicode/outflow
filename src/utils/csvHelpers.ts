@@ -85,3 +85,37 @@ export function getCsvField(
   }
   return undefined;
 }
+
+function normalizeForMatching(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Try to match a payee name from an expense description.
+ * Returns the matched payee name (original casing) or null.
+ *
+ * Strategy: substring match (longest candidates first to avoid shadowing)
+ */
+export function matchPayeeByDescription(
+  description: string,
+  candidates: string[],
+): string | null {
+  if (!description || candidates.length === 0) return null;
+
+  const normalizedDesc = normalizeForMatching(description);
+  const sorted = [...candidates].sort((a, b) => b.length - a.length);
+
+  for (const candidate of sorted) {
+    const norm = normalizeForMatching(candidate);
+    if (norm.length === 0) continue;
+    if (normalizedDesc.includes(norm)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}

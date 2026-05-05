@@ -87,6 +87,8 @@ function ScrollablePage({
       onScroll={onScroll}
     >
       {children}
+      {/* Spacer so content clears the fixed mobile nav bar */}
+      <div className="h-32 sm:hidden" aria-hidden="true" />
     </div>
   );
 }

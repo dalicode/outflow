@@ -12,30 +12,33 @@ export default function DashboardHeader({
   daysLeft,
 }: DashboardHeaderProps) {
   const { formatAmount } = useSettings();
+  const remaining = financialSummary?.remaining ?? 0;
 
   return (
     <div className="flex items-start justify-between">
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">
         Dashboard
       </h1>
-      {financialSummary && (
-        <div className="flex flex-col items-end text-right pt-0.5">
-          <span
-            className={cn(
-              "text-2xl font-bold tabular-nums leading-none",
-              financialSummary.remaining >= 0
-                ? "text-theme-success"
-                : "text-theme-danger",
-            )}
-          >
-            {formatAmount(financialSummary.remaining)}
-          </span>
-          <span className="text-xs text-theme-muted mt-0.5">
-            Remaining
-            {daysLeft > 0 && ` · T - ${daysLeft}`}
-          </span>
-        </div>
-      )}
+      <div
+        className={cn(
+          "flex flex-col items-end text-right pt-0.5",
+          !financialSummary && "invisible",
+        )}
+        aria-hidden={!financialSummary}
+      >
+        <span
+          className={cn(
+            "text-2xl font-bold tabular-nums leading-none",
+            remaining >= 0 ? "text-theme-success" : "text-theme-danger",
+          )}
+        >
+          {formatAmount(remaining)}
+        </span>
+        <span className="text-xs text-theme-muted mt-0.5">
+          Remaining
+          {daysLeft > 0 && ` · T - ${daysLeft}`}
+        </span>
+      </div>
     </div>
   );
 }

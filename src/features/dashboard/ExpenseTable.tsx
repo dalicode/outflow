@@ -7,6 +7,7 @@ import DataTable from "../../components/ui/DataTable";
 import ContextMenu from "../../components/ui/ContextMenu";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import ExpenseTableMobile from "./ExpenseTableMobile";
+import BulkEditExpensesModal from "./BulkEditExpensesModal";
 import ExpenseForm from "../expenses/ExpenseForm";
 import { normalizeName } from "../../utils/normalizeName";
 import { getExpenseColumns } from "./expenseColumns";
@@ -56,6 +57,8 @@ export default function ExpenseTable({
   const [mobileEditExpense, setMobileEditExpense] = useState<Expense | null>(
     null,
   );
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditTargetIds, setBulkEditTargetIds] = useState<number[]>([]);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
@@ -108,15 +111,43 @@ export default function ExpenseTable({
     setMobileEditExpense(null);
   }, []);
 
+  const openExpenseEditor = useCallback((expense: Expense) => {
+    setMobileEditExpense(expense);
+    setShowMobileEditModal(true);
+  }, []);
+
+  const closeBulkEditModal = useCallback(() => {
+    setShowBulkEditModal(false);
+    setBulkEditTargetIds([]);
+  }, []);
+
+  const openBulkEditModal = useCallback((ids: number[]) => {
+    setBulkEditTargetIds(ids);
+    setShowBulkEditModal(true);
+  }, []);
+
   const editing = useExpenseCellEditing({
     expenses,
     onUpdate,
     isMobile,
     selectedIds,
     onToggleSelect,
-    setMobileEditExpense,
+    setMobileEditExpense: openExpenseEditor,
     setShowMobileEditModal,
   });
+
+  const handleEditRequest = useCallback(
+    (ids: number[]) => {
+      if (ids.length === 0) return;
+      if (ids.length === 1) {
+        const expense = expenses.find((item) => item.id === ids[0]);
+        if (expense) openExpenseEditor(expense);
+        return;
+      }
+      openBulkEditModal(ids);
+    },
+    [expenses, openBulkEditModal, openExpenseEditor],
+  );
 
   const handleDeleteRequest = useCallback((ids: number[]) => {
     setDeleteTargetIds(ids);
@@ -143,8 +174,11 @@ export default function ExpenseTable({
 
   const contextMenuItems = useMemo(() => {
     if (!menu) return [];
-    const isMulti = selectedIds.size > 1;
-    const ids = isMulti ? Array.from(selectedIds) : [menu.expenseId];
+    const ids =
+      selectedIds.size > 1 && selectedIds.has(menu.expenseId)
+        ? Array.from(selectedIds)
+        : [menu.expenseId];
+    const isMulti = ids.length > 1;
     const items: {
       label: string;
       onClick: () => void;
@@ -152,24 +186,34 @@ export default function ExpenseTable({
       danger?: boolean;
     }[] = [];
 
-    if (!isMulti) {
-      items.push({
-        label: "Edit",
-        onClick: () => {
-          const exp = expenses.find((e) => e.id === menu.expenseId);
-          if (exp) editing.startCellEdit(exp, "date");
-        },
-      });
-    }
+    items.push({
+      label: isMulti ? `Edit ${ids.length} rows` : "Edit",
+      onClick: () => handleEditRequest(ids),
+    });
 
     items.push({
-      label: isMulti ? `Delete ${selectedIds.size} rows` : "Delete",
+      label: isMulti ? `Delete ${ids.length} rows` : "Delete",
       onClick: () => handleDeleteRequest(ids),
       danger: true,
     });
 
     return items;
-  }, [menu, selectedIds, expenses, editing, handleDeleteRequest]);
+  }, [menu, selectedIds, handleDeleteRequest, handleEditRequest]);
+
+  const bulkEditExpenses = useMemo(
+    () =>
+      expenses.filter((expense) => bulkEditTargetIds.includes(expense.id as number)),
+    [expenses, bulkEditTargetIds],
+  );
+
+  const handleBulkEditApply = useCallback(
+    async (changes: Partial<Expense>) => {
+      await Promise.all(
+        bulkEditTargetIds.map((id) => Promise.resolve(onUpdate(id, changes))),
+      );
+    },
+    [bulkEditTargetIds, onUpdate],
+  );
 
   const columns = useMemo(
     () =>
@@ -262,6 +306,17 @@ export default function ExpenseTable({
           refreshPayees={refreshPayees}
         />
       )}
+
+      <BulkEditExpensesModal
+        isOpen={showBulkEditModal}
+        selectedExpenses={bulkEditExpenses}
+        categories={categories}
+        payees={payees}
+        onClose={closeBulkEditModal}
+        onApply={handleBulkEditApply}
+        refreshCategories={refreshCategories}
+        refreshPayees={refreshPayees}
+      />
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
