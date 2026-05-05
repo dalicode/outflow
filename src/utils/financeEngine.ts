@@ -21,8 +21,7 @@ const MONTHS = [
 /**
  * Apply active schedules for a given type to a month map.
  * Schedules are only active before materialization; after materialization
- * their value is frozen in a snapshot and the schedule is archived.
- * Therefore this function naturally only affects future months.
+ * they are archived and their effect is represented by saved snapshot/global data.
  */
 function applySchedules(monthValues: number[], year: number, schedules: Schedule[], scheduleType: string): number[] {
   if (!schedules || schedules.length === 0) return monthValues;
@@ -74,7 +73,7 @@ function resolveMonthlyValues(
   // Apply active schedules (projections for future months)
   values = applySchedules(values, year, schedules ?? [], scheduleType);
 
-  // Snapshots always win — frozen historical values overlay everything
+  // Snapshots always win for that month — they override live globals and schedules
   if (snapshots && snapshots.length > 0) {
     for (let m = 0; m < 12; m++) {
       const month = m + 1;
@@ -92,7 +91,7 @@ function resolveMonthlyValues(
 
 /**
  * Build year-level fixed-expense rows from snapshots.
- * Snapshots are pre-augmented with virtual entries for current/future months
+ * Snapshots are pre-augmented with current/future projected entries
  * so this function just reads them directly.
  */
 const buildYearFixedRows = (year: number, snapshots: FixedExpenseSnapshot[], fixedDefinitions: FixedExpense[]) => {

@@ -240,8 +240,8 @@ async function snapshotSavings(year: number, month: number, rate: number) {
 }
 
 // ── Schedule Materialization ──────────────────────────────
-// When a schedule's effective date arrives, execute it: write snapshot,
-// update global settings / fixed expense definition, archive the schedule.
+// When a schedule's effective date arrives, execute it: write month-specific
+// data where needed, update live globals / fixed-expense definitions, and archive it.
 
 async function materializePendingSnapshots() {
   const now = new Date();
@@ -331,9 +331,8 @@ async function materializePendingSnapshots() {
 
 // ── Monthly Snapshot Rollover ─────────────────────────────
 // When the app opens in a new month, automatically create snapshots
-// for any past gap months by carrying forward the last known value.
-// This ensures historical data stays frozen even if the user changes
-// global settings later.
+// for any past gap months using the live values that are in effect at rollover time.
+// This backfills missed months so later live edits do not retroactively change them.
 
 async function rolloverSnapshots() {
   const now = new Date();
@@ -361,7 +360,8 @@ async function rolloverSnapshots() {
   const lastYear = parseInt(lastYearStr, 10);
   const lastMonth = parseInt(lastMonthStr, 10);
 
-  // Build list of months to snapshot — includes last open month and all gaps up to (but not including) current
+  // Build list of months to snapshot — includes the last open month and all
+  // skipped months up to (but not including) the current month.
   const gapMonths: { year: number; month: number }[] = [];
   let y = lastYear;
   let m = lastMonth;
@@ -423,7 +423,7 @@ async function rolloverSnapshots() {
   }[] = [];
 
   for (const { year, month } of gapMonths) {
-    // Income: always use global value
+    // Income: use the current live global value
     const hasIncome = incomeSnaps.some(
       (s) => s.year === year && s.month === month,
     );
@@ -436,7 +436,7 @@ async function rolloverSnapshots() {
       });
     }
 
-    // Savings: always use global value
+    // Savings: use the current live global value
     const hasSavings = savingsSnaps.some(
       (s) => s.year === year && s.month === month,
     );
@@ -449,7 +449,7 @@ async function rolloverSnapshots() {
       });
     }
 
-    // Fixed expenses: always use current definition amount
+    // Fixed expenses: use the current live definition amount
     for (const def of activeFixed) {
       if (!def.id) continue;
       const hasFixed = fixedSnaps.some(
@@ -565,7 +565,7 @@ export const StorageService = {
     return id;
   },
   // Creates an archived fixed-expense definition for historical data editing.
-  // Does NOT snapshot the current month — historical snapshots are written separately.
+  // Month-specific rows are written separately by the historical-data workflow.
   addArchivedFixedExpense: async (item: Omit<FixedExpense, "id">) => {
     const payload = {
       ...item,

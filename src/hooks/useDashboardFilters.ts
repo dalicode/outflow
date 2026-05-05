@@ -11,11 +11,12 @@ export function useDashboardFilters(
   const [filterGlobal, setFilterGlobal] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterPayee, setFilterPayee] = useState("");
   const [filterDescription, setFilterDescription] = useState("");
   const [filterAmount, setFilterAmount] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedPayees, setSelectedPayees] = useState<Set<string>>(
     new Set(),
   );
 
@@ -46,7 +47,15 @@ export function useDashboardFilters(
     let result = expensesInSelectedSpan;
 
     if (selectedCategories.size > 0) {
-      result = result.filter((e) => selectedCategories.has(getExpenseCategoryName(e)));
+      result = result.filter((e) =>
+        selectedCategories.has(getExpenseCategoryName(e)),
+      );
+    }
+
+    if (selectedPayees.size > 0) {
+      result = result.filter((e) =>
+        selectedPayees.has(getExpensePayeeName(e)),
+      );
     }
 
     if (filterGlobal) {
@@ -67,17 +76,11 @@ export function useDashboardFilters(
       result = result.filter((e) => e.date <= filterDateTo);
     }
 
-    if (filterCategory) {
-      result = result.filter((e) => getExpenseCategoryName(e) === filterCategory);
-    }
-
-    if (filterPayee) {
-      result = result.filter((e) => getExpensePayeeName(e) === filterPayee);
-    }
-
     if (filterDescription) {
       const q = filterDescription.toLowerCase();
-      result = result.filter((e) => e.description?.toLowerCase().includes(q));
+      result = result.filter((e) =>
+        e.description?.toLowerCase().includes(q),
+      );
     }
 
     if (filterAmount) {
@@ -88,13 +91,12 @@ export function useDashboardFilters(
   }, [
     expensesInSelectedSpan,
     selectedCategories,
+    selectedPayees,
     getExpenseCategoryName,
     getExpensePayeeName,
     filterGlobal,
     filterDateFrom,
     filterDateTo,
-    filterCategory,
-    filterPayee,
     filterDescription,
     filterAmount,
   ]);
@@ -103,8 +105,8 @@ export function useDashboardFilters(
     filterGlobal,
     filterDateFrom,
     filterDateTo,
-    filterCategory,
-    filterPayee,
+    selectedCategories.size > 0 ? "categories" : "",
+    selectedPayees.size > 0 ? "payees" : "",
     filterDescription,
     filterAmount,
   ].filter(Boolean).length;
@@ -113,8 +115,8 @@ export function useDashboardFilters(
     setFilterGlobal("");
     setFilterDateFrom("");
     setFilterDateTo("");
-    setFilterCategory("");
-    setFilterPayee("");
+    setSelectedCategories(new Set());
+    setSelectedPayees(new Set());
     setFilterDescription("");
     setFilterAmount("");
   };
@@ -128,16 +130,14 @@ export function useDashboardFilters(
     setFilterDateFrom,
     filterDateTo,
     setFilterDateTo,
-    filterCategory,
-    setFilterCategory,
-    filterPayee,
-    setFilterPayee,
     filterDescription,
     setFilterDescription,
     filterAmount,
     setFilterAmount,
     selectedCategories,
     setSelectedCategories,
+    selectedPayees,
+    setSelectedPayees,
     filteredExpenses,
     activeFilterCount,
     clearAllFilters,

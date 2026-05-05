@@ -386,8 +386,8 @@ export default function Dashboard({
             filterGlobal: dash.filterGlobal,
             filterDateFrom: dash.filterDateFrom,
             filterDateTo: dash.filterDateTo,
-            filterCategory: dash.filterCategory,
-            filterPayee: dash.filterPayee,
+            selectedCategories: dash.selectedCategories,
+            selectedPayees: dash.selectedPayees,
             filterDescription: dash.filterDescription,
             filterAmount: dash.filterAmount,
           }}
@@ -395,8 +395,8 @@ export default function Dashboard({
             dash.setFilterGlobal(draft.filterGlobal);
             dash.setFilterDateFrom(draft.filterDateFrom);
             dash.setFilterDateTo(draft.filterDateTo);
-            dash.setFilterCategory(draft.filterCategory);
-            dash.setFilterPayee(draft.filterPayee);
+            dash.setSelectedCategories(draft.selectedCategories);
+            dash.setSelectedPayees(draft.selectedPayees);
             dash.setFilterDescription(draft.filterDescription);
             dash.setFilterAmount(draft.filterAmount);
           }}

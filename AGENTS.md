@@ -33,7 +33,7 @@ All financial calculations live in `src/utils/financeEngine.ts` (pure, no side e
 For income and savings rate per month:
 
 ```
-1. Snapshot (frozen historical value) ← highest priority
+1. Snapshot (month-specific saved value) ← highest priority
 2. Active schedule (future projection, pre-materialization)
 3. Global setting (monthlyIncome / savingsRate)
 ```
@@ -44,11 +44,11 @@ There are three snapshot tables:
 
 | Table | Stores | Created By |
 |-------|--------|------------|
-| `fixedExpenseSnapshots` | Per-expense, per-month frozen amounts | User adds/updates fixed expense; edit historical data; schedule materialization |
-| `incomeSnapshots` | Per-month frozen income | User saves income; edit historical data; schedule materialization |
-| `savingsSnapshots` | Per-month frozen savings rate | User saves savings rate; edit historical data; schedule materialization |
+| `fixedExpenseSnapshots` | Per-expense, per-month saved amounts | Edit historical data; schedule materialization; monthly rollover |
+| `incomeSnapshots` | Per-month saved income | User saves past-month income; edit historical data; schedule materialization; monthly rollover |
+| `savingsSnapshots` | Per-month saved savings rate | User saves past-month savings; edit historical data; schedule materialization; monthly rollover |
 
-Snapshots are **first-write-wins** (idempotent). Current month is overwritable; past months are frozen.
+Snapshots are month-specific saved values. They take precedence over live globals for that month, but users can update them later to correct past data.
 
 ### Schedule System
 
@@ -58,11 +58,11 @@ Schedules (`schedules` table) automate future changes to income, savings rate, a
 |-------|-----------|----------|----------|
 | Upcoming | Effective date > current month | `isActive: 1` | Editable. `applySchedules()` projects value. |
 | Current | Effective date == current month | `isActive: 1` | Materialized on app startup → snapshot written, global updated, schedule archived. |
-| Archived | Effective date < current month | `isActive: 0` | Read-only. Value frozen in snapshot. |
+| Archived | Effective date < current month | `isActive: 0` | Read-only. Value is stored in that month’s snapshot/global materialization result. |
 
 > **IndexedDB cannot index booleans.** `isActive` is stored as `1`/`0` (number), not `true`/`false` (boolean). Dexie queries like `.where('isActive').equals(1)` work; `.equals(true)` throws `DataError: The parameter is not a valid key`.
 
-`StorageService.materializePendingSnapshots()` runs once on app startup (called in `App.tsx`). It iterates all active schedules, writes snapshots for effective months, updates global settings/definitions, and archives the schedule (`isActive: 0`).
+`StorageService.materializePendingSnapshots()` runs once on app startup (called in `App.tsx`). It iterates all active schedules, writes month-specific snapshot rows where needed, updates live global settings/definitions, and archives the schedule (`isActive: 0`).
 
 ### Edit Historical Data
 
@@ -136,8 +136,8 @@ The `appVersion` in backup metadata is auto-synced from `package.json`. Bump the
 ### Fixed Expenses
 
 - `fixedExpenses` table = live definitions
-- `fixedExpenseSnapshots` table = frozen historical amounts
-- `isArchived: true` = excluded from current/future budgets, but historical snapshots remain
+- `fixedExpenseSnapshots` table = month-specific saved amounts
+- `isArchived: true` = excluded from current/future budgets, but existing snapshots remain
 
 ## Critical File Map
 
