@@ -1255,7 +1255,7 @@ export default function ExpenseForm({
             <button
               type="submit"
               form="expense-form"
-              className="btn-save-expense min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
+              className="btn-save-expense min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem] motion-safe:active:scale-[0.98]"
             >
               {isEdit ? "Save Changes" : "Save Expense"}
             </button>

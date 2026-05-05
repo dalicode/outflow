@@ -198,4 +198,38 @@ describe("MoneyInput", () => {
     fireEvent.keyDown(input, { key: "Delete" });
     expect(output).toHaveTextContent("0.00");
   });
+
+  it("prevents native tab navigation when a custom tab handler is provided", () => {
+    const handleTabValue = vi.fn();
+
+    render(
+      <MoneyInput
+        label="Amount"
+        value={12.34}
+        onChange={() => {}}
+        onTabValue={handleTabValue}
+      />,
+    );
+
+    const input = screen.getByLabelText("Amount");
+    const tabEvent = createTabKeyDownEvent(input, { shiftKey: true });
+
+    expect(tabEvent.defaultPrevented).toBe(true);
+    expect(handleTabValue).toHaveBeenCalledWith(12.34, true);
+  });
 });
+
+function createTabKeyDownEvent(
+  target: HTMLElement,
+  options?: { shiftKey?: boolean },
+): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key: "Tab",
+    shiftKey: options?.shiftKey ?? false,
+  });
+
+  target.dispatchEvent(event);
+  return event;
+}

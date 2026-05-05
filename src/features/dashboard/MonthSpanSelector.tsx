@@ -29,7 +29,7 @@ export default function MonthSpanSelector({
               key={n}
               onClick={() => onSpanChange(n)}
               className={cn(
-                "dashboard-tab",
+                "dashboard-tab motion-safe:active:scale-[0.98]",
                 monthSpan === n && "dashboard-tab-active",
               )}
             >
@@ -41,7 +41,7 @@ export default function MonthSpanSelector({
           <button
             onClick={onToggleGrandTotal}
             className={cn(
-              "dashboard-tab",
+              "dashboard-tab motion-safe:active:scale-[0.98]",
               showGrandTotal && "dashboard-tab-active",
             )}
           >

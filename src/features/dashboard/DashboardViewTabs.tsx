@@ -43,7 +43,8 @@ export default function DashboardViewTabs({
             <button
               onClick={onSwitchToCategories}
               className={cn(
-                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-colors",
+                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
+                "motion-safe:active:scale-[0.98]",
                 viewMode === DASHBOARD_VIEWS.CATEGORIES
                   ? "bg-theme-surface text-theme-text"
                   : "bg-theme-background text-theme-muted hover:text-theme-text",
@@ -54,7 +55,8 @@ export default function DashboardViewTabs({
             <button
               onClick={onSwitchToPayees}
               className={cn(
-                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-colors",
+                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
+                "motion-safe:active:scale-[0.98]",
                 viewMode === DASHBOARD_VIEWS.PAYEES
                   ? "bg-theme-surface text-theme-text"
                   : "bg-theme-background text-theme-muted hover:text-theme-text",
@@ -65,7 +67,8 @@ export default function DashboardViewTabs({
             <button
               onClick={onSwitchToExpenses}
               className={cn(
-                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-colors",
+                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
+                "motion-safe:active:scale-[0.98]",
                 viewMode === DASHBOARD_VIEWS.EXPENSES
                   ? "bg-theme-surface text-theme-text"
                   : "bg-theme-background text-theme-muted hover:text-theme-text",
@@ -76,7 +79,8 @@ export default function DashboardViewTabs({
           </div>
           <button
             className={cn(
-              "text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-colors flex items-center gap-1.5",
+              "text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-[background-color,color,transform,box-shadow] duration-150 flex items-center gap-1.5",
+              "motion-safe:active:scale-[0.98]",
               activeFilterCount > 0
                 ? "bg-theme-primary-muted text-theme-primary"
                 : "bg-theme-background text-theme-muted hover:text-theme-text",

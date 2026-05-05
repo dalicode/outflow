@@ -69,10 +69,36 @@
 /* Button theme */
 .btn-theme {
   border-radius: var(--radius-medium);
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 .btn-theme:hover {
   filter: brightness(0.95);
+}
+
+.motion-fade-up {
+  animation: motion-fade-up 180ms ease-out both;
+}
+
+@keyframes motion-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-fade-up {
+    animation: none;
+  }
 }
 
 /* Card theme */
@@ -789,16 +815,25 @@ th .expense-checkbox-wrapper {
   border: none;
   cursor: pointer;
   transition:
-    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
 }
 .strip-nav-btn:hover:not(:disabled) {
   color: var(--theme-text);
   background-color: var(--theme-background);
   transform: translateY(-1px);
 }
+.strip-nav-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
 .strip-nav-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strip-nav-btn {
+    transition: none;
+  }
 }

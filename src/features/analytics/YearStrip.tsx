@@ -49,19 +49,19 @@ export default function YearStrip({
         const isFuture = y > currentYear;
         const isCurrent = y === currentYear;
         return (
-          <button
-            key={y}
-            onClick={() => {
-              if (isFuture) return;
-              haptics.selection();
-              onYearChange(y);
-            }}
-            disabled={isFuture}
-            className={cn(
-              "year-pill",
+            <button
+              key={y}
+              onClick={() => {
+                if (isFuture) return;
+                haptics.selection();
+                onYearChange(y);
+              }}
+              disabled={isFuture}
+              className={cn(
+              "year-pill motion-safe:active:scale-[0.98]",
               isSelected && "year-pill-selected",
               !isSelected && isCurrent && "year-pill-current",
-            )}
+              )}
             data-selected={isSelected || undefined}
             aria-label={String(y)}
             aria-current={isSelected ? "date" : undefined}

@@ -296,7 +296,6 @@ export default function CreatableCombobox({
             setHasTyped(false);
             closeDropdown();
             onChange(id);
-            onTab?.(false);
           }
           break;
         }
@@ -453,7 +452,8 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={opt.id === value}
           className={cn(
-            "px-3 py-2 text-sm cursor-pointer transition-colors text-theme-text border-b border-theme-border",
+            "px-3 py-2 text-sm cursor-pointer text-theme-text border-b border-theme-border",
+            "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
             opt.id === value && "bg-theme-primary-subtle",
           )}
           onPointerDown={(e) => {
@@ -472,7 +472,8 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={i === highlightedIndex}
           className={cn(
-            "px-3 py-2 text-sm cursor-pointer transition-colors text-theme-text border-b border-theme-border last:border-b-0",
+            "px-3 py-2 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0",
+            "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
             i === highlightedIndex && "bg-theme-primary-subtle",
             opt.id === value && "font-medium",
           )}
@@ -492,7 +493,8 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={createIndex === highlightedIndex}
           className={cn(
-            "px-3 py-2.5 text-sm cursor-pointer transition-colors text-theme-text border-t border-theme-border",
+            "px-3 py-2.5 text-sm cursor-pointer text-theme-text border-t border-theme-border",
+            "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
             createIndex === highlightedIndex && "bg-theme-primary-subtle",
           )}
           onPointerDown={(e) => {

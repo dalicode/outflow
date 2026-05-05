@@ -37,7 +37,6 @@ export default function InlineMoneyEditCell({
         onBlurValue={onCommit}
         onEnterValue={(value) => {
           onCommit(value);
-          onTab?.(false);
         }}
         onTabValue={(value, shiftKey) => {
           onCommit(value);

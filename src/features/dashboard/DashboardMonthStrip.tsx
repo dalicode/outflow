@@ -91,7 +91,7 @@ export default function DashboardMonthStrip({
             <button
               onClick={handleClick}
               className={cn(
-                "month-pill",
+                "month-pill motion-safe:active:scale-[0.98]",
                 (isSelected || isInSpan) && "month-pill-selected",
                 !isSelected &&
                   !isInSpan &&

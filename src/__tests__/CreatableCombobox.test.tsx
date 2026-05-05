@@ -39,4 +39,34 @@ describe('CreatableCombobox', () => {
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     })
   })
+
+  it('commits on Enter without advancing to the next field', async () => {
+    const onChange = vi.fn()
+    const onTab = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value={1}
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+        onTab={onTab}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'Gro' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(2)
+      expect(onTab).not.toHaveBeenCalled()
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    })
+  })
 })

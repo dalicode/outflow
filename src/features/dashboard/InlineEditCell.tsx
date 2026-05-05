@@ -60,7 +60,7 @@ export default function InlineEditCell({
           if (e.key === "Enter") {
             e.preventDefault();
             commit();
-            onTab?.(false);
+            return;
           }
           if (e.key === "Tab") {
             e.preventDefault();

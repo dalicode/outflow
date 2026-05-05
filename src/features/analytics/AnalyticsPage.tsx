@@ -45,6 +45,7 @@ export default function AnalyticsPage({
     summaryCards,
     data,
   } = useAnalytics({ expenses, categories, formatAmount, sessionState, onSessionStateChange });
+  const contentMotionKey = `${year}-${selectedMonth ?? "all"}`;
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -80,14 +81,20 @@ export default function AnalyticsPage({
       />
 
       {/* Summary strip */}
-      <div className="flex md:grid md:grid-cols-4 gap-3 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+      <div
+        key={contentMotionKey}
+        className="motion-fade-up flex md:grid md:grid-cols-4 gap-3 overflow-x-auto md:overflow-visible pb-2 md:pb-0"
+      >
         {summaryCards.map((card) => (
           <SummaryCard key={card.label} {...card} />
         ))}
       </div>
 
       {/* Content */}
-      <div className="rounded-theme-large bg-theme-surface shadow-sm overflow-hidden">
+      <div
+        key={`charts-${contentMotionKey}`}
+        className="motion-fade-up rounded-theme-large bg-theme-surface shadow-sm overflow-hidden"
+      >
         <AnalyticsCharts
           data={data}
           year={year}

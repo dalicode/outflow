@@ -67,7 +67,7 @@ export default function MonthStrip({
               onSelectMonth(null);
             }}
             className={cn(
-              "month-pill",
+              "month-pill motion-safe:active:scale-[0.98]",
               selectedMonth === null && "month-pill-selected",
             )}
             aria-label="Year overview"
@@ -97,7 +97,7 @@ export default function MonthStrip({
                 onSelectMonth(monthIdx);
               }}
               className={cn(
-                "month-pill",
+                "month-pill motion-safe:active:scale-[0.98]",
                 isSelected && "month-pill-selected",
                 !isSelected && isRealCurrent && "month-pill-current",
               )}

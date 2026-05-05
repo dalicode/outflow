@@ -26,7 +26,7 @@ interface GetExpenseColumnsParams {
   decimalPlaces: number;
 }
 
-function editableCellActivate(
+export function editableCellActivate(
   editing: CellEditingAPI,
   expense: Expense,
   field: Parameters<CellEditingAPI["switchCellEdit"]>[1],
@@ -38,15 +38,12 @@ function editableCellActivate(
     onPointerDown: (e: React.PointerEvent) => {
       if (e.button !== 0) return;
       e.preventDefault();
+      e.stopPropagation();
       if (
         e.target instanceof Element &&
         e.target.closest("[data-no-cell-switch]")
       )
         return;
-      activate();
-    },
-    onClick: (e: React.MouseEvent) => {
-      if (e.button !== 0) return;
       activate();
     },
   };

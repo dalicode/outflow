@@ -206,6 +206,9 @@ export default function MoneyInput({
     }
 
     if (event.key === "Tab") {
+      if (onTabValue) {
+        event.preventDefault();
+      }
       onTabValue?.(
         centsToSignedDollars(absoluteCents, isNegativeMode),
         event.shiftKey,
@@ -278,7 +281,8 @@ export default function MoneyInput({
             onClick={toggleSign}
             disabled={disabled}
             className={cn(
-              "shrink-0 flex items-center justify-center w-7 h-7 rounded-theme-medium border font-semibold text-base transition-colors select-none",
+              "shrink-0 flex items-center justify-center w-7 h-7 rounded-theme-medium border font-semibold text-base select-none",
+              "transition-[transform,background-color,color,border-color,box-shadow] duration-150 motion-safe:active:scale-[0.96]",
               isNegativeMode
                 ? "border-[color:color-mix(in_srgb,var(--theme-success)_30%,var(--theme-border))] bg-[color:color-mix(in_srgb,var(--theme-success)_10%,transparent)] text-theme-success"
                 : "border-theme-border bg-theme-background text-theme-muted hover:text-theme-text",
@@ -323,7 +327,8 @@ export default function MoneyInput({
             // Controlled via keyboard and paste handlers.
           }}
           className={cn(
-            "w-full min-w-0 text-right font-semibold tabular-nums text-theme-text outline-none transition",
+            "w-full min-w-0 text-right font-semibold tabular-nums text-theme-text outline-none",
+            "transition-[color,transform,background-color] duration-150",
             variant === "inline"
               ? "input-inline w-full rounded-none border-none bg-transparent px-0 py-0 shadow-none"
               : "bg-transparent",

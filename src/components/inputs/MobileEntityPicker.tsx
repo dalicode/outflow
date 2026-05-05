@@ -197,7 +197,8 @@ export default function MobileEntityPicker({
                 type="button"
                 onClick={handleOptionClick(opt.id)}
                 className={cn(
-                  "flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm transition-colors",
+                  "flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm",
+                  "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
                   isSelected
                     ? "bg-theme-primary-subtle text-theme-primary font-medium"
                     : "text-theme-text hover:bg-theme-border",
@@ -216,7 +217,7 @@ export default function MobileEntityPicker({
             <button
               type="button"
               onClick={handleOptionClick(undefined)}
-              className="flex min-h-12 w-full items-center gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border"
+              className="flex min-h-12 w-full items-center gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm text-theme-muted transition-[background-color,color,transform] duration-150 hover:bg-theme-border motion-safe:active:scale-[0.99]"
             >
               <span className="min-w-0 truncate">{clearLabel}</span>
             </button>
@@ -231,7 +232,8 @@ export default function MobileEntityPicker({
                 type="button"
                 onClick={handleOptionClick(opt.id)}
                 className={cn(
-                  "flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm transition-colors",
+                  "flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm",
+                  "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
                   isSelected
                     ? "bg-theme-primary-subtle text-theme-primary font-medium"
                     : "text-theme-text hover:bg-theme-border",
@@ -254,7 +256,8 @@ export default function MobileEntityPicker({
               }}
               disabled={isCreating}
               className={cn(
-                "flex min-h-12 w-full items-center gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm transition-colors",
+                "flex min-h-12 w-full items-center gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm",
+                "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
                       isCreating
                         ? "opacity-60 cursor-not-allowed"
                         : cn(
