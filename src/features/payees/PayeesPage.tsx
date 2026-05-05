@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
-import { cn } from "../../utils/cn";
 import { normalizeName } from "../../utils/normalizeName";
 import { usePayees } from "../../hooks/useLocalData";
 import { StorageService } from "../../services/storageService";
+import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
+import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
 import type { Payee } from "../../types";
 
 export default function PayeesPage() {
@@ -12,15 +13,18 @@ export default function PayeesPage() {
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [mergeSource, setMergeSource] = useState<Payee | null>(null);
+  const [mergeExpenseCount, setMergeExpenseCount] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null);
 
   const activePayees = useMemo(
     () => payees.filter((p) => !p.isArchived),
-    [payees]
+    [payees],
   );
 
   const sortedPayees = useMemo(
     () => [...activePayees].sort((a, b) => a.name.localeCompare(b.name)),
-    [activePayees]
+    [activePayees],
   );
 
   const filteredPayees = useMemo(() => {
@@ -73,101 +77,155 @@ export default function PayeesPage() {
     refresh();
   };
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-xl font-bold text-theme-text">Payees</h1>
+  const openMerge = async (payee: Payee) => {
+    const count = await StorageService.getExpenseCountForPayee(payee.id as number);
+    setMergeExpenseCount(count);
+    setMergeSource(payee);
+  };
 
-      {/* Search + Add */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search payees..."
-          className="input-theme flex-1 px-3 py-2 text-sm"
-        />
-        <div className="flex gap-2">
+  const handleMerge = async (targetId: number) => {
+    await StorageService.mergePayee(mergeSource!.id as number, targetId);
+    setMergeSource(null);
+    refresh();
+  };
+
+  return (
+    <>
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        <h1 className="text-xl font-bold text-theme-text">Payees</h1>
+
+        {/* Search + Add */}
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="New payee name"
-            className="input-theme flex-1 sm:w-48 px-3 py-2 text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
-            }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search payees..."
+            className="input-theme flex-1 px-3 py-2 text-sm"
           />
-          <button
-            onClick={handleAdd}
-            disabled={!newName.trim()}
-            className="bg-theme-primary hover:opacity-90 disabled:opacity-40 text-white text-xs font-medium px-4 py-2 rounded-theme-small transition-opacity whitespace-nowrap"
-          >
-            Add
-          </button>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="New payee name"
+              className="input-theme flex-1 sm:w-48 px-3 py-2 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAdd();
+              }}
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!newName.trim()}
+              className="bg-theme-primary hover:opacity-90 disabled:opacity-40 text-white text-xs font-medium px-4 py-2 rounded-theme-small transition-opacity whitespace-nowrap"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-theme-danger">{error}</p>}
+
+        {/* List */}
+        <div className="space-y-1">
+          {filteredPayees.map((payee) => (
+            <div
+              key={payee.id}
+              className="flex items-center justify-between py-2 px-3 rounded-theme-small border-b border-theme-border hover:bg-theme-background transition-colors"
+            >
+              {editingId === payee.id ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="input-theme flex-1 px-2 py-1 text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveEdit(payee.id as number);
+                      if (e.key === "Escape") cancelEdit();
+                    }}
+                  />
+                  <button
+                    onClick={() => saveEdit(payee.id as number)}
+                    className="text-xs text-theme-primary font-medium"
+                  >
+                    Save
+                  </button>
+                  <button onClick={cancelEdit} className="text-xs text-theme-muted">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <span className="text-sm flex-1 text-theme-text">
+                    {normalizeName(payee.name)}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => startEdit(payee)}
+                      className="text-xs text-theme-primary hover:opacity-80 font-medium"
+                    >
+                      Edit
+                    </button>
+                    {activePayees.length > 1 && (
+                      <button
+                        onClick={() => openMerge(payee)}
+                        className="text-xs text-theme-muted hover:text-theme-text font-medium"
+                      >
+                        Merge
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setDeleteTarget(payee)}
+                      className="text-xs text-theme-danger hover:opacity-80"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {filteredPayees.length === 0 && (
+            <p className="text-sm text-theme-muted text-center py-8">
+              {search.trim() ? "No payees match your search." : "No payees yet."}
+            </p>
+          )}
         </div>
       </div>
 
-      {error && <p className="text-xs text-theme-danger">{error}</p>}
+      {mergeSource && (
+        <EntityMergeDialog
+          isOpen={true}
+          onClose={() => setMergeSource(null)}
+          entityType="payee"
+          sourceName={mergeSource.name}
+          targetOptions={activePayees
+            .filter((p) => p.id !== mergeSource.id)
+            .map((p) => ({ id: p.id as number, name: p.name }))}
+          affectedExpenseCount={mergeExpenseCount}
+          onConfirm={handleMerge}
+        />
+      )}
 
-      {/* List */}
-      <div className="space-y-1">
-        {filteredPayees.map((payee) => (
-          <div
-            key={payee.id}
-            className="flex items-center justify-between py-2 px-3 rounded-theme-small border-b border-theme-border hover:bg-theme-background transition-colors"
-          >
-            {editingId === payee.id ? (
-              <div className="flex items-center gap-2 flex-1">
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="input-theme flex-1 px-2 py-1 text-sm"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveEdit(payee.id as number);
-                    if (e.key === "Escape") cancelEdit();
-                  }}
-                />
-                <button
-                  onClick={() => saveEdit(payee.id as number)}
-                  className="text-xs text-theme-primary font-medium"
-                >
-                  Save
-                </button>
-                <button onClick={cancelEdit} className="text-xs text-theme-muted">
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <>
-                <span className="text-sm flex-1 text-theme-text">
-                  {normalizeName(payee.name)}
-                </span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => startEdit(payee)}
-                    className="text-xs text-theme-primary hover:opacity-80 font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(payee.id as number)}
-                    className="text-xs text-theme-danger hover:opacity-80"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-        {filteredPayees.length === 0 && (
-          <p className="text-sm text-theme-muted text-center py-8">
-            {search.trim() ? "No payees match your search." : "No payees yet."}
-          </p>
-        )}
-      </div>
-    </div>
+      {deleteTarget && (
+        <DeleteEntityDialog
+          isOpen={true}
+          onClose={() => setDeleteTarget(null)}
+          entityType="payee"
+          entityName={deleteTarget.name}
+          canMerge={activePayees.length > 1}
+          onConfirmDelete={async () => {
+            await handleDelete(deleteTarget.id as number);
+            setDeleteTarget(null);
+          }}
+          onMergeInstead={() => {
+            openMerge(deleteTarget);
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+    </>
   );
 }

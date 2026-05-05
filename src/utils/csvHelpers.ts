@@ -119,3 +119,68 @@ export function matchPayeeByDescription(
 
   return null;
 }
+
+interface CategoryDefinition {
+  name: string;
+  aliases: string[];
+}
+
+/**
+ * Try to match a category from an expense description using aliases.
+ * Returns the matched category name (original casing) or null.
+ */
+export function matchCategoryByDescription(
+  description: string,
+  categories: CategoryDefinition[],
+): string | null {
+  if (!description || categories.length === 0) return null;
+
+  const normalizedDesc = normalizeForMatching(description);
+
+  // Flatten all aliases, sort longest first to avoid shadowing
+  const allAliases = categories
+    .flatMap((cat) =>
+      cat.aliases.map((alias) => ({ alias, categoryName: cat.name })),
+    )
+    .sort((a, b) => b.alias.length - a.alias.length);
+
+  for (const { alias, categoryName } of allAliases) {
+    const norm = normalizeForMatching(alias);
+    if (norm.length === 0) continue;
+    if (normalizedDesc.includes(norm)) {
+      return categoryName;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Try to match a category from a raw CSV category value using aliases.
+ * Returns the matched category name (original casing) or null.
+ */
+export function matchCategoryByName(
+  rawCategory: string,
+  categories: CategoryDefinition[],
+): string | null {
+  if (!rawCategory || categories.length === 0) return null;
+
+  const normalizedRaw = normalizeForMatching(rawCategory);
+
+  // Flatten all aliases, sort longest first to avoid shadowing
+  const allAliases = categories
+    .flatMap((cat) =>
+      cat.aliases.map((alias) => ({ alias, categoryName: cat.name })),
+    )
+    .sort((a, b) => b.alias.length - a.alias.length);
+
+  for (const { alias, categoryName } of allAliases) {
+    const norm = normalizeForMatching(alias);
+    if (norm.length === 0) continue;
+    if (normalizedRaw === norm || normalizedRaw.includes(norm)) {
+      return categoryName;
+    }
+  }
+
+  return null;
+}

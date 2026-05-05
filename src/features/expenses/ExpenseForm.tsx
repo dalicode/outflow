@@ -28,6 +28,8 @@ import {
   normalizePayeeText,
 } from "../../utils/payeeMatching";
 import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
+import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
+import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
 import type { MatchConfidence } from "../../utils/payeeMatching";
 import "./expenses.css";
 import type { Expense, Category, Payee } from "../../types";
@@ -414,6 +416,9 @@ function CategoryModal({
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [mergeSource, setMergeSource] = useState<Category | null>(null);
+  const [mergeExpenseCount, setMergeExpenseCount] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
   const active = categories.filter((c) => !c.isArchived);
   const filteredCategories = active.filter((category) =>
@@ -462,141 +467,196 @@ function CategoryModal({
     setEditId(null);
   };
 
+  const openMerge = async (cat: Category) => {
+    const count = await StorageService.getExpenseCountForCategory(cat.id as number);
+    setMergeExpenseCount(count);
+    setMergeSource(cat);
+  };
+
+  const handleMerge = async (targetId: number) => {
+    await StorageService.mergeCategory(mergeSource!.id as number, targetId);
+    await refreshCategories?.();
+    if (onCategoriesChange) {
+      // Trigger a refresh via the parent
+      await onCategoriesChange("delete", { id: mergeSource!.id });
+    }
+    setMergeSource(null);
+  };
+
   return (
-    <Modal
-      isOpen={true}
-      onClose={onClose}
-      title="Manage Categories"
-      size="lg"
-      mobileFullScreen
-      bodyClassName="flex flex-col gap-4 overflow-hidden"
-      footer={
-        <ModalFooter>
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-modal-primary min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
-          >
-            Done
-          </button>
-        </ModalFooter>
-      }
-    >
-      <form
-        onSubmit={addCat}
-        className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
+    <>
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title="Manage Categories"
+        size="lg"
+        mobileFullScreen
+        bodyClassName="flex flex-col gap-4 overflow-hidden"
+        footer={
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-modal-primary min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
+            >
+              Done
+            </button>
+          </ModalFooter>
+        }
       >
-        <div className="min-w-0 flex-1">
-          <input
-            value={newName}
-            onChange={(e) => {
-              setNewName(e.target.value);
-              setNewError("");
-            }}
-            placeholder="New category…"
-            autoFocus
-            className="input-theme w-full px-3 py-2 text-sm"
-          />
-          {newError && (
-            <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
+        <form
+          onSubmit={addCat}
+          className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
+        >
+          <div className="min-w-0 flex-1">
+            <input
+              value={newName}
+              onChange={(e) => {
+                setNewName(e.target.value);
+                setNewError("");
+              }}
+              placeholder="New category…"
+              autoFocus
+              className="input-theme w-full px-3 py-2 text-sm"
+            />
+            {newError && (
+              <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
+            )}
+          </div>
+          <AddEntityButton label="Add category" />
+        </form>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background">
+          <div className="border-b border-theme-border p-3">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search categories..."
+              className="input-theme w-full px-3 py-2 text-sm"
+            />
+          </div>
+          {active.length === 0 ? (
+            <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+              No categories yet.
+            </div>
+          ) : filteredCategories.length === 0 ? (
+            <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+              No categories match your search.
+            </div>
+          ) : (
+            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
+              {filteredCategories.map((cat) => (
+                <li
+                  key={cat.id}
+                  className="border-b border-theme-border p-3 last:border-b-0"
+                >
+                  {editId === cat.id ? (
+                    <form
+                      onSubmit={saveEdit}
+                      className="flex flex-col gap-2 sm:flex-row sm:items-center"
+                    >
+                      <input
+                        autoFocus
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          className="btn-primary-sm flex-1 sm:flex-none"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditId(null)}
+                          className="btn-cancel-sm flex-1 sm:flex-none"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
+                        {normalizeName(cat.name)}
+                      </span>
+                      <div className="flex gap-3 text-sm sm:gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditId(cat.id as number);
+                            setEditName(cat.name);
+                          }}
+                          className="font-medium text-theme-primary hover:opacity-80"
+                        >
+                          Edit
+                        </button>
+                        {active.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => openMerge(cat)}
+                            className="font-medium text-theme-muted hover:text-theme-text"
+                          >
+                            Merge
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(cat)}
+                          className="font-medium text-theme-danger hover:opacity-80"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
-        <AddEntityButton label="Add category" />
-      </form>
+      </Modal>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background">
-        <div className="border-b border-theme-border p-3">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search categories..."
-            className="input-theme w-full px-3 py-2 text-sm"
-          />
-        </div>
-        {active.length === 0 ? (
-          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
-            No categories yet.
-          </div>
-        ) : filteredCategories.length === 0 ? (
-          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
-            No categories match your search.
-          </div>
-        ) : (
-          <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
-            {filteredCategories.map((cat) => (
-              <li
-                key={cat.id}
-                className="border-b border-theme-border p-3 last:border-b-0"
-              >
-                {editId === cat.id ? (
-                  <form
-                    onSubmit={saveEdit}
-                    className="flex flex-col gap-2 sm:flex-row sm:items-center"
-                  >
-                    <input
-                      autoFocus
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        className="btn-primary-sm flex-1 sm:flex-none"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditId(null)}
-                        className="btn-cancel-sm flex-1 sm:flex-none"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
-                      {normalizeName(cat.name)}
-                    </span>
-                    <div className="flex gap-3 text-sm sm:gap-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditId(cat.id as number);
-                          setEditName(cat.name);
-                        }}
-                        className="font-medium text-theme-primary hover:opacity-80"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (onCategoriesChange) {
-                            await onCategoriesChange("delete", { id: cat.id });
-                          } else {
-                            await StorageService.deleteCategory(
-                              cat.id as number,
-                            );
-                            await refreshCategories?.();
-                          }
-                        }}
-                        className="font-medium text-theme-danger hover:opacity-80"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Modal>
+      {mergeSource && (
+        <EntityMergeDialog
+          isOpen={true}
+          onClose={() => setMergeSource(null)}
+          entityType="category"
+          sourceName={mergeSource.name}
+          targetOptions={active
+            .filter((c) => c.id !== mergeSource.id)
+            .map((c) => ({ id: c.id as number, name: c.name }))}
+          affectedExpenseCount={mergeExpenseCount}
+          onConfirm={handleMerge}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteEntityDialog
+          isOpen={true}
+          onClose={() => setDeleteTarget(null)}
+          entityType="category"
+          entityName={deleteTarget.name}
+          canMerge={active.length > 1}
+          onConfirmDelete={async () => {
+            if (onCategoriesChange) {
+              await onCategoriesChange("delete", { id: deleteTarget.id });
+            } else {
+              await StorageService.deleteCategory(deleteTarget.id as number);
+              await refreshCategories?.();
+            }
+            setDeleteTarget(null);
+          }}
+          onMergeInstead={() => {
+            openMerge(deleteTarget);
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -674,7 +734,25 @@ function PayeeModal({
     refreshPayees?.();
   };
 
+  const [mergeSource, setMergeSource] = useState<Payee | null>(null);
+  const [mergeExpenseCount, setMergeExpenseCount] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null);
+
+  const openMerge = async (payee: Payee) => {
+    const count = await StorageService.getExpenseCountForPayee(payee.id as number);
+    setMergeExpenseCount(count);
+    setMergeSource(payee);
+  };
+
+  const handleMerge = async (targetId: number) => {
+    await StorageService.mergePayee(mergeSource!.id as number, targetId);
+    onPayeesChange?.();
+    await refreshPayees?.();
+    setMergeSource(null);
+  };
+
   return (
+    <>
     <Modal
       isOpen={true}
       onClose={onClose}
@@ -784,9 +862,18 @@ function PayeeModal({
                       >
                         Edit
                       </button>
+                      {active.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => openMerge(payee)}
+                          className="font-medium text-theme-muted hover:text-theme-text"
+                        >
+                          Merge
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => handleArchive(payee.id as number)}
+                        onClick={() => setDeleteTarget(payee)}
                         className="font-medium text-theme-danger hover:opacity-80"
                       >
                         Delete
@@ -800,6 +887,39 @@ function PayeeModal({
         )}
       </div>
     </Modal>
+
+      {mergeSource && (
+        <EntityMergeDialog
+          isOpen={true}
+          onClose={() => setMergeSource(null)}
+          entityType="payee"
+          sourceName={mergeSource.name}
+          targetOptions={active
+            .filter((p) => p.id !== mergeSource.id)
+            .map((p) => ({ id: p.id as number, name: p.name }))}
+          affectedExpenseCount={mergeExpenseCount}
+          onConfirm={handleMerge}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteEntityDialog
+          isOpen={true}
+          onClose={() => setDeleteTarget(null)}
+          entityType="payee"
+          entityName={deleteTarget.name}
+          canMerge={active.length > 1}
+          onConfirmDelete={async () => {
+            await handleArchive(deleteTarget.id as number);
+            setDeleteTarget(null);
+          }}
+          onMergeInstead={() => {
+            openMerge(deleteTarget);
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 

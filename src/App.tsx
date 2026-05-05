@@ -45,6 +45,11 @@ function useScrollDirection() {
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
+  const reset = useCallback(() => {
+    setDirection(null);
+    lastScrollY.current = 0;
+  }, []);
+
   const onScroll = useCallback((el: HTMLDivElement) => {
     if (ticking.current) return;
     ticking.current = true;
@@ -63,22 +68,26 @@ function useScrollDirection() {
     });
   }, []);
 
-  return { direction, onScroll };
+  return { direction, onScroll, reset };
 }
 
 function ScrollablePage({
   children,
   onScroll,
+  onRouteChange,
 }: {
   children: React.ReactNode;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  onRouteChange?: () => void;
 }) {
   const location = useLocation();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     ref.current?.scrollTo({ top: 0, behavior: "auto" });
-  }, [location.pathname]);
+    onRouteChange?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.key]); // location.key changes on back/forward too
 
   return (
     <div
@@ -132,7 +141,7 @@ export default function App() {
   const { payees, refresh: refreshPayees } = usePayees();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
-  const { direction, onScroll: handleScrollDirection } = useScrollDirection();
+  const { direction, onScroll: handleScrollDirection, reset: resetScrollDirection } = useScrollDirection();
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false);
   const [snapshotsReady, setSnapshotsReady] = useState(false);
 
@@ -337,7 +346,7 @@ export default function App() {
                 <Route
                   path={ROUTES.SUMMARY}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll}>
+                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
                       <SummaryPage expenses={expenses} />
                     </ScrollablePage>
                   }
@@ -345,7 +354,7 @@ export default function App() {
                 <Route
                   path={ROUTES.ANALYTICS}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll}>
+                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
                       <AnalyticsPage
                         expenses={expenses}
                         categories={categories}
@@ -358,7 +367,7 @@ export default function App() {
                 <Route
                   path={ROUTES.PAYEES}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll}>
+                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
                       <PayeesPage />
                     </ScrollablePage>
                   }
@@ -366,7 +375,7 @@ export default function App() {
                 <Route
                   path={ROUTES.SETTINGS}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll}>
+                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
                       <SettingsPage
                         expenses={expenses}
                         onImport={async () =>

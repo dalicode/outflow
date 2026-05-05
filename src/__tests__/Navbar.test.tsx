@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import type { ReactNode } from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
@@ -178,7 +179,9 @@ describe('Navbar', () => {
 
     expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('Collapse navigation'))
+    const collapseHandle = screen.getByLabelText('Collapse navigation')
+    fireEvent.pointerDown(collapseHandle, { clientY: 100, pointerId: 1 })
+    fireEvent.click(collapseHandle)
 
     expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
@@ -188,10 +191,13 @@ describe('Navbar', () => {
   })
 
   it('waits for downward scrolling to stop before auto-collapsing the mobile navbar', () => {
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <MemoryRouter>{children}</MemoryRouter>
+    )
+
     const { rerender } = render(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} scrollDirection={null} isScrolling={false} />
-      </MemoryRouter>,
+      <Navbar onAddExpense={vi.fn()} scrollDirection={null} isScrolling={false} />,
+      { wrapper: Wrapper },
     )
 
     const expandHandle = screen.getByLabelText('Expand navigation')
@@ -202,17 +208,13 @@ describe('Navbar', () => {
     expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
 
     rerender(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />
-      </MemoryRouter>,
+      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
     )
 
     expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
 
     rerender(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />
-      </MemoryRouter>,
+      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />,
     )
 
     expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
@@ -231,9 +233,7 @@ describe('Navbar', () => {
     )
 
     rerender(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />
-      </MemoryRouter>,
+      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
     )
 
     expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
@@ -241,9 +241,7 @@ describe('Navbar', () => {
     )
 
     rerender(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />
-      </MemoryRouter>,
+      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />,
     )
 
     expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
@@ -251,9 +249,7 @@ describe('Navbar', () => {
     )
 
     rerender(
-      <MemoryRouter>
-        <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />
-      </MemoryRouter>,
+      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />,
     )
 
     expect(document.body.querySelector('nav.mobile-nav-bounce')).not.toHaveClass(

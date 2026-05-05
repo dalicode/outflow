@@ -19,6 +19,7 @@ export default function LoadingOverlay({
     <div
       className={cn(
         "fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3",
+        "h-[100dvh] w-[100dvw]",
         "bg-theme-background-solid backdrop-blur-sm",
       )}
     >

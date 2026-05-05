@@ -22,7 +22,10 @@ export interface Category {
   id?: number
   name: string
   createdAt?: string
+  updatedAt?: string
   isArchived?: boolean
+  archivedAt?: string
+  mergedIntoCategoryId?: number | null
 }
 
 // ── Payees ──────────────────────────────────────────────────────────────────
@@ -34,6 +37,28 @@ export interface Payee {
   createdAt?: string
   updatedAt?: string
   isArchived?: boolean
+  archivedAt?: string
+  mergedIntoPayeeId?: number | null
+}
+
+// ── Merge History ────────────────────────────────────────────────────────────
+
+export interface CategoryMergeHistory {
+  id?: number
+  sourceCategoryId: number
+  targetCategoryId: number
+  affectedExpenseIds: number[]
+  createdAt: string
+  revertedAt?: string | null
+}
+
+export interface PayeeMergeHistory {
+  id?: number
+  sourcePayeeId: number
+  targetPayeeId: number
+  affectedExpenseIds: number[]
+  createdAt: string
+  revertedAt?: string | null
 }
 
 // ── Fixed Expenses ──────────────────────────────────────────────────────────

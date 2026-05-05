@@ -9,6 +9,8 @@ import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 
+// Track how many modals are currently open so each knows its depth.
+// This is only used to determine which modal is "topmost" for popstate.
 let modalDepth = 0;
 
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
@@ -98,8 +100,13 @@ export default function Modal({
   bodyClassName,
 }: ModalProps) {
   const containerRef = useFocusTrap(isOpen);
+  // Whether this modal instance has pushed a history entry
   const pushedRef = useRef(false);
+  // The depth level this modal was assigned when it opened
   const myDepthRef = useRef(0);
+  // Whether we're currently closing via history.back() to avoid double-close
+  const closingViaBackRef = useRef(false);
+
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewportMetrics, setViewportMetrics] =
@@ -115,60 +122,79 @@ export default function Modal({
     }, 800);
   }, []);
 
-  // Push history state when opening so native back button closes the modal
+  // ── Push a history entry when the modal opens ──────────────────────────────
   useEffect(() => {
     if (isOpen && !pushedRef.current) {
       myDepthRef.current = ++modalDepth;
-      history.pushState({ modal: true }, "");
+      history.pushState({ modal: myDepthRef.current }, "");
       pushedRef.current = true;
     }
   }, [isOpen]);
 
-  // Handle popstate (native back button) — only topmost modal responds
+  // ── Handle native back button — only the topmost modal responds ────────────
   useEffect(() => {
     const handlePop = (e: PopStateEvent) => {
-      if (isOpen && myDepthRef.current === modalDepth) {
-        e.stopImmediatePropagation();
-        modalDepth = Math.max(0, modalDepth - 1);
-        onClose();
-      }
+      if (!isOpen || !pushedRef.current) return;
+      if (myDepthRef.current !== modalDepth) return; // not topmost
+
+      e.stopImmediatePropagation();
+      modalDepth = Math.max(0, modalDepth - 1);
+      pushedRef.current = false;
+      closingViaBackRef.current = true;
+      onClose();
+      // Reset the flag after the event loop so the close handler doesn't
+      // try to call history.back() again
+      setTimeout(() => { closingViaBackRef.current = false; }, 0);
     };
     window.addEventListener("popstate", handlePop);
     return () => window.removeEventListener("popstate", handlePop);
   }, [isOpen, onClose]);
 
-  // Handle Escape key
+  // ── Handle Escape key ──────────────────────────────────────────────────────
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
         e.stopPropagation();
-        onClose();
+        closeModal();
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
-  // Clean up pushed state if modal closes without popstate
+  // ── Clean up when modal closes (via button/backdrop/escape) ───────────────
+  // If we pushed a history entry and the modal is closing NOT via popstate,
+  // we need to call history.back() to remove our entry from the stack.
   useEffect(() => {
     if (!isOpen && pushedRef.current) {
       pushedRef.current = false;
-      if (history.state?.modal) {
-        history.replaceState(null, "");
-      }
-      if (modalDepth >= myDepthRef.current) {
-        modalDepth = Math.max(0, myDepthRef.current - 1);
+      modalDepth = Math.max(0, myDepthRef.current - 1);
+
+      if (!closingViaBackRef.current) {
+        // Remove our history entry without triggering another popstate
+        // by using history.go(-1) — but we need to suppress the resulting
+        // popstate from re-triggering onClose. We do this by marking
+        // closingViaBackRef before calling back().
+        closingViaBackRef.current = true;
+        history.back();
+        setTimeout(() => { closingViaBackRef.current = false; }, 100);
       }
     }
   }, [isOpen]);
 
+  // ── Close handler used by buttons/backdrop/escape ─────────────────────────
+  const closeModal = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (closeOnBackdropClick && e.target === e.currentTarget) {
-        onClose();
+        closeModal();
       }
     },
-    [onClose, closeOnBackdropClick],
+    [closeModal, closeOnBackdropClick],
   );
 
   useEffect(() => {
@@ -200,10 +226,6 @@ export default function Modal({
   const hasMobileAction = isFullScreenMobile && Boolean(onMobileAction);
   const desktopPlacementClass = desktopPlacementMap[size];
 
-  // For full-screen mobile modals, keep the overlay pinned to the full fixed
-  // viewport (inset-0) so there's never a gap when the keyboard appears.
-  // The card itself shrinks to the visual viewport height so content stays
-  // above the keyboard — but the overlay background always covers the screen.
   const overlayStyle =
     isMobileViewport && !isFullScreenMobile
       ? {
@@ -254,7 +276,7 @@ export default function Modal({
           <div className="flex shrink-0 items-center justify-between border-b border-theme-border px-4 py-3 sm:hidden">
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeModal}
               className="flex items-center gap-1 text-sm font-medium text-theme-primary"
               aria-label="Cancel"
             >
@@ -292,7 +314,7 @@ export default function Modal({
               {showCloseButton && (
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={closeModal}
                   className="text-xl leading-none text-theme-muted hover:text-theme-text"
                   aria-label="Close"
                 >

@@ -330,8 +330,29 @@ export default function Navbar({
   const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mobileDragStartYRef = useRef<number | null>(null);
   const mobileDragMovedRef = useRef(false);
+  // Set to true when the nav expands; cleared on the next scroll event.
+  // Prevents stale scrollDirection="down" from immediately re-collapsing
+  // the nav after the user drags it open.
+  const expandedSinceLastScrollRef = useRef(false);
+  const suppressNextClickRef = useRef(false);
   const location = useLocation();
   const isOnDashboard = location.pathname === ROUTES.DASHBOARD;
+  const justNavigatedRef = useRef(false);
+
+  const prevLocationKeyRef = useRef(location.key);
+
+  // Reset auto-hide state on every navigation (including back/forward) so
+  // pages that don't scroll always show the navbar
+  useEffect(() => {
+    if (prevLocationKeyRef.current === location.key) return;
+    prevLocationKeyRef.current = location.key;
+    justNavigatedRef.current = true;
+    expandedSinceLastScrollRef.current = false;
+    setMobileAutoHidden(false);
+    setMobileExpanded(false);
+    setPeekExpanded(false);
+    setMobileDragOffset(0);
+  }, [location.pathname, location.key]);
 
   const handleDashboardClick = useCallback(
     (e: React.MouseEvent) => {
@@ -406,6 +427,10 @@ export default function Navbar({
   };
   const handleMobileHandleClick = () => {
     if (isMobileNavHidden) return;
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
     if (mobileDragMovedRef.current) {
       mobileDragMovedRef.current = false;
       return;
@@ -426,6 +451,7 @@ export default function Navbar({
     if (isMobileNavHidden) return;
     mobileDragStartYRef.current = event.clientY;
     mobileDragMovedRef.current = false;
+    suppressNextClickRef.current = false;
     setMobileAutoHidden(false);
     setPeekExpanded(true);
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -446,39 +472,62 @@ export default function Navbar({
     if (mobileDragStartYRef.current === null) return;
 
     const dragDistance = mobileDragStartYRef.current - event.clientY;
+    let stateChanged = false;
     if (dragDistance > 18 || mobileExpansionProgress > 0.55) {
       setMobileExpanded(true);
       setPeekExpanded(true);
+      expandedSinceLastScrollRef.current = true;
+      stateChanged = true;
     } else if (dragDistance < -18 || mobileExpansionProgress < 0.45) {
       setMobileExpanded(false);
       setPeekExpanded(true);
+      stateChanged = true;
     }
 
     setMobileDragOffset(0);
-    mobileDragMovedRef.current = false;
     mobileDragStartYRef.current = null;
+    if (stateChanged) {
+      suppressNextClickRef.current = true;
+    }
     event.currentTarget.releasePointerCapture?.(event.pointerId);
   };
   const handleMobileHandlePointerCancel: PointerEventHandler<
     HTMLButtonElement
   > = (event) => {
     mobileDragStartYRef.current = null;
-    mobileDragMovedRef.current = false;
     setMobileDragOffset(0);
     event.currentTarget.releasePointerCapture?.(event.pointerId);
   };
 
   useEffect(() => {
+    if (justNavigatedRef.current) {
+      justNavigatedRef.current = false;
+      return;
+    }
+
     if (scrollDirection === "up") {
       if (!isScrolling && !hidden) {
         setMobileAutoHidden(false);
       }
+      expandedSinceLastScrollRef.current = false;
       return;
     }
 
-    if (peekExpanded && !mobileExpanded && !mobileAutoHidden) return;
-    if (isScrolling) return;
+    // A new scroll event arrived — clear the expansion guard
+    if (isScrolling) {
+      expandedSinceLastScrollRef.current = false;
+    }
+
+    // Don't auto-hide while a drag is in progress
     if (mobileDragStartYRef.current !== null) return;
+
+    // Don't auto-hide if the nav was just expanded and no new scroll has
+    // happened yet — the stale scrollDirection="down" would immediately
+    // re-collapse it
+    if (expandedSinceLastScrollRef.current) return;
+
+    if (peekExpanded && !mobileAutoHidden && scrollDirection !== "down") return;
+    if (isScrolling) return;
     if (scrollDirection !== "down" && !hidden) return;
 
     setMobileAutoHidden(shouldAutoHideAfterScroll);

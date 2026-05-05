@@ -1,10 +1,16 @@
 import { useRef, useState } from "react";
-import { StorageService, DEFAULT_PAYEES } from "../../services/storageService";
+import {
+  StorageService,
+  DEFAULT_PAYEES,
+  DEFAULT_CATEGORIES,
+} from "../../services/storageService";
 import {
   parseCSV,
   parseDateInput,
   getCsvField,
   matchPayeeByDescription,
+  matchCategoryByDescription,
+  matchCategoryByName,
 } from "../../utils/csvHelpers";
 import Card from "../../components/ui/Card";
 
@@ -122,6 +128,21 @@ export default function CsvImportCard({
             if (matched) row.payee = matched;
           }
         }
+      }
+
+      // Match descriptions to default categories (overrides CSV category if matched)
+      for (const row of valid) {
+        const matched = matchCategoryByDescription(
+          row.description,
+          DEFAULT_CATEGORIES,
+        );
+        if (matched) row.category = matched;
+      }
+
+      // Fallback: match CSV category value against default category aliases
+      for (const row of valid) {
+        const matched = matchCategoryByName(row.category, DEFAULT_CATEGORIES);
+        if (matched) row.category = matched;
       }
 
       const existing = await StorageService.getAll();

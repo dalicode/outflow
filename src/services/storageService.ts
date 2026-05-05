@@ -11,6 +11,8 @@ import type {
   SavingsSnapshot,
   Schedule,
   SyncQueueItem,
+  CategoryMergeHistory,
+  PayeeMergeHistory,
 } from "../types";
 
 interface Setting {
@@ -29,6 +31,8 @@ class OutflowDB extends Dexie {
   schedules!: Table<Schedule, number>;
   settings!: Table<Setting, string>;
   syncQueue!: Table<SyncQueueItem, number>;
+  categoryMergeHistory!: Table<CategoryMergeHistory, number>;
+  payeeMergeHistory!: Table<PayeeMergeHistory, number>;
 
   constructor() {
     super("Outflow");
@@ -208,11 +212,27 @@ class OutflowDB extends Dexie {
       savingsSnapshots: "++id, [year+month], year, month",
     });
 
+    this.version(13).stores({
+      expenses: "++id, date, categoryId, payeeId",
+      settings: "key",
+      fixedExpenses: "++id",
+      categories: "++id, name",
+      payees: "++id, name",
+      syncQueue: "++id, table, timestamp",
+      fixedExpenseSnapshots: "++id, [fixedExpenseId+year+month], year, month",
+      schedules:
+        "++id, type, effectiveYear, effectiveMonth, isActive, targetId, payeeId",
+      incomeSnapshots: "++id, [year+month], year, month",
+      savingsSnapshots: "++id, [year+month], year, month",
+      categoryMergeHistory: "++id, sourceCategoryId, targetCategoryId",
+      payeeMergeHistory: "++id, sourcePayeeId, targetPayeeId",
+    });
+
     this.on("populate", () => {
       const now = new Date().toISOString();
       this.categories.bulkAdd(
-        DEFAULT_CATEGORIES.map((name) => ({
-          name,
+        DEFAULT_CATEGORIES.map((c) => ({
+          name: c.name,
           createdAt: now,
           isArchived: false,
         })),
@@ -1626,6 +1646,106 @@ export const StorageService = {
     );
   },
 
+  // ── Merge ─────────────────────────────────────────────────
+  getExpenseCountForCategory: async (categoryId: number): Promise<number> => {
+    return db.expenses.where("categoryId").equals(categoryId).count();
+  },
+
+  getExpenseCountForPayee: async (payeeId: number): Promise<number> => {
+    return db.expenses.where("payeeId").equals(payeeId).count();
+  },
+
+  mergeCategory: async (
+    sourceCategoryId: number,
+    targetCategoryId: number,
+  ): Promise<void> => {
+    if (sourceCategoryId === targetCategoryId) {
+      throw new Error("Cannot merge a category into itself.");
+    }
+    const now = new Date().toISOString();
+    await db.transaction(
+      "rw",
+      [db.expenses, db.categories, db.categoryMergeHistory],
+      async () => {
+        const affected = await db.expenses
+          .where("categoryId")
+          .equals(sourceCategoryId)
+          .toArray();
+        const affectedIds = affected.map((e) => e.id as number);
+
+        if (affectedIds.length > 0) {
+          await db.expenses
+            .where("categoryId")
+            .equals(sourceCategoryId)
+            .modify({ categoryId: targetCategoryId });
+        }
+
+        await db.categoryMergeHistory.add({
+          sourceCategoryId,
+          targetCategoryId,
+          affectedExpenseIds: affectedIds,
+          createdAt: now,
+          revertedAt: null,
+        } as CategoryMergeHistory);
+
+        await db.categories.update(sourceCategoryId, {
+          isArchived: true,
+          archivedAt: now,
+          mergedIntoCategoryId: targetCategoryId,
+          updatedAt: now,
+        });
+      },
+    );
+    // Enqueue sync for affected records
+    const updatedCat = await db.categories.get(sourceCategoryId);
+    await enqueue("categories", "update", updatedCat as unknown as Record<string, unknown>);
+  },
+
+  mergePayee: async (
+    sourcePayeeId: number,
+    targetPayeeId: number,
+  ): Promise<void> => {
+    if (sourcePayeeId === targetPayeeId) {
+      throw new Error("Cannot merge a payee into itself.");
+    }
+    const now = new Date().toISOString();
+    await db.transaction(
+      "rw",
+      [db.expenses, db.payees, db.payeeMergeHistory],
+      async () => {
+        const affected = await db.expenses
+          .where("payeeId")
+          .equals(sourcePayeeId)
+          .toArray();
+        const affectedIds = affected.map((e) => e.id as number);
+
+        if (affectedIds.length > 0) {
+          await db.expenses
+            .where("payeeId")
+            .equals(sourcePayeeId)
+            .modify({ payeeId: targetPayeeId });
+        }
+
+        await db.payeeMergeHistory.add({
+          sourcePayeeId,
+          targetPayeeId,
+          affectedExpenseIds: affectedIds,
+          createdAt: now,
+          revertedAt: null,
+        } as PayeeMergeHistory);
+
+        await db.payees.update(sourcePayeeId, {
+          isArchived: true,
+          archivedAt: now,
+          mergedIntoPayeeId: targetPayeeId,
+          updatedAt: now,
+        });
+      },
+    );
+    const updatedPayee = await db.payees.get(sourcePayeeId);
+    await enqueue("payees", "update", updatedPayee as unknown as Record<string, unknown>);
+  },
+
   // ── Sync Queue (used by SyncEngine) ──────────────────────
   getSyncQueue: () => db.syncQueue.orderBy("timestamp").toArray(),
   removeSyncQueueItem: (id: number) => db.syncQueue.delete(id),
@@ -1661,6 +1781,8 @@ export const StorageService = {
     schedules: await db.schedules.toArray(),
     settings: await db.settings.toArray(),
     syncQueue: await db.syncQueue.toArray(),
+    categoryMergeHistory: await db.categoryMergeHistory.toArray(),
+    payeeMergeHistory: await db.payeeMergeHistory.toArray(),
   }),
 
   importBackup: async (
@@ -1725,5 +1847,9 @@ export const StorageService = {
       await db.settings.bulkPut(payload.settings as Setting[]);
     if (payload.syncQueue)
       await db.syncQueue.bulkPut(payload.syncQueue as SyncQueueItem[]);
+    if (payload.categoryMergeHistory)
+      await db.categoryMergeHistory.bulkPut(payload.categoryMergeHistory as CategoryMergeHistory[]);
+    if (payload.payeeMergeHistory)
+      await db.payeeMergeHistory.bulkPut(payload.payeeMergeHistory as PayeeMergeHistory[]);
   },
 };

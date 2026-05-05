@@ -152,32 +152,31 @@ describe("MoneyInput", () => {
 
     const input = screen.getByRole("textbox", { name: "Amount" });
     const output = screen.getByTestId("amount-value");
-    const toggle = screen.getByRole("button", { name: "Switch to Refund" });
 
     fireEvent.keyDown(input, { key: "1" });
     fireEvent.keyDown(input, { key: "2" });
     expect(output).toHaveTextContent("0.12");
     expect(input).toHaveValue(formatCurrencyFromCents(12));
 
+    // Press - to switch to negative mode
     fireEvent.keyDown(input, { key: "-" });
     expect(output).toHaveTextContent("-0.12");
-    expect(input).toHaveValue(
-      formatCurrencyFromCents(12, {
-        locale: "en-CA",
-        currency: "CAD",
-        isNegative: true,
-      }),
-    );
+    // With showSignToggle, the input shows absolute value (no minus sign)
+    expect(input).toHaveValue(formatCurrencyFromCents(12));
+    // Toggle button switches to "Switch to Expense" aria-label
     expect(
       screen.getByRole("button", { name: "Switch to Expense" }),
     ).toBeInTheDocument();
-    // Only the toggle button shows "Refund" — the indicator pill is suppressed when toggle is visible
-    expect(screen.getAllByText("Refund")).toHaveLength(1);
+    // Only the toggle button communicates sign — no duplicate indicator pill
+    expect(screen.queryAllByText("Refund")).toHaveLength(0);
 
+    // Press + to switch back to positive
     fireEvent.keyDown(input, { key: "+" });
     expect(output).toHaveTextContent("0.12");
     expect(input).toHaveValue(formatCurrencyFromCents(12));
 
+    // Click toggle to go negative again
+    const toggle = screen.getByRole("button", { name: "Switch to Refund" });
     fireEvent.click(toggle);
     expect(output).toHaveTextContent("-0.12");
 
