@@ -1,5 +1,6 @@
 import { cn } from "../../utils/cn";
 import Strip from "../../components/ui/Strip";
+import { useHaptics } from "../../hooks/useHaptics";
 
 interface YearStripProps {
   year: number;
@@ -14,6 +15,7 @@ export default function YearStrip({
   maxVisible,
   onYearChange,
 }: YearStripProps) {
+  const haptics = useHaptics();
   const canGoForward = year < currentYear;
   const visibleCount = Math.min(maxVisible, 5);
   const rangeStart = Math.min(year, currentYear) - 50;
@@ -49,7 +51,11 @@ export default function YearStrip({
         return (
           <button
             key={y}
-            onClick={() => !isFuture && onYearChange(y)}
+            onClick={() => {
+              if (isFuture) return;
+              haptics.selection();
+              onYearChange(y);
+            }}
             disabled={isFuture}
             className={cn(
               "year-pill",

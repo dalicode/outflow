@@ -2,6 +2,7 @@ import { cn } from "../../utils/cn";
 import Strip from "../../components/ui/Strip";
 import { getLocalMonthKey } from "../../utils/historicalDataHelpers";
 import type { MonthSpan } from "./constants";
+import { useHaptics } from "../../hooks/useHaptics";
 
 interface MonthStripItem {
   year: number;
@@ -40,6 +41,7 @@ export default function DashboardMonthStrip({
   onJumpForward,
   disableJumpForward,
 }: DashboardMonthStripProps) {
+  const haptics = useHaptics();
   return (
     <Strip
       maxVisible={stripMaxVisible}
@@ -70,6 +72,7 @@ export default function DashboardMonthStrip({
 
         const handleClick = () => {
           if (!isSelected) {
+            haptics.selection();
             onSelectMonth(year, month);
           }
         };

@@ -1,5 +1,6 @@
 import { cn } from "../../utils/cn";
 import Strip from "../../components/ui/Strip";
+import { useHaptics } from "../../hooks/useHaptics";
 
 interface MonthStripProps {
   year: number;
@@ -34,6 +35,7 @@ export default function MonthStrip({
   canNextMonth,
   isAtCurrentMonth,
 }: MonthStripProps) {
+  const haptics = useHaptics();
   const scrollTarget = selectedMonth === null ? "yr" : selectedMonth;
   const scrollSelector = `[data-month="${scrollTarget}"]`;
 
@@ -60,7 +62,10 @@ export default function MonthStrip({
         <div className="month-strip-item" data-month="yr">
           <span className="year-label">{year}</span>
           <button
-            onClick={() => onSelectMonth(null)}
+            onClick={() => {
+              haptics.selection();
+              onSelectMonth(null);
+            }}
             className={cn(
               "month-pill",
               selectedMonth === null && "month-pill-selected",
@@ -87,7 +92,10 @@ export default function MonthStrip({
           >
             <span className="year-label invisible">{year}</span>
             <button
-              onClick={() => onSelectMonth(monthIdx)}
+              onClick={() => {
+                haptics.selection();
+                onSelectMonth(monthIdx);
+              }}
               className={cn(
                 "month-pill",
                 isSelected && "month-pill-selected",
