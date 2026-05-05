@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import { StorageService } from "./services/storageService";
 import { useAuth } from "./context/authContext";
 import { useSettings } from "./context/settingsContext";
+import { ToastProvider, useToasts } from "./context/toastContext";
 import { supabase } from "./services/supabase";
 import { useExpenses, useCategories, usePayees } from "./hooks/useLocalData";
 import { cn } from "./utils/cn";
@@ -38,6 +39,14 @@ function useScrollVisibility() {
   }, []);
 
   return { isScrolling, handleScroll };
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppShell />
+    </ToastProvider>
+  );
 }
 
 function useScrollDirection() {
@@ -129,7 +138,7 @@ function SyncDot({ status }: { status: SyncStatus }) {
   );
 }
 
-export default function App() {
+function AppShell() {
   const { user, loading, syncStatus, triggerSync, signOut } = useAuth();
   const { loaded: settingsLoaded } = useSettings();
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses();
@@ -139,11 +148,18 @@ export default function App() {
     refresh: refreshCategories,
   } = useCategories();
   const { payees, refresh: refreshPayees } = usePayees();
+  const { showUndoToast } = useToasts();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
   const { direction, onScroll: handleScrollDirection, reset: resetScrollDirection } = useScrollDirection();
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false);
   const [snapshotsReady, setSnapshotsReady] = useState(false);
+  const [pendingExpenseDeleteIds, setPendingExpenseDeleteIds] = useState<number[]>(
+    [],
+  );
+  const pendingExpenseDeleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>(
+    [],
+  );
 
   // Ref that Dashboard registers its cycleView fn into, so Navbar can call it
   const cycleDashboardViewRef = useRef<(() => void) | null>(null);
@@ -237,7 +253,17 @@ export default function App() {
     } else if (action === "update" && payload.id != null && payload.name) {
       await StorageService.updateCategory(payload.id, { name: payload.name });
     } else if (action === "delete" && payload.id != null) {
+      const archivedCategory = categories.find((category) => category.id === payload.id);
       await StorageService.deleteCategory(payload.id);
+      showUndoToast(`${archivedCategory?.name ?? "Category"} archived.`, async () => {
+        await StorageService.updateCategory(payload.id as number, {
+          isArchived: false,
+          archivedAt: undefined,
+          mergedIntoCategoryId: null,
+        });
+        await refreshCategories();
+        triggerSync?.();
+      });
     }
     await refreshCategories();
     triggerSync?.();
@@ -278,16 +304,112 @@ export default function App() {
   };
 
   const handleDelete = async (id: number) => {
-    await StorageService.remove(id);
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-    triggerSync?.();
+    const expense = expenses.find((item) => item.id === id);
+    if (!expense) return;
+    const removedIndex = expenses.findIndex((item) => item.id === id);
+
+    const timer = setTimeout(async () => {
+      try {
+        await StorageService.remove(id);
+        triggerSync?.();
+        await refreshExpenses();
+      } finally {
+        pendingExpenseDeleteTimersRef.current =
+          pendingExpenseDeleteTimersRef.current.filter((item) => item !== timer);
+        setPendingExpenseDeleteIds((current) =>
+          current.filter((pendingId) => pendingId !== id),
+        );
+      }
+    }, 4500);
+
+    pendingExpenseDeleteTimersRef.current.push(timer);
+    setPendingExpenseDeleteIds((current) => [...new Set([...current, id])]);
+    setExpenses((prev) => prev.filter((item) => item.id !== id));
+    showUndoToast(`Deleted ${expense.description?.trim() || "expense"}.`, async () => {
+      clearTimeout(timer);
+      pendingExpenseDeleteTimersRef.current =
+        pendingExpenseDeleteTimersRef.current.filter((item) => item !== timer);
+      setPendingExpenseDeleteIds((current) =>
+        current.filter((pendingId) => pendingId !== id),
+      );
+      setExpenses((prev) => {
+        if (prev.some((item) => item.id === id)) return prev;
+        const restored = [...prev];
+        restored.splice(Math.min(removedIndex, restored.length), 0, expense);
+        return restored;
+      });
+    });
   };
 
   const handleBulkDelete = async (ids: number[]) => {
-    await StorageService.removeMany(ids);
-    setExpenses((prev) => prev.filter((e) => !ids.includes(e.id as number)));
-    triggerSync?.();
+    const selected = expenses.filter((expense) =>
+      ids.includes(expense.id as number),
+    );
+    if (selected.length === 0) return;
+
+    const selectedIdSet = new Set(ids);
+    const positions = selected.map((expense) => ({
+      expense,
+      index: expenses.findIndex((item) => item.id === expense.id),
+    }));
+
+    const timer = setTimeout(async () => {
+      try {
+        await StorageService.removeMany(ids);
+        triggerSync?.();
+        await refreshExpenses();
+      } finally {
+        pendingExpenseDeleteTimersRef.current =
+          pendingExpenseDeleteTimersRef.current.filter((item) => item !== timer);
+        setPendingExpenseDeleteIds((current) =>
+          current.filter((pendingId) => !selectedIdSet.has(pendingId)),
+        );
+      }
+    }, 4500);
+
+    pendingExpenseDeleteTimersRef.current.push(timer);
+    setPendingExpenseDeleteIds((current) => [...new Set([...current, ...ids])]);
+    setExpenses((prev) =>
+      prev.filter((expense) => !selectedIdSet.has(expense.id as number)),
+    );
+    showUndoToast(`Deleted ${selected.length} expenses.`, async () => {
+      clearTimeout(timer);
+      pendingExpenseDeleteTimersRef.current =
+        pendingExpenseDeleteTimersRef.current.filter((item) => item !== timer);
+      setPendingExpenseDeleteIds((current) =>
+        current.filter((pendingId) => !selectedIdSet.has(pendingId)),
+      );
+      setExpenses((prev) => {
+        const restored = [...prev];
+        positions
+          .slice()
+          .sort((a, b) => a.index - b.index)
+          .forEach(({ expense, index }) => {
+            if (restored.some((item) => item.id === expense.id)) return;
+            restored.splice(Math.min(index, restored.length), 0, expense);
+          });
+        return restored;
+      });
+    });
   };
+
+  useEffect(
+    () => () => {
+      pendingExpenseDeleteTimersRef.current.forEach((timer) =>
+        clearTimeout(timer),
+      );
+      pendingExpenseDeleteTimersRef.current = [];
+    },
+    [],
+  );
+
+  const visibleExpenses = useMemo(
+    () =>
+      expenses.filter(
+        (expense) => !pendingExpenseDeleteIds.includes(expense.id as number),
+      ),
+    [expenses, pendingExpenseDeleteIds],
+  );
 
   if (supabase && !loading && !user) return <AuthPage />;
 
@@ -325,7 +447,7 @@ export default function App() {
                   path={ROUTES.DASHBOARD}
                   element={
                     <Dashboard
-                      expenses={expenses}
+                      expenses={visibleExpenses}
                       categories={categories}
                       payees={payees}
                       onUpdate={handleUpdate}
@@ -347,7 +469,7 @@ export default function App() {
                   path={ROUTES.SUMMARY}
                   element={
                     <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
-                      <SummaryPage expenses={expenses} />
+                      <SummaryPage expenses={visibleExpenses} />
                     </ScrollablePage>
                   }
                 />
@@ -356,7 +478,7 @@ export default function App() {
                   element={
                     <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
                       <AnalyticsPage
-                        expenses={expenses}
+                        expenses={visibleExpenses}
                         categories={categories}
                         sessionState={analyticsSession}
                         onSessionStateChange={handleAnalyticsSessionChange}
@@ -377,7 +499,7 @@ export default function App() {
                   element={
                     <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
                       <SettingsPage
-                        expenses={expenses}
+                        expenses={visibleExpenses}
                         onImport={async () =>
                           setExpenses(await StorageService.getAll())
                         }

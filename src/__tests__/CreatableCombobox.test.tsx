@@ -32,8 +32,7 @@ describe('CreatableCombobox', () => {
 
     const option = screen.getByRole('option', { name: 'Groceries' })
 
-    fireEvent.mouseDown(option)
-    fireEvent.click(option)
+    fireEvent.pointerDown(option)
 
     await waitFor(() => {
       expect(screen.getByRole('combobox')).toHaveFocus()

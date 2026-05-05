@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
   useCallback,
+  type PointerEvent as ReactPointerEvent,
   type FormEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -20,7 +21,6 @@ import {
   type ComboboxOption,
 } from "../../components/inputs/comboboxUtils";
 import { normalizeName } from "../../utils/normalizeName";
-import { usePayees } from "../../hooks/useLocalData";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import {
@@ -31,6 +31,12 @@ import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
 import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
 import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
 import { useHaptics } from "../../hooks/useHaptics";
+import { useExpenses, usePayees } from "../../hooks/useLocalData";
+import { useToasts } from "../../context/toastContext";
+import {
+  getMostLikelyRelatedEntityId,
+  getRecentEntityIds,
+} from "../../utils/entityHistory";
 import type { MatchConfidence } from "../../utils/payeeMatching";
 import "./expenses.css";
 import type { Expense, Category, Payee } from "../../types";
@@ -100,6 +106,8 @@ function SingleSelectTrigger({
 interface DesktopSingleSelectDropdownProps {
   value?: string | number;
   options: ComboboxOption[];
+  recentOptions?: ComboboxOption[];
+  recentLabel?: string;
   placeholder: string;
   emptyMessage: string;
   createHint?: string;
@@ -114,6 +122,8 @@ interface DesktopSingleSelectDropdownProps {
 function DesktopSingleSelectDropdown({
   value,
   options,
+  recentOptions,
+  recentLabel = "Recent",
   placeholder,
   emptyMessage,
   createHint = "Type a new name to add it.",
@@ -154,6 +164,17 @@ function DesktopSingleSelectDropdown({
     () => getFilteredOptions(options, query),
     [options, query],
   );
+  const showRecentSection = Boolean(recentOptions?.length && !query.trim());
+  const recentVisibleOptions = showRecentSection
+    ? (recentOptions ?? []).filter((option) => !option.isArchived)
+    : [];
+  const recentIds = useMemo(
+    () => new Set(recentVisibleOptions.map((option) => option.id)),
+    [recentVisibleOptions],
+  );
+  const displayOptions = showRecentSection
+    ? filteredOptions.filter((option) => !recentIds.has(option.id))
+    : filteredOptions;
 
   const showCreateOption =
     allowCreate && onCreate && query.trim() && !hasExactMatch(options, query);
@@ -213,6 +234,14 @@ function DesktopSingleSelectDropdown({
     setIsOpen(false);
   };
 
+  const handlePointerSelect = (id: string | number | undefined) => (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleSelect(id);
+  };
+
   const handleCreate = async () => {
     if (!onCreate || isCreating) return;
     const trimmed = query.trim();
@@ -262,12 +291,12 @@ function DesktopSingleSelectDropdown({
               onKeyDown={(e) => {
                 if (e.key !== "Enter") return;
                 e.preventDefault();
-                if (showCreateOption && filteredOptions.length === 0) {
+                if (showCreateOption && displayOptions.length === 0) {
                   void handleCreate();
                   return;
                 }
-                if (filteredOptions[0]) {
-                  handleSelect(filteredOptions[0].id);
+                if (displayOptions[0]) {
+                  handleSelect(displayOptions[0].id);
                 }
               }}
               placeholder={placeholder}
@@ -289,22 +318,50 @@ function DesktopSingleSelectDropdown({
             )}
             <div className="mt-2 max-h-52 overflow-y-auto scrollbar-auto-hide">
               <div>
+                {recentVisibleOptions.length > 0 && (
+                  <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+                    {recentLabel}
+                  </div>
+                )}
+                {recentVisibleOptions.map((option) => {
+                  const isSelected = option.id === value;
+                  return (
+                    <button
+                      key={`recent-${option.id}`}
+                      type="button"
+                      onPointerDown={handlePointerSelect(option.id)}
+                      className={cn(
+                        "flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                        isSelected
+                          ? "bg-theme-primary-subtle text-theme-primary font-medium"
+                          : "text-theme-text hover:bg-theme-border",
+                      )}
+                    >
+                      <span className="min-w-0 truncate">{option.label}</span>
+                      {isSelected && (
+                        <span className="text-xs font-medium text-theme-primary">
+                          Selected
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
                 {allowClear && value != null && (
                   <button
                     type="button"
-                    onClick={() => handleSelect(undefined)}
+                    onPointerDown={handlePointerSelect(undefined)}
                     className="flex min-h-8 w-full items-center border-b border-theme-border px-2 py-1 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border"
                   >
                     <span className="min-w-0 truncate">{clearLabel}</span>
                   </button>
                 )}
-                {filteredOptions.map((option) => {
+                {displayOptions.map((option) => {
                   const isSelected = option.id === value;
                   return (
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => handleSelect(option.id)}
+                      onPointerDown={handlePointerSelect(option.id)}
                       className={cn(
                         "flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
                         isSelected
@@ -324,7 +381,11 @@ function DesktopSingleSelectDropdown({
                 {showCreateOption && (
                   <button
                     type="button"
-                    onClick={() => void handleCreate()}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void handleCreate();
+                    }}
                     disabled={isCreating}
                     className={cn(
                       "flex min-h-8 w-full items-center gap-2 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
@@ -351,7 +412,9 @@ function DesktopSingleSelectDropdown({
                     )}
                   </button>
                 )}
-                {filteredOptions.length === 0 && !showCreateOption && (
+                {displayOptions.length === 0 &&
+                  !showCreateOption &&
+                  recentVisibleOptions.length === 0 && (
                   <div className="px-2.5 py-3 text-center text-xs text-theme-muted">
                     {emptyMessage}
                   </div>
@@ -674,6 +737,7 @@ function PayeeModal({
   onClose,
   refreshPayees,
 }: PayeeModalProps) {
+  const { showUndoToast } = useToasts();
   const [newName, setNewName] = useState("");
   const [newError, setNewError] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
@@ -733,6 +797,11 @@ function PayeeModal({
     await StorageService.archivePayee(id);
     onPayeesChange?.();
     refreshPayees?.();
+    showUndoToast("Payee archived.", async () => {
+      await StorageService.unarchivePayee(id);
+      onPayeesChange?.();
+      refreshPayees?.();
+    });
   };
 
   const [mergeSource, setMergeSource] = useState<Payee | null>(null);
@@ -949,6 +1018,7 @@ export default function ExpenseForm({
   refreshPayees: refreshPayeesProp,
 }: ExpenseFormProps) {
   const isEdit = !!initialExpense;
+  const { expenses } = useExpenses();
   const { payees, refresh: refreshPayees } = usePayees();
   const { settings } = useSettings();
   const decimalPlaces = parseInt(settings.decimalPlaces, 10) || 2;
@@ -988,6 +1058,14 @@ export default function ExpenseForm({
         .sort((a, b) => a.name.localeCompare(b.name)),
     [payees],
   );
+  const activeCategoryIds = useMemo(
+    () => new Set(activeCategories.map((category) => category.id!)),
+    [activeCategories],
+  );
+  const activePayeeIds = useMemo(
+    () => new Set(activePayees.map((payee) => payee.id!)),
+    [activePayees],
+  );
 
   const categoryOptions = useMemo(
     () =>
@@ -1002,6 +1080,28 @@ export default function ExpenseForm({
       activePayees.map((p) => ({ id: p.id!, label: normalizeName(p.name) })),
     [activePayees],
   );
+  const recentCategoryOptions = useMemo(() => {
+    const recentIds = getRecentEntityIds(
+      expenses,
+      "categoryId",
+      5,
+      activeCategoryIds,
+    );
+    return recentIds
+      .map((id) => categoryOptions.find((option) => option.id === id))
+      .filter((option): option is ComboboxOption => Boolean(option));
+  }, [activeCategoryIds, categoryOptions, expenses]);
+  const recentPayeeOptions = useMemo(() => {
+    const recentIds = getRecentEntityIds(
+      expenses,
+      "payeeId",
+      5,
+      activePayeeIds,
+    );
+    return recentIds
+      .map((id) => payeeOptions.find((option) => option.id === id))
+      .filter((option): option is ComboboxOption => Boolean(option));
+  }, [activePayeeIds, expenses, payeeOptions]);
 
   const selectedCategoryName = categoryOptions.find(
     (o) => o.id === Number(form.categoryId),
@@ -1063,6 +1163,22 @@ export default function ExpenseForm({
       setPayeeSuggestion(null);
       setPayeeSuggestionConfidence(null);
       setAliasSaved(false);
+      if (id != null) {
+        const likelyCategoryId = getMostLikelyRelatedEntityId(
+          expenses,
+          "payeeId",
+          Number(id),
+          "categoryId",
+          activeCategoryIds,
+        );
+        if (likelyCategoryId != null) {
+          setForm((current) =>
+            current.categoryId
+              ? current
+              : { ...current, categoryId: String(likelyCategoryId) },
+          );
+        }
+      }
       // Offer alias if description is set and payee was manually chosen
       if (id != null && form.description.trim()) {
         const normalized = normalizePayeeText(form.description);
@@ -1071,7 +1187,7 @@ export default function ExpenseForm({
         setShowAliasOffer(false);
       }
     },
-    [form.description],
+    [activeCategoryIds, expenses, form.description],
   );
 
   const saveAlias = async () => {
@@ -1174,6 +1290,7 @@ export default function ExpenseForm({
               <DesktopSingleSelectDropdown
                 value={form.payeeId ? Number(form.payeeId) : undefined}
                 options={payeeOptions}
+                recentOptions={recentPayeeOptions}
                 placeholder="Select payee"
                 emptyMessage="No payees found."
                 createHint="Type a new payee name to add it."
@@ -1203,6 +1320,7 @@ export default function ExpenseForm({
                 title="Choose Payee"
                 value={form.payeeId ? Number(form.payeeId) : undefined}
                 options={payeeOptions}
+                recentOptions={recentPayeeOptions}
                 placeholder="Search or add payee"
                 emptyMessage="No payees found."
                 createHint="Type a new payee name to add it."
@@ -1236,6 +1354,7 @@ export default function ExpenseForm({
               <DesktopSingleSelectDropdown
                 value={form.categoryId ? Number(form.categoryId) : undefined}
                 options={categoryOptions}
+                recentOptions={recentCategoryOptions}
                 placeholder="Select category"
                 emptyMessage="No categories found."
                 createHint="Type a new category name to add it."
@@ -1272,6 +1391,7 @@ export default function ExpenseForm({
                 title="Choose Category"
                 value={form.categoryId ? Number(form.categoryId) : undefined}
                 options={categoryOptions}
+                recentOptions={recentCategoryOptions}
                 placeholder="Search or add category"
                 emptyMessage="No categories found."
                 createHint="Type a new category name to add it."

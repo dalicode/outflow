@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { normalizeName } from "../../utils/normalizeName";
 import { usePayees } from "../../hooks/useLocalData";
+import { useToasts } from "../../context/toastContext";
 import { StorageService } from "../../services/storageService";
 import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
 import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
@@ -8,6 +9,7 @@ import type { Payee } from "../../types";
 
 export default function PayeesPage() {
   const { payees, refresh } = usePayees();
+  const { showUndoToast } = useToasts();
   const [search, setSearch] = useState("");
   const [newName, setNewName] = useState("");
   const [error, setError] = useState("");
@@ -74,6 +76,10 @@ export default function PayeesPage() {
 
   const handleDelete = async (id: number) => {
     await StorageService.archivePayee(id);
+    showUndoToast("Payee archived.", async () => {
+      await StorageService.unarchivePayee(id);
+      refresh();
+    });
     refresh();
   };
 

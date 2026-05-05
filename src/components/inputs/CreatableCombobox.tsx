@@ -56,6 +56,8 @@ interface CreatableComboboxProps {
   label?: string;
   value?: string | number;
   options: ComboboxOption[];
+  recentOptions?: ComboboxOption[];
+  recentLabel?: string;
   placeholder?: string;
   emptyMessage?: string;
   createLabel?: (query: string) => string;
@@ -78,6 +80,8 @@ export default function CreatableCombobox({
   label,
   value,
   options,
+  recentOptions,
+  recentLabel = "Recent",
   placeholder = "Search...",
   emptyMessage = "No matches found.",
   createLabel = (query) => `Add "${query.trim()}"`,
@@ -126,6 +130,17 @@ export default function CreatableCombobox({
     () => getFilteredOptions(options, filterText),
     [options, filterText],
   );
+  const showRecentSection = Boolean(recentOptions?.length && !filterText.trim());
+  const recentIds = useMemo(
+    () => new Set((recentOptions ?? []).map((option) => option.id)),
+    [recentOptions],
+  );
+  const recentVisibleOptions = showRecentSection
+    ? (recentOptions ?? []).filter((option) => !option.isArchived)
+    : [];
+  const displayOptions = showRecentSection
+    ? filtered.filter((option) => !recentIds.has(option.id))
+    : filtered;
 
   const showCreateOption =
     allowCreate &&
@@ -135,8 +150,8 @@ export default function CreatableCombobox({
   const showCreateHint =
     allowCreate && onCreate && dropdownState.isOpen && !filterText.trim();
 
-  const totalItems = filtered.length + (showCreateOption ? 1 : 0);
-  const createIndex = filtered.length;
+  const totalItems = displayOptions.length + (showCreateOption ? 1 : 0);
+  const createIndex = displayOptions.length;
 
   const updateDropdownPosition = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -208,14 +223,14 @@ export default function CreatableCombobox({
     if (!filterText.trim()) {
       return options.find((o) => o.label === displayQuery)?.id ?? value;
     }
-    const highlightedMatch = filtered[highlightedIndex];
-    return highlightedMatch?.id ?? filtered[0]?.id ?? value;
-  }, [displayQuery, filterText, filtered, highlightedIndex, options, value]);
+    const highlightedMatch = displayOptions[highlightedIndex];
+    return highlightedMatch?.id ?? displayOptions[0]?.id ?? value;
+  }, [displayOptions, displayQuery, filterText, highlightedIndex, options, value]);
 
   const commitDefaultSelection = useCallback(() => {
     const id = getDefaultCommitId();
     const option = options.find((o) => o.id === id);
-    if (filterText.trim() && filtered.length === 0) {
+    if (filterText.trim() && displayOptions.length === 0) {
       setDisplayQuery(selectedLabel);
       setHasTyped(false);
       return;
@@ -227,7 +242,7 @@ export default function CreatableCombobox({
     onChange(id);
   }, [
     filterText,
-    filtered.length,
+    displayOptions.length,
     getDefaultCommitId,
     onChange,
     options,
@@ -241,9 +256,13 @@ export default function CreatableCombobox({
           e.preventDefault();
           openDropdown();
         } else if (e.key === "Tab") {
-          e.preventDefault();
-          commitDefaultSelection();
-          onTab?.(e.shiftKey);
+          if (onTab) {
+            e.preventDefault();
+            commitDefaultSelection();
+            onTab(e.shiftKey);
+          } else {
+            closeDropdown();
+          }
         }
         return;
       }
@@ -252,24 +271,18 @@ export default function CreatableCombobox({
         case "ArrowDown": {
           e.preventDefault();
           setHighlightedIndex((prev) => {
-            if (prev >= totalItems - 1) {
-              return 0;
-            } else {
-              setDisplayQuery(filtered[highlightedIndex + 1].label);
-              return prev + 1;
-            }
+            const next = prev >= totalItems - 1 ? 0 : prev + 1;
+            setDisplayQuery(displayOptions[next]?.label ?? displayQuery);
+            return next;
           });
           break;
         }
         case "ArrowUp": {
           e.preventDefault();
           setHighlightedIndex((prev) => {
-            if (prev <= 0) {
-              return 0;
-            } else {
-              setDisplayQuery(filtered[highlightedIndex - 1].label);
-              return prev - 1;
-            }
+            const next = prev <= 0 ? totalItems - 1 : prev - 1;
+            setDisplayQuery(displayOptions[next]?.label ?? displayQuery);
+            return next;
           });
           break;
         }
@@ -277,9 +290,9 @@ export default function CreatableCombobox({
           e.preventDefault();
           if (showCreateOption && highlightedIndex === createIndex) {
             handleCreate();
-          } else if (filtered[highlightedIndex]) {
-            const id = filtered[highlightedIndex].id;
-            setDisplayQuery(filtered[highlightedIndex].label);
+          } else if (displayOptions[highlightedIndex]) {
+            const id = displayOptions[highlightedIndex].id;
+            setDisplayQuery(displayOptions[highlightedIndex].label);
             setHasTyped(false);
             closeDropdown();
             onChange(id);
@@ -295,11 +308,12 @@ export default function CreatableCombobox({
           break;
         }
         case "Tab": {
-          e.preventDefault();
-
           closeDropdown();
-          commitDefaultSelection();
-          onTab?.(e.shiftKey);
+          if (onTab) {
+            e.preventDefault();
+            commitDefaultSelection();
+            onTab(e.shiftKey);
+          }
           break;
         }
       }
@@ -310,7 +324,7 @@ export default function CreatableCombobox({
       showCreateOption,
       highlightedIndex,
       createIndex,
-      filtered,
+      displayOptions,
       handleCreate,
       closeDropdown,
       openDropdown,
@@ -426,18 +440,47 @@ export default function CreatableCombobox({
           </div>
         </div>
       )}
-      {filtered.map((opt, i) => (
+      {recentVisibleOptions.length > 0 && (
+        <div className="border-b border-theme-border px-3 py-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+            {recentLabel}
+          </div>
+        </div>
+      )}
+      {recentVisibleOptions.map((opt) => (
+        <div
+          key={`recent-${opt.id}`}
+          role="option"
+          aria-selected={opt.id === value}
+          className={cn(
+            "px-3 py-2 text-sm cursor-pointer transition-colors text-theme-text border-b border-theme-border",
+            opt.id === value && "bg-theme-primary-subtle",
+          )}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSelect(opt.id);
+          }}
+        >
+          {opt.label}
+        </div>
+      ))}
+      {displayOptions.map((opt, i) => (
         <div
           key={opt.id}
           id={`${optionIdPrefix}-${i}`}
           role="option"
           aria-selected={i === highlightedIndex}
           className={cn(
-            "px-3 py-1 text-sm cursor-pointer transition-colors text-theme-text",
+            "px-3 py-2 text-sm cursor-pointer transition-colors text-theme-text border-b border-theme-border last:border-b-0",
             i === highlightedIndex && "bg-theme-primary-subtle",
             opt.id === value && "font-medium",
           )}
-          onClick={() => handleSelect(opt.id)}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSelect(opt.id);
+          }}
           onMouseEnter={() => setHighlightedIndex(i)}
         >
           {opt.label}
@@ -452,7 +495,11 @@ export default function CreatableCombobox({
             "px-3 py-2.5 text-sm cursor-pointer transition-colors text-theme-text border-t border-theme-border",
             createIndex === highlightedIndex && "bg-theme-primary-subtle",
           )}
-          onClick={handleCreate}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleCreate();
+          }}
           onMouseEnter={() => setHighlightedIndex(createIndex)}
         >
           {isCreating ? (
@@ -473,7 +520,9 @@ export default function CreatableCombobox({
           )}
         </div>
       )}
-      {filtered.length === 0 && !showCreateOption && (
+      {displayOptions.length === 0 &&
+        !showCreateOption &&
+        recentVisibleOptions.length === 0 && (
         <div className="px-3 py-4 text-sm text-theme-text text-center">
           {emptyMessage}
         </div>
