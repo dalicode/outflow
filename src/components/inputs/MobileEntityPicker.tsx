@@ -177,7 +177,7 @@ export default function MobileEntityPicker({
         </div>
 
         {/* List */}
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide overscroll-contain p-2">
           {/* Clear option */}
           {allowClear && value != null && (
             <button

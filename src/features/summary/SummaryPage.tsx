@@ -1,26 +1,17 @@
-import { useState } from "react";
 import { useSummary } from "../../hooks/useSummary";
 import IncomeForm from "./IncomeForm";
 import FixedExpensesList from "../fixedExpenses/FixedExpensesList";
 import SavingsForm from "./SavingsForm";
-import SummarySection from "./SummarySection";
-import ChartComponent from "../../components/charts/ChartComponent";
-import BreakdownPie from "./BreakdownPie";
-import Card from "../../components/ui/Card";
+import BudgetFlow from "./BudgetFlow";
+import SpendingBreakdown from "./SpendingBreakdown";
 import type { Expense } from "../../types";
 import "./summary.css";
-
-type SliceType = "fixed" | "variable" | "savings";
 
 interface SummaryPageProps {
   expenses: Expense[];
 }
 
 export default function SummaryPage({ expenses }: SummaryPageProps) {
-  const [selectedSlice, setSelectedSlice] = useState<SliceType | null>(
-    "variable",
-  );
-
   const {
     incomeRaw,
     incomeFreq,
@@ -36,70 +27,63 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
     handleDeleteFixed,
   } = useSummary({ expenses });
 
-  const handleSliceClick = (slice: SliceType) => {
-    setSelectedSlice((prev) => (prev === slice ? null : slice));
-  };
+  const incomeIsSet = parseFloat(String(incomeRaw || 0)) > 0;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-theme-text tracking-tight">
-          Summary
-        </h1>
+    <main className="max-w-2xl mx-auto px-4 py-6 space-y-3">
+      <h1 className="text-2xl font-bold text-theme-text tracking-tight">
+        Budget
+      </h1>
+
+      {/* ── Setup prompt (new users) ── */}
+      {!incomeIsSet && (
+        <div className="rounded-theme-large border border-dashed border-theme-border bg-theme-surface p-5 text-center space-y-1">
+          <p className="text-sm font-medium text-theme-text">Set up your budget</p>
+          <p className="text-xs text-theme-muted">
+            Add your income below to see your budget breakdown.
+          </p>
+        </div>
+      )}
+
+      {/* ── Income ── */}
+      <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+        <IncomeForm
+          income={incomeRaw}
+          frequency={incomeFreq}
+          onSave={handleIncomeSave}
+        />
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        <Card>
-          <IncomeForm
-            income={incomeRaw}
-            frequency={incomeFreq}
-            onSave={handleIncomeSave}
-          />
-        </Card>
-        <Card>
-          <SavingsForm
-            savingsRate={savingsRate}
-            monthlyIncome={monthlyIncome}
-            onSave={handleSavingsRateSave}
-          />
-        </Card>
+      {/* ── Auto Savings ── */}
+      <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+        <SavingsForm
+          savingsRate={savingsRate}
+          monthlyIncome={monthlyIncome}
+          onSave={handleSavingsRateSave}
+        />
       </div>
 
-      <Card>
+      {/* ── Fixed Expenses ── */}
+      <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
         <FixedExpensesList
           items={fixedExpenses}
           onAdd={handleAddFixed}
           onUpdate={handleUpdateFixed}
           onDelete={handleDeleteFixed}
         />
-      </Card>
+      </div>
 
-      {financialSummary && (
-        <Card>
-          <SummarySection summary={financialSummary} />
-        </Card>
+      {/* ── Budget flow (only when income is set) ── */}
+      {financialSummary && incomeIsSet && (
+        <BudgetFlow summary={financialSummary} />
       )}
 
-      {financialSummary && (
-        <Card>
-          <ChartComponent
-            totalFixed={financialSummary.fixedExpensesTotal}
-            variableExpenses={financialSummary.variableExpenses}
-            savings={financialSummary.autoSavings + financialSummary.remaining}
-            onSliceClick={handleSliceClick}
-            activeSlice={selectedSlice}
-          />
-        </Card>
-      )}
-
-      {financialSummary && selectedSlice && (
-        <Card>
-          <BreakdownPie
-            type={selectedSlice}
-            financialSummary={financialSummary}
-            variableBreakdown={variableBreakdown}
-          />
-        </Card>
+      {/* ── Variable spending breakdown ── */}
+      {variableBreakdown.length > 0 && (
+        <SpendingBreakdown
+          items={variableBreakdown}
+          total={financialSummary?.variableExpenses ?? 0}
+        />
       )}
     </main>
   );

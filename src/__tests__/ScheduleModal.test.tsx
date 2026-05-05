@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { createContext, useContext } from 'react'
 import ScheduleModal from '../features/settings/ScheduleModal'
 import { StorageService } from '../services/storageService'
 
@@ -11,13 +10,17 @@ vi.mock('../services/storageService', () => ({
       { id: 1, name: 'Groceries' },
       { id: 2, name: 'Entertainment' },
     ])),
+    getPayees: vi.fn(() => Promise.resolve([
+      { id: 1, name: 'Amazon' },
+      { id: 2, name: 'Supermarket' },
+    ])),
     addCategory: vi.fn(() => Promise.resolve(3)),
+    addPayee: vi.fn(() => Promise.resolve(3)),
     addSchedule: vi.fn(() => Promise.resolve(1)),
     updateSchedule: vi.fn(() => Promise.resolve()),
   },
 }))
 
-// Mock useSettings for DatePicker
 vi.mock('../context/settingsContext', () => ({
   useSettings: () => ({
     settings: { dateFormat: 'MM/DD/YYYY' },
@@ -33,35 +36,47 @@ describe('ScheduleModal', () => {
   })
 
   it('renders expense type option in dropdown', () => {
-    render(
-      <ScheduleModal isOpen={true} onClose={vi.fn()} />,
-    )
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     expect(screen.getByText('Expense')).toBeInTheDocument()
   })
 
-  it('shows category dropdown and date picker when type is expense', async () => {
-    render(
-      <ScheduleModal isOpen={true} onClose={vi.fn()} />,
-    )
+  it('shows expense fields (date, payee, category, description, amount) when type is expense', async () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
     const typeSelect = screen.getAllByRole('combobox')[0]
     fireEvent.change(typeSelect, { target: { value: 'expense' } })
 
     await waitFor(() => {
-      expect(screen.getByText('Category')).toBeInTheDocument()
       expect(screen.getByText('Date')).toBeInTheDocument()
+      expect(screen.getByText('Payee')).toBeInTheDocument()
+      expect(screen.getByText('Category')).toBeInTheDocument()
+      expect(screen.getByText('Description')).toBeInTheDocument()
+      expect(screen.getByText('Amount')).toBeInTheDocument()
     })
   })
 
-  it('validates category is required for expense schedules', async () => {
-    render(
-      <ScheduleModal isOpen={true} onClose={vi.fn()} />,
-    )
+  it('does not show note field for expense type', async () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
     const typeSelect = screen.getAllByRole('combobox')[0]
     fireEvent.change(typeSelect, { target: { value: 'expense' } })
 
-    const amountInput = screen.getByPlaceholderText('e.g. 6000')
+    await waitFor(() => {
+      expect(screen.queryByText('Note')).not.toBeInTheDocument()
+    })
+  })
+
+  it('validates category is required for expense schedules', async () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
+
+    const typeSelect = screen.getAllByRole('combobox')[0]
+    fireEvent.change(typeSelect, { target: { value: 'expense' } })
+
+    await waitFor(() => {
+      expect(screen.getByText('Amount')).toBeInTheDocument()
+    })
+
+    const amountInput = screen.getByPlaceholderText('0.00')
     fireEvent.change(amountInput, { target: { value: '50' } })
 
     const saveBtn = screen.getByText('Save Schedule')
@@ -72,26 +87,14 @@ describe('ScheduleModal', () => {
     })
   })
 
-  it('displays category options in dropdown', async () => {
-    render(
-      <ScheduleModal isOpen={true} onClose={vi.fn()} />,
-    )
+  it('shows note field for non-expense types', () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
+    // Default type is income
+    expect(screen.getByText('Note')).toBeInTheDocument()
+  })
 
-    const typeSelect = screen.getAllByRole('combobox')[0]
-    fireEvent.change(typeSelect, { target: { value: 'expense' } })
-
-    await waitFor(() => {
-      expect(screen.getByText('Category')).toBeInTheDocument()
-    })
-
-    // Open the CreatableCombobox dropdown
-    const categoryInput = screen.getByPlaceholderText('Search or add category…')
-    fireEvent.focus(categoryInput)
-    fireEvent.keyDown(categoryInput, { key: 'ArrowDown' })
-
-    await waitFor(() => {
-      expect(screen.getByText('Groceries')).toBeInTheDocument()
-      expect(screen.getByText('Entertainment')).toBeInTheDocument()
-    })
+  it('shows effective date label for non-expense types', () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
+    expect(screen.getByText('Effective Date')).toBeInTheDocument()
   })
 })

@@ -200,12 +200,17 @@ export default function Modal({
   const hasMobileAction = isFullScreenMobile && Boolean(onMobileAction);
   const desktopPlacementClass = desktopPlacementMap[size];
 
-  const overlayStyle = isMobileViewport
-    ? {
-        top: `${viewportMetrics.offsetTop}px`,
-        height: `${viewportMetrics.height}px`,
-      }
-    : undefined;
+  // For full-screen mobile modals, keep the overlay pinned to the full fixed
+  // viewport (inset-0) so there's never a gap when the keyboard appears.
+  // The card itself shrinks to the visual viewport height so content stays
+  // above the keyboard — but the overlay background always covers the screen.
+  const overlayStyle =
+    isMobileViewport && !isFullScreenMobile
+      ? {
+          top: `${viewportMetrics.offsetTop}px`,
+          height: `${viewportMetrics.height}px`,
+        }
+      : undefined;
 
   const modalCardStyle = isMobileViewport
     ? isFullScreenMobile
@@ -306,7 +311,7 @@ export default function Modal({
         {/* Content */}
         <div
           className={cn(
-            "flex-1 overflow-x-hidden overflow-y-auto scrollbar-auto-hide min-h-0",
+            "flex-1 overflow-x-hidden overflow-y-auto scrollbar-auto-hide overscroll-contain min-h-0",
             isScrolling && "is-scrolling",
             isFullScreenMobile ? "p-4" : "p-5",
             hasHeader && "pt-4",

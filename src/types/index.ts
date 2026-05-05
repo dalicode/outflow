@@ -87,6 +87,7 @@ export interface Schedule {
   createdAt?: string
   day?: number        // 1–31, used by expense schedules
   categoryId?: number // used by expense schedules
+  payeeId?: number    // used by expense schedules
 }
 
 // ── Settings ────────────────────────────────────────────────────────────────
@@ -196,6 +197,7 @@ export interface AnalyticsData {
   year: number
   monthlyIncome: number[]
   variableRows: VariableGridResult['variableRows']
+  payeeRows: VariableGridResult['variableRows']
   grid: VariableGridResult['grid']
   fixedRows: FixedRow[]
   monthlyFixedTotals: number[]

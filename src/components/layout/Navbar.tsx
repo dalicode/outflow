@@ -2,6 +2,7 @@ import {
   useState,
   useEffect,
   useRef,
+  useCallback,
   type ReactNode,
   type MouseEventHandler,
   type PointerEventHandler,
@@ -10,76 +11,72 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import { ROUTES } from "../../constants/routes";
-import { useLastVisitedUrls } from "../../hooks/useLastVisitedUrls";
 
 interface NavIconProps {
   active: boolean;
 }
 
 const DashboardIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
-    <path
-      d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
+    {/* Receipt / transactions icon */}
+    <rect
+      x="4" y="2" width="16" height="20" rx="2"
+      fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      opacity="0.15"
+    />
+    <line x1="8" y1="7" x2="16" y2="7"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="1.75" strokeLinecap="round"
+    />
+    <line x1="8" y1="11" x2="16" y2="11"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="1.75" strokeLinecap="round"
+    />
+    <line x1="8" y1="15" x2="12" y2="15"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="1.75" strokeLinecap="round"
+    />
+    <circle
+      cx="17" cy="17" r="4"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
     />
     <path
-      d="M9 22V12h6v10"
-      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
+      d="M15.5 17h3M17 15.5v3"
+      stroke="white"
+      strokeWidth="1.5" strokeLinecap="round"
     />
   </svg>
 );
 
 const SummaryIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
+    {/* Wallet icon */}
     <rect
-      x="4"
-      y="2"
-      width="16"
-      height="20"
-      rx="2"
+      x="2" y="6" width="20" height="14" rx="2"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      opacity="0.2"
+      opacity="0.15"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="1.75"
+    />
+    <path
+      d="M2 10h20"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="1.75" strokeLinecap="round"
+    />
+    <path
+      d="M6 4l4-2 4 2"
+      stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
+      strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
     />
     <rect
-      x="6"
-      y="4"
-      width="12"
-      height="2"
+      x="15" y="13" width="5" height="4" rx="1"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-    />
-    <rect
-      x="6"
-      y="8"
-      width="10"
-      height="2"
-      fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      opacity="0.6"
-    />
-    <rect
-      x="6"
-      y="12"
-      width="8"
-      height="2"
-      fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      opacity="0.6"
-    />
-    <rect
-      x="6"
-      y="16"
-      width="6"
-      height="2"
-      fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      opacity="0.6"
     />
   </svg>
 );
 
 const AnalyticsIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
     <rect
       x="3"
       y="14"
@@ -115,7 +112,7 @@ const AnalyticsIcon = ({ active }: NavIconProps) => (
 );
 
 const SettingsIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
     <circle
       cx="12"
       cy="12"
@@ -217,7 +214,7 @@ const PlusIcon = () => (
 const SignOutIcon = () => (
   <svg
     viewBox="0 0 24 24"
-    className="w-7 h-7 shrink-0"
+    className="w-6 h-6 shrink-0"
     fill="none"
     stroke="currentColor"
     strokeWidth="2"
@@ -231,7 +228,7 @@ const SignOutIcon = () => (
 );
 
 const PayeesIcon = ({ active }: NavIconProps) => (
-  <svg viewBox="0 0 24 24" className="w-7 h-7 shrink-0" fill="none">
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
     <circle
       cx="9"
       cy="8"
@@ -270,16 +267,16 @@ interface NavItemConfig {
 
 const NAV_ITEMS: NavItemConfig[] = [
   {
+    pageKey: "summary",
+    basePath: ROUTES.SUMMARY,
+    label: "Budget",
+    icon: SummaryIcon,
+  },
+  {
     pageKey: "dashboard",
     basePath: ROUTES.DASHBOARD,
     label: "Dashboard",
     icon: DashboardIcon,
-  },
-  {
-    pageKey: "summary",
-    basePath: ROUTES.SUMMARY,
-    label: "Summary",
-    icon: SummaryIcon,
   },
   {
     pageKey: "analytics",
@@ -309,6 +306,7 @@ interface NavbarProps {
   scrollDirection?: "up" | "down" | null;
   isScrolling?: boolean;
   hidden?: boolean;
+  onCycleDashboardView?: () => void;
 }
 
 export default function Navbar({
@@ -319,9 +317,10 @@ export default function Navbar({
   scrollDirection,
   isScrolling = false,
   hidden = false,
+  onCycleDashboardView,
 }: NavbarProps) {
-  const mobileCollapsedHeight = 64;
-  const mobileExpandedHeight = 132;
+  const mobileCollapsedHeight = 72;
+  const mobileExpandedHeight = 144;
   const mobileDragRange = mobileExpandedHeight - mobileCollapsedHeight;
   const [collapsed, setCollapsed] = useState(true);
   const [peekExpanded, setPeekExpanded] = useState(false);
@@ -332,7 +331,16 @@ export default function Navbar({
   const mobileDragStartYRef = useRef<number | null>(null);
   const mobileDragMovedRef = useRef(false);
   const location = useLocation();
-  const { getRememberedUrl } = useLastVisitedUrls();
+  const isOnDashboard = location.pathname === ROUTES.DASHBOARD;
+
+  const handleDashboardClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isOnDashboard) return; // let NavLink navigate normally
+      e.preventDefault();
+      onCycleDashboardView?.();
+    },
+    [isOnDashboard, onCycleDashboardView],
+  );
 
   useEffect(() => {
     if (!peekExpanded) return;
@@ -373,15 +381,16 @@ export default function Navbar({
     label,
     icon: Icon,
   }: NavItemConfig) => {
-    const to = getRememberedUrl(pageKey);
     const isCurrent = location.pathname === basePath;
+    const isDashboard = pageKey === "dashboard";
 
     return (
       <NavLink
         key={pageKey}
-        to={to}
+        to={basePath}
         end
         aria-label={label}
+        onClick={isDashboard ? handleDashboardClick : undefined}
         className={({ isActive }) =>
           cn(
             "mobile-nav-link nav-item-hover",
@@ -391,6 +400,7 @@ export default function Navbar({
         }
       >
         <Icon active={isCurrent} />
+        <span className="mobile-nav-label">{label}</span>
       </NavLink>
     );
   };
@@ -549,13 +559,14 @@ export default function Navbar({
         {/* Nav Links */}
         <nav className="flex-1 px-2 space-y-1">
           {NAV_ITEMS.map(({ pageKey, basePath, label, icon: Icon }) => {
-            const to = getRememberedUrl(pageKey);
             const isActive = location.pathname === basePath;
+            const isDashboard = pageKey === "dashboard";
             return (
               <NavLink
                 key={pageKey}
-                to={to}
+                to={basePath}
                 end
+                onClick={isDashboard ? handleDashboardClick : undefined}
                 className={cn(
                   "flex items-center rounded-theme-medium nav-item-hover",
                   collapsed
@@ -637,7 +648,7 @@ export default function Navbar({
       <div
         className={cn(
           "fixed inset-x-0 bottom-0 z-30 pointer-events-none sm:hidden",
-          mobileExpanded ? "h-44" : "h-28",
+          mobileExpanded ? "h-48" : "h-32",
         )}
       >
         {/* Static background coverage layer — only as tall as the nav */}

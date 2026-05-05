@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useDashboardMonthNav } from "./useDashboardMonthNav";
 import { useDashboardData } from "./useDashboardData";
 import { useDashboardFilters } from "./useDashboardFilters";
+import type { DashboardFiltersState } from "./useDashboardFilters";
 import { useDashboardSelection } from "./useDashboardSelection";
 import { useDashboardView } from "./useDashboardView";
 import { useIncomeSavingsModals } from "./useIncomeSavingsModals";
@@ -10,6 +11,16 @@ import {
   computeMultiMonthFixedRows,
 } from "../utils/dashboardHelpers";
 import type { Expense, Category, Payee } from "../types";
+import type { MonthSpan, DashboardView } from "../features/dashboard/constants";
+
+export interface DashboardSessionState {
+  selectedYear: number;
+  selectedMonth: number;
+  monthSpan: MonthSpan;
+  showGrandTotal: boolean;
+  viewMode: DashboardView;
+  filters: DashboardFiltersState;
+}
 
 export function useDashboard(
   expenses: Expense[],
@@ -17,13 +28,24 @@ export function useDashboard(
   payees: Payee[],
   onBulkDelete: (ids: number[]) => void,
   onSelectionChange?: (active: boolean) => void,
+  sessionState?: DashboardSessionState,
+  onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void,
 ) {
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [mobileEditTrigger, setMobileEditTrigger] = useState<number | null>(
     null,
   );
 
-  const monthNav = useDashboardMonthNav();
+  const monthNav = useDashboardMonthNav(
+    sessionState?.selectedYear,
+    sessionState?.selectedMonth,
+    sessionState?.monthSpan,
+    sessionState?.showGrandTotal,
+    (y) => onSessionStateChange?.({ selectedYear: y }),
+    (m) => onSessionStateChange?.({ selectedMonth: m }),
+    (s) => onSessionStateChange?.({ monthSpan: s }),
+    (v) => onSessionStateChange?.({ showGrandTotal: v }),
+  );
   const data = useDashboardData(
     expenses,
     monthNav.selectedYear,
@@ -31,13 +53,25 @@ export function useDashboard(
     monthNav.monthSpan,
     dataRefreshKey,
   );
-  const filters = useDashboardFilters(expenses, data.monthKeys, categories, payees);
+  const filters = useDashboardFilters(
+    expenses,
+    data.monthKeys,
+    categories,
+    payees,
+    sessionState?.filters,
+    (patch) => onSessionStateChange?.({ filters: { ...sessionState?.filters, ...patch } as DashboardFiltersState }),
+  );
   const selection = useDashboardSelection(
     filters.filteredExpenses,
     onBulkDelete,
     onSelectionChange,
   );
-  const view = useDashboardView(onSelectionChange, selection.selectedIds);
+  const view = useDashboardView(
+    onSelectionChange,
+    selection.selectedIds,
+    sessionState?.viewMode,
+    (v) => onSessionStateChange?.({ viewMode: v }),
+  );
   const modals = useIncomeSavingsModals(
     data.monthSummaries,
     data.monthKeys,

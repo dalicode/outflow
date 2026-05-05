@@ -1,20 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
-import {
-  DASHBOARD_VIEWS,
-  DASHBOARD_QUERY_PARAMS,
-} from "../features/dashboard/constants";
+import { DASHBOARD_VIEWS } from "../features/dashboard/constants";
 import type { DashboardView } from "../features/dashboard/constants";
-import { parseViewParam } from "../utils/urlParams";
 
 export function useDashboardView(
   onSelectionChange?: (active: boolean) => void,
   selectedIds?: Set<number>,
+  initialViewMode?: DashboardView,
+  onViewModeChange?: (v: DashboardView) => void,
 ) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-
-  const viewMode = parseViewParam(searchParams.get(DASHBOARD_QUERY_PARAMS.VIEW));
+  const [viewMode, setViewModeState] = useState<DashboardView>(
+    initialViewMode ?? DASHBOARD_VIEWS.CATEGORIES,
+  );
 
   const [viewAnimation, setViewAnimation] = useState<
     "slide-left" | "slide-right" | null
@@ -34,10 +30,6 @@ export function useDashboardView(
   const [drilldownPayee, setDrilldownPayee] = useState<string | null>(null);
   const [drilldownPayeeMonthIndex, setDrilldownPayeeMonthIndex] =
     useState<number>(0);
-
-  useEffect(() => {
-    scrollableRef.current?.scrollTo({ top: 0, behavior: "auto" });
-  }, [location.pathname]);
 
   useEffect(() => {
     if (!viewAnimation) return;
@@ -68,16 +60,10 @@ export function useDashboardView(
   const setViewMode = useCallback(
     (next: DashboardView, animation: "slide-left" | "slide-right") => {
       setViewAnimation(animation);
-      setSearchParams(
-        (currentParams) => {
-          const nextParams = new URLSearchParams(currentParams);
-          nextParams.set(DASHBOARD_QUERY_PARAMS.VIEW, next);
-          return nextParams;
-        },
-        { replace: true },
-      );
+      setViewModeState(next);
+      onViewModeChange?.(next);
     },
-    [setSearchParams],
+    [onViewModeChange],
   );
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -163,6 +149,22 @@ export function useDashboardView(
     setViewMode(DASHBOARD_VIEWS.EXPENSES, "slide-right");
   }, [setViewMode]);
 
+  // Expose setViewMode for external callers (e.g. Navbar cycle)
+  const setView = useCallback(
+    (next: DashboardView) => {
+      const order = [
+        DASHBOARD_VIEWS.CATEGORIES,
+        DASHBOARD_VIEWS.PAYEES,
+        DASHBOARD_VIEWS.EXPENSES,
+      ];
+      const currentIdx = order.indexOf(viewMode);
+      const nextIdx = order.indexOf(next);
+      const animation = nextIdx > currentIdx ? "slide-right" : "slide-left";
+      setViewMode(next, animation);
+    },
+    [viewMode, setViewMode],
+  );
+
   return {
     viewMode,
     viewAnimation,
@@ -182,5 +184,6 @@ export function useDashboardView(
     switchToCategories,
     switchToPayees,
     switchToExpenses,
+    setView,
   };
 }

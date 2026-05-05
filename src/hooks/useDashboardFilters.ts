@@ -1,24 +1,78 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { Expense, Category, Payee } from "../types";
+
+export interface DashboardFiltersState {
+  filterGlobal: string;
+  filterDateFrom: string;
+  filterDateTo: string;
+  filterDescription: string;
+  filterAmount: string;
+  selectedCategories: string[];
+  selectedPayees: string[];
+}
 
 export function useDashboardFilters(
   expenses: Expense[],
   monthKeys: Array<{ key: string }>,
   categories: Category[],
   payees: Payee[],
+  initialFilters?: DashboardFiltersState,
+  onFiltersChange?: (patch: Partial<DashboardFiltersState>) => void,
 ) {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [filterGlobal, setFilterGlobal] = useState("");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterDescription, setFilterDescription] = useState("");
-  const [filterAmount, setFilterAmount] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set(),
+  const [filterGlobal, setFilterGlobalState] = useState(initialFilters?.filterGlobal ?? "");
+  const [filterDateFrom, setFilterDateFromState] = useState(initialFilters?.filterDateFrom ?? "");
+  const [filterDateTo, setFilterDateToState] = useState(initialFilters?.filterDateTo ?? "");
+  const [filterDescription, setFilterDescriptionState] = useState(initialFilters?.filterDescription ?? "");
+  const [filterAmount, setFilterAmountState] = useState(initialFilters?.filterAmount ?? "");
+  const [selectedCategories, setSelectedCategoriesState] = useState<Set<string>>(
+    new Set(initialFilters?.selectedCategories ?? []),
   );
-  const [selectedPayees, setSelectedPayees] = useState<Set<string>>(
-    new Set(),
+  const [selectedPayees, setSelectedPayeesState] = useState<Set<string>>(
+    new Set(initialFilters?.selectedPayees ?? []),
   );
+
+  // Wrapped setters that also notify the parent
+  const setFilterGlobal = useCallback((v: string) => {
+    setFilterGlobalState(v);
+    onFiltersChange?.({ filterGlobal: v });
+  }, [onFiltersChange]);
+
+  const setFilterDateFrom = useCallback((v: string) => {
+    setFilterDateFromState(v);
+    onFiltersChange?.({ filterDateFrom: v });
+  }, [onFiltersChange]);
+
+  const setFilterDateTo = useCallback((v: string) => {
+    setFilterDateToState(v);
+    onFiltersChange?.({ filterDateTo: v });
+  }, [onFiltersChange]);
+
+  const setFilterDescription = useCallback((v: string) => {
+    setFilterDescriptionState(v);
+    onFiltersChange?.({ filterDescription: v });
+  }, [onFiltersChange]);
+
+  const setFilterAmount = useCallback((v: string) => {
+    setFilterAmountState(v);
+    onFiltersChange?.({ filterAmount: v });
+  }, [onFiltersChange]);
+
+  const setSelectedCategories = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    setSelectedCategoriesState((prev) => {
+      const next = typeof v === "function" ? v(prev) : v;
+      onFiltersChange?.({ selectedCategories: Array.from(next) });
+      return next;
+    });
+  }, [onFiltersChange]);
+
+  const setSelectedPayees = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    setSelectedPayeesState((prev) => {
+      const next = typeof v === "function" ? v(prev) : v;
+      onFiltersChange?.({ selectedPayees: Array.from(next) });
+      return next;
+    });
+  }, [onFiltersChange]);
 
   const categoryById = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
@@ -111,7 +165,7 @@ export function useDashboardFilters(
     filterAmount,
   ].filter(Boolean).length;
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilterGlobal("");
     setFilterDateFrom("");
     setFilterDateTo("");
@@ -119,7 +173,7 @@ export function useDashboardFilters(
     setSelectedPayees(new Set());
     setFilterDescription("");
     setFilterAmount("");
-  };
+  }, [setFilterGlobal, setFilterDateFrom, setFilterDateTo, setSelectedCategories, setSelectedPayees, setFilterDescription, setFilterAmount]);
 
   return {
     isFilterModalOpen,

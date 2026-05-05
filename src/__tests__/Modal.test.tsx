@@ -259,8 +259,11 @@ describe('Modal', () => {
     const overlay = document.body.querySelector('[role="dialog"]') as HTMLElement
     const modalCard = overlay.firstElementChild as HTMLElement
 
-    expect(overlay.style.top).toBe('24px')
-    expect(overlay.style.height).toBe('620px')
+    // Overlay stays pinned to inset-0 (no inline top/height) so the
+    // background always covers the full screen — prevents flash when keyboard appears.
+    expect(overlay.style.top).toBe('')
+    expect(overlay.style.height).toBe('')
+    // The card itself shrinks to the visual viewport height
     expect(modalCard.style.height).toBe('620px')
   })
 

@@ -376,6 +376,8 @@ export default function CreatableCombobox({
       data-no-cell-switch
       role="listbox"
       onMouseDown={(e) => e.preventDefault()}
+      onWheel={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
       className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-medium shadow-lg max-h-60 overflow-y-auto scrollbar-auto-hide"
       style={{
         top: dropdownState.pos.top,

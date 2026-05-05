@@ -2,6 +2,7 @@ import { useSettings } from "../../context/settingsContext";
 import { useViewportWidth } from "../../hooks/useViewportWidth";
 import { useMaxVisible } from "../../hooks/useMaxVisible";
 import { useAnalytics } from "../../hooks/useAnalytics";
+import type { AnalyticsSessionState } from "../../hooks/useAnalytics";
 import AnalyticsCharts from "./AnalyticsCharts";
 import YearStrip from "./YearStrip";
 import MonthStrip from "./MonthStrip";
@@ -12,11 +13,15 @@ import "./analytics.css";
 interface AnalyticsPageProps {
   expenses: Expense[];
   categories: Category[];
+  sessionState?: AnalyticsSessionState;
+  onSessionStateChange?: (patch: Partial<AnalyticsSessionState>) => void;
 }
 
 export default function AnalyticsPage({
   expenses,
   categories,
+  sessionState,
+  onSessionStateChange,
 }: AnalyticsPageProps) {
   const viewportWidth = useViewportWidth();
   const maxVisible = useMaxVisible(viewportWidth);
@@ -39,7 +44,7 @@ export default function AnalyticsPage({
     canNextMonth,
     summaryCards,
     data,
-  } = useAnalytics({ expenses, categories, formatAmount });
+  } = useAnalytics({ expenses, categories, formatAmount, sessionState, onSessionStateChange });
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">

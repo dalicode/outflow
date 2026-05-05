@@ -8,6 +8,7 @@ import type {
   AnalyticsData,
   Expense,
   Category,
+  Payee,
   YearSummary,
   VariableGridResult,
 } from "../types";
@@ -25,9 +26,8 @@ export function useAnalyticsData({
 }: UseAnalyticsDataParams): AnalyticsData {
   const now = new Date();
   const [financials, setFinancials] = useState<YearSummary | null>(null);
-  const [variableGrid, setVariableGrid] = useState<VariableGridResult | null>(
-    null,
-  );
+  const [variableGrid, setVariableGrid] = useState<VariableGridResult | null>(null);
+  const [payees, setPayees] = useState<Payee[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -39,6 +39,7 @@ export function useAnalyticsData({
         schedules,
         incomeSnaps,
         savingsSnaps,
+        allPayees,
       ] = await Promise.all([
         StorageService.getSnapshotsForYear(year),
         StorageService.getFixedExpenses(),
@@ -47,6 +48,7 @@ export function useAnalyticsData({
         StorageService.getActiveSchedules(),
         StorageService.getIncomeSnapshotsForYear(year),
         StorageService.getSavingsSnapshotsForYear(year),
+        StorageService.getPayees(),
       ]);
 
       const data: import("../types").FinanceEngineData = {
@@ -68,6 +70,7 @@ export function useAnalyticsData({
 
       const vGrid = getYearVariableGrid(year, expenses, categories);
       setVariableGrid(vGrid);
+      setPayees(allPayees);
     };
     load();
   }, [year, expenses, categories]);
@@ -79,12 +82,44 @@ export function useAnalyticsData({
     });
   }, [year, expenses]);
 
+  // Build payee breakdown rows — same shape as variableRows
+  const payeeRows = useMemo(() => {
+    const payeeById = new Map(payees.map((p) => [p.id, p.name]));
+    const monthlyAmountsByPayee = new Map<string, number[]>();
+
+    const yearExpenses = expenses.filter((e) =>
+      e.date?.startsWith(`${year}-`),
+    );
+
+    for (const exp of yearExpenses) {
+      const monthIdx = parseInt(exp.date.slice(5, 7), 10) - 1;
+      if (monthIdx < 0 || monthIdx > 11) continue;
+      const name = exp.payeeId != null
+        ? (payeeById.get(exp.payeeId) ?? "Unknown")
+        : "No Payee";
+      if (!monthlyAmountsByPayee.has(name)) {
+        monthlyAmountsByPayee.set(name, Array(12).fill(0));
+      }
+      monthlyAmountsByPayee.get(name)![monthIdx] += exp.amount;
+    }
+
+    return Array.from(monthlyAmountsByPayee.entries())
+      .map(([name, amounts]) => ({
+        key: name,
+        name,
+        amounts,
+        yearTotal: amounts.reduce((s, v) => s + v, 0),
+      }))
+      .sort((a, b) => b.yearTotal - a.yearTotal);
+  }, [year, expenses, payees]);
+
   return useMemo(() => {
     if (!financials || !variableGrid) {
       return {
         year,
         monthlyIncome: Array(12).fill(0),
         variableRows: [],
+        payeeRows: [],
         grid: {},
         fixedRows: [],
         monthlyFixedTotals: Array(12).fill(0),
@@ -130,6 +165,7 @@ export function useAnalyticsData({
       year,
       monthlyIncome: financials.months.map((m) => m.income),
       variableRows: variableGrid.variableRows,
+      payeeRows,
       grid: variableGrid.grid,
       fixedRows: financials.fixedRows,
       monthlyFixedTotals: financials.monthlyFixedTotals,
@@ -150,5 +186,5 @@ export function useAnalyticsData({
       avgSavingsPct: financials.totals.avgSavingsPct,
       maxPerMonth: variableGrid.maxPerMonth,
     };
-  }, [year, financials, variableGrid, monthlyHasData]);
+  }, [year, financials, variableGrid, monthlyHasData, payeeRows]);
 }

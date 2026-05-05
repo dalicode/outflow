@@ -17,6 +17,9 @@ import AnalyticsPage from "./features/analytics/AnalyticsPage";
 import PayeesPage from "./features/payees/PayeesPage";
 import AuthPage from "./features/auth/AuthPage";
 import SettingsPage from "./features/settings/SettingsPage";
+import { DASHBOARD_VIEWS } from "./features/dashboard/constants";
+import type { DashboardSessionState } from "./hooks/useDashboard";
+import type { AnalyticsSessionState } from "./hooks/useAnalytics";
 import type { SyncStatus } from "./types";
 import type { Expense } from "./types";
 
@@ -130,6 +133,48 @@ export default function App() {
   const { direction, onScroll: handleScrollDirection } = useScrollDirection();
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false);
   const [snapshotsReady, setSnapshotsReady] = useState(false);
+
+  // Ref that Dashboard registers its cycleView fn into, so Navbar can call it
+  const cycleDashboardViewRef = useRef<(() => void) | null>(null);
+
+  // Session state — persists across route changes within the same app session
+  const now = new Date();
+  const [dashboardSession, setDashboardSession] =
+    useState<DashboardSessionState>({
+      selectedYear: now.getFullYear(),
+      selectedMonth: now.getMonth(),
+      monthSpan: 1,
+      showGrandTotal: false,
+      viewMode: DASHBOARD_VIEWS.CATEGORIES,
+      filters: {
+        filterGlobal: "",
+        filterDateFrom: "",
+        filterDateTo: "",
+        filterDescription: "",
+        filterAmount: "",
+        selectedCategories: [],
+        selectedPayees: [],
+      },
+    });
+  const [analyticsSession, setAnalyticsSession] =
+    useState<AnalyticsSessionState>({
+      year: now.getFullYear(),
+      selectedMonth: null,
+    });
+
+  const handleDashboardSessionChange = useCallback(
+    (patch: Partial<DashboardSessionState>) => {
+      setDashboardSession((prev) => ({ ...prev, ...patch }));
+    },
+    [],
+  );
+
+  const handleAnalyticsSessionChange = useCallback(
+    (patch: Partial<AnalyticsSessionState>) => {
+      setAnalyticsSession((prev) => ({ ...prev, ...patch }));
+    },
+    [],
+  );
 
   const handlePageScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -256,11 +301,12 @@ export default function App() {
               scrollDirection={direction}
               isScrolling={isScrolling}
               hidden={mobileSelectionActive}
+              onCycleDashboardView={() => cycleDashboardViewRef.current?.()}
             />
             <main
               className={cn(
                 "flex-1 min-w-0 overflow-hidden bg-theme-background",
-                isScrolling && "is-scrolling"
+                isScrolling && "is-scrolling",
               )}
             >
               <Routes>
@@ -278,6 +324,11 @@ export default function App() {
                       onScroll={handlePageScroll}
                       refreshCategories={refreshCategories}
                       refreshPayees={refreshPayees}
+                      registerCycleView={(fn) => {
+                        cycleDashboardViewRef.current = fn;
+                      }}
+                      sessionState={dashboardSession}
+                      onSessionStateChange={handleDashboardSessionChange}
                     />
                   }
                 />
@@ -296,6 +347,8 @@ export default function App() {
                       <AnalyticsPage
                         expenses={expenses}
                         categories={categories}
+                        sessionState={analyticsSession}
+                        onSessionStateChange={handleAnalyticsSessionChange}
                       />
                     </ScrollablePage>
                   }

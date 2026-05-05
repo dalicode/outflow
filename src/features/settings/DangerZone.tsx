@@ -29,10 +29,13 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
     <>
       <Card title="Danger Zone" className="border-theme-danger-subtle">
         <p className="text-xs text-theme-muted mb-2">
-          Permanently delete all expenses, categories, fixed expenses, snapshots,
-          and settings. This cannot be undone.
+          Permanently delete all expenses, categories, fixed expenses,
+          snapshots, and settings. This cannot be undone.
         </p>
-        <button onClick={() => setIsClearModalOpen(true)} className="btn-danger-sm">
+        <button
+          onClick={() => setIsClearModalOpen(true)}
+          className="btn-danger-sm"
+        >
           Clear All Data
         </button>
       </Card>
@@ -70,8 +73,7 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
             cannot be undone.
           </p>
           <label className="flex flex-col gap-1 text-xs text-theme-muted">
-            Type{" "}
-            <span className="font-mono text-theme-danger">DELETE</span> to
+            Type <span className="font-mono text-theme-danger">DELETE</span> to
             confirm
             <input
               value={deleteConfirm}

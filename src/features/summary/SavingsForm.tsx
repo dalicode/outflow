@@ -2,23 +2,6 @@ import { useState } from "react";
 import { useSettings } from "../../context/settingsContext";
 import SavingsModalForm from "../../components/forms/SavingsModalForm";
 
-function PencilIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-    </svg>
-  );
-}
-
 interface SavingsFormProps {
   savingsRate: number | string | null | undefined;
   monthlyIncome: number;
@@ -33,42 +16,54 @@ export default function SavingsForm({
   const { formatAmount } = useSettings();
   const [showModal, setShowModal] = useState(false);
 
-  const cardRate = Number(savingsRate || 0);
+  const rate = Number(savingsRate || 0);
+  const amount = (rate / 100) * monthlyIncome;
+  const isSet = rate > 0;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-theme-text tracking-tight">
-          Savings Goal
-        </span>
-        <button
-          onClick={() => setShowModal(true)}
-          aria-label="Edit savings goal"
-          className="icon-btn"
-        >
-          <PencilIcon />
-        </button>
-      </div>
-      <p className="text-xl font-semibold text-theme-primary">
-        {formatAmount((cardRate / 100) * monthlyIncome)}
-      </p>
-      <p className="text-sm text-theme-muted">
-        {cardRate.toFixed(1)}% of monthly income
-      </p>
+    <>
+      <button
+        type="button"
+        onClick={() => setShowModal(true)}
+        className="w-full text-left group"
+        aria-label="Edit savings goal"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-0.5">
+            <p className="text-xs text-theme-muted uppercase tracking-wider">Auto Savings</p>
+            {isSet ? (
+              <>
+                <p className="text-xl font-bold text-theme-text tabular-nums">
+                  {formatAmount(amount)}
+                  <span className="text-sm font-normal text-theme-muted ml-1">/mo</span>
+                </p>
+                <p className="text-xs text-theme-muted">
+                  {rate.toFixed(1)}% of income
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-theme-muted">Not set — tap to add</p>
+            )}
+          </div>
+          <span className="text-xs font-medium text-theme-primary opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 shrink-0">
+            Edit
+          </span>
+        </div>
+      </button>
 
       <SavingsModalForm
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="Edit Savings Goal"
+        title="Edit Auto Savings"
         size="md"
         initialRate={savingsRate ? String(savingsRate) : ""}
         monthlyIncome={monthlyIncome}
-        onSave={(rate) => {
-          onSave(rate);
+        onSave={(r) => {
+          onSave(r);
           setShowModal(false);
         }}
-        description="Percentage of income automatically set aside. The remaining budget = income − fixed expenses − auto savings."
+        description="Percentage of income automatically set aside. Remaining budget = income − fixed expenses − auto savings."
       />
-    </div>
+    </>
   );
 }

@@ -20,7 +20,7 @@ describe('Navbar', () => {
     fireEvent.click(expandButton)
 
     expect(within(sidebar).getByText('Dashboard')).toBeInTheDocument()
-    expect(within(sidebar).getByText('Summary')).toBeInTheDocument()
+    expect(within(sidebar).getByText('Budget')).toBeInTheDocument()
     expect(within(sidebar).getByText('Analytics')).toBeInTheDocument()
     expect(within(sidebar).getByText('Settings')).toBeInTheDocument()
   })
@@ -132,7 +132,7 @@ describe('Navbar', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
     expect(screen.getByLabelText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByLabelText('Summary')).toBeInTheDocument()
+    expect(screen.getByLabelText('Budget')).toBeInTheDocument()
     expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
     expect(screen.getByLabelText('Settings')).toBeInTheDocument()
     expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()

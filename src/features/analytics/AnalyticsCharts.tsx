@@ -396,6 +396,71 @@ const CategoryBreakdownChart = ({
   );
 };
 
+// ── 2b. Payee Breakdown ──────────────────────────────────────────────────────
+
+const PayeeBreakdownChart = ({
+  data,
+  colors,
+  monthCount,
+  selectedMonth,
+}: CategoryBreakdownChartProps) => {
+  const pieData = useMemo(() => {
+    const rows = data.payeeRows ?? [];
+    if (selectedMonth === null) {
+      return rows
+        .map((row) => ({
+          name: row.name,
+          value: sliceMonths(row.amounts, monthCount).reduce<number>(
+            (s, v) => s + (v || 0),
+            0,
+          ),
+        }))
+        .filter((d) => d.value > 0);
+    }
+    return rows
+      .map((row) => ({ name: row.name, value: row.amounts?.[selectedMonth] || 0 }))
+      .filter((d) => d.value > 0);
+  }, [data.payeeRows, monthCount, selectedMonth]);
+
+  const emptyLabel =
+    selectedMonth === null
+      ? "No payee data"
+      : `No payee data for ${MONTHS[selectedMonth]}`;
+  if (pieData.length === 0) return <EmptyState label={emptyLabel} />;
+
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <PieChart>
+        <Pie
+          data={pieData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={60}
+          outerRadius={90}
+          paddingAngle={2}
+        >
+          {pieData.map((_, i) => (
+            <Cell
+              key={i}
+              fill={colors.chartPalette[i % colors.chartPalette.length]}
+            />
+          ))}
+        </Pie>
+        <Tooltip
+          content={
+            <CustomTooltip
+              colors={colors}
+              formatter={(v: number, name: string) => [fmtCompact(v), name]}
+            />
+          }
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+};
+
 // ── 3. Savings Rate Trend ────────────────────────────────────────────────────
 
 const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
@@ -703,19 +768,20 @@ const YearView = ({ data, colors, monthCount }: ViewProps) => {
             selectedMonth={null}
           />
         </ChartCard>
-        <ChartCard title="Savings Rate Trend">
-          <SavingsRateChart
+        <ChartCard title="Payee Breakdown">
+          <PayeeBreakdownChart
             data={data}
             colors={colors}
             monthCount={monthCount}
+            selectedMonth={null}
           />
         </ChartCard>
       </div>
 
-      {/* Row 3: Monthly Total Savings + Income vs. Expenses (2-col on desktop) */}
+      {/* Row 3: Savings Rate + Income vs. Expenses (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title="Monthly Total Savings">
-          <MonthlyTotalSavingsChart
+        <ChartCard title="Savings Rate Trend">
+          <SavingsRateChart
             data={data}
             colors={colors}
             monthCount={monthCount}
@@ -730,6 +796,15 @@ const YearView = ({ data, colors, monthCount }: ViewProps) => {
           />
         </ChartCard>
       </div>
+
+      {/* Row 4: Monthly Total Savings (full width) */}
+      <ChartCard title="Monthly Total Savings">
+        <MonthlyTotalSavingsChart
+          data={data}
+          colors={colors}
+          monthCount={monthCount}
+        />
+      </ChartCard>
     </div>
   );
 };
@@ -752,9 +827,9 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
         colors={colors}
       />
 
-      {/* Row 2: Category Breakdown + Income vs. Expenses (2-col on desktop) */}
+      {/* Row 2: Category Breakdown + Payee Breakdown (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title={`${MONTHS[selectedMonth]} Breakdown`}>
+        <ChartCard title={`${MONTHS[selectedMonth]} Category Breakdown`}>
           <CategoryBreakdownChart
             data={data}
             colors={colors}
@@ -762,8 +837,8 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
             selectedMonth={selectedMonth}
           />
         </ChartCard>
-        <ChartCard title={`${MONTHS[selectedMonth]} Income vs. Expenses`}>
-          <IncomeVsExpensesChart
+        <ChartCard title={`${MONTHS[selectedMonth]} Payee Breakdown`}>
+          <PayeeBreakdownChart
             data={data}
             colors={colors}
             monthCount={0}
@@ -771,6 +846,16 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
           />
         </ChartCard>
       </div>
+
+      {/* Row 3: Income vs. Expenses */}
+      <ChartCard title={`${MONTHS[selectedMonth]} Income vs. Expenses`}>
+        <IncomeVsExpensesChart
+          data={data}
+          colors={colors}
+          monthCount={0}
+          selectedMonth={selectedMonth}
+        />
+      </ChartCard>
     </div>
   );
 };

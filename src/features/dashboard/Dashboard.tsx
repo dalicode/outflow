@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
 import Modal from "../../components/ui/Modal";
@@ -8,6 +8,7 @@ import IncomeModalForm from "../../components/forms/IncomeModalForm";
 import SavingsModalForm from "../../components/forms/SavingsModalForm";
 import { useSettings } from "../../context/settingsContext";
 import { useDashboard } from "../../hooks/useDashboard";
+import type { DashboardSessionState } from "../../hooks/useDashboard";
 import { normalizeName } from "../../utils/normalizeName";
 import {
   computeMultiMonthCategoryRows,
@@ -24,6 +25,7 @@ import CategoryDrilldown from "./CategoryDrilldown";
 import PayeeViewTable from "./PayeeViewTable";
 import PayeeDrilldown from "./PayeeDrilldown";
 import { DASHBOARD_VIEWS } from "./constants";
+import type { DashboardView } from "./constants";
 import type { Expense, Category, Payee } from "../../types";
 
 interface DashboardProps {
@@ -37,6 +39,9 @@ interface DashboardProps {
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   refreshCategories?: () => Promise<void>;
   refreshPayees?: () => Promise<void>;
+  registerCycleView?: (fn: () => void) => void;
+  sessionState?: DashboardSessionState;
+  onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void;
 }
 
 export default function Dashboard({
@@ -50,6 +55,9 @@ export default function Dashboard({
   onScroll,
   refreshCategories,
   refreshPayees,
+  registerCycleView,
+  sessionState,
+  onSessionStateChange,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
 
@@ -60,10 +68,28 @@ export default function Dashboard({
     payees,
     onBulkDelete,
     onSelectionChange,
+    sessionState,
+    onSessionStateChange,
   );
 
   // ── Derived values ──
   const isMobile = dash.viewportWidth < 640;
+
+  // Register the view-cycle callback for the Navbar dashboard icon
+  const VIEW_CYCLE: DashboardView[] = [
+    DASHBOARD_VIEWS.CATEGORIES,
+    DASHBOARD_VIEWS.PAYEES,
+    DASHBOARD_VIEWS.EXPENSES,
+  ];
+  useEffect(() => {
+    registerCycleView?.(() => {
+      dash.setView(
+        VIEW_CYCLE[(VIEW_CYCLE.indexOf(dash.viewMode) + 1) % VIEW_CYCLE.length],
+      );
+    });
+  // Re-register whenever viewMode changes so the closure captures the latest value
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dash.viewMode, registerCycleView]);
   const payeeMap = useMemo(
     () => Object.fromEntries(payees.map((p) => [p.id, p])),
     [payees],

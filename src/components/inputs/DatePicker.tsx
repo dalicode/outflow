@@ -316,6 +316,8 @@ export default function DatePicker({
         e.stopPropagation();
         e.preventDefault();
       }}
+      onWheel={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
       className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-medium shadow-lg p-2 scrollbar-auto-hide"
       style={{
         top: popupState.pos.top,

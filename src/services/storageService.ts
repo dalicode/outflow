@@ -180,10 +180,31 @@ class OutflowDB extends Dexie {
         }
       });
 
+    this.version(11).stores({
+      expenses: "++id, date, categoryId, payeeId",
+      settings: "key",
+      fixedExpenses: "++id",
+      categories: "++id, name",
+      payees: "++id, name",
+      syncQueue: "++id, table, timestamp",
+      fixedExpenseSnapshots: "++id, [fixedExpenseId+year+month], year, month",
+      schedules:
+        "++id, type, effectiveYear, effectiveMonth, isActive, targetId, payeeId",
+      incomeSnapshots: "++id, [year+month], year, month",
+      savingsSnapshots: "++id, [year+month], year, month",
+    });
+
     this.on("populate", () => {
       const now = new Date().toISOString();
       this.categories.bulkAdd(
         DEFAULT_CATEGORIES.map((name) => ({
+          name,
+          createdAt: now,
+          isArchived: false,
+        })),
+      );
+      this.payees.bulkAdd(
+        DEFAULT_PAYEES.map((name) => ({
           name,
           createdAt: now,
           isArchived: false,
@@ -203,6 +224,99 @@ const DEFAULT_CATEGORIES = [
   "Transportation",
   "Groceries",
   "Dining",
+];
+
+const DEFAULT_PAYEES = [
+  // Groceries & Supermarkets
+  "Loblaws",
+  "No Frills",
+  "Metro",
+  "Sobeys",
+  "FreshCo",
+  "Walmart",
+  "Costco",
+  "T&T Supermarket",
+  "Farm Boy",
+
+  // Dining & Coffee
+  "Tim Hortons",
+  "Starbucks",
+  "McDonald's",
+  "Subway",
+  "Pizza Pizza",
+  "Harvey's",
+  "Swiss Chalet",
+  "The Keg",
+  "Uber Eats",
+  "DoorDash",
+  "SkipTheDishes",
+
+  // Transit & Transportation
+  "TTC",
+  "Presto",
+  "GO Transit",
+  "UP Express",
+  "Uber",
+  "Lyft",
+  "Green P Parking",
+  "Impark",
+
+  // Utilities & Telecom
+  "Toronto Hydro",
+  "Enbridge Gas",
+  "Rogers",
+  "Bell",
+  "Telus",
+  "Fido",
+  "Freedom Mobile",
+  "Koodo",
+
+  // Banking & Finance
+  "RBC",
+  "TD Bank",
+  "Scotiabank",
+  "BMO",
+  "CIBC",
+  "Tangerine",
+  "EQ Bank",
+
+  // Health & Pharmacy
+  "Shoppers Drug Mart",
+  "Rexall",
+  "LCBO",
+  "Beer Store",
+
+  // Retail & Shopping
+  "Canadian Tire",
+  "Home Depot",
+  "IKEA",
+  "Best Buy",
+  "Sport Chek",
+  "Winners",
+  "H&M",
+  "Zara",
+  "Indigo",
+  "Amazon",
+  "Apple",
+
+  // Entertainment & Subscriptions
+  "Netflix",
+  "Spotify",
+  "Disney+",
+  "Crave",
+  "YouTube Premium",
+  "Apple TV+",
+  "Xbox Game Pass",
+
+  // Services & Other
+  "Canada Post",
+  "FedEx",
+  "UPS",
+  "GoodLife Fitness",
+  "Planet Fitness",
+  "City of Toronto",
+  "Service Ontario",
+  "OHIP",
 ];
 
 // ── Income & Savings Snapshots ────────────────────────────
