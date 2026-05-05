@@ -69,7 +69,7 @@ function SingleSelectTrigger({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-left text-sm transition-colors"
+      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-surface px-3 py-2.5 text-left text-sm font-semibold transition-colors focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]"
     >
       <span
         className={cn(
@@ -270,7 +270,7 @@ function DesktopSingleSelectDropdown({
                 }
               }}
               placeholder={placeholder}
-              className="input-theme w-full px-3 py-2 text-sm"
+              className="input-md w-full"
             />
             {createError && (
               <p className="mt-1.5 text-xs text-theme-danger">{createError}</p>
@@ -517,7 +517,7 @@ function CategoryModal({
               }}
               placeholder="New category…"
               autoFocus
-              className="input-theme w-full px-3 py-2 text-sm"
+              className="input-md w-full"
             />
             {newError && (
               <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
@@ -533,7 +533,7 @@ function CategoryModal({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search categories..."
-              className="input-theme w-full px-3 py-2 text-sm"
+              className="input-md w-full"
             />
           </div>
           {active.length === 0 ? (
@@ -560,7 +560,7 @@ function CategoryModal({
                         autoFocus
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
+                        className="input-md min-w-0 flex-1"
                       />
                       <div className="flex gap-2">
                         <button
@@ -785,7 +785,7 @@ function PayeeModal({
             }}
             placeholder="New payee…"
             autoFocus
-            className="input-theme w-full px-3 py-2 text-sm"
+            className="input-md w-full"
           />
           {newError && (
             <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
@@ -801,7 +801,7 @@ function PayeeModal({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search payees..."
-            className="input-theme w-full px-3 py-2 text-sm"
+            className="input-md w-full"
           />
         </div>
         {active.length === 0 ? (
@@ -828,7 +828,7 @@ function PayeeModal({
                       autoFocus
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="input-theme min-w-0 flex-1 px-3 py-2 text-sm"
+                      className="input-md min-w-0 flex-1"
                     />
                     <div className="flex gap-2">
                       <button
@@ -1111,7 +1111,7 @@ export default function ExpenseForm({
     setError("");
   };
 
-  const inputCls = "input-theme px-3 py-2 w-full";
+  const inputCls = "input-md w-full";
 
   return (
     <>

@@ -487,7 +487,7 @@ export default function CreatableCombobox({
       className={cn("relative", variant === "inline" && "w-full")}
     >
       {label && (
-        <label className="block text-xs font-medium text-theme-muted mb-1">
+        <label className="block text-sm text-theme-muted mb-1">
           {label}
           {required && <span className="text-theme-danger ml-0.5">*</span>}
         </label>
@@ -520,7 +520,7 @@ export default function CreatableCombobox({
             "text-sm",
             variant === "inline"
               ? "input-inline"
-              : "input-theme w-full px-3 py-2 pr-8",
+              : "input-md w-full pr-8",
             (localError || error) &&
               (variant === "inline" ? "" : "border-theme-danger"),
             disabled && "opacity-50 cursor-not-allowed",

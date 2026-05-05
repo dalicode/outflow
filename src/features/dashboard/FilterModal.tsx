@@ -261,7 +261,7 @@ function MultiSelectDropdown({
 
   return (
     <div ref={containerRef} className="relative flex flex-col">
-      <label className="mb-1 block text-xs font-medium text-theme-muted">
+      <label className="mb-1 block text-sm text-theme-muted">
         {label}
       </label>
       <div className="rounded-theme-medium border border-theme-border bg-theme-background">
@@ -269,7 +269,7 @@ function MultiSelectDropdown({
           type="button"
           onClick={handleTriggerClick}
           className={cn(
-            "flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors",
+            "flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold transition-colors",
             isOpen && "border-b border-theme-border",
           )}
         >
@@ -317,7 +317,7 @@ function MultiSelectDropdown({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${label.toLowerCase()}...`}
-              className="input-theme w-full px-3 py-2.5 text-sm"
+              className="input-md w-full"
             />
           </div>
           {mobileOptionList}
@@ -344,7 +344,7 @@ function MultiSelectDropdown({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${label.toLowerCase()}...`}
-              className="input-theme w-full px-3 py-2 text-sm"
+              className="input-md w-full"
             />
 
             {desktopOptionList}
@@ -431,7 +431,7 @@ export default function FilterModal({
     >
       <div className="space-y-4">
         <div>
-          <label className="block text-xs font-medium text-theme-muted mb-1">
+          <label className="block text-sm text-theme-muted mb-1">
             Search
           </label>
           <input
@@ -439,13 +439,13 @@ export default function FilterModal({
             value={draft.filterGlobal}
             onChange={(e) => set("filterGlobal")(e.target.value)}
             placeholder="Description, category, or amount..."
-            className="input-theme w-full px-3 py-2 text-sm"
+            className="input-md w-full"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-theme-muted mb-1">
+            <label className="block text-sm text-theme-muted mb-1">
               Date from
             </label>
             <DatePicker
@@ -455,7 +455,7 @@ export default function FilterModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-theme-muted mb-1">
+            <label className="block text-sm text-theme-muted mb-1">
               Date to
             </label>
             <DatePicker
@@ -487,7 +487,7 @@ export default function FilterModal({
         />
 
         <div>
-          <label className="block text-xs font-medium text-theme-muted mb-1">
+          <label className="block text-sm text-theme-muted mb-1">
             Description
           </label>
           <input
@@ -495,12 +495,12 @@ export default function FilterModal({
             value={draft.filterDescription}
             onChange={(e) => set("filterDescription")(e.target.value)}
             placeholder="Contains..."
-            className="input-theme w-full px-3 py-2 text-sm"
+            className="input-md w-full"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-theme-muted mb-1">
+          <label className="block text-sm text-theme-muted mb-1">
             Amount
           </label>
           <input
@@ -508,7 +508,7 @@ export default function FilterModal({
             value={draft.filterAmount}
             onChange={(e) => set("filterAmount")(e.target.value)}
             placeholder="e.g. 12.50"
-            className="input-theme w-full px-3 py-2 text-sm"
+            className="input-md w-full"
           />
         </div>
       </div>

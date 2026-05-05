@@ -69,7 +69,7 @@ function SingleSelectTrigger({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-left text-sm transition-colors"
+      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-surface px-3 py-2.5 text-left text-sm font-semibold transition-colors focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]"
     >
       <span
         className={cn(
@@ -250,7 +250,7 @@ function DesktopSingleSelectDropdown({
                 }
               }}
               placeholder={placeholder}
-              className="input-theme w-full px-3 py-2 text-sm"
+              className="input-md w-full"
             />
             {createError && (
               <p className="mt-1.5 text-xs text-theme-danger">{createError}</p>
@@ -654,7 +654,7 @@ export default function BulkEditExpensesModal({
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             placeholder="Enter description..."
-            className="input-theme w-full resize-none px-3 py-2 text-sm"
+            className="input-md w-full resize-none"
           />
           <p className="mt-2 text-xs text-theme-muted">
             Leave blank to clear the description on all selected expenses.

@@ -28,7 +28,7 @@ describe('DatePicker', () => {
 
     // Active day (15) should be highlighted
     const day15 = screen.getAllByText('15').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day15).toBeDefined()
   })
@@ -88,28 +88,28 @@ describe('DatePicker', () => {
     // Move right to 16
     fireEvent.keyDown(input, { key: 'ArrowRight' })
     const day16 = screen.getAllByText('16').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day16).toBeDefined()
 
     // Move left back to 15
     fireEvent.keyDown(input, { key: 'ArrowLeft' })
     const day15 = screen.getAllByText('15').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day15).toBeDefined()
 
     // Move down to 22
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     const day22 = screen.getAllByText('22').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day22).toBeDefined()
 
     // Move up back to 15
     fireEvent.keyDown(input, { key: 'ArrowUp' })
     const day15Again = screen.getAllByText('15').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day15Again).toBeDefined()
   })
@@ -133,7 +133,7 @@ describe('DatePicker', () => {
 
     // July 1 should be highlighted
     const day1 = screen.getAllByText('1').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day1).toBeDefined()
   })
@@ -210,13 +210,13 @@ describe('DatePicker', () => {
 
     fireEvent.keyDown(input, { key: 'Home' })
     const day1 = screen.getAllByText('1').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day1).toBeDefined()
 
     fireEvent.keyDown(input, { key: 'End' })
     const day30 = screen.getAllByText('30').find((el) =>
-      el.className.includes('bg-theme-primary-subtle'),
+      el.className.includes('bg-theme-primary'),
     )
     expect(day30).toBeDefined()
   })

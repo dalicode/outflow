@@ -72,7 +72,7 @@ export default function SavingsModalForm({
     onSave(pct);
   };
 
-  const inputCls = "input-theme px-3 py-2 text-sm w-full min-w-0";
+  const inputCls = "input-md w-full min-w-0";
   const displayError = externalError || error;
 
   return (
@@ -102,7 +102,7 @@ export default function SavingsModalForm({
         <div className="space-y-3">
           {hasIncome && (
             <div>
-              <label className="block text-xs font-medium text-theme-muted mb-1">
+              <label className="block text-sm text-theme-muted mb-1">
                 Amount
               </label>
               <input
@@ -117,7 +117,7 @@ export default function SavingsModalForm({
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-theme-muted mb-1">
+            <label className="block text-sm text-theme-muted mb-1">
               Percentage
             </label>
             <div className="flex gap-2 items-center">

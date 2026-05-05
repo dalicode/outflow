@@ -76,7 +76,7 @@ export default function AuthPage() {
             placeholder="Email"
             required
             autoFocus
-            className="input-theme w-full px-3 py-2.5 text-sm"
+            className="input-md w-full"
           />
           <input
             type="password"
@@ -84,7 +84,7 @@ export default function AuthPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             required
-            className="input-theme w-full px-3 py-2.5 text-sm"
+            className="input-md w-full"
           />
           <button type="submit" disabled={loading} className="auth-submit-btn">
             {loading

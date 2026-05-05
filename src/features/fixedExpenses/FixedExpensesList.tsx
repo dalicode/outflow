@@ -73,7 +73,7 @@ export default function FixedExpensesList({
     closeModal();
   };
 
-  const inputCls = "input-theme px-3 py-2";
+  const inputCls = "input-md";
   const total = items.reduce((s, i) => s + i.amount, 0);
 
   return (

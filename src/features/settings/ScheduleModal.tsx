@@ -50,11 +50,19 @@ function SingleSelectTrigger({
         disabled && "opacity-60 cursor-not-allowed",
       )}
     >
-      <span className={cn("min-w-0 truncate", value ? "text-theme-text" : "text-theme-muted")}>
+      <span
+        className={cn(
+          "min-w-0 truncate",
+          value ? "text-theme-text" : "text-theme-muted",
+        )}
+      >
         {value || placeholder}
       </span>
       <svg
-        className={cn("h-4 w-4 shrink-0 text-theme-muted transition-transform", isOpen && "rotate-180")}
+        className={cn(
+          "h-4 w-4 shrink-0 text-theme-muted transition-transform",
+          isOpen && "rotate-180",
+        )}
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
@@ -100,17 +108,30 @@ function DesktopDropdown({
   const [query, setQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; left: number; width: number } | null>(null);
-  const triggerRef = useCallback((node: HTMLDivElement | null) => { triggerNodeRef.current = node; }, []);
+  const [panelStyle, setPanelStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const triggerRef = useCallback((node: HTMLDivElement | null) => {
+    triggerNodeRef.current = node;
+  }, []);
   const triggerNodeRef = { current: null as HTMLDivElement | null };
   const panelRef = { current: null as HTMLDivElement | null };
   const searchInputRef = { current: null as HTMLInputElement | null };
 
-  const selectedOption = useMemo(() => options.find((o) => o.id === value), [options, value]);
+  const selectedOption = useMemo(
+    () => options.find((o) => o.id === value),
+    [options, value],
+  );
 
-  const filteredOptions = useMemo(() => getFilteredOptions(options, query), [options, query]);
+  const filteredOptions = useMemo(
+    () => getFilteredOptions(options, query),
+    [options, query],
+  );
 
-  const showCreateOption = allowCreate && onCreate && query.trim() && !hasExactMatch(options, query);
+  const showCreateOption =
+    allowCreate && onCreate && query.trim() && !hasExactMatch(options, query);
   const showCreateHint = allowCreate && onCreate && !query.trim();
 
   const updatePosition = useCallback(() => {
@@ -120,13 +141,21 @@ function DesktopDropdown({
   }, []);
 
   useEffect(() => {
-    if (!isOpen) { setQuery(""); setCreateError(null); setPanelStyle(null); return; }
+    if (!isOpen) {
+      setQuery("");
+      setCreateError(null);
+      setPanelStyle(null);
+      return;
+    }
     updatePosition();
-    const timer = window.setTimeout(() => { searchInputRef.current?.focus(); }, 0);
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
     const handlePointerDown = (e: PointerEvent) => {
       const t = e.target;
       if (!(t instanceof Node)) return;
-      if (triggerNodeRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      if (triggerNodeRef.current?.contains(t) || panelRef.current?.contains(t))
+        return;
       setIsOpen(false);
     };
     window.addEventListener("resize", updatePosition);
@@ -140,7 +169,10 @@ function DesktopDropdown({
     };
   }, [isOpen, updatePosition]);
 
-  const handleSelect = (id: string | number | undefined) => { onChange(id); setIsOpen(false); };
+  const handleSelect = (id: string | number | undefined) => {
+    onChange(id);
+    setIsOpen(false);
+  };
 
   const handleCreate = async () => {
     if (!onCreate || isCreating) return;
@@ -168,77 +200,128 @@ function DesktopDropdown({
         disabled={disabled}
         onClick={() => !disabled && setIsOpen((o) => !o)}
       />
-      {isOpen && panelStyle && createPortal(
-        <div
-          ref={(n) => { panelRef.current = n; }}
-          className="fixed z-[70] rounded-theme-medium border border-theme-border bg-theme-background p-2 shadow-lg"
-          style={{ top: panelStyle.top, left: panelStyle.left, width: panelStyle.width }}
-        >
-          <input
-            ref={(n) => { searchInputRef.current = n; }}
-            type="text"
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setCreateError(null); }}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
-              if (showCreateOption && filteredOptions.length === 0) { void handleCreate(); return; }
-              if (filteredOptions[0]) handleSelect(filteredOptions[0].id);
+      {isOpen &&
+        panelStyle &&
+        createPortal(
+          <div
+            ref={(n) => {
+              panelRef.current = n;
             }}
-            placeholder={placeholder}
-            className="input-theme w-full px-3 py-2 text-sm"
-          />
-          {createError && <p className="mt-1.5 text-xs text-theme-danger">{createError}</p>}
-          {showCreateHint && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-theme-muted">
-              <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary">+</span>
-              <span>{createHint}</span>
-            </div>
-          )}
-          <div className="mt-2 max-h-52 overflow-y-auto scrollbar-auto-hide">
-            {allowClear && value != null && (
-              <button type="button" onClick={() => handleSelect(undefined)}
-                className="flex min-h-8 w-full items-center border-b border-theme-border px-2 py-1 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border">
-                <span className="min-w-0 truncate">{clearLabel}</span>
-              </button>
+            className="fixed z-[70] rounded-theme-medium border border-theme-border bg-theme-background p-2 shadow-lg"
+            style={{
+              top: panelStyle.top,
+              left: panelStyle.left,
+              width: panelStyle.width,
+            }}
+          >
+            <input
+              ref={(n) => {
+                searchInputRef.current = n;
+              }}
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setCreateError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (showCreateOption && filteredOptions.length === 0) {
+                  void handleCreate();
+                  return;
+                }
+                if (filteredOptions[0]) handleSelect(filteredOptions[0].id);
+              }}
+              placeholder={placeholder}
+              className="input-theme w-full px-3 py-2 text-sm"
+            />
+            {createError && (
+              <p className="mt-1.5 text-xs text-theme-danger">{createError}</p>
             )}
-            {filteredOptions.map((opt) => {
-              const isSelected = opt.id === value;
-              return (
-                <button key={opt.id} type="button" onClick={() => handleSelect(opt.id)}
-                  className={cn(
-                    "flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
-                    isSelected ? "bg-theme-primary-subtle text-theme-primary font-medium" : "text-theme-text hover:bg-theme-border",
-                  )}>
-                  <span className="min-w-0 truncate">{opt.label}</span>
-                  {isSelected && <span className="text-xs font-medium text-theme-primary">Selected</span>}
+            {showCreateHint && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-theme-muted">
+                <span
+                  aria-hidden="true"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                >
+                  +
+                </span>
+                <span>{createHint}</span>
+              </div>
+            )}
+            <div className="mt-2 max-h-52 overflow-y-auto scrollbar-auto-hide">
+              {allowClear && value != null && (
+                <button
+                  type="button"
+                  onClick={() => handleSelect(undefined)}
+                  className="flex min-h-8 w-full items-center border-b border-theme-border px-2 py-1 text-left text-sm text-theme-muted transition-colors hover:bg-theme-border"
+                >
+                  <span className="min-w-0 truncate">{clearLabel}</span>
                 </button>
-              );
-            })}
-            {showCreateOption && (
-              <button type="button" onClick={() => void handleCreate()} disabled={isCreating}
-                className={cn("flex min-h-8 w-full items-center gap-2 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
-                  isCreating ? "cursor-not-allowed opacity-60" : "text-theme-text hover:bg-theme-border")}>
-                {isCreating ? (
-                  <span className="flex items-center gap-2 text-theme-text">
-                    <span className="h-4 w-4 rounded-full border-2 border-theme-primary border-t-transparent animate-spin" />
-                    Adding...
-                  </span>
-                ) : (
-                  <>
-                    <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary">+</span>
-                    <span>Add "{query.trim()}"</span>
-                  </>
-                )}
-              </button>
-            )}
-            {filteredOptions.length === 0 && !showCreateOption && (
-              <div className="px-2.5 py-3 text-center text-xs text-theme-muted">{emptyMessage}</div>
-            )}
-          </div>
-        </div>,
-        document.body,
-      )}
+              )}
+              {filteredOptions.map((opt) => {
+                const isSelected = opt.id === value;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleSelect(opt.id)}
+                    className={cn(
+                      "flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                      isSelected
+                        ? "bg-theme-primary-subtle text-theme-primary font-medium"
+                        : "text-theme-text hover:bg-theme-border",
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{opt.label}</span>
+                    {isSelected && (
+                      <span className="text-xs font-medium text-theme-primary">
+                        Selected
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              {showCreateOption && (
+                <button
+                  type="button"
+                  onClick={() => void handleCreate()}
+                  disabled={isCreating}
+                  className={cn(
+                    "flex min-h-8 w-full items-center gap-2 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                    isCreating
+                      ? "cursor-not-allowed opacity-60"
+                      : "text-theme-text hover:bg-theme-border",
+                  )}
+                >
+                  {isCreating ? (
+                    <span className="flex items-center gap-2 text-theme-text">
+                      <span className="h-4 w-4 rounded-full border-2 border-theme-primary border-t-transparent animate-spin" />
+                      Adding...
+                    </span>
+                  ) : (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                      >
+                        +
+                      </span>
+                      <span>Add "{query.trim()}"</span>
+                    </>
+                  )}
+                </button>
+              )}
+              {filteredOptions.length === 0 && !showCreateOption && (
+                <div className="px-2.5 py-3 text-center text-xs text-theme-muted">
+                  {emptyMessage}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -282,25 +365,44 @@ export default function ScheduleModal({
 
   const isReadOnly = editSchedule
     ? editSchedule.effectiveYear < currentYear ||
-      (editSchedule.effectiveYear === currentYear && editSchedule.effectiveMonth <= currentMonth)
+      (editSchedule.effectiveYear === currentYear &&
+        editSchedule.effectiveMonth <= currentMonth)
     : false;
 
-  const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories]);
+  const activeCategories = useMemo(
+    () => categories.filter((c) => !c.isArchived),
+    [categories],
+  );
   const activePayees = useMemo(
-    () => payees.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name)),
+    () =>
+      payees
+        .filter((p) => !p.isArchived)
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [payees],
   );
   const categoryOptions = useMemo(
-    () => activeCategories.map((c) => ({ id: c.id as number, label: normalizeName(c.name) })),
+    () =>
+      activeCategories.map((c) => ({
+        id: c.id as number,
+        label: normalizeName(c.name),
+      })),
     [activeCategories],
   );
   const payeeOptions = useMemo(
-    () => activePayees.map((p) => ({ id: p.id as number, label: normalizeName(p.name) })),
+    () =>
+      activePayees.map((p) => ({
+        id: p.id as number,
+        label: normalizeName(p.name),
+      })),
     [activePayees],
   );
 
-  const selectedCategoryName = categoryOptions.find((o) => o.id === Number(categoryId))?.label;
-  const selectedPayeeName = payeeOptions.find((o) => o.id === Number(payeeId))?.label;
+  const selectedCategoryName = categoryOptions.find(
+    (o) => o.id === Number(categoryId),
+  )?.label;
+  const selectedPayeeName = payeeOptions.find(
+    (o) => o.id === Number(payeeId),
+  )?.label;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -318,11 +420,17 @@ export default function ScheduleModal({
       setType(editSchedule.type);
       setTargetId(editSchedule.targetId ? String(editSchedule.targetId) : "");
       setEffectiveDate(
-        toISODate(editSchedule.effectiveYear, editSchedule.effectiveMonth, editSchedule.day ?? 1),
+        toISODate(
+          editSchedule.effectiveYear,
+          editSchedule.effectiveMonth,
+          editSchedule.day ?? 1,
+        ),
       );
       setNewValue(String(editSchedule.newValue));
       setNote(editSchedule.note || "");
-      setCategoryId(editSchedule.categoryId ? String(editSchedule.categoryId) : "");
+      setCategoryId(
+        editSchedule.categoryId ? String(editSchedule.categoryId) : "",
+      );
       setPayeeId(editSchedule.payeeId ? String(editSchedule.payeeId) : "");
       setDescription("");
     } else {
@@ -344,17 +452,26 @@ export default function ScheduleModal({
 
   const validate = (): boolean => {
     const errs: string[] = [];
-    if (isReadOnly) { setErrors(errs); return false; }
+    if (isReadOnly) {
+      setErrors(errs);
+      return false;
+    }
 
     const val = parseFloat(newValue);
     if (isNaN(val)) errs.push("Value must be a number.");
-    else if (type === "income" && val <= 0) errs.push("Income must be greater than 0.");
-    else if (type === "savingsRate" && (val < 0 || val > 100)) errs.push("Savings rate must be between 0 and 100.");
-    else if (type === "fixedExpense" && val === 0) errs.push("Fixed expense amount cannot be zero.");
-    else if (type === "expense" && val <= 0) errs.push("Expense amount must be greater than 0.");
+    else if (type === "income" && val <= 0)
+      errs.push("Income must be greater than 0.");
+    else if (type === "savingsRate" && (val < 0 || val > 100))
+      errs.push("Savings rate must be between 0 and 100.");
+    else if (type === "fixedExpense" && val === 0)
+      errs.push("Fixed expense amount cannot be zero.");
+    else if (type === "expense" && val <= 0)
+      errs.push("Expense amount must be greater than 0.");
 
-    if (type === "fixedExpense" && !targetId) errs.push("Please select a fixed expense.");
-    if (type === "expense" && !categoryId) errs.push("Please select a category.");
+    if (type === "fixedExpense" && !targetId)
+      errs.push("Please select a fixed expense.");
+    if (type === "expense" && !categoryId)
+      errs.push("Please select a category.");
 
     if (!effectiveDate) {
       errs.push("Please select a date.");
@@ -366,7 +483,9 @@ export default function ScheduleModal({
         if (
           parsed.year < currentYear ||
           (parsed.year === currentYear && parsed.month < currentMonth) ||
-          (parsed.year === currentYear && parsed.month === currentMonth && parsed.day < now.getDate())
+          (parsed.year === currentYear &&
+            parsed.month === currentMonth &&
+            parsed.day < now.getDate())
         ) {
           errs.push("Date must be today or in the future.");
         }
@@ -427,17 +546,26 @@ export default function ScheduleModal({
     }
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
-  const inputCls = "input-theme px-3 py-2 text-sm w-full";
-  const selectCls = "input-theme px-3 py-2 text-sm w-full cursor-pointer";
+  const inputCls = "input-md px-3 py-2 text-sm w-full";
+  const selectCls = "input-md px-3 py-2 text-sm w-full cursor-pointer";
   const disabledCls = " opacity-60 cursor-not-allowed";
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isReadOnly ? "Schedule Details" : editSchedule ? "Edit Schedule" : "Add Schedule"}
+      title={
+        isReadOnly
+          ? "Schedule Details"
+          : editSchedule
+            ? "Edit Schedule"
+            : "Add Schedule"
+      }
       size="md"
       footer={
         <ScheduleModalFooter
@@ -466,7 +594,9 @@ export default function ScheduleModal({
             disabled={isReadOnly}
           >
             {SCHEDULE_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
             ))}
           </select>
         </div>
@@ -474,7 +604,9 @@ export default function ScheduleModal({
         {/* Fixed expense target */}
         {type === "fixedExpense" && (
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-theme-text">Fixed Expense</label>
+            <label className="text-sm font-semibold text-theme-text">
+              Fixed Expense
+            </label>
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
@@ -483,7 +615,9 @@ export default function ScheduleModal({
             >
               <option value="">Select…</option>
               {fixedExpenses.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
               ))}
             </select>
           </div>
@@ -499,6 +633,8 @@ export default function ScheduleModal({
                 value={effectiveDate}
                 onChange={setEffectiveDate}
                 disabled={isReadOnly}
+                variant="inline"
+                inputStyle="default"
               />
             </div>
 
@@ -639,18 +775,26 @@ export default function ScheduleModal({
           <>
             {/* Effective Date (non-expense types) */}
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-theme-text">Effective Date</label>
+              <label className="text-sm font-semibold text-theme-text">
+                Effective Date
+              </label>
               <DatePicker
                 value={effectiveDate}
                 onChange={setEffectiveDate}
                 disabled={isReadOnly}
+                variant="inline"
+                inputStyle="default"
               />
             </div>
 
             {/* Value */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-theme-text">
-                {type === "savingsRate" ? "New Rate (%)" : type === "income" ? "New Monthly Income" : "New Amount"}
+                {type === "savingsRate"
+                  ? "New Rate (%)"
+                  : type === "income"
+                    ? "New Monthly Income"
+                    : "New Amount"}
               </label>
               <input
                 type="number"
@@ -666,7 +810,8 @@ export default function ScheduleModal({
             {/* Note */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-theme-text">
-                Note <span className="text-theme-muted font-normal">(optional)</span>
+                Note{" "}
+                <span className="text-theme-muted font-normal">(optional)</span>
               </label>
               <input
                 value={note}
@@ -683,7 +828,9 @@ export default function ScheduleModal({
         {errors.length > 0 && (
           <div className="space-y-1">
             {errors.map((err, i) => (
-              <p key={i} className="text-theme-danger text-xs">{err}</p>
+              <p key={i} className="text-theme-danger text-xs">
+                {err}
+              </p>
             ))}
           </div>
         )}
@@ -711,7 +858,11 @@ function ScheduleModalFooter({
         {isReadOnly ? "Close" : "Cancel"}
       </button>
       {!isReadOnly && (
-        <button onClick={onSave} className="btn-modal-primary flex-1" disabled={saving}>
+        <button
+          onClick={onSave}
+          className="btn-modal-primary flex-1"
+          disabled={saving}
+        >
           {saving ? "Saving…" : editSchedule ? "Update" : "Save Schedule"}
         </button>
       )}

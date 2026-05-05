@@ -101,7 +101,7 @@ export default function PayeesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search payees..."
-            className="input-theme flex-1 px-3 py-2 text-sm"
+            className="input-md flex-1"
           />
           <div className="flex gap-2">
             <input
@@ -109,7 +109,7 @@ export default function PayeesPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="New payee name"
-              className="input-theme flex-1 sm:w-48 px-3 py-2 text-sm"
+              className="input-md flex-1 sm:w-48"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleAdd();
               }}
@@ -139,7 +139,7 @@ export default function PayeesPage() {
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="input-theme flex-1 px-2 py-1 text-sm"
+                    className="input-sm flex-1"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === "Enter") saveEdit(payee.id as number);

@@ -158,7 +158,7 @@ export default function MobileEntityPicker({
               void handleSave();
             }}
             placeholder={placeholder}
-            className="input-theme w-full px-3 py-2.5 text-sm"
+            className="input-md w-full"
           />
           {createError && (
             <p className="mt-1.5 text-theme-danger text-xs">{createError}</p>

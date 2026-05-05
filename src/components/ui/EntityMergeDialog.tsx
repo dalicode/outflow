@@ -118,7 +118,7 @@ export default function EntityMergeDialog({
             onChange={(e) =>
               setSelectedTargetId(e.target.value ? Number(e.target.value) : "")
             }
-            className="input-theme w-full px-3 py-2 text-sm cursor-pointer"
+            className="input-md w-full cursor-pointer"
           >
             <option value="">Select {label}…</option>
             {targetOptions.map((t) => (

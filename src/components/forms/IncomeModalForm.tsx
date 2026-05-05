@@ -87,7 +87,7 @@ export default function IncomeModalForm({
     });
   };
 
-  const inputCls = "input-theme px-3 py-2 text-sm";
+  const inputCls = "input-md";
   const displayError = externalError || error;
 
   return (

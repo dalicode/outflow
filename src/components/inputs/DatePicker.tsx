@@ -1,14 +1,11 @@
 /**
- * DatePicker — Custom date picker with portal popup, keyboard navigation,
- * and month/year selector. Replaces native <input type="date">.
+ * DatePicker — Custom date picker with portal popup (desktop) or
+ * bottom-sheet modal (mobile), keyboard navigation, and month/year selector.
  *
  * State model:
  *   activeDate  → the date being navigated (keyboard/mouse/typing)
  *   viewDate    → the month currently rendered in the calendar grid
  *   textValue   → always mirrors activeDate in the user's dateFormat
- *
- * Keyboard arrows move activeDate as a real calendar date; the view
- * auto-scrolls when activeDate crosses into a different month.
  */
 import {
   useState,
@@ -36,7 +33,7 @@ import {
 } from "../../utils/datePickerHelpers";
 import type { CalendarDay } from "../../utils/datePickerHelpers";
 
-const POPUP_MAX_HEIGHT = 280;
+const POPUP_MAX_HEIGHT = 320;
 const VIEWPORT_MARGIN = 8;
 const POPUP_GAP = 4;
 
@@ -45,7 +42,7 @@ function getPopupPosition(rect: DOMRect): {
   left: number;
   width: number;
 } {
-  const width = Math.min(rect.width, window.innerWidth - VIEWPORT_MARGIN * 2);
+  const width = Math.max(280, Math.min(rect.width, window.innerWidth - VIEWPORT_MARGIN * 2));
   const left = Math.min(
     Math.max(rect.left, VIEWPORT_MARGIN),
     window.innerWidth - VIEWPORT_MARGIN - width,
@@ -81,6 +78,106 @@ interface DatePickerProps {
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
+// ── Shared calendar grid ──────────────────────────────────────────────────────
+
+interface CalendarGridProps {
+  calendarDays: CalendarDay[];
+  activeDate: Date;
+  viewDate: Date;
+  onDayClick: (day: CalendarDay) => void;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  size?: "sm" | "lg";
+}
+
+function CalendarGrid({
+  calendarDays,
+  activeDate,
+  viewDate,
+  onDayClick,
+  onPrevMonth,
+  onNextMonth,
+  size = "sm",
+}: CalendarGridProps) {
+  const isLg = size === "lg";
+
+  return (
+    <div className={cn("select-none", isLg ? "p-2" : "p-1")}>
+      {/* Month/year header */}
+      <div className={cn("flex items-center justify-between", isLg ? "mb-3" : "mb-2")}>
+        <button
+          type="button"
+          onClick={onPrevMonth}
+          className={cn(
+            "flex items-center justify-center rounded-theme-medium hover:bg-theme-primary-subtle text-theme-text transition-colors",
+            isLg ? "w-10 h-10" : "w-7 h-7",
+          )}
+        >
+          <svg className={cn(isLg ? "w-5 h-5" : "w-3.5 h-3.5")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <span className={cn("font-semibold text-theme-text", isLg ? "text-base" : "text-sm")}>
+          {getMonthName(viewDate.getMonth())} {viewDate.getFullYear()}
+        </span>
+        <button
+          type="button"
+          onClick={onNextMonth}
+          className={cn(
+            "flex items-center justify-center rounded-theme-medium hover:bg-theme-primary-subtle text-theme-text transition-colors",
+            isLg ? "w-10 h-10" : "w-7 h-7",
+          )}
+        >
+          <svg className={cn(isLg ? "w-5 h-5" : "w-3.5 h-3.5")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 mb-1">
+        {WEEKDAYS.map((wd) => (
+          <div
+            key={wd}
+            className={cn(
+              "text-center font-medium text-theme-muted",
+              isLg ? "text-xs py-1" : "text-[10px] py-0.5",
+            )}
+          >
+            {wd}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7">
+        {calendarDays.map((day) => {
+          const dayDate = new Date(day.year, day.month, day.date);
+          const isActive = isSameDay(dayDate, activeDate);
+          return (
+            <button
+              key={`${day.year}-${day.month}-${day.date}`}
+              type="button"
+              onClick={() => onDayClick(day)}
+              className={cn(
+                "flex items-center justify-center rounded-theme-medium transition-colors",
+                isLg ? "h-10 text-sm" : "py-1.5 text-xs",
+                !day.isCurrentMonth && "text-theme-muted opacity-40",
+                day.isCurrentMonth && !isActive && "text-theme-text hover:bg-theme-primary-subtle",
+                isActive && "bg-theme-primary text-white font-semibold",
+              )}
+            >
+              {day.date}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function DatePicker({
   value,
   onChange,
@@ -97,19 +194,13 @@ export default function DatePicker({
   const dateFormat = settings.dateFormat;
   const resolvedInputStyle = inputStyle ?? variant;
 
-  /* ── state ──────────────────────────────────────────────────────── */
-
   const [activeDate, setActiveDate] = useState<Date>(() => {
-    if (value && isValidISODate(value)) {
-      return new Date(value + "T00:00:00");
-    }
+    if (value && isValidISODate(value)) return new Date(value + "T00:00:00");
     return new Date();
   });
 
   const [viewDate, setViewDate] = useState<Date>(() => {
-    if (value && isValidISODate(value)) {
-      return new Date(value + "T00:00:00");
-    }
+    if (value && isValidISODate(value)) return new Date(value + "T00:00:00");
     return new Date();
   });
 
@@ -122,6 +213,7 @@ export default function DatePicker({
     isOpen: boolean;
     pos: { top: number; left: number; width: number } | null;
   }>({ isOpen: false, pos: null });
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -129,20 +221,21 @@ export default function DatePicker({
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listboxId = useId();
 
-  /* ── derived data ───────────────────────────────────────────────── */
+  // Track mobile breakpoint
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
-  const calendarDays = getCalendarGrid(
-    viewDate.getFullYear(),
-    viewDate.getMonth(),
-  );
-
-  /* ── helpers ────────────────────────────────────────────────────── */
+  const calendarDays = getCalendarGrid(viewDate.getFullYear(), viewDate.getMonth());
 
   const updateActiveDate = useCallback(
     (date: Date) => {
       setActiveDate(date);
       setTextValue(formatISODate(toISO(date), dateFormat));
-      // Scroll the view when active date enters a different month
       if (
         date.getMonth() !== viewDate.getMonth() ||
         date.getFullYear() !== viewDate.getFullYear()
@@ -158,9 +251,7 @@ export default function DatePicker({
     inputRef.current?.select();
 
     const baseDate =
-      value && isValidISODate(value)
-        ? new Date(value + "T00:00:00")
-        : new Date();
+      value && isValidISODate(value) ? new Date(value + "T00:00:00") : new Date();
 
     setActiveDate(baseDate);
     setTextValue(formatISODate(toISO(baseDate), dateFormat));
@@ -168,7 +259,6 @@ export default function DatePicker({
 
     const rect = containerRef.current?.getBoundingClientRect();
     const pos = rect ? getPopupPosition(rect) : null;
-
     setPopupState({ isOpen: true, pos });
   }, [disabled, value, dateFormat]);
 
@@ -193,8 +283,19 @@ export default function DatePicker({
     commitDate(activeDate);
   }, [commitDate, activeDate]);
 
-  /* ── sync from external value when popup is closed ──────────────── */
+  const handleDayClick = useCallback(
+    (day: CalendarDay) => {
+      const d = new Date(day.year, day.month, day.date);
+      updateActiveDate(d);
+      commitDate(d);
+    },
+    [updateActiveDate, commitDate],
+  );
 
+  const goToPrevMonth = useCallback(() => setViewDate((vd) => addMonths(vd, -1)), []);
+  const goToNextMonth = useCallback(() => setViewDate((vd) => addMonths(vd, 1)), []);
+
+  // Sync from external value when popup is closed
   useEffect(() => {
     if (popupState.isOpen) return;
     if (value && isValidISODate(value)) {
@@ -205,20 +306,15 @@ export default function DatePicker({
     }
   }, [value, popupState.isOpen, dateFormat]);
 
-  /* ── auto-open ──────────────────────────────────────────────────── */
-
   useLayoutEffect(() => {
-    if (autoOpen) {
-      openPopup();
-    }
+    if (autoOpen) openPopup();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── click outside ──────────────────────────────────────────────── */
-
+  // Click outside (desktop only)
   useEffect(() => {
-    if (!popupState.isOpen) return;
-    const updatePopupPosition = () => {
+    if (!popupState.isOpen || isMobile) return;
+    const updatePos = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
       setPopupState((prev) => ({ ...prev, pos: getPopupPosition(rect) }));
@@ -233,18 +329,17 @@ export default function DatePicker({
       commitActiveDate();
       closePopup();
     };
-    window.addEventListener("resize", updatePopupPosition);
-    window.addEventListener("scroll", updatePopupPosition, true);
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
     document.addEventListener("mousedown", handleClick);
     return () => {
-      window.removeEventListener("resize", updatePopupPosition);
-      window.removeEventListener("scroll", updatePopupPosition, true);
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
       document.removeEventListener("mousedown", handleClick);
     };
-  }, [popupState.isOpen, commitActiveDate, closePopup]);
+  }, [popupState.isOpen, isMobile, commitActiveDate, closePopup]);
 
-  /* ── document-level Escape (when input is not focused) ──────────── */
-
+  // Escape key
   useEffect(() => {
     if (!popupState.isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -259,18 +354,13 @@ export default function DatePicker({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [popupState.isOpen, closePopup, onCancel]);
 
-  /* ── blur timeout cleanup ───────────────────────────────────────── */
-
   useEffect(() => {
     return () => {
       if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     };
   }, []);
 
-  /* ── event handlers ─────────────────────────────────────────────── */
-
   const handleBlur = () => {
-    // If text is invalid, reset it to the formatted activeDate
     const formatted = formatISODate(toISO(activeDate), dateFormat);
     if (textValue !== formatted) {
       const parsed = parseUserDateInput(textValue, dateFormat);
@@ -279,7 +369,6 @@ export default function DatePicker({
         setIsInvalid(false);
       }
     }
-
     blurTimeoutRef.current = setTimeout(() => {
       commitActiveDate();
     }, 0);
@@ -289,7 +378,6 @@ export default function DatePicker({
     const val = e.target.value;
     setTextValue(val);
     setIsInvalid(false);
-
     const parsed = parseUserDateInput(val, dateFormat);
     if (parsed && isValidISODate(parsed)) {
       const d = new Date(parsed + "T00:00:00");
@@ -298,136 +386,107 @@ export default function DatePicker({
     }
   };
 
-  const handleDayClick = useCallback(
-    (day: CalendarDay) => {
-      const d = new Date(day.year, day.month, day.date);
-      updateActiveDate(d);
-      commitDate(d);
-    },
-    [updateActiveDate, commitDate],
-  );
+  // ── Desktop portal popup ────────────────────────────────────────────────────
 
-  const goToPrevMonth = useCallback(() => {
-    setViewDate((vd) => addMonths(vd, -1));
-  }, []);
-
-  const goToNextMonth = useCallback(() => {
-    setViewDate((vd) => addMonths(vd, 1));
-  }, []);
-
-  /* ── render helpers ─────────────────────────────────────────────── */
-
-  const renderDay = (day: CalendarDay) => {
-    const dayDate = new Date(day.year, day.month, day.date);
-    const isActive = isSameDay(dayDate, activeDate);
-
-    return (
-      <button
-        key={`${day.year}-${day.month}-${day.date}`}
-        type="button"
-        onClick={() => handleDayClick(day)}
-        className={cn(
-          "text-center text-xs py-1 rounded-theme-small transition-colors",
-          !day.isCurrentMonth && "text-theme-muted opacity-50",
-          day.isCurrentMonth && "text-theme-text",
-          isActive &&
-            "bg-theme-primary-subtle border border-theme-primary font-medium",
-          !isActive && day.isCurrentMonth && "hover:bg-theme-primary-subtle",
-        )}
-      >
-        {day.date}
-      </button>
-    );
-  };
-
-  /* ── popup content ──────────────────────────────────────────────── */
-
-  const popupContent = popupState.isOpen && popupState.pos && (
+  const desktopPopup = !isMobile && popupState.isOpen && popupState.pos && (
     <div
       ref={popupRef}
       id={listboxId}
       data-no-cell-switch
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-      }}
+      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
-      className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-medium shadow-lg p-2 scrollbar-auto-hide"
+      className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-large shadow-xl"
       style={{
         top: popupState.pos.top,
         left: popupState.pos.left,
-        minWidth: 240,
-        maxWidth: 260,
+        width: popupState.pos.width,
       }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-1">
-        <button
-          type="button"
-          onClick={goToPrevMonth}
-          className="p-1 rounded-theme-small hover:bg-theme-primary-subtle text-theme-text"
-        >
-          <svg
-            className="w-3 h-3"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <span className="text-xs font-semibold text-theme-text px-2 py-1">
-          {getMonthName(viewDate.getMonth())} {viewDate.getFullYear()}
-        </span>
-        <button
-          type="button"
-          onClick={goToNextMonth}
-          className="p-1 rounded-theme-small hover:bg-theme-primary-subtle text-theme-text"
-        >
-          <svg
-            className="w-3 h-3"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-0 mb-1">
-        {WEEKDAYS.map((wd) => (
-          <div
-            key={wd}
-            className="text-center text-[10px] font-medium text-theme-muted py-0.5"
-          >
-            {wd}
-          </div>
-        ))}
-      </div>
-
-      {/* Day grid (6 weeks × 7 days) */}
-      <div className="grid grid-cols-7 gap-0">
-        {calendarDays.map(renderDay)}
-      </div>
+      <CalendarGrid
+        calendarDays={calendarDays}
+        activeDate={activeDate}
+        viewDate={viewDate}
+        onDayClick={handleDayClick}
+        onPrevMonth={goToPrevMonth}
+        onNextMonth={goToNextMonth}
+        size="sm"
+      />
     </div>
   );
 
-  /* ── main render ────────────────────────────────────────────────── */
+  // ── Mobile bottom-sheet (plain portal, no history push) ───────────────────
+
+  const mobileSheet = isMobile && popupState.isOpen && createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+      {/* Backdrop — separate element so tap detection is reliable */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={() => { commitActiveDate(); closePopup(); }}
+      />
+
+      {/* Card */}
+      <div
+        className="relative bg-theme-surface rounded-theme-large border border-theme-border shadow-xl w-full max-w-xs"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-1">
+          <span className="text-sm font-semibold text-theme-text">
+            {textValue || placeholder}
+          </span>
+          <button
+            type="button"
+            onClick={() => { commitActiveDate(); closePopup(); }}
+            className="text-sm font-semibold text-theme-primary"
+          >
+            Done
+          </button>
+        </div>
+
+        {/* Calendar */}
+        <CalendarGrid
+          calendarDays={calendarDays}
+          activeDate={activeDate}
+          viewDate={viewDate}
+          onDayClick={handleDayClick}
+          onPrevMonth={goToPrevMonth}
+          onNextMonth={goToNextMonth}
+          size="sm"
+        />
+      </div>
+    </div>,
+    document.body,
+  );
+
+  // ── Main render ─────────────────────────────────────────────────────────────
 
   return (
     <div
       ref={containerRef}
-      onMouseDown={(e) => {
-        e.stopPropagation();
-      }}
+      onMouseDown={(e) => e.stopPropagation()}
       className="relative"
     >
-      <div className="relative">
+      {isMobile ? (
+        /* Mobile: button trigger — no keyboard */
+        <button
+          type="button"
+          onClick={openPopup}
+          disabled={disabled}
+          className={cn(
+            "text-sm text-left w-full",
+            resolvedInputStyle === "inline"
+              ? "input-inline pr-5"
+              : "input-md w-full pr-9",
+            disabled && "opacity-50 cursor-not-allowed",
+          )}
+        >
+          <span className={textValue ? "text-theme-text" : "text-theme-muted opacity-70"}>
+            {textValue || placeholder}
+          </span>
+        </button>
+      ) : (
+        /* Desktop: text input with keyboard navigation */
         <input
           ref={inputRef}
           type="text"
@@ -436,9 +495,7 @@ export default function DatePicker({
           onBlur={handleBlur}
           onFocus={() => {
             setIsInvalid(false);
-            if (variant === "inline") {
-              openPopup();
-            }
+            if (variant === "inline") openPopup();
           }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
@@ -448,7 +505,6 @@ export default function DatePicker({
               onCancel?.();
               return;
             }
-
             if (e.key === "Tab") {
               e.preventDefault();
               closePopup();
@@ -460,7 +516,6 @@ export default function DatePicker({
               onTab?.(e.shiftKey);
               return;
             }
-
             if (!popupState.isOpen) {
               if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -468,54 +523,16 @@ export default function DatePicker({
               }
               return;
             }
-
-            // Popup is open — keyboard navigation moves activeDate
             switch (e.key) {
-              case "ArrowRight": {
-                e.preventDefault();
-                updateActiveDate(addDays(activeDate, 1));
-                break;
-              }
-              case "ArrowLeft": {
-                e.preventDefault();
-                updateActiveDate(addDays(activeDate, -1));
-                break;
-              }
-              case "ArrowDown": {
-                e.preventDefault();
-                updateActiveDate(addDays(activeDate, 7));
-                break;
-              }
-              case "ArrowUp": {
-                e.preventDefault();
-                updateActiveDate(addDays(activeDate, -7));
-                break;
-              }
-              case "PageDown": {
-                e.preventDefault();
-                updateActiveDate(addMonths(activeDate, 1));
-                break;
-              }
-              case "PageUp": {
-                e.preventDefault();
-                updateActiveDate(addMonths(activeDate, -1));
-                break;
-              }
-              case "Home": {
-                e.preventDefault();
-                updateActiveDate(startOfMonth(activeDate));
-                break;
-              }
-              case "End": {
-                e.preventDefault();
-                updateActiveDate(endOfMonth(activeDate));
-                break;
-              }
-              case "Enter": {
-                e.preventDefault();
-                commitActiveDate();
-                break;
-              }
+              case "ArrowRight": e.preventDefault(); updateActiveDate(addDays(activeDate, 1)); break;
+              case "ArrowLeft":  e.preventDefault(); updateActiveDate(addDays(activeDate, -1)); break;
+              case "ArrowDown":  e.preventDefault(); updateActiveDate(addDays(activeDate, 7)); break;
+              case "ArrowUp":    e.preventDefault(); updateActiveDate(addDays(activeDate, -7)); break;
+              case "PageDown":   e.preventDefault(); updateActiveDate(addMonths(activeDate, 1)); break;
+              case "PageUp":     e.preventDefault(); updateActiveDate(addMonths(activeDate, -1)); break;
+              case "Home":       e.preventDefault(); updateActiveDate(startOfMonth(activeDate)); break;
+              case "End":        e.preventDefault(); updateActiveDate(endOfMonth(activeDate)); break;
+              case "Enter":      e.preventDefault(); commitActiveDate(); break;
             }
           }}
           placeholder={placeholder}
@@ -525,45 +542,19 @@ export default function DatePicker({
             "text-sm",
             resolvedInputStyle === "inline"
               ? "input-inline pr-5"
-              : "input-theme w-full px-3 py-2 pr-9",
-            isInvalid && (variant === "inline" ? "" : "border-theme-danger"),
+              : "input-md w-full pr-9",
+            isInvalid && variant !== "inline" && "border-theme-danger",
             disabled && "opacity-50 cursor-not-allowed",
           )}
         />
-        {/* Calendar icon — hidden for now */}
-        <button
-          type="button"
-          onClick={() => {
-            if (popupState.isOpen) {
-              closePopup();
-            } else {
-              openPopup();
-            }
-          }}
-          disabled={disabled}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-text transition-colors hidden"
-          tabIndex={-1}
-        >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-        </button>
-      </div>
-      {isInvalid && (
+      )}
+      {isInvalid && !isMobile && (
         <p className="text-theme-danger text-xs mt-1">
           Invalid date. Use format: {dateFormat}
         </p>
       )}
-      {popupContent && createPortal(popupContent, document.body)}
+      {desktopPopup && createPortal(desktopPopup, document.body)}
+      {mobileSheet}
     </div>
   );
 }

@@ -32,7 +32,7 @@ function Row({ label, value, onChange, options }: RowProps) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="input-md"
+        className="input-theme px-2.5 py-1 text-sm cursor-pointer"
       >
         {options.map(([v, l]) => (
           <option key={v} value={v}>

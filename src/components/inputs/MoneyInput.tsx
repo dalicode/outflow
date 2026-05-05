@@ -243,7 +243,7 @@ export default function MoneyInput({
     variant === "inline"
       ? undefined
       : cn(
-          "relative flex items-center gap-3 rounded-theme-large border bg-theme-surface px-3 shadow-sm transition",
+          "relative flex items-center gap-3 rounded-theme-medium border bg-theme-surface px-3 shadow-sm transition",
           SIZE_MAP[size],
           isNegativeMode
             ? "border-[color:color-mix(in_srgb,var(--theme-success)_35%,var(--theme-border))] bg-[color:color-mix(in_srgb,var(--theme-success)_4%,var(--theme-surface))]"
