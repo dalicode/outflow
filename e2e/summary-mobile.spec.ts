@@ -37,8 +37,9 @@ test("set income — modal opens and saves", async ({ page }) => {
     await expect(dialog).toBeVisible();
 
     // Fill amount
-    const amountInput = page.locator('#income-modal-form input[type="number"]');
-    await amountInput.fill("5000");
+    const amountInput = page.locator("#income-modal-form [aria-label='Amount']");
+    await amountInput.click();
+    await amountInput.pressSequentially("500000");
 
     // Save
     await page.getByTestId("btn-save-income").click();
@@ -60,14 +61,16 @@ test("set income — modal opens and saves", async ({ page }) => {
 
   test("set savings rate and show the saved monthly amount", async ({ page }) => {
     await page.getByTestId("btn-open-income-modal").click();
-    await page.locator('#income-modal-form input[type="number"]').fill("5000");
+    const incomeAmountInput = page.locator("#income-modal-form [aria-label='Amount']");
+    await incomeAmountInput.click();
+    await incomeAmountInput.pressSequentially("500000");
     await page.getByTestId("btn-save-income").click();
 
     await page.getByTestId("btn-open-savings-modal").click();
     const dialog = page.getByRole("dialog", { name: "Edit Auto Savings" });
     await expect(dialog).toBeVisible();
 
-    await page.locator('#savings-modal-form input[type="number"]').nth(1).fill("20");
+    await page.locator('#savings-modal-form input[type="number"]').fill("20");
     await page.getByTestId("btn-save-savings").click();
 
     await expect(dialog).not.toBeVisible({ timeout: 5000 });
@@ -112,5 +115,46 @@ test("set income — modal opens and saves", async ({ page }) => {
     const fixedExpenseRow = page.locator("li").filter({ hasText: "Rent" });
     await expect(fixedExpenseRow).toBeVisible();
     await expect(fixedExpenseRow.getByText("$1,200.00")).toBeVisible();
+  });
+
+  test("income, savings, and fixed expense update the budget breakdown correctly", async ({ page }) => {
+    await page.getByTestId("btn-open-income-modal").click();
+    const incomeDialog = page.getByRole("dialog", { name: "Edit Income" });
+    await expect(incomeDialog).toBeVisible();
+
+    const incomeAmountInput = page.locator("#income-modal-form [aria-label='Amount']");
+    await incomeAmountInput.click();
+    await incomeAmountInput.pressSequentially("500000");
+    await page.getByTestId("btn-save-income").click();
+    await expect(incomeDialog).not.toBeVisible({ timeout: 5000 });
+
+    await page.getByTestId("btn-open-savings-modal").click();
+    const savingsDialog = page.getByRole("dialog", { name: "Edit Auto Savings" });
+    await expect(savingsDialog).toBeVisible();
+
+    await page.locator('#savings-modal-form input[type="number"]').fill("20");
+    await page.getByTestId("btn-save-savings").click();
+    await expect(savingsDialog).not.toBeVisible({ timeout: 5000 });
+
+    await page.getByTestId("btn-add-fixed-expense").click();
+    const fixedDialog = page.getByRole("dialog", { name: "Add Fixed Expense" });
+    await expect(fixedDialog).toBeVisible();
+
+    await fixedDialog.getByRole("textbox", { name: "Name" }).fill("Rent");
+    const fixedAmountInput = fixedDialog.locator('[aria-label="Amount"]');
+    await fixedAmountInput.click();
+    await fixedAmountInput.pressSequentially("120000");
+    await fixedDialog.getByRole("button", { name: "Add" }).click();
+
+    const budgetCard = page.locator("div").filter({
+      has: page.getByText("Monthly Budget", { exact: true }),
+    }).first();
+    await expect(budgetCard.getByText("Monthly Budget", { exact: true })).toBeVisible();
+    await expect(budgetCard).toContainText("$5,000.00");
+    await expect(budgetCard).toContainText("+$2,800.00");
+    await expect(budgetCard).toContainText("Fixed Expenses");
+    await expect(budgetCard).toContainText("$1,200.00");
+    await expect(budgetCard).toContainText("Auto Savings");
+    await expect(budgetCard).toContainText("$1,000.00");
   });
 });

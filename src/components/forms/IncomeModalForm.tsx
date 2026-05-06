@@ -1,6 +1,10 @@
 import { useState, useEffect, type FormEvent } from "react";
+import { useSettings } from "../../context/settingsContext";
+import MoneyInput from "../inputs/MoneyInput";
 import Modal from "../ui/Modal";
 import ModalFooter from "../ui/ModalFooter";
+import { cn } from "../../utils/cn";
+import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
 
 const FREQUENCIES = ["monthly", "biweekly", "weekly"] as const;
 const MULTIPLIERS: Record<string, number> = {
@@ -39,10 +43,12 @@ export default function IncomeModalForm({
   description,
   error: externalError,
 }: IncomeModalFormProps) {
+  const { settings } = useSettings();
   const [amt, setAmt] = useState<string>("");
   const [freq, setFreq] = useState("monthly");
   const [monthlyBase, setMonthlyBase] = useState<number>(0);
   const [error, setError] = useState("");
+  const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol);
 
   // Reset form when modal opens with new initial values
   useEffect(() => {
@@ -89,6 +95,14 @@ export default function IncomeModalForm({
 
   const inputCls = "input-md";
   const displayError = externalError || error;
+  const focusMoneyInput = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    if (event.target instanceof HTMLInputElement) return;
+    const input = event.currentTarget.querySelector("input");
+    input?.focus();
+    input?.select();
+  };
 
   return (
     <Modal
@@ -115,16 +129,24 @@ export default function IncomeModalForm({
           <p className="text-theme-danger text-xs">{displayError}</p>
         )}
         <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="number"
-            value={amt}
-            onChange={(e) => handleAmtChange(e.target.value)}
-            placeholder="Amount"
-            min="0.01"
-            step="0.01"
-            autoFocus
-            className={`${inputCls} w-full sm:flex-1 min-w-0`}
-          />
+          <div
+            className={cn(
+              "input-md flex items-center px-3 py-0 w-full sm:flex-1 min-w-0 focus-within:border-theme-primary focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]",
+              displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-danger)_18%,transparent)]",
+            )}
+            onClick={focusMoneyInput}
+          >
+            <MoneyInput
+              value={Number.parseFloat(amt || "0")}
+              onChange={(value) => handleAmtChange(value.toFixed(2))}
+              currency={moneyConfig.currency}
+              locale={moneyConfig.locale}
+              placeholder="Amount"
+              autoFocus
+              variant="inline"
+              inputClassName="text-sm"
+            />
+          </div>
           <select
             value={freq}
             onChange={(e) => handleFreqChange(e.target.value)}

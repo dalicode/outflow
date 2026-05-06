@@ -1,7 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { StorageService } from "../services/storageService";
 import { getMonthlyFinancialSummary } from "../utils/financeEngine";
-import type { Expense, FixedExpense, MonthlyFinancialSummary, Category } from "../types";
+import type {
+  Expense,
+  FixedExpense,
+  MonthlyFinancialSummary,
+  Category,
+  FixedExpenseSnapshot,
+  IncomeSnapshot,
+  SavingsSnapshot,
+  Schedule,
+} from "../types";
 
 interface UseSummaryParams {
   expenses: Expense[];
@@ -23,9 +32,11 @@ export function useSummary({ expenses }: UseSummaryParams) {
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [savingsRate, setSavingsRate] = useState(0);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
+  const [allFixedExpenses, setAllFixedExpenses] = useState<FixedExpense[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [incomeSnapshots, setIncomeSnapshots] = useState<IncomeSnapshot[]>([]);
+  const [savingsSnapshots, setSavingsSnapshots] = useState<SavingsSnapshot[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [financialSummary, setFinancialSummary] =
-    useState<MonthlyFinancialSummary | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -36,7 +47,6 @@ export function useSummary({ expenses }: UseSummaryParams) {
         rate,
         activeFixed,
         allFixed,
-        snapshots,
         schedules,
         incomeSnaps,
         savingsSnaps,
@@ -48,7 +58,6 @@ export function useSummary({ expenses }: UseSummaryParams) {
         StorageService.getSetting("savingsRate", 0),
         StorageService.getActiveFixedExpenses(),
         StorageService.getFixedExpenses(),
-        StorageService.getSnapshotsForYear(currentYear),
         StorageService.getActiveSchedules(),
         StorageService.getIncomeSnapshotsForYear(currentYear),
         StorageService.getSavingsSnapshotsForYear(currentYear),
@@ -60,32 +69,46 @@ export function useSummary({ expenses }: UseSummaryParams) {
       setMonthlyIncome(monthly);
       setSavingsRate(rate);
       setFixedExpenses(activeFixed);
+      setAllFixedExpenses(allFixed);
+      setSchedules(schedules);
+      setIncomeSnapshots(incomeSnaps);
+      setSavingsSnapshots(savingsSnaps);
       setCategories(cats);
-
-      const virtualSnapshots = activeFixed.map((f: FixedExpense) => ({
-        fixedExpenseId: f.id,
-        year: currentYear,
-        month: currentMonth + 1,
-        amountSnapshot: f.amount,
-        nameSnapshot: f.name,
-      }));
-
-      const data = {
-        expenses,
-        snapshots: virtualSnapshots,
-        fixedExpenses: allFixed,
-        globalIncome: monthly as number,
-        globalSavingsRate: rate as number,
-        schedules,
-        incomeSnapshots: incomeSnaps,
-        savingsSnapshots: savingsSnaps,
-      };
-
-      const summary = getMonthlyFinancialSummary(currentYear, currentMonth, data);
-      setFinancialSummary(summary);
     };
     load();
   }, [expenses, currentYear, currentMonth]);
+
+  const financialSummary: MonthlyFinancialSummary | null = useMemo(() => {
+    const virtualSnapshots: FixedExpenseSnapshot[] = fixedExpenses.map((f) => ({
+      fixedExpenseId: f.id as number,
+      year: currentYear,
+      month: currentMonth + 1,
+      amountSnapshot: f.amount,
+      nameSnapshot: f.name,
+    }));
+
+    return getMonthlyFinancialSummary(currentYear, currentMonth, {
+      expenses,
+      snapshots: virtualSnapshots,
+      fixedExpenses: allFixedExpenses,
+      globalIncome: monthlyIncome,
+      globalSavingsRate: savingsRate,
+      schedules,
+      incomeSnapshots,
+      savingsSnapshots,
+    });
+  }, [
+    allFixedExpenses,
+    currentMonth,
+    currentYear,
+    expenses,
+    fixedExpenses,
+    incomeSnapshots,
+    monthlyIncome,
+    savingsRate,
+    savingsSnapshots,
+    schedules,
+  ]);
 
   const variableBreakdown = useMemo<VariableBreakdownItem[]>(() => {
     const monthStr = String(currentMonth + 1).padStart(2, "0");
@@ -133,8 +156,6 @@ export function useSummary({ expenses }: UseSummaryParams) {
       setIncomeRaw(income);
       setIncomeFreq(frequency);
       setMonthlyIncome(monthly);
-      const activeFixed = await StorageService.getActiveFixedExpenses();
-      setFixedExpenses(activeFixed);
     },
     [],
   );
@@ -150,20 +171,35 @@ export function useSummary({ expenses }: UseSummaryParams) {
 
   const handleAddFixed = useCallback(async (item: Omit<FixedExpense, "id">) => {
     await StorageService.addFixedExpense(item);
-    setFixedExpenses(await StorageService.getActiveFixedExpenses());
+    const [activeFixed, allFixed] = await Promise.all([
+      StorageService.getActiveFixedExpenses(),
+      StorageService.getFixedExpenses(),
+    ]);
+    setFixedExpenses(activeFixed);
+    setAllFixedExpenses(allFixed);
   }, []);
 
   const handleUpdateFixed = useCallback(
     async (id: number, changes: Partial<FixedExpense>) => {
       await StorageService.updateFixedExpense(id, changes);
-      setFixedExpenses(await StorageService.getActiveFixedExpenses());
+      const [activeFixed, allFixed] = await Promise.all([
+        StorageService.getActiveFixedExpenses(),
+        StorageService.getFixedExpenses(),
+      ]);
+      setFixedExpenses(activeFixed);
+      setAllFixedExpenses(allFixed);
     },
     [],
   );
 
   const handleDeleteFixed = useCallback(async (id: number) => {
     await StorageService.removeFixedExpense(id);
-    setFixedExpenses((prev) => prev.filter((f) => f.id !== id));
+    const [activeFixed, allFixed] = await Promise.all([
+      StorageService.getActiveFixedExpenses(),
+      StorageService.getFixedExpenses(),
+    ]);
+    setFixedExpenses(activeFixed);
+    setAllFixedExpenses(allFixed);
   }, []);
 
   return {

@@ -393,6 +393,10 @@ export default function Navbar({
   );
   const mobileExpansionProgress =
     (mobileVisibleHeight - mobileCollapsedHeight) / mobileDragRange;
+  const mobileSecondaryInteractive =
+    mobileExpanded ||
+    mobileDragStartYRef.current !== null ||
+    mobileExpansionProgress > 0.12;
   const mobileNavStyle = {
     "--mobile-nav-height": `${mobileVisibleHeight}px`,
     "--mobile-nav-progress": `${mobileExpansionProgress}`,
@@ -733,6 +737,9 @@ export default function Navbar({
           <div
             className="mobile-nav-container"
             data-expanded={mobileExpanded ? "true" : "false"}
+            data-secondary-interactive={
+              mobileSecondaryInteractive ? "true" : "false"
+            }
             data-dragging={
               mobileDragStartYRef.current !== null ? "true" : "false"
             }
@@ -773,11 +780,9 @@ export default function Navbar({
               {renderMobileNavLink(mobilePrimaryItems[1])}
             </div>
 
-            {mobileExpansionProgress > 0 && (
-              <div className="mobile-nav-row mobile-nav-row-secondary">
-                {mobileSecondaryItems.map(renderMobileNavLink)}
-              </div>
-            )}
+            <div className="mobile-nav-row mobile-nav-row-secondary">
+              {mobileSecondaryItems.map(renderMobileNavLink)}
+            </div>
           </div>
         </nav>
       </div>

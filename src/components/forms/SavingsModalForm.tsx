@@ -1,6 +1,10 @@
 import { useState, useEffect, type FormEvent } from "react";
+import { useSettings } from "../../context/settingsContext";
+import MoneyInput from "../inputs/MoneyInput";
 import Modal from "../ui/Modal";
 import ModalFooter from "../ui/ModalFooter";
+import { cn } from "../../utils/cn";
+import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
 
 interface SavingsModalFormProps {
   isOpen: boolean;
@@ -28,9 +32,11 @@ export default function SavingsModalForm({
   description,
   error: externalError,
 }: SavingsModalFormProps) {
+  const { settings } = useSettings();
   const [amountDraft, setAmountDraft] = useState<string>("");
   const [percentDraft, setPercentDraft] = useState<string>("");
   const [error, setError] = useState("");
+  const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol);
 
   const hasIncome = (monthlyIncome ?? 0) > 0;
 
@@ -74,6 +80,14 @@ export default function SavingsModalForm({
 
   const inputCls = "input-md w-full min-w-0";
   const displayError = externalError || error;
+  const focusMoneyInput = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    if (event.target instanceof HTMLInputElement) return;
+    const input = event.currentTarget.querySelector("input");
+    input?.focus();
+    input?.select();
+  };
 
   return (
     <Modal
@@ -105,15 +119,23 @@ export default function SavingsModalForm({
               <label className="block text-sm text-theme-muted mb-1">
                 Amount
               </label>
-              <input
-                type="number"
-                value={amountDraft}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                placeholder="e.g. 500"
-                min="0"
-                step="0.01"
-                className={inputCls}
-              />
+              <div
+                className={cn(
+                  "input-md flex items-center px-3 py-0 focus-within:border-theme-primary focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]",
+                  displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-danger)_18%,transparent)]",
+                )}
+                onClick={focusMoneyInput}
+              >
+                <MoneyInput
+                  value={Number.parseFloat(amountDraft || "0")}
+                  onChange={(value) => handleAmountChange(value.toFixed(2))}
+                  currency={moneyConfig.currency}
+                  locale={moneyConfig.locale}
+                  placeholder="e.g. 500"
+                  variant="inline"
+                  inputClassName="text-sm"
+                />
+              </div>
             </div>
           )}
           <div>
