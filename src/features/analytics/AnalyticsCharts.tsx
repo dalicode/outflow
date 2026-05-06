@@ -19,6 +19,7 @@ import {
 import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
 import { getCategoryColor } from "../summary/summaryColorUtils";
+import YearOverYearChart from "./YearOverYearChart";
 import type { AnalyticsData } from "../../types";
 
 const MONTHS = [
@@ -52,7 +53,7 @@ function fmtPct(n: number | null | undefined): string {
   return `${n.toFixed(1)}%`;
 }
 
-interface ThemeColors {
+export interface ThemeColors {
   primary: string;
   secondary: string;
   success: string;
@@ -1313,11 +1314,17 @@ const YearView = ({ data, colors, monthCount }: ViewProps) => {
 
 interface MonthViewProps {
   data: AnalyticsData;
+  multiYearData: AnalyticsData[];
   colors: ThemeColors;
   selectedMonth: number;
 }
 
-const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
+const MonthView = ({
+  data,
+  multiYearData,
+  colors,
+  selectedMonth,
+}: MonthViewProps) => {
   return (
     <div className="space-y-4">
       {/* Row 1: Metric cards */}
@@ -1337,7 +1344,17 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
         />
       </ChartCard>
 
-      {/* Row 3: Category movement + payee concentration (2-col on desktop) */}
+      {/* Row 3: Year over Year */}
+      <ChartCard title={`${MONTHS[selectedMonth]} Year over Year`}>
+        <YearOverYearChart
+          multiYearData={multiYearData}
+          selectedMonth={selectedMonth}
+          colors={colors}
+          monthLabel={MONTHS[selectedMonth]}
+        />
+      </ChartCard>
+
+      {/* Row 4: Category movement + payee concentration (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ChartCard title={`${MONTHS[selectedMonth]} Category Movement`}>
           <RankedCategoryTable
@@ -1355,7 +1372,7 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
         </ChartCard>
       </div>
 
-      {/* Row 4: Savings health + fixed stability (2-col on desktop) */}
+      {/* Row 5: Savings health + fixed stability (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ChartCard title={`${MONTHS[selectedMonth]} Savings and Budget Health`}>
           <SavingsHealthTable
@@ -1380,6 +1397,7 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
 
 interface AnalyticsChartsProps {
   data: AnalyticsData;
+  multiYearData: AnalyticsData[];
   year: number;
   currentYear: number;
   currentMonth: number;
@@ -1388,6 +1406,7 @@ interface AnalyticsChartsProps {
 
 export default function AnalyticsCharts({
   data,
+  multiYearData,
   year,
   currentYear,
   currentMonth,
@@ -1401,7 +1420,12 @@ export default function AnalyticsCharts({
       {selectedMonth === null ? (
         <YearView data={data} colors={colors} monthCount={monthCount} />
       ) : (
-        <MonthView data={data} colors={colors} selectedMonth={selectedMonth} />
+        <MonthView
+          data={data}
+          multiYearData={multiYearData}
+          colors={colors}
+          selectedMonth={selectedMonth}
+        />
       )}
     </div>
   );

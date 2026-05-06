@@ -114,8 +114,10 @@ export function useAnalyticsData({
   }, [year, expenses, payees]);
 
   return useMemo(() => {
+    const isLoading = !financials || !variableGrid;
     if (!financials || !variableGrid) {
       return {
+        loading: isLoading,
         year,
         monthlyIncome: Array(12).fill(0),
         variableRows: [],
@@ -162,6 +164,7 @@ export function useAnalyticsData({
     );
 
     return {
+      loading: false,
       year,
       monthlyIncome: financials.months.map((m) => m.income),
       variableRows: variableGrid.variableRows,

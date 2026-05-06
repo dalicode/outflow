@@ -244,6 +244,7 @@ export interface VariableGridResult {
 }
 
 export interface AnalyticsData {
+  loading?: boolean
   year: number
   monthlyIncome: number[]
   variableRows: VariableGridResult['variableRows']

@@ -44,6 +44,7 @@ export default function AnalyticsPage({
     canNextMonth,
     summaryCards,
     data,
+    multiYearData,
   } = useAnalytics({ expenses, categories, formatAmount, sessionState, onSessionStateChange });
   const contentMotionKey = `${year}-${selectedMonth ?? "all"}`;
 
@@ -97,6 +98,7 @@ export default function AnalyticsPage({
       >
         <AnalyticsCharts
           data={data}
+          multiYearData={multiYearData}
           year={year}
           currentYear={currentYear}
           currentMonth={currentMonth}

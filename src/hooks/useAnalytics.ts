@@ -45,6 +45,14 @@ export function useAnalytics({
   }, [onSessionStateChange]);
 
   const data = useAnalyticsData({ expenses, categories, year });
+  const prev1Data = useAnalyticsData({ expenses, categories, year: year - 1 });
+  const prev2Data = useAnalyticsData({ expenses, categories, year: year - 2 });
+  const prev3Data = useAnalyticsData({ expenses, categories, year: year - 3 });
+
+  const multiYearData = useMemo(
+    () => [prev3Data, prev2Data, prev1Data, data],
+    [prev3Data, prev2Data, prev1Data, data],
+  );
 
   const lastMonth =
     year === currentYear ? currentMonth : year < currentYear ? 11 : -1;
@@ -158,5 +166,6 @@ export function useAnalytics({
     yearStrip,
     summaryCards,
     data,
+    multiYearData,
   };
 }
