@@ -230,7 +230,6 @@ function AppShell() {
         trendMonth !== null && parseTrendDrilldownParam(params.get("trendDrilldown"));
       return {
         year,
-        selectedMonth: null,
         trendMonth,
         trendDrilldown,
       };

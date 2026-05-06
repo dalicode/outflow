@@ -3,6 +3,7 @@ import { useSettings } from "../../../context/settingsContext";
 import IncomeTrendYearChart from "./IncomeTrendYearChart";
 import IncomeTrendMonthPreview from "./IncomeTrendMonthPreview";
 import IncomeTrendMonthDrilldown from "./IncomeTrendMonthDrilldown";
+import IncomeFlowBar from "../IncomeFlowBar";
 import {
   buildYearTrendRows,
 } from "../../../utils/analyticsTrendUtils";
@@ -24,6 +25,18 @@ interface IncomeTrendSectionProps {
     trendMonth?: number | null;
     trendDrilldown?: boolean;
   }) => void;
+  yearTotalIncome: number;
+  yearFixedTotal: number;
+  yearVariableTotal: number;
+  yearSavings: number;
+  yearRemaining: number;
+  monthlyIncome: number[];
+  monthlyFixed: number[];
+  monthlyVariable: number[];
+  monthlySavings: (number | null)[];
+  monthlyRemaining: (number | null)[];
+  monthCount: number;
+  isCurrentYear: boolean;
 }
 
 export default function IncomeTrendSection({
@@ -38,6 +51,18 @@ export default function IncomeTrendSection({
   trendMonth,
   trendDrilldown,
   onTrendStateChange,
+  yearTotalIncome,
+  yearFixedTotal,
+  yearVariableTotal,
+  yearSavings,
+  yearRemaining,
+  monthlyIncome,
+  monthlyFixed,
+  monthlyVariable,
+  monthlySavings,
+  monthlyRemaining,
+  monthCount,
+  isCurrentYear,
 }: IncomeTrendSectionProps) {
   const { formatAmount, formatDate } = useSettings();
   const colors = useThemeColors();
@@ -106,7 +131,7 @@ export default function IncomeTrendSection({
             </p>
           </div>
 
-          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <div className="px-4 pb-2 sm:px-5">
             <IncomeTrendYearChart
               rows={trendRows}
               selectedMonth={trendMonth}
@@ -116,8 +141,29 @@ export default function IncomeTrendSection({
             />
           </div>
 
+          <div className="px-4 pb-4 sm:px-5 border-t border-theme-border pt-4">
+            <IncomeFlowBar
+              yearIncome={yearTotalIncome}
+              yearFixed={yearFixedTotal}
+              yearVariable={yearVariableTotal}
+              yearSavings={yearSavings}
+              yearRemaining={yearRemaining}
+              monthlyIncome={monthlyIncome}
+              monthlyFixed={monthlyFixed}
+              monthlyVariable={monthlyVariable}
+              monthlySavings={monthlySavings}
+              monthlyRemaining={monthlyRemaining}
+              selectedMonth={trendMonth}
+              monthCount={monthCount}
+              isCurrentYear={isCurrentYear}
+              year={year}
+              formatAmount={formatAmount}
+            />
+          </div>
+
           {trendMonth !== null && trendRows[trendMonth] && (
             <IncomeTrendMonthPreview
+              ref={previewRef}
               row={trendRows[trendMonth]}
               prevCumulativeRemaining={
                 trendMonth > 0

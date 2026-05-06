@@ -4,10 +4,8 @@ import { useMaxVisible } from "../../hooks/useMaxVisible";
 import { useAnalytics } from "../../hooks/useAnalytics";
 import type { AnalyticsSessionState } from "../../hooks/useAnalytics";
 import AnalyticsCharts from "./AnalyticsCharts";
-import AnalyticsOverviewSection from "./AnalyticsOverviewSection";
 import IncomeTrendSection from "./incomeTrend/IncomeTrendSection";
 import YearStrip from "./YearStrip";
-import MonthStrip from "./MonthStrip";
 import type { Expense, Category, Payee } from "../../types";
 import "./analytics.css";
 
@@ -32,27 +30,18 @@ export default function AnalyticsPage({
 
   const {
     year,
-    selectedMonth,
-    setSelectedMonth,
     handleYearChange,
     currentYear,
     currentMonth,
-    availableMonths,
-    prevMonth,
-    nextMonth,
-    jumpBackMonths,
-    jumpToCurrentMonth,
-    isAtCurrentMonth,
-    canPrevMonth,
-    canNextMonth,
-    summaryCards,
     data,
     multiYearData,
     trendMonth,
     trendDrilldown,
-  } = useAnalytics({ expenses, categories, formatAmount, sessionState, onSessionStateChange });
-  const contentMotionKey = `${year}-${selectedMonth ?? "all"}`;
+  } = useAnalytics({ expenses, categories, sessionState, onSessionStateChange });
+  const contentMotionKey = `${year}-${trendMonth ?? "all"}`;
   const priorYearsData = multiYearData.filter((d) => d.year < year);
+  const isCurrentYear = year === currentYear;
+  const monthCount = isCurrentYear ? currentMonth + 1 : 12;
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="analytics-page">
@@ -67,34 +56,6 @@ export default function AnalyticsPage({
         currentYear={currentYear}
         maxVisible={maxVisible}
         onYearChange={handleYearChange}
-      />
-
-      {/* Month strip */}
-      <MonthStrip
-        year={year}
-        currentYear={currentYear}
-        currentMonth={currentMonth}
-        selectedMonth={selectedMonth}
-        maxVisible={maxVisible}
-        availableMonths={availableMonths}
-        onSelectMonth={setSelectedMonth}
-        onPrevMonth={prevMonth}
-        onNextMonth={nextMonth}
-        onJumpBack={jumpBackMonths}
-        onJumpForward={jumpToCurrentMonth}
-        canPrevMonth={canPrevMonth}
-        canNextMonth={canNextMonth}
-        isAtCurrentMonth={isAtCurrentMonth}
-      />
-
-      <AnalyticsOverviewSection
-        data={data}
-        year={year}
-        currentYear={currentYear}
-        currentMonth={currentMonth}
-        selectedMonth={selectedMonth}
-        summaryCards={summaryCards}
-        formatAmount={formatAmount}
       />
 
       <IncomeTrendSection
@@ -112,6 +73,18 @@ export default function AnalyticsPage({
         onTrendStateChange={(patch) =>
           onSessionStateChange?.({ ...patch })
         }
+        yearTotalIncome={data.yearTotalIncome}
+        yearFixedTotal={data.yearFixedTotal}
+        yearVariableTotal={data.yearVariableTotal}
+        yearSavings={data.yearSavings}
+        yearRemaining={data.yearRemaining}
+        monthlyIncome={data.monthlyIncome}
+        monthlyFixed={data.monthlyFixedTotals}
+        monthlyVariable={data.monthlyVariableTotals}
+        monthlySavings={data.monthlySavings}
+        monthlyRemaining={data.monthlyRemaining}
+        monthCount={monthCount}
+        isCurrentYear={isCurrentYear}
       />
 
       {/* Content */}
@@ -125,7 +98,7 @@ export default function AnalyticsPage({
           year={year}
           currentYear={currentYear}
           currentMonth={currentMonth}
-          selectedMonth={selectedMonth}
+          selectedMonth={trendMonth}
         />
       </div>
     </main>

@@ -1081,89 +1081,6 @@ export const MonthlyTotalSavingsChart = ({
   );
 };
 
-// ── 5. Income vs. Expenses ───────────────────────────────────────────────────
-
-const IncomeVsExpensesChart = ({
-  data,
-  colors,
-  monthCount,
-  selectedMonth,
-}: CategoryBreakdownChartProps) => {
-  const chartData = useMemo(() => {
-    if (selectedMonth !== null) {
-      const m = selectedMonth;
-      return [
-        {
-          month: MONTHS[m],
-          income: data.monthlyIncome[m] || 0,
-          expenses: data.monthlyTotals[m] || 0,
-        },
-      ];
-    }
-    return MONTHS.slice(0, monthCount).map((m, i) => ({
-      month: m,
-      income: data.monthlyIncome[i] || 0,
-      expenses: data.monthlyTotals[i] || 0,
-    }));
-  }, [data, monthCount, selectedMonth]);
-
-  const hasData = chartData.some((d) => d.income > 0 || d.expenses > 0);
-  if (!hasData) return <EmptyState label="No income/expense data" />;
-
-  return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart
-        data={chartData}
-        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        barGap={2}
-      >
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke={colors.grid}
-          opacity={0.5}
-        />
-        <XAxis
-          dataKey="month"
-          tick={{ fill: colors.muted, fontSize: 12 }}
-          axisLine={{ stroke: colors.grid }}
-        />
-        <YAxis
-          tick={{ fill: colors.muted, fontSize: 12 }}
-          axisLine={{ stroke: colors.grid }}
-          tickFormatter={fmtCompact}
-        />
-        <Tooltip
-          content={
-            <CustomTooltip
-              colors={colors}
-              formatter={(v: number, name: string) => [
-                fmtCompact(v),
-                name === "income" ? "Income" : "Expenses",
-              ]}
-            />
-          }
-        />
-        <Legend
-          wrapperStyle={{ fontSize: "12px", color: colors.text }}
-          formatter={(v: string) => (v === "income" ? "Income" : "Expenses")}
-        />
-        <Bar
-          dataKey="income"
-          fill={colors.success}
-          radius={[3, 3, 0, 0]}
-          maxBarSize={24}
-        />
-        <Bar
-          dataKey="expenses"
-          fill={colors.danger}
-          radius={[3, 3, 0, 0]}
-          maxBarSize={24}
-        />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-};
-
 // ── Month View: Metric Cards ─────────────────────────────────────────────────
 
 interface MonthMetricCardsProps {
@@ -1327,23 +1244,6 @@ const MonthView = ({
 }: MonthViewProps) => {
   return (
     <div className="space-y-4">
-      {/* Row 1: Metric cards */}
-      <MonthMetricCards
-        data={data}
-        selectedMonth={selectedMonth}
-        colors={colors}
-      />
-
-      {/* Row 2: Income vs. Expenses */}
-      <ChartCard title={`${MONTHS[selectedMonth]} Income vs. Expenses`}>
-        <IncomeVsExpensesChart
-          data={data}
-          colors={colors}
-          monthCount={0}
-          selectedMonth={selectedMonth}
-        />
-      </ChartCard>
-
       {/* Row 3: Year over Year */}
       <ChartCard title={`${MONTHS[selectedMonth]} Year over Year`}>
         <YearOverYearChart
