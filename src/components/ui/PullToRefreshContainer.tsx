@@ -78,6 +78,7 @@ const PullToRefreshContainer = forwardRef<
       completed = true;
       success();
       setShowRefreshSuccess(true);
+      setIsRefreshing(false);
       setPullDistance(PULL_THRESHOLD);
       if (successTimeoutRef.current) {
         clearTimeout(successTimeoutRef.current);
@@ -183,16 +184,14 @@ const PullToRefreshContainer = forwardRef<
   );
 
   const indicatorProgress = Math.min(1, pullDistance / PULL_THRESHOLD);
-  const indicatorVisible =
-    pullDistance > 4 || isRefreshing || showRefreshSuccess;
+  const indicatorVisible = pullDistance > 4 || isRefreshing;
   const instructionReveal = Math.min(
     1,
     Math.max(0, (indicatorProgress - 0.12) / 0.6),
   );
-  const spinnerReveal =
-    isRefreshing || showRefreshSuccess
-      ? 1
-      : Math.min(1, Math.max(0, (indicatorProgress - 0.9) / 0.1));
+  const spinnerReveal = isRefreshing
+    ? 1
+    : Math.min(1, Math.max(0, (indicatorProgress - 0.9) / 0.1));
   const instructionOpacity =
     isRefreshing || showRefreshSuccess
       ? 0
@@ -295,21 +294,18 @@ const PullToRefreshContainer = forwardRef<
                 </svg>
               </span>
             ) : (
-              <span
-                className="inline-block h-8 w-8 animate-spin rounded-full border-2"
-                style={{
-                  borderColor: "var(--theme-border)",
-                  borderTopColor: "var(--theme-primary)",
-                }}
-              />
+              isRefreshing ||
+              (pullDistance >= 110 && (
+                <span
+                  className="inline-block h-8 w-8 animate-spin rounded-full border-2"
+                  style={{
+                    borderColor: "var(--theme-border)",
+                    borderTopColor: "var(--theme-primary)",
+                  }}
+                />
+              ))
             )}
-            <span>
-              {showRefreshSuccess
-                ? "Updated just now"
-                : isRefreshing
-                  ? indicatorLabel
-                  : ""}
-            </span>
+            <span>{showRefreshSuccess && "Updated just now"}</span>
           </span>
         </div>
       </div>

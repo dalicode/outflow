@@ -326,7 +326,10 @@ interface MonthlyComparisonTableProps {
   monthCount: number;
 }
 
-const MonthlyComparisonTable = ({ data, monthCount }: MonthlyComparisonTableProps) => {
+const MonthlyComparisonTable = ({
+  data,
+  monthCount,
+}: MonthlyComparisonTableProps) => {
   const rows = useMemo(
     () =>
       MONTHS.slice(0, monthCount).map((month, index) => {
@@ -365,7 +368,7 @@ const MonthlyComparisonTable = ({ data, monthCount }: MonthlyComparisonTableProp
             <th>MoM</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="text-theme-text text-sm">
           {rows.map((row) => (
             <tr key={row.month}>
               <td className="font-semibold text-theme-text">{row.month}</td>
@@ -376,7 +379,9 @@ const MonthlyComparisonTable = ({ data, monthCount }: MonthlyComparisonTableProp
               <td
                 className={cn(
                   "tabular-nums",
-                  row.remaining < 0 ? "text-theme-danger" : "text-theme-success",
+                  row.remaining < 0
+                    ? "text-theme-danger"
+                    : "text-theme-success",
                 )}
               >
                 {fmtFull(row.remaining)}
@@ -452,7 +457,7 @@ const RankedCategoryTable = ({
             <th>Year total</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className={"text-theme-text text-sm"}>
           {rows.map((row) => {
             const delta = row.focus - row.previous;
             return (
@@ -534,7 +539,7 @@ const RankedPayeeTable = ({
             <th>Year total</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="text-theme-text text-sm">
           {rows.map((row) => {
             const delta = row.focus - row.previous;
             return (
@@ -612,7 +617,7 @@ const SavingsHealthTable = ({
               <th>Value</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="text-theme-text text-sm">
             {rows.map(([label, value]) => (
               <tr key={label}>
                 <td className="font-semibold text-theme-text">{label}</td>
@@ -666,7 +671,7 @@ const SavingsHealthTable = ({
             <th>Pace</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="text-theme-text text-sm">
           {rows.map((row) => (
             <tr key={row.month}>
               <td className="font-semibold text-theme-text">{row.month}</td>
@@ -675,14 +680,25 @@ const SavingsHealthTable = ({
               <td
                 className={cn(
                   "tabular-nums",
-                  row.remaining < 0 ? "text-theme-danger" : "text-theme-success",
+                  row.remaining < 0
+                    ? "text-theme-danger"
+                    : "text-theme-success",
                 )}
               >
                 {fmtFull(row.remaining)}
               </td>
               <td className="tabular-nums">{fmtPct(row.savingsRate)}</td>
               <td className="tabular-nums">{fmtPct(row.budgetUsed)}</td>
-              <td className="text-theme-text">{row.pace}</td>
+              <td
+                className={cn(
+                  "tabular-nums",
+                  row.remaining < 0
+                    ? "text-theme-danger"
+                    : "text-theme-success",
+                )}
+              >
+                {row.pace}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -744,7 +760,7 @@ const FixedStabilityTable = ({
             <th>Active months</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="text-theme-text text-sm">
           {rows.map((row) => {
             const delta = row.focus - row.previous;
             return (
@@ -905,7 +921,10 @@ export const PayeeBreakdownChart = ({
         .filter((d) => d.value > 0);
     }
     return rows
-      .map((row) => ({ name: row.name, value: row.amounts?.[selectedMonth] || 0 }))
+      .map((row) => ({
+        name: row.name,
+        value: row.amounts?.[selectedMonth] || 0,
+      }))
       .filter((d) => d.value > 0);
   }, [data.payeeRows, monthCount, selectedMonth]);
 
@@ -929,10 +948,7 @@ export const PayeeBreakdownChart = ({
           paddingAngle={2}
         >
           {pieData.map((entry, i) => (
-            <Cell
-              key={i}
-              fill={getCategoryColor(entry.name)}
-            />
+            <Cell key={i} fill={getCategoryColor(entry.name)} />
           ))}
         </Pie>
         <Tooltip
@@ -1006,7 +1022,11 @@ export const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
 
 // ── 4. Monthly Total Savings ─────────────────────────────────────────────────
 
-export const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProps) => {
+export const MonthlyTotalSavingsChart = ({
+  data,
+  colors,
+  monthCount,
+}: ChartProps) => {
   const chartData = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => ({
       month: m,

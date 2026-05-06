@@ -248,7 +248,7 @@ export default function AnalyticsOverviewSection({
                     <th>Top category</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="text-theme-text text-sm">
                   {overview.rows.map((row) => (
                     <tr
                       key={row.monthIndex}
