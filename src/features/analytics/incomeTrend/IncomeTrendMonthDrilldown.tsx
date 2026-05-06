@@ -1,10 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { buildMonthDrilldownData } from "../../../utils/analyticsTrendUtils";
 import IncomeTrendDrilldownHeader from "./IncomeTrendDrilldownHeader";
 import IncomeTrendDailyChart from "./IncomeTrendDailyChart";
-import IncomeTrendCategoryBreakdown from "./IncomeTrendCategoryBreakdown";
-import IncomeTrendPayeeHighlights from "./IncomeTrendPayeeHighlights";
 import IncomeTrendExpensePreview from "./IncomeTrendExpensePreview";
+import YearOverYearChart from "../YearOverYearChart";
+import {
+  RankedCategoryViz,
+  RankedPayeeViz,
+  RankedCategoryTable,
+  RankedPayeeTable,
+  ViewToggle,
+} from "../AnalyticsCharts";
 import type { AnalyticsData, Expense, Category, Payee } from "../../../types";
 import type { ThemeColors } from "../AnalyticsCharts";
 
@@ -20,6 +26,7 @@ interface IncomeTrendMonthDrilldownProps {
   formatAmount: (n: number) => string;
   formatDate: (iso: string) => string;
   onBack: () => void;
+  multiYearData: AnalyticsData[];
 }
 
 export default function IncomeTrendMonthDrilldown({
@@ -34,13 +41,15 @@ export default function IncomeTrendMonthDrilldown({
   formatAmount,
   formatDate,
   onBack,
+  multiYearData,
 }: IncomeTrendMonthDrilldownProps) {
   const drilldownData = useMemo(
     () => buildMonthDrilldownData(data, expenses, year, monthIndex),
     [data, expenses, year, monthIndex],
   );
 
-  const hasPayees = drilldownData.payeeBreakdown.length > 0;
+  const [catViz, setCatViz] = useState(true);
+  const [payeeViz, setPayeeViz] = useState(true);
 
   return (
     <div className="motion-fade-up" data-testid="income-trend-drilldown">
@@ -68,31 +77,72 @@ export default function IncomeTrendMonthDrilldown({
           monthLabel={drilldownData.monthLabel}
         />
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-px md:bg-theme-border">
+        {/* Category Movement */}
         <div className="px-4 py-4 sm:px-5 bg-theme-surface">
-          <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-            By Category
-          </h3>
-          <IncomeTrendCategoryBreakdown
-            rows={drilldownData.categoryBreakdown}
-            formatAmount={formatAmount}
-          />
-        </div>
-
-        {hasPayees && (
-          <div className="px-4 py-4 sm:px-5 bg-theme-surface border-t border-theme-border md:border-t-0">
-            <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-              Top Payees
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
+              Category Movement
             </h3>
-            <IncomeTrendPayeeHighlights
-              rows={drilldownData.payeeBreakdown}
+            <ViewToggle isViz={catViz} onToggle={() => setCatViz((v) => !v)} />
+          </div>
+          {catViz ? (
+            <RankedCategoryViz
+              data={data}
+              focusMonth={monthIndex}
+              colors={colors}
               formatAmount={formatAmount}
             />
+          ) : (
+            <RankedCategoryTable
+              data={data}
+              focusMonth={monthIndex}
+              focusLabel={drilldownData.monthLabel}
+            />
+          )}
+        </div>
+
+        {/* Payee Concentration */}
+        <div className="px-4 py-4 sm:px-5 bg-theme-surface border-t border-theme-border md:border-t-0">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
+              Payee Concentration
+            </h3>
+            <ViewToggle
+              isViz={payeeViz}
+              onToggle={() => setPayeeViz((v) => !v)}
+            />
           </div>
-        )}
+          {payeeViz ? (
+            <RankedPayeeViz
+              data={data}
+              focusMonth={monthIndex}
+              colors={colors}
+              formatAmount={formatAmount}
+            />
+          ) : (
+            <RankedPayeeTable
+              data={data}
+              focusMonth={monthIndex}
+              focusLabel={drilldownData.monthLabel}
+            />
+          )}
+        </div>
+      </div>
+      {/* YoY Chart */}
+      <div className="px-4 pt-4 pb-2 sm:px-5 border-t border-theme-border">
+        <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+          Year over Year
+        </h3>
+        <YearOverYearChart
+          multiYearData={multiYearData}
+          selectedMonth={monthIndex}
+          colors={colors}
+          monthLabel={drilldownData.monthLabel}
+        />
       </div>
 
+      {/* Top Expenses */}
       <div className="px-4 py-4 sm:px-5 border-t border-theme-border">
         <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
           Top Expenses

@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "../../../utils/cn";
 import type { Expense, Category, Payee } from "../../../types";
+
+const COLLAPSED_COUNT = 5;
 
 interface IncomeTrendExpensePreviewProps {
   expenses: Expense[];
@@ -26,6 +28,10 @@ export default function IncomeTrendExpensePreview({
     [payees],
   );
 
+  const [expanded, setExpanded] = useState(false);
+  const visibleExpenses = expanded ? expenses : expenses.slice(0, COLLAPSED_COUNT);
+  const hasMore = expenses.length > COLLAPSED_COUNT;
+
   if (expenses.length === 0) {
     return (
       <p className="text-xs text-theme-muted py-2 text-center">
@@ -35,9 +41,9 @@ export default function IncomeTrendExpensePreview({
   }
 
   return (
-    <div className="max-h-96 overflow-y-auto overscroll-contain">
+    <div>
       <ul className="divide-y divide-theme-border">
-      {expenses.map((exp) => {
+        {visibleExpenses.map((exp) => {
         const catName =
           exp.categoryId != null
             ? (catMap.get(exp.categoryId) ?? "Uncategorized")
@@ -72,6 +78,16 @@ export default function IncomeTrendExpensePreview({
         );
       })}
     </ul>
+
+    {hasMore && (
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="mt-3 w-full text-xs font-medium text-theme-primary hover:opacity-80 transition-opacity py-1.5"
+      >
+        {expanded ? "Show less" : `Show all ${expenses.length}`}
+      </button>
+    )}
   </div>
   );
 }

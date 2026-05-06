@@ -142,7 +142,7 @@ const IncomeTrendMonthPreview = forwardRef<HTMLDivElement, IncomeTrendMonthPrevi
               className="text-[0.625rem] font-medium uppercase tracking-wider"
               style={{ color: colors.muted }}
             >
-              All-time net remaining
+              All-time cash flow
             </span>
             {cumulativeDelta && (
               <span

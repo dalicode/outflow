@@ -176,7 +176,7 @@ const DeltaBadge = ({ current, previous, label, colors }: DeltaBadgeProps) => {
 
   return (
     <div className="flex items-center gap-1 text-[0.6875rem]">
-      <span style={{ color: colors.muted }}>{label}:</span>
+      <span className="text-theme-muted">{label}:</span>
       <span
         className={cn(
           "font-semibold",
@@ -186,7 +186,7 @@ const DeltaBadge = ({ current, previous, label, colors }: DeltaBadgeProps) => {
         {isPositive ? "+" : ""}
         {fmtPct(pct)}
       </span>
-      <span style={{ color: colors.muted }}>({fmtChange(delta)})</span>
+      <span className="text-theme-muted">({fmtChange(delta)})</span>
     </div>
   );
 };
@@ -214,10 +214,7 @@ const ComparisonBadge = ({
         borderColor: colors.grid,
       }}
     >
-      <div
-        className="text-[0.6875rem] font-medium mb-1"
-        style={{ color: colors.muted }}
-      >
+      <div className="text-[0.6875rem] font-medium mb-1 text-theme-muted">
         {currYear} vs {prevYear}
       </div>
       <div className="space-y-0.5">

@@ -6,9 +6,7 @@ import IncomeTrendMonthDrilldown from "./IncomeTrendMonthDrilldown";
 import IncomeTrendExpensePreview from "./IncomeTrendExpensePreview";
 import IncomeFlowBar from "../IncomeFlowBar";
 import AnalyticsCharts from "../AnalyticsCharts";
-import {
-  buildYearTrendRows,
-} from "../../../utils/analyticsTrendUtils";
+import { buildYearTrendRows } from "../../../utils/analyticsTrendUtils";
 import { useThemeColors } from "../AnalyticsCharts";
 import type { AnalyticsData, Expense, Category, Payee } from "../../../types";
 
@@ -115,31 +113,20 @@ export default function IncomeTrendSection({
           <span className="text-xs text-theme-muted">Loading…</span>
         </div>
       ) : trendDrilldown && trendMonth !== null && trendRows[trendMonth] ? (
-        <>
-          <IncomeTrendMonthDrilldown
-            data={data}
-            expenses={expenses}
-            categories={categories}
-            payees={payees}
-            year={year}
-            monthIndex={trendMonth}
-            cumulativeRemaining={trendRows[trendMonth].cumulativeRemaining}
-            colors={colors}
-            formatAmount={formatAmount}
-            formatDate={formatDate}
-            onBack={() => onTrendStateChange({ trendDrilldown: false })}
-          />
-          <div className="border-t border-theme-border">
-            <AnalyticsCharts
-              data={data}
-              multiYearData={multiYearData}
-              year={year}
-              currentYear={currentYear}
-              currentMonth={currentMonth}
-              selectedMonth={trendMonth}
-            />
-          </div>
-        </>
+        <IncomeTrendMonthDrilldown
+          data={data}
+          expenses={expenses}
+          categories={categories}
+          payees={payees}
+          year={year}
+          monthIndex={trendMonth}
+          cumulativeRemaining={trendRows[trendMonth].cumulativeRemaining}
+          colors={colors}
+          formatAmount={formatAmount}
+          formatDate={formatDate}
+          onBack={() => onTrendStateChange({ trendDrilldown: false })}
+          multiYearData={multiYearData}
+        />
       ) : (
         <>
           <div className="px-4 pt-4 pb-2 sm:px-5 sm:pt-5">
@@ -147,10 +134,10 @@ export default function IncomeTrendSection({
               id="income-trend-heading"
               className="text-sm font-semibold text-theme-text tracking-tight"
             >
-              Net Remaining
+              Cash Flow
             </h2>
             <p className="text-xs text-theme-muted mt-0.5">
-              Cumulative all-time surplus or deficit, month by month
+              Cumulative surplus or deficit, month by month
             </p>
           </div>
 
@@ -184,33 +171,7 @@ export default function IncomeTrendSection({
             />
           </div>
 
-          {trendMonth === null && (
-            <>
-              <div className="border-t border-theme-border">
-                <AnalyticsCharts
-                  data={data}
-                  multiYearData={multiYearData}
-                  year={year}
-                  currentYear={currentYear}
-                  currentMonth={currentMonth}
-                  selectedMonth={null}
-                />
-              </div>
-              <div className="px-4 py-4 sm:px-5 border-t border-theme-border">
-                <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-                  Top Expenses
-                </h3>
-                <IncomeTrendExpensePreview
-                  expenses={yearTopExpenses}
-                  categories={categories}
-                  payees={payees}
-                  formatAmount={formatAmount}
-                  formatDate={formatDate}
-                />
-              </div>
-            </>
-          )}
-
+          {/* Month preview — only when a dot is selected */}
           {trendMonth !== null && trendRows[trendMonth] && (
             <IncomeTrendMonthPreview
               ref={previewRef}
@@ -223,9 +184,37 @@ export default function IncomeTrendSection({
               colors={colors}
               formatAmount={formatAmount}
               onViewMonth={() => onTrendStateChange({ trendDrilldown: true })}
-              onDismiss={() => onTrendStateChange({ trendMonth: null, trendDrilldown: false })}
+              onDismiss={() =>
+                onTrendStateChange({ trendMonth: null, trendDrilldown: false })
+              }
             />
           )}
+
+          {/* Year charts — always visible */}
+          <div className="border-t border-theme-border">
+            <AnalyticsCharts
+              data={data}
+              multiYearData={multiYearData}
+              year={year}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              selectedMonth={null}
+            />
+          </div>
+
+          {/* Year top expenses — always visible */}
+          <div className="px-4 py-4 sm:px-5 border-t border-theme-border">
+            <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+              Top Expenses
+            </h3>
+            <IncomeTrendExpensePreview
+              expenses={yearTopExpenses}
+              categories={categories}
+              payees={payees}
+              formatAmount={formatAmount}
+              formatDate={formatDate}
+            />
+          </div>
         </>
       )}
     </section>

@@ -65,7 +65,7 @@ const IncomeTrendTooltip = ({
             className="inline-block w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: payload[0]?.color }}
           />
-          <span style={{ color: colors.muted }}>Net remaining</span>
+          <span style={{ color: colors.muted }}>Cash flow</span>
         </div>
         <span
           className="font-medium tabular-nums"
@@ -80,7 +80,7 @@ const IncomeTrendTooltip = ({
         className="mt-1 text-[0.625rem]"
         style={{ color: colors.muted }}
       >
-        Cumulative all-time
+        Cumulative all-time cash flow
       </div>
     </div>
   );
@@ -186,10 +186,10 @@ export default function IncomeTrendYearChart({
         >
           {formatAmount(row.cumulativeRemaining)}
         </div>
-        <div className="text-xs" style={{ color: colors.muted }}>
-          Net remaining after {row.monthLabel}
+        <div className="text-xs text-theme-muted">
+          Cash flow after {row.monthLabel}
         </div>
-        <div className="text-[0.625rem]" style={{ color: colors.muted }}>
+        <div className="text-[0.625rem] text-theme-muted">
           Add more months to see the trend
         </div>
       </div>
@@ -197,7 +197,7 @@ export default function IncomeTrendYearChart({
   }
 
   return (
-    <div aria-label="Cumulative net remaining chart showing all-time financial surplus or deficit by month">
+    <div aria-label="Cash flow chart showing cumulative all-time surplus or deficit by month">
       <ResponsiveContainer width="100%" height={260}>
         <LineChart
           data={chartData}
@@ -237,7 +237,7 @@ export default function IncomeTrendYearChart({
           <Line
             type="monotone"
             dataKey="cumulativeRemaining"
-            name="Net remaining"
+            name="Cash flow"
             stroke={lineColor}
             strokeWidth={2.5}
             dot={renderDot}
@@ -248,7 +248,7 @@ export default function IncomeTrendYearChart({
 
       <div className="sr-only" aria-live="polite">
         {selectedMonth !== null && rows[selectedMonth]
-          ? `Selected: ${rows[selectedMonth].monthLabel}, cumulative net remaining: ${formatAmount(rows[selectedMonth].cumulativeRemaining)}`
+          ? `Selected: ${rows[selectedMonth].monthLabel}, cumulative cash flow: ${formatAmount(rows[selectedMonth].cumulativeRemaining)}`
           : "No month selected"}
       </div>
 
@@ -268,7 +268,7 @@ export default function IncomeTrendYearChart({
         <option value="">No month selected</option>
         {rows.map((row) => (
           <option key={row.monthIndex} value={row.monthIndex}>
-            {row.monthLabel} — {formatAmount(row.cumulativeRemaining)} cumulative
+            {row.monthLabel} — {formatAmount(row.cumulativeRemaining)} cash flow
           </option>
         ))}
       </select>

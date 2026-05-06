@@ -191,13 +191,9 @@ const MetricCard = ({
 }: MetricCardProps) => {
   return (
     <div
-      className="rounded-theme-large border p-4 text-center"
-      style={{
-        backgroundColor: colors.background,
-        borderColor: colors.grid,
-      }}
+      className="rounded-theme-large border p-4 text-center bg-theme-background border-theme-border"
     >
-      <div className="text-xs font-medium mb-1" style={{ color: colors.muted }}>
+      <div className="text-xs font-medium mb-1 text-theme-muted">
         {label}
       </div>
       <div
@@ -207,10 +203,7 @@ const MetricCard = ({
         {value}
       </div>
       {subValue && (
-        <div
-          className="text-[0.6875rem] mt-0.5"
-          style={{ color: colors.muted }}
-        >
+        <div className="text-[0.6875rem] mt-0.5 text-theme-muted">
           {subValue}
         </div>
       )}
@@ -451,7 +444,7 @@ interface RankedCategoryTableProps {
   focusLabel: string;
 }
 
-const RankedCategoryTable = ({
+export const RankedCategoryTable = ({
   data,
   focusMonth,
   focusLabel,
@@ -530,7 +523,7 @@ interface RankedPayeeTableProps {
   focusLabel: string;
 }
 
-const RankedPayeeTable = ({
+export const RankedPayeeTable = ({
   data,
   focusMonth,
   focusLabel,
@@ -1173,7 +1166,7 @@ const MonthMetricCards = ({
 
 // ── 5. Ranked Category Viz — bar list with delta ─────────────────────────────
 
-const RankedCategoryViz = ({
+export const RankedCategoryViz = ({
   data,
   focusMonth,
   colors,
@@ -1288,7 +1281,7 @@ const RankedCategoryViz = ({
 
 // ── 6. Ranked Payee Viz — bar list with delta ────────────────────────────────
 
-const RankedPayeeViz = ({
+export const RankedPayeeViz = ({
   data,
   focusMonth,
   colors,
@@ -1430,7 +1423,7 @@ const ChartCard = ({
   );
 };
 
-const ViewToggle = ({
+export const ViewToggle = ({
   isViz,
   onToggle,
 }: {

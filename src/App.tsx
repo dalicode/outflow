@@ -8,7 +8,11 @@ import { ToastProvider, useToasts } from "./context/toastContext";
 import { supabase } from "./services/supabase";
 import { useExpenses, useCategories, usePayees } from "./hooks/useLocalData";
 import { cn } from "./utils/cn";
-import { parseYearParam, parseTrendMonthParam, parseTrendDrilldownParam } from "./utils/urlParams";
+import {
+  parseYearParam,
+  parseTrendMonthParam,
+  parseTrendDrilldownParam,
+} from "./utils/urlParams";
 import { ROUTES } from "./constants/routes";
 import Navbar from "./components/layout/Navbar";
 import OfflineStatusBadge from "./components/pwa/OfflineStatusBadge";
@@ -106,7 +110,7 @@ function ScrollablePage({
   useEffect(() => {
     ref.current?.scrollTo({ top: 0, behavior: "auto" });
     onRouteChange?.();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.key]); // location.key changes on back/forward too
 
   return (
@@ -119,7 +123,10 @@ function ScrollablePage({
       {children}
       {showBottomSpacer && (
         <div
-          className={cn("sm:hidden", bottomSpacerClassName ?? "mobile-bottom-spacer")}
+          className={cn(
+            "sm:hidden",
+            bottomSpacerClassName ?? "mobile-bottom-spacer",
+          )}
           aria-hidden="true"
         />
       )}
@@ -173,18 +180,26 @@ function AppShell() {
   const { showToast, showUndoToast } = useToasts();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
-  const { direction, onScroll: handleScrollDirection, reset: resetScrollDirection } = useScrollDirection();
+  const {
+    direction,
+    onScroll: handleScrollDirection,
+    reset: resetScrollDirection,
+  } = useScrollDirection();
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false);
   const [snapshotsReady, setSnapshotsReady] = useState(false);
-  const [pendingExpenseDeleteIds, setPendingExpenseDeleteIds] = useState<number[]>(
-    [],
-  );
+  const [pendingExpenseDeleteIds, setPendingExpenseDeleteIds] = useState<
+    number[]
+  >([]);
   const pendingExpenseDeleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>(
     [],
   );
 
   const announceAppliedScheduleUpdates = useCallback(
-    (notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>) => {
+    (
+      notices: Awaited<
+        ReturnType<typeof StorageService.materializePendingSnapshots>
+      >,
+    ) => {
       if (!notices || notices.length === 0) return;
       showToast({
         message: summarizeScheduleMaterializationNotices(notices),
@@ -227,7 +242,8 @@ function AppShell() {
           ? trendMonthParsed.monthIndex
           : null;
       const trendDrilldown =
-        trendMonth !== null && parseTrendDrilldownParam(params.get("trendDrilldown"));
+        trendMonth !== null &&
+        parseTrendDrilldownParam(params.get("trendDrilldown"));
       return {
         year,
         trendMonth,
@@ -290,7 +306,9 @@ function AppShell() {
   useEffect(() => {
     const handlePop = () => {
       const params = new URLSearchParams(window.location.search);
-      const trendDrilldown = parseTrendDrilldownParam(params.get("trendDrilldown"));
+      const trendDrilldown = parseTrendDrilldownParam(
+        params.get("trendDrilldown"),
+      );
 
       if (!trendDrilldown && analyticsSession.trendDrilldown) {
         setAnalyticsSession((prev) => ({
@@ -324,10 +342,18 @@ function AppShell() {
   useEffect(() => {
     const init = async () => {
       const hasVisited = localStorage.getItem("outflow:hasVisited") === "true";
-      const minLoadTime = (window as unknown as { outflowTestApi?: unknown }).outflowTestApi ? 0 : (hasVisited ? 1500 : 3000);
+      const minLoadTime = (window as unknown as { outflowTestApi?: unknown })
+        .outflowTestApi
+        ? 0
+        : hasVisited
+          ? 1500
+          : 3000;
       const startTime = Date.now();
 
-      const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(console.error);
+      const appliedNotices =
+        await StorageService.materializePendingSnapshots?.().catch(
+          console.error,
+        );
       await StorageService.rolloverSnapshots?.().catch(console.error);
 
       const elapsed = Date.now() - startTime;
@@ -347,7 +373,10 @@ function AppShell() {
 
   const handlePullRefresh = useCallback(async () => {
     try {
-      const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(console.error);
+      const appliedNotices =
+        await StorageService.materializePendingSnapshots?.().catch(
+          console.error,
+        );
       await StorageService.rolloverSnapshots?.().catch(console.error);
       await Promise.all([
         refreshExpenses(),
@@ -388,17 +417,22 @@ function AppShell() {
     } else if (action === "update" && payload.id != null && payload.name) {
       await StorageService.updateCategory(payload.id, { name: payload.name });
     } else if (action === "delete" && payload.id != null) {
-      const archivedCategory = categories.find((category) => category.id === payload.id);
+      const archivedCategory = categories.find(
+        (category) => category.id === payload.id,
+      );
       await StorageService.deleteCategory(payload.id);
-      showUndoToast(`${archivedCategory?.name ?? "Category"} archived.`, async () => {
-        await StorageService.updateCategory(payload.id as number, {
-          isArchived: false,
-          archivedAt: undefined,
-          mergedIntoCategoryId: null,
-        });
-        await refreshCategories();
-        triggerSync?.();
-      });
+      showUndoToast(
+        `${archivedCategory?.name ?? "Category"} archived.`,
+        async () => {
+          await StorageService.updateCategory(payload.id as number, {
+            isArchived: false,
+            archivedAt: undefined,
+            mergedIntoCategoryId: null,
+          });
+          await refreshCategories();
+          triggerSync?.();
+        },
+      );
     }
     await refreshCategories();
     triggerSync?.();
@@ -408,8 +442,10 @@ function AppShell() {
   const handleAdd = async (expense: Omit<Expense, "id">) => {
     await StorageService.add(expense);
     setExpenses(await StorageService.getAll());
-    void saveSettings({ lastCheckInCompletedAt: new Date().toISOString() }).catch(
-      (error) => console.warn("Check-in completion stamp failed:", error),
+    void saveSettings({
+      lastCheckInCompletedAt: new Date().toISOString(),
+    }).catch((error) =>
+      console.warn("Check-in completion stamp failed:", error),
     );
     setShowForm(false);
     triggerSync?.();
@@ -453,7 +489,9 @@ function AppShell() {
         await refreshExpenses();
       } finally {
         pendingExpenseDeleteTimersRef.current =
-          pendingExpenseDeleteTimersRef.current.filter((item) => item !== timer);
+          pendingExpenseDeleteTimersRef.current.filter(
+            (item) => item !== timer,
+          );
         setPendingExpenseDeleteIds((current) =>
           current.filter((pendingId) => pendingId !== id),
         );
@@ -463,20 +501,25 @@ function AppShell() {
     pendingExpenseDeleteTimersRef.current.push(timer);
     setPendingExpenseDeleteIds((current) => [...new Set([...current, id])]);
     setExpenses((prev) => prev.filter((item) => item.id !== id));
-    showUndoToast(`Deleted ${expense.description?.trim() || "expense"}.`, async () => {
-      clearTimeout(timer);
-      pendingExpenseDeleteTimersRef.current =
-        pendingExpenseDeleteTimersRef.current.filter((item) => item !== timer);
-      setPendingExpenseDeleteIds((current) =>
-        current.filter((pendingId) => pendingId !== id),
-      );
-      setExpenses((prev) => {
-        if (prev.some((item) => item.id === id)) return prev;
-        const restored = [...prev];
-        restored.splice(Math.min(removedIndex, restored.length), 0, expense);
-        return restored;
-      });
-    });
+    showUndoToast(
+      `Deleted ${expense.description?.trim() || "expense"}.`,
+      async () => {
+        clearTimeout(timer);
+        pendingExpenseDeleteTimersRef.current =
+          pendingExpenseDeleteTimersRef.current.filter(
+            (item) => item !== timer,
+          );
+        setPendingExpenseDeleteIds((current) =>
+          current.filter((pendingId) => pendingId !== id),
+        );
+        setExpenses((prev) => {
+          if (prev.some((item) => item.id === id)) return prev;
+          const restored = [...prev];
+          restored.splice(Math.min(removedIndex, restored.length), 0, expense);
+          return restored;
+        });
+      },
+    );
   };
 
   const handleBulkDelete = async (ids: number[]) => {
@@ -498,7 +541,9 @@ function AppShell() {
         await refreshExpenses();
       } finally {
         pendingExpenseDeleteTimersRef.current =
-          pendingExpenseDeleteTimersRef.current.filter((item) => item !== timer);
+          pendingExpenseDeleteTimersRef.current.filter(
+            (item) => item !== timer,
+          );
         setPendingExpenseDeleteIds((current) =>
           current.filter((pendingId) => !selectedIdSet.has(pendingId)),
         );
@@ -555,11 +600,11 @@ function AppShell() {
 
   return (
     <BrowserRouter>
-      <div className="h-dvh bg-theme-background flex">
+      <div className="h-dvh bg-theme-background text-theme-text antialiased flex">
         {/* iPhone PWA status bar cover — fills safe-area-inset-top with app background */}
         <div
           className="fixed inset-x-0 top-0 z-[100] bg-theme-background sm:hidden"
-          style={{ height: 'env(safe-area-inset-top, 0px)' }}
+          style={{ height: "env(safe-area-inset-top, 0px)" }}
           aria-hidden="true"
         />
         {!isReady ? (

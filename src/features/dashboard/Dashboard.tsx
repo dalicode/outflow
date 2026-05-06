@@ -345,10 +345,14 @@ export default function Dashboard({
                 >
                   <PayeeViewTable
                     multiPayeeRows={dash.multiPayeeRows}
+                    multiFixedRows={multiFixedRows}
+                    monthSummaries={dash.monthSummaries}
                     monthKeys={dash.monthKeys}
                     monthSpan={dash.monthSpan}
                     showGrandTotal={dash.showGrandTotal}
                     onPayeeClick={dash.handlePayeeClick}
+                    onIncomeClick={dash.openIncomeModal}
+                    onSavingsClick={dash.openSavingsModal}
                     formatAmount={formatAmount}
                     getNumberColorClass={getNumberColorClass}
                   />

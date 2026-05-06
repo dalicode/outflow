@@ -158,7 +158,7 @@ export default function IncomeFlowBar({
         : "12 months";
 
   const barSegments: BarSegmentData[] = [
-    { key: "savings",  label: "Savings",  value: cappedSavings, color: colors.success },
+    { key: "savings",  label: "Savings",  value: cappedSavings, color: colors.text },
     { key: "fixed",    label: "Fixed",    value: fixed,         color: colors.primary },
     { key: "variable", label: "Variable", value: variable,      color: colors.danger  },
     ...(!isOverBudget && remaining > 0
@@ -301,8 +301,8 @@ export default function IncomeFlowBar({
           label="Savings"
           value={cappedSavings}
           rowPct={pct(cappedSavings, income)}
-          dotColor={colors.success}
-          textColor={colors.success}
+          dotColor={colors.text}
+          textColor={colors.text}
           formatAmount={formatAmount}
         />
         <AllocationRow

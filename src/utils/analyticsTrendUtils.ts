@@ -46,7 +46,7 @@ export interface YearTrendRow {
   expenseCount: number;
   /** True if monthlyHasData[monthIndex] is true */
   hasData: boolean;
-  /** Cumulative net remaining from all time up to this month */
+  /** Cumulative cash flow from all time up to this month */
   cumulativeRemaining: number;
 }
 

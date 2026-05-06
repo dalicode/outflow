@@ -86,7 +86,7 @@ export default function IncomeTrendDrilldownHeader({
           className="text-[0.625rem] font-medium uppercase tracking-wider"
           style={{ color: colors.muted }}
         >
-          All-time net remaining
+          All-time cash flow
         </div>
         <div
           className="text-2xl font-bold tabular-nums"
