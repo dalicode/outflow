@@ -13,6 +13,7 @@ import Navbar from "./components/layout/Navbar";
 import OfflineStatusBadge from "./components/pwa/OfflineStatusBadge";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import PWAInstallPrompt from "./components/pwa/PWAInstallPrompt";
+import PullToRefreshContainer from "./components/ui/PullToRefreshContainer";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
 import ExpenseForm from "./features/expenses/ExpenseForm";
 import Dashboard from "./features/dashboard/Dashboard";
@@ -88,11 +89,13 @@ function ScrollablePage({
   onScroll,
   onRouteChange,
   bottomSpacerClassName,
+  onRefresh,
 }: {
   children: React.ReactNode;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   onRouteChange?: () => void;
   bottomSpacerClassName?: string;
+  onRefresh: () => Promise<void>;
 }) {
   const location = useLocation();
   const ref = useRef<HTMLDivElement>(null);
@@ -105,10 +108,11 @@ function ScrollablePage({
   }, [location.pathname, location.key]); // location.key changes on back/forward too
 
   return (
-    <div
+    <PullToRefreshContainer
       ref={ref}
-      className="h-full overflow-y-auto overscroll-contain scrollbar-auto-hide"
+      className="h-full"
       onScroll={onScroll}
+      onRefresh={onRefresh}
     >
       {children}
       {showBottomSpacer && (
@@ -117,7 +121,7 @@ function ScrollablePage({
           aria-hidden="true"
         />
       )}
-    </div>
+    </PullToRefreshContainer>
   );
 }
 
@@ -164,7 +168,7 @@ function AppShell() {
     refresh: refreshCategories,
   } = useCategories();
   const { payees, refresh: refreshPayees } = usePayees();
-  const { showUndoToast } = useToasts();
+  const { showToast, showUndoToast } = useToasts();
   const [showForm, setShowForm] = useState(false);
   const { isScrolling, handleScroll } = useScrollVisibility();
   const { direction, onScroll: handleScrollDirection, reset: resetScrollDirection } = useScrollDirection();
@@ -258,6 +262,36 @@ function AppShell() {
     };
     init();
   }, []);
+
+  const handlePullRefresh = useCallback(async () => {
+    try {
+      await StorageService.materializePendingSnapshots?.().catch(console.error);
+      await StorageService.rolloverSnapshots?.().catch(console.error);
+      await Promise.all([
+        refreshExpenses(),
+        refreshCategories(),
+        refreshPayees(),
+      ]);
+
+      if (navigator.onLine && supabase && user) {
+        triggerSync?.();
+      }
+    } catch (error) {
+      console.error("Pull refresh failed:", error);
+      showToast({
+        message: "Refresh didn't finish. Try again in a moment.",
+        tone: "warning",
+        durationMs: 4000,
+      });
+    }
+  }, [
+    refreshCategories,
+    refreshExpenses,
+    refreshPayees,
+    showToast,
+    triggerSync,
+    user,
+  ]);
 
   const handleCategoriesChange = async (
     action: "add" | "update" | "delete",
@@ -491,6 +525,7 @@ function AppShell() {
                       }}
                       sessionState={dashboardSession}
                       onSessionStateChange={handleDashboardSessionChange}
+                      onRefresh={handlePullRefresh}
                     />
                   }
                 />
@@ -501,6 +536,7 @@ function AppShell() {
                       onScroll={handlePageScroll}
                       onRouteChange={resetScrollDirection}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
+                      onRefresh={handlePullRefresh}
                     >
                       <SummaryPage expenses={visibleExpenses} />
                     </ScrollablePage>
@@ -509,7 +545,11 @@ function AppShell() {
                 <Route
                   path={ROUTES.ANALYTICS}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      onRefresh={handlePullRefresh}
+                    >
                       <AnalyticsPage
                         expenses={visibleExpenses}
                         categories={categories}
@@ -522,7 +562,11 @@ function AppShell() {
                 <Route
                   path={ROUTES.PAYEES}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      onRefresh={handlePullRefresh}
+                    >
                       <PayeesPage />
                     </ScrollablePage>
                   }
@@ -530,7 +574,11 @@ function AppShell() {
                 <Route
                   path={ROUTES.SETTINGS}
                   element={
-                    <ScrollablePage onScroll={handlePageScroll} onRouteChange={resetScrollDirection}>
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      onRefresh={handlePullRefresh}
+                    >
                       <SettingsPage
                         expenses={visibleExpenses}
                         onImport={async () =>

@@ -129,76 +129,97 @@ describe('Navbar', () => {
     expect(collapseButton).toHaveClass('group-hover:opacity-100')
   })
 
-  it('keeps mobile navigation to two primary actions on click and reserves analytics/payees/settings for drag expansion', () => {
+  it('keeps the pill and one-row states drag-only, and lets the expanded state collapse back to one row on click', () => {
     renderNavbar({ onAddExpense: vi.fn() })
-
     const mobileNav = document.body.querySelector('.mobile-nav-container')
+    const mobileWrapper = document.body.querySelector('div[style*="--mobile-nav-wrapper-height"]')
+    const dragSurface = () => document.body.querySelector('.mobile-nav-container') as HTMLElement
 
-    expect(screen.getByLabelText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByLabelText('Budget')).toBeInTheDocument()
-    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
+    // Starts at stage 1 (one row)
+    expect(mobileNav).toHaveAttribute('data-stage', '1')
+    expect(mobileWrapper).toHaveStyle({
+      '--mobile-nav-height': '88px',
+      '--mobile-nav-wrapper-height': '136px',
+      '--mobile-nav-overscan': '48px',
+      '--mobile-nav-collapsed-height': '76px',
+    })
+    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
 
+    // Click at stage 1 does nothing
+    fireEvent.click(screen.getByLabelText('Expand more'))
+    expect(mobileNav).toHaveAttribute('data-stage', '1')
+    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
+
+    // Drag up anywhere on the bar: 1 → 2
+    fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
+    fireEvent.pointerMove(dragSurface(), { clientY: 80, pointerId: 1 })
+    fireEvent.pointerUp(dragSurface(), { clientY: 80, pointerId: 1 })
+    expect(mobileNav).toHaveAttribute('data-stage', '2')
+    expect(screen.getByLabelText('Collapse navigation')).toBeInTheDocument()
+
+    // Click at stage 2 tucks back to the default one-row state
+    const collapseHandle = screen.getByLabelText('Collapse navigation')
+    fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
+    fireEvent.click(collapseHandle)
+    expect(mobileNav).toHaveAttribute('data-stage', '1')
+    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
+
+    // Stage 0 pill also ignores clicks
+    fireEvent.pointerDown(screen.getByLabelText('Expand more'), { clientY: 200, pointerId: 1 })
+    fireEvent.pointerMove(screen.getByLabelText('Expand more'), { clientY: 280, pointerId: 1 })
+    fireEvent.pointerUp(screen.getByLabelText('Expand more'), { clientY: 280, pointerId: 1 })
+    expect(mobileNav).toHaveAttribute('data-stage', '0')
     fireEvent.click(screen.getByLabelText('Expand navigation'))
-
-    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
-    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
+    expect(mobileNav).toHaveAttribute('data-stage', '0')
   })
 
   it('expands and collapses mobile navigation with a vertical drag', () => {
     renderNavbar({ onAddExpense: vi.fn() })
-
     const mobileNav = document.body.querySelector('.mobile-nav-container')
-    const expandHandle = screen.getByLabelText('Expand navigation')
-    fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
-    fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
-    fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
+    const dragSurface = () => document.body.querySelector('.mobile-nav-container') as HTMLElement
 
-    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    )
+    // Start at stage 1
+    expect(mobileNav).toHaveAttribute('data-stage', '1')
 
+    // Drag up to expand to stage 2
+    fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
+    fireEvent.pointerMove(dragSurface(), { clientY: 80, pointerId: 1 })
+    fireEvent.pointerUp(dragSurface(), { clientY: 80, pointerId: 1 })
+
+    expect(mobileNav).toHaveAttribute('data-stage', '2')
+    expect(screen.getByLabelText('Collapse navigation')).toBeInTheDocument()
+
+    // Drag down to collapse to stage 0
+    fireEvent.pointerDown(dragSurface(), { clientY: 80, pointerId: 1 })
+    fireEvent.pointerMove(dragSurface(), { clientY: 260, pointerId: 1 })
+    fireEvent.pointerUp(dragSurface(), { clientY: 260, pointerId: 1 })
+
+    expect(mobileNav).toHaveAttribute('data-stage', '0')
+    expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
+  })
+
+  it('collapses back to the default one-row state on click after drag-expanding', () => {
+    renderNavbar({ onAddExpense: vi.fn() })
+    const mobileNav = document.body.querySelector('.mobile-nav-container')
+    const dragSurface = () => document.body.querySelector('.mobile-nav-container') as HTMLElement
+
+    // Drag to stage 2
+    fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
+    fireEvent.pointerMove(dragSurface(), { clientY: 80, pointerId: 1 })
+    fireEvent.pointerUp(dragSurface(), { clientY: 80, pointerId: 1 })
+
+    expect(mobileNav).toHaveAttribute('data-stage', '2')
+
+    // Click to tuck back to stage 1
     const collapseHandle = screen.getByLabelText('Collapse navigation')
     fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
-    fireEvent.pointerMove(collapseHandle, { clientY: 120, pointerId: 1 })
-    fireEvent.pointerUp(collapseHandle, { clientY: 120, pointerId: 1 })
-
-    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
-    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
-  })
-
-  it('collapses the second row back to the first row on click', () => {
-    renderNavbar({ onAddExpense: vi.fn() })
-
-    const mobileNav = document.body.querySelector('.mobile-nav-container')
-    const expandHandle = screen.getByLabelText('Expand navigation')
-    fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
-    fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
-    fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
-
-    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    )
-
-    const collapseHandle = screen.getByLabelText('Collapse navigation')
-    fireEvent.pointerDown(collapseHandle, { clientY: 100, pointerId: 1 })
     fireEvent.click(collapseHandle)
 
-    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
-    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
+    expect(mobileNav).toHaveAttribute('data-stage', '1')
+    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
   })
 
-  it('waits for downward scrolling to stop before auto-collapsing the mobile navbar', () => {
+  it('auto-collapses to stage-0 pill on scroll down and restores on scroll up', () => {
     const Wrapper = ({ children }: { children: ReactNode }) => (
       <MemoryRouter>{children}</MemoryRouter>
     )
@@ -208,70 +229,95 @@ describe('Navbar', () => {
       { wrapper: Wrapper },
     )
 
-    const getMobileNav = () => document.body.querySelector('nav.mobile-nav-bounce')
     const getMobileNavContainer = () =>
       document.body.querySelector('.mobile-nav-container')
+    const getMobileNav = () =>
+      document.body.querySelector('nav.mobile-nav-bounce')
 
-    const expandHandle = screen.getByLabelText('Expand navigation')
-    fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
-    fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
-    fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
+    // Start at stage 1
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
 
-    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    )
+    // Drag to stage 2
+    fireEvent.pointerDown(getMobileNavContainer() as HTMLElement, { clientY: 200, pointerId: 1 })
+    fireEvent.pointerMove(getMobileNavContainer() as HTMLElement, { clientY: 80, pointerId: 1 })
+    fireEvent.pointerUp(getMobileNavContainer() as HTMLElement, { clientY: 80, pointerId: 1 })
 
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
+
+    // While still scrolling, nav stays at stage 2
     rerender(
       <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
     )
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
 
-    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
-      'aria-expanded',
-      'true',
+    // Scroll stops → auto-collapse to stage 0
+    rerender(
+      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />,
     )
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
+    expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
+
+    // While scrolling up, stays at stage 0
+    rerender(
+      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />,
+    )
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
+
+    // Scroll up stops → restore to stage 1
+    rerender(
+      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />,
+    )
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
+    expect(getMobileNav()).not.toHaveClass('translate-y-[calc(100%-18px)]')
+  })
+
+  it('keeps the pill drag-only after auto-collapse', () => {
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <MemoryRouter>{children}</MemoryRouter>
+    )
+
+    const { rerender } = render(
+      <Navbar onAddExpense={vi.fn()} scrollDirection={null} isScrolling={false} />,
+      { wrapper: Wrapper },
+    )
+
+    const getMobileNavContainer = () =>
+      document.body.querySelector('.mobile-nav-container')
+    const getMobileNav = () =>
+      document.body.querySelector('nav.mobile-nav-bounce')
 
     rerender(
       <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />,
     )
 
-    expect(getMobileNavContainer()).toHaveAttribute('data-expanded', 'false')
-    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
-    expect(getMobileNav()).toHaveClass(
-      'translate-y-[calc(100%-18px)]',
-    )
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
+    expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
 
     fireEvent.click(screen.getByLabelText('Expand navigation'))
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
+    expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
 
-    expect(getMobileNav()).toHaveClass(
-      'translate-y-[calc(100%-18px)]',
+    fireEvent.pointerDown(getMobileNavContainer() as HTMLElement, { clientY: 220, pointerId: 1 })
+    fireEvent.pointerMove(getMobileNavContainer() as HTMLElement, { clientY: 90, pointerId: 1 })
+    fireEvent.pointerUp(getMobileNavContainer() as HTMLElement, { clientY: 90, pointerId: 1 })
+
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
+    expect(getMobileNav()).not.toHaveClass('translate-y-[calc(100%-18px)]')
+  })
+
+  it('still lets icon taps work when the bar is not dragged', () => {
+    render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Navbar onAddExpense={vi.fn()} />
+      </MemoryRouter>,
     )
 
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
-    )
+    fireEvent.click(screen.getByLabelText('Budget'))
 
-    expect(getMobileNav()).toHaveClass(
-      'translate-y-[calc(100%-18px)]',
-    )
+    const mobileBudgetLink = screen
+      .getAllByTestId('nav-summary')
+      .find((element) => element.getAttribute('aria-label') === 'Budget')
 
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />,
-    )
-
-    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
-      'translate-y-[calc(100%-18px)]',
-    )
-
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />,
-    )
-
-    expect(document.body.querySelector('nav.mobile-nav-bounce')).not.toHaveClass(
-      'translate-y-[calc(100%-18px)]',
-    )
+    expect(mobileBudgetLink).toHaveAttribute('aria-current', 'page')
   })
 })

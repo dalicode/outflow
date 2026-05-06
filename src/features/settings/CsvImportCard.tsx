@@ -1,14 +1,9 @@
 import { useRef, useState } from "react";
-import {
-  StorageService,
-  DEFAULT_CATEGORIES,
-} from "../../services/storageService";
+import { StorageService } from "../../services/storageService";
 import {
   parseCSV,
   parseDateInput,
   getCsvField,
-  matchCategoryByDescription,
-  matchCategoryByName,
 } from "../../utils/csvHelpers";
 import { getImportPayeeMatchSummary, findBestImportPayeeMatch } from "../../utils/importPayeeMatching";
 import Card from "../../components/ui/Card";
@@ -16,7 +11,10 @@ import ImportReviewModal, {
   type ImportReviewSelection,
 } from "./ImportReviewModal";
 import type { Payee } from "../../types";
-import type { ImportPayeeMatchResult, ImportPayeeMatchSummary } from "../../utils/importPayeeMatching";
+import type {
+  ImportPayeeMatchSummary,
+  ImportPayeeReviewRow,
+} from "../../utils/importPayeeMatching";
 
 interface CsvImportCardProps {
   onImportComplete: (importedYears: number[]) => void;
@@ -36,7 +34,7 @@ interface ValidImportRow {
 
 interface PendingImport {
   rows: ValidImportRow[];
-  reviewRows: ImportPayeeMatchResult[];
+  reviewRows: ImportPayeeReviewRow[];
   summary: ImportPayeeMatchSummary;
   replaceMode: boolean;
   activePayees: Payee[];
@@ -49,7 +47,6 @@ export default function CsvImportCard({
   onErrorsChange,
 }: CsvImportCardProps) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [replaceMode, setReplaceMode] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
 
   const yieldToBrowser = () =>
@@ -346,9 +343,13 @@ export default function CsvImportCard({
       }
 
       const activePayees = await StorageService.getActivePayees();
-      const payeeMatches = valid.map((row) =>
-        {
-          const match = findBestImportPayeeMatch(row.description, activePayees, row.rowId);
+      const payeeMatches: Array<ImportPayeeReviewRow | null> = valid.map(
+        (row) => {
+          const match = findBestImportPayeeMatch(
+            row.description,
+            activePayees,
+            row.rowId,
+          );
           return match
             ? { ...match, date: row.date, amount: row.amount }
             : null;
@@ -373,10 +374,12 @@ export default function CsvImportCard({
         };
       });
 
-      const reviewRows = payeeMatches.filter(
-        (match): match is ImportPayeeMatchResult =>
-          Boolean(match && match.confidence === "needs_review"),
-      );
+      const reviewRows: ImportPayeeReviewRow[] = [];
+      for (const match of payeeMatches) {
+        if (match && match.confidence === "needs_review") {
+          reviewRows.push(match);
+        }
+      }
 
       setPendingImport({
         rows: rowsWithMatches,

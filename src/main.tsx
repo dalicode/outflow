@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom/client'
 import { AuthProvider } from './context/authContext'
 import { SettingsProvider } from './context/settingsContext'
+import { applyDisplayModeClasses } from './utils/displayModeClasses'
 import App from './App'
 import './index.css'
 
@@ -10,6 +11,7 @@ const showError = (msg: string) => {
 }
 
 try {
+  applyDisplayModeClasses()
   const root = document.getElementById('root')
   if (!root) { showError('Fatal: #root not found'); }
   else {

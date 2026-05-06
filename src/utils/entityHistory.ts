@@ -11,7 +11,7 @@ function sortByMostRecent(a: HistoryExpense, b: HistoryExpense): number {
 function isAllowedId(
   id: number | null | undefined,
   allowedIds?: Set<number>,
-): boolean {
+): id is number {
   if (id == null) return false;
   if (!allowedIds) return true;
   return allowedIds.has(id);

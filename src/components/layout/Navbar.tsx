@@ -353,23 +353,27 @@ export default function Navbar({
   hidden = false,
   onCycleDashboardView,
 }: NavbarProps) {
-  const mobileCollapsedHeight = 72;
-  const mobileExpandedHeight = 144;
-  const mobileDragRange = mobileExpandedHeight - mobileCollapsedHeight;
+  const mobileDragThreshold = 8;
+  const mobileCollapsedHeight = 76;
+  const mobilePrimaryHeight = 88;
+  const mobileExpandedHeight = 156;
+  const mobileNavOverscan = 48;
+  const stageHeights = [
+    mobileCollapsedHeight,
+    mobilePrimaryHeight,
+    mobileExpandedHeight,
+  ] as const;
   const [collapsed, setCollapsed] = useState(true);
-  const [peekExpanded, setPeekExpanded] = useState(false);
-  const [mobileExpanded, setMobileExpanded] = useState(false);
-  const [mobileExpandedSettled, setMobileExpandedSettled] = useState(false);
-  const [mobileDragOffset, setMobileDragOffset] = useState(0);
+  const [mobileStage, setMobileStage] = useState<0 | 1 | 2>(1);
+  const [mobileNavHeight, setMobileNavHeight] = useState<number>(
+    stageHeights[1],
+  );
   const [mobileAutoHidden, setMobileAutoHidden] = useState(false);
-  const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isMobileDragging, setIsMobileDragging] = useState(false);
   const mobileDragStartYRef = useRef<number | null>(null);
-  const mobileDragMovedRef = useRef(false);
-  // Set to true when the nav expands; cleared on the next scroll event.
-  // Prevents stale scrollDirection="down" from immediately re-collapsing
-  // the nav after the user drags it open.
+  const startHeightRef = useRef<number>(stageHeights[1]);
   const expandedSinceLastScrollRef = useRef(false);
-  const suppressNextClickRef = useRef(false);
+  const mobileDragDistanceRef = useRef(0);
   const location = useLocation();
   const isOnDashboard = location.pathname === ROUTES.DASHBOARD;
   const justNavigatedRef = useRef(false);
@@ -385,9 +389,8 @@ export default function Navbar({
     justNavigatedRef.current = true;
     expandedSinceLastScrollRef.current = false;
     setMobileAutoHidden(false);
-    setMobileExpanded(false);
-    setPeekExpanded(false);
-    setMobileDragOffset(0);
+    setMobileStage(1);
+    setMobileNavHeight(stageHeights[1]);
   }, [location.pathname, location.key]);
 
   const handleNavLinkClick = useCallback(
@@ -400,28 +403,6 @@ export default function Navbar({
     [haptics, isOnDashboard, onCycleDashboardView],
   );
 
-  // Delay the "settled" flag so pointer-events on the secondary row only
-  // enable after the container height transition finishes (~320ms)
-  useEffect(() => {
-    if (mobileExpanded) {
-      const t = setTimeout(() => setMobileExpandedSettled(true), 340);
-      return () => clearTimeout(t);
-    } else {
-      setMobileExpandedSettled(false);
-    }
-  }, [mobileExpanded]);
-
-  useEffect(() => {
-    if (!peekExpanded) return;
-    if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
-    peekTimerRef.current = setTimeout(() => {
-      setPeekExpanded(false);
-    }, 3000);
-    return () => {
-      if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
-    };
-  }, [peekExpanded]);
-
   const sidebarWidth = collapsed ? "w-14" : "w-44";
   const mobilePrimaryItems = NAV_ITEMS.filter(({ pageKey }) =>
     ["summary", "dashboard"].includes(pageKey),
@@ -429,25 +410,19 @@ export default function Navbar({
   const mobileSecondaryItems = NAV_ITEMS.filter(({ pageKey }) =>
     ["analytics", "payees", "settings"].includes(pageKey),
   );
-  const mobileBaseHeight = mobileExpanded
-    ? mobileExpandedHeight
-    : mobileCollapsedHeight;
-  const mobileVisibleHeight = Math.max(
-    mobileCollapsedHeight,
-    Math.min(mobileExpandedHeight, mobileBaseHeight + mobileDragOffset),
-  );
+  const shouldAutoHideAfterScroll = !isScrolling && scrollDirection === "down";
+  const isMobileNavBlocked = hidden;
+  const isMobileNavCollapsed = mobileAutoHidden;
   const mobileExpansionProgress =
-    (mobileVisibleHeight - mobileCollapsedHeight) / mobileDragRange;
-  const mobileSecondaryInteractive =
-    mobileExpanded ||
-    mobileDragStartYRef.current !== null ||
-    mobileExpansionProgress > 0.12;
+    (mobileNavHeight - mobileCollapsedHeight) /
+    (mobileExpandedHeight - mobileCollapsedHeight);
   const mobileNavStyle = {
-    "--mobile-nav-height": `${mobileVisibleHeight}px`,
+    "--mobile-nav-height": `${mobileNavHeight}px`,
+    "--mobile-nav-wrapper-height": `${mobileNavHeight + mobileNavOverscan}px`,
+    "--mobile-nav-overscan": `${mobileNavOverscan}px`,
+    "--mobile-nav-collapsed-height": `${mobileCollapsedHeight}px`,
     "--mobile-nav-progress": `${mobileExpansionProgress}`,
   } as CSSProperties;
-  const shouldAutoHideAfterScroll = !isScrolling && scrollDirection === "down";
-  const isMobileNavHidden = !peekExpanded && (hidden || mobileAutoHidden);
   const renderMobileNavLink = ({
     pageKey,
     basePath,
@@ -468,7 +443,6 @@ export default function Navbar({
           cn(
             "mobile-nav-link nav-item-hover",
             isActive ? "text-theme-primary" : "text-theme-muted",
-            isMobileNavHidden && "opacity-0",
           )
         }
       >
@@ -478,77 +452,90 @@ export default function Navbar({
     );
   };
   const handleMobileHandleClick = () => {
-    if (isMobileNavHidden) return;
-    if (suppressNextClickRef.current) {
-      suppressNextClickRef.current = false;
-      return;
-    }
-    if (mobileDragMovedRef.current) {
-      mobileDragMovedRef.current = false;
+    if (isMobileNavBlocked) return;
+    if (mobileStage !== 2 || isMobileNavCollapsed) {
       return;
     }
 
     setMobileAutoHidden(false);
-    if (mobileExpanded) {
-      setMobileExpanded(false);
-      setPeekExpanded(true);
-    } else {
-      setPeekExpanded((expanded) => !expanded);
-    }
-    setMobileDragOffset(0);
+    setMobileStage(1);
+    setMobileNavHeight(stageHeights[1]);
+    expandedSinceLastScrollRef.current = false;
   };
-  const handleMobileHandlePointerDown: PointerEventHandler<
-    HTMLButtonElement
+  const handleMobileContainerPointerDown: PointerEventHandler<
+    HTMLDivElement
   > = (event) => {
-    if (isMobileNavHidden) return;
+    if (isMobileNavBlocked) return;
     mobileDragStartYRef.current = event.clientY;
-    mobileDragMovedRef.current = false;
-    suppressNextClickRef.current = false;
-    setMobileAutoHidden(false);
-    setPeekExpanded(true);
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    startHeightRef.current = isMobileNavCollapsed
+      ? stageHeights[0]
+      : mobileNavHeight;
+    mobileDragDistanceRef.current = 0;
   };
-  const handleMobileHandlePointerMove: PointerEventHandler<
-    HTMLButtonElement
+  const handleMobileContainerPointerMove: PointerEventHandler<
+    HTMLDivElement
   > = (event) => {
     if (mobileDragStartYRef.current === null) return;
-    const deltaY = mobileDragStartYRef.current - event.clientY;
-    if (Math.abs(deltaY) > 8) {
-      mobileDragMovedRef.current = true;
+    const rawDelta = mobileDragStartYRef.current - event.clientY;
+    mobileDragDistanceRef.current = Math.abs(rawDelta);
+    if (
+      !isMobileDragging &&
+      mobileDragDistanceRef.current <= mobileDragThreshold
+    ) {
+      return;
     }
-    setMobileDragOffset(deltaY);
+    if (!isMobileDragging) {
+      setIsMobileDragging(true);
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+    if (rawDelta > 0 && isMobileNavCollapsed) {
+      setMobileAutoHidden(false);
+    }
+    const newHeight = Math.max(
+      mobileCollapsedHeight,
+      Math.min(mobileExpandedHeight, startHeightRef.current + rawDelta),
+    );
+    setMobileNavHeight(newHeight);
   };
-  const handleMobileHandlePointerUp: PointerEventHandler<HTMLButtonElement> = (
+  const handleMobileContainerPointerUp: PointerEventHandler<HTMLDivElement> = (
     event,
   ) => {
     if (mobileDragStartYRef.current === null) return;
-
-    const dragDistance = mobileDragStartYRef.current - event.clientY;
-    let stateChanged = false;
-    if (dragDistance > 18 || mobileExpansionProgress > 0.55) {
-      setMobileExpanded(true);
-      setPeekExpanded(true);
-      expandedSinceLastScrollRef.current = true;
-      stateChanged = true;
-    } else if (dragDistance < -18 || mobileExpansionProgress < 0.45) {
-      setMobileExpanded(false);
-      setPeekExpanded(true);
-      stateChanged = true;
+    if (!isMobileDragging) {
+      mobileDragStartYRef.current = null;
+      mobileDragDistanceRef.current = 0;
+      return;
     }
 
-    setMobileDragOffset(0);
+    const nearestStage = ([0, 1, 2] as const).reduce((prev, curr) =>
+      Math.abs(stageHeights[curr] - mobileNavHeight) <
+      Math.abs(stageHeights[prev] - mobileNavHeight)
+        ? curr
+        : prev,
+    );
+
+    setMobileStage(nearestStage);
+    setMobileNavHeight(stageHeights[nearestStage]);
+    setMobileAutoHidden(nearestStage === 0);
+    expandedSinceLastScrollRef.current = nearestStage > 0;
+
     mobileDragStartYRef.current = null;
-    if (stateChanged) {
-      suppressNextClickRef.current = true;
+    mobileDragDistanceRef.current = 0;
+    setIsMobileDragging(false);
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
   };
-  const handleMobileHandlePointerCancel: PointerEventHandler<
-    HTMLButtonElement
+  const handleMobileContainerPointerCancel: PointerEventHandler<
+    HTMLDivElement
   > = (event) => {
     mobileDragStartYRef.current = null;
-    setMobileDragOffset(0);
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    setMobileNavHeight(stageHeights[mobileStage]);
+    mobileDragDistanceRef.current = 0;
+    setIsMobileDragging(false);
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
   };
 
   useEffect(() => {
@@ -560,6 +547,8 @@ export default function Navbar({
     if (scrollDirection === "up") {
       if (!isScrolling && !hidden) {
         setMobileAutoHidden(false);
+        setMobileStage(1);
+        setMobileNavHeight(stageHeights[1]);
       }
       expandedSinceLastScrollRef.current = false;
       return;
@@ -578,23 +567,13 @@ export default function Navbar({
     // re-collapse it
     if (expandedSinceLastScrollRef.current) return;
 
-    if (peekExpanded && !mobileAutoHidden && scrollDirection !== "down") return;
     if (isScrolling) return;
     if (scrollDirection !== "down" && !hidden) return;
 
     setMobileAutoHidden(shouldAutoHideAfterScroll);
-    setMobileExpanded(false);
-    setMobileDragOffset(0);
-    setPeekExpanded(false);
-  }, [
-    hidden,
-    isScrolling,
-    mobileAutoHidden,
-    mobileExpanded,
-    peekExpanded,
-    scrollDirection,
-    shouldAutoHideAfterScroll,
-  ]);
+    setMobileStage(0);
+    setMobileNavHeight(stageHeights[0]);
+  }, [hidden, isScrolling, scrollDirection, shouldAutoHideAfterScroll]);
 
   return (
     <>
@@ -760,45 +739,38 @@ export default function Navbar({
 
       {/* Mobile Bottom Navigation */}
       <div
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-30 pointer-events-none sm:hidden",
-          mobileExpanded ? "h-48" : "h-32",
-        )}
+        className="fixed inset-x-0 bottom-[calc(-1*var(--mobile-nav-overscan))] z-30 h-[var(--mobile-nav-wrapper-height)] pointer-events-none sm:hidden"
+        style={mobileNavStyle}
       >
-        {/* Animated navbar UI */}
         <nav
           className={cn(
-            "absolute inset-x-0 bottom-0",
-            isMobileNavHidden ? "pointer-events-none" : "pointer-events-auto",
+            "absolute inset-x-0 top-0",
+            isMobileNavBlocked ? "pointer-events-none" : "pointer-events-auto",
             "mobile-nav-bounce",
-            isMobileNavHidden &&
+            isMobileNavCollapsed &&
               "translate-y-[calc(100%-18px)] overflow-hidden",
           )}
         >
           <div
             className="mobile-nav-container"
-            data-expanded={mobileExpandedSettled ? "true" : "false"}
-            data-secondary-interactive={
-              mobileSecondaryInteractive ? "true" : "false"
-            }
-            data-dragging={
-              mobileDragStartYRef.current !== null ? "true" : "false"
-            }
-            style={mobileNavStyle}
+            data-stage={mobileStage}
+            data-dragging={isMobileDragging ? "true" : "false"}
+            onPointerDown={handleMobileContainerPointerDown}
+            onPointerMove={handleMobileContainerPointerMove}
+            onPointerUp={handleMobileContainerPointerUp}
+            onPointerCancel={handleMobileContainerPointerCancel}
           >
             <button
               type="button"
               onClick={handleMobileHandleClick}
-              onPointerDown={handleMobileHandlePointerDown}
-              onPointerMove={handleMobileHandlePointerMove}
-              onPointerUp={handleMobileHandlePointerUp}
-              onPointerCancel={handleMobileHandlePointerCancel}
               className="mobile-nav-handle"
-              style={{ touchAction: "none" }}
               aria-label={
-                mobileExpanded ? "Collapse navigation" : "Expand navigation"
+                mobileStage === 0
+                  ? "Expand navigation"
+                  : mobileStage === 1
+                    ? "Expand more"
+                    : "Collapse navigation"
               }
-              aria-expanded={mobileExpanded}
             >
               <span />
             </button>
@@ -813,7 +785,7 @@ export default function Navbar({
                 data-testid="btn-add-expense"
                 className={cn(
                   "mobile-add-btn",
-                  isMobileNavHidden && "opacity-0",
+                  isMobileNavCollapsed && "opacity-0",
                 )}
                 aria-label="Add expense"
               >

@@ -9,7 +9,7 @@ import { StorageService } from "../../services/storageService";
 import type { Payee } from "../../types";
 import type {
   ImportPayeeMatchSummary,
-  ImportPayeeMatchResult,
+  ImportPayeeReviewRow,
 } from "../../utils/importPayeeMatching";
 import type { ComboboxOption } from "../../components/inputs/comboboxUtils";
 
@@ -25,7 +25,7 @@ interface ImportReviewModalProps {
   loadingMessage?: string;
   loadingDescription?: string;
   summary: ImportPayeeMatchSummary | null;
-  reviewRows: ImportPayeeMatchResult[];
+  reviewRows: ImportPayeeReviewRow[];
   activePayees: Payee[];
   onBack: () => void;
   onSkipReview: () => void;
@@ -86,9 +86,13 @@ export default function ImportReviewModal({
   onSkipReview,
   onImport,
 }: ImportReviewModalProps) {
-  const [selections, setSelections] = useState<Record<string, ImportReviewSelection>>({});
+  const [selections, setSelections] = useState<
+    Record<string, ImportReviewSelection>
+  >({});
   const [chooserRowId, setChooserRowId] = useState<string | null>(null);
-  const [mobilePickerRowId, setMobilePickerRowId] = useState<string | null>(null);
+  const [mobilePickerRowId, setMobilePickerRowId] = useState<string | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const payeeOptions = useMemo<ComboboxOption[]>(
@@ -105,7 +109,10 @@ export default function ImportReviewModal({
     for (const row of reviewRows) {
       next[row.rowId] = {
         rowId: row.rowId,
-        payeeId: row.confidence === "confident" ? (row.suggestedPayeeId ?? null) : undefined,
+        payeeId:
+          row.confidence === "confident"
+            ? (row.suggestedPayeeId ?? null)
+            : undefined,
         saveAlias: false,
       };
     }
@@ -114,15 +121,16 @@ export default function ImportReviewModal({
     setMobilePickerRowId(null);
   }, [open, reviewRows]);
 
-  const setSelection = (rowId: string, patch: Partial<ImportReviewSelection>) => {
+  const setSelection = (
+    rowId: string,
+    patch: Partial<ImportReviewSelection>,
+  ) => {
     setSelections((current) => ({
       ...current,
       [rowId]: {
-        rowId,
-        payeeId: undefined,
-        saveAlias: false,
         ...current[rowId],
         ...patch,
+        rowId,
       },
     }));
   };
@@ -169,15 +177,28 @@ export default function ImportReviewModal({
       <div className="relative flex min-h-0 flex-col">
         <div className="border-b border-theme-border bg-theme-surface px-4 py-4 md:px-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <Stat label="Rows found" value={summary?.rowsFound ?? reviewRows.length} />
-            <Stat label="Valid rows" value={summary?.validRows ?? reviewRows.length} />
-            <Stat label="Likely payees" value={summary?.likelyPayeesFound ?? 0} />
+            <Stat
+              label="Rows found"
+              value={summary?.rowsFound ?? reviewRows.length}
+            />
+            <Stat
+              label="Valid rows"
+              value={summary?.validRows ?? reviewRows.length}
+            />
+            <Stat
+              label="Likely payees"
+              value={summary?.likelyPayeesFound ?? 0}
+            />
             <Stat label="Need review" value={summary?.uncertainMatches ?? 0} />
             <Stat label="Skipped" value={summary?.skippedRows ?? 0} />
-            <Stat label="Need attention" value={summary?.unmatchedExpenses ?? 0} />
+            <Stat
+              label="Need attention"
+              value={summary?.unmatchedExpenses ?? 0}
+            />
           </div>
           <p className="mt-3 text-xs text-theme-muted">
-            Confident matches will be imported automatically. Uncertain matches stay blank until you choose them here.
+            Confident matches will be imported automatically. Uncertain matches
+            stay blank until you choose them here.
           </p>
         </div>
 
@@ -195,10 +216,16 @@ export default function ImportReviewModal({
                 const isChooserOpen = chooserRowId === row.rowId;
                 const isMobilePickerOpen = mobilePickerRowId === row.rowId;
                 const selectedPayeeName = selectedPayee?.label;
-                const mobilePickerValue = currentSelection?.payeeId != null ? currentSelection.payeeId : undefined;
-                const isAcceptingSuggestion = currentSelection?.payeeId === row.suggestedPayeeId;
+                const mobilePickerValue =
+                  currentSelection?.payeeId != null
+                    ? currentSelection.payeeId
+                    : undefined;
+                const isAcceptingSuggestion =
+                  currentSelection?.payeeId === row.suggestedPayeeId;
                 const isLeavingBlank = currentSelection?.payeeId === null;
-                const isChooseAnotherActive = currentSelection?.payeeId != null && currentSelection?.payeeId !== row.suggestedPayeeId;
+                const isChooseAnotherActive =
+                  currentSelection?.payeeId != null &&
+                  currentSelection?.payeeId !== row.suggestedPayeeId;
                 return (
                   <Card
                     key={row.rowId}
@@ -248,7 +275,8 @@ export default function ImportReviewModal({
                             }}
                             className={cn(
                               "btn-cancel-sm",
-                              isAcceptingSuggestion && "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
+                              isAcceptingSuggestion &&
+                                "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
                             )}
                           >
                             Accept
@@ -258,21 +286,26 @@ export default function ImportReviewModal({
                           type="button"
                           onClick={() => setChooserRowId(row.rowId)}
                           className={cn(
-                          "btn-cancel-sm",
-                          isChooseAnotherActive && "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
-                        )}
+                            "btn-cancel-sm",
+                            isChooseAnotherActive &&
+                              "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
+                          )}
                         >
                           Choose another
                         </button>
                         <button
                           type="button"
                           onClick={() => {
-                            setSelection(row.rowId, { payeeId: null, saveAlias: false });
+                            setSelection(row.rowId, {
+                              payeeId: null,
+                              saveAlias: false,
+                            });
                             setChooserRowId(null);
                           }}
                           className={cn(
                             "btn-cancel-sm",
-                            isLeavingBlank && "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
+                            isLeavingBlank &&
+                              "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
                           )}
                         >
                           Leave blank
@@ -281,7 +314,8 @@ export default function ImportReviewModal({
 
                       {currentSelection?.payeeId != null && (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-theme-primary-subtle text-theme-primary text-xs font-medium px-2 py-1">
-                          {selectedPayeeName ?? `Payee #${currentSelection.payeeId}`}
+                          {selectedPayeeName ??
+                            `Payee #${currentSelection.payeeId}`}
                         </span>
                       )}
                       {currentSelection?.payeeId === null && (
@@ -295,7 +329,11 @@ export default function ImportReviewModal({
                           {/* Desktop */}
                           <div className="hidden sm:block">
                             <CreatableCombobox
-                              value={currentSelection?.payeeId ?? row.suggestedPayeeId ?? undefined}
+                              value={
+                                currentSelection?.payeeId ??
+                                row.suggestedPayeeId ??
+                                undefined
+                              }
                               options={payeeOptions}
                               placeholder="Choose payee"
                               emptyMessage="No payees found."
@@ -304,16 +342,20 @@ export default function ImportReviewModal({
                               openOnClick
                               onChange={(id) => {
                                 setSelection(row.rowId, {
-                                  payeeId: typeof id === "number" ? id : undefined,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                  payeeId:
+                                    typeof id === "number" ? id : undefined,
+                                  saveAlias:
+                                    currentSelection?.saveAlias ?? false,
                                 });
                                 setChooserRowId(null);
                               }}
                               onCreate={async (name) => {
-                                const newId = await StorageService.addPayee(name);
+                                const newId =
+                                  await StorageService.addPayee(name);
                                 setSelection(row.rowId, {
                                   payeeId: newId,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                  saveAlias:
+                                    currentSelection?.saveAlias ?? false,
                                 });
                                 setChooserRowId(null);
                                 return newId;
@@ -342,17 +384,20 @@ export default function ImportReviewModal({
                               clearLabel="No payee"
                               onChange={(id) => {
                                 setSelection(row.rowId, {
-                                  payeeId: id != null ? id : null,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                  payeeId: typeof id === "number" ? id : null,
+                                  saveAlias:
+                                    currentSelection?.saveAlias ?? false,
                                 });
                                 setMobilePickerRowId(null);
                                 setChooserRowId(null);
                               }}
                               onCreate={async (name) => {
-                                const newId = await StorageService.addPayee(name);
+                                const newId =
+                                  await StorageService.addPayee(name);
                                 setSelection(row.rowId, {
                                   payeeId: newId,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                  saveAlias:
+                                    currentSelection?.saveAlias ?? false,
                                 });
                                 setMobilePickerRowId(null);
                                 setChooserRowId(null);
@@ -373,10 +418,12 @@ export default function ImportReviewModal({
                               className="rounded-theme-small"
                               disabled={!selectedPayee}
                             />
-                            Save &ldquo;{row.description}&rdquo; as an alias for next time
+                            Save &ldquo;{row.description}&rdquo; as an alias for
+                            next time
                           </label>
                           <p className="text-[11px] text-theme-muted">
-                            Choosing a payee here does not change the original imported description.
+                            Choosing a payee here does not change the original
+                            imported description.
                           </p>
                         </div>
                       )}

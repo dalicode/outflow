@@ -6,6 +6,7 @@ import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
 import IncomeModalForm from "../../components/forms/IncomeModalForm";
 import SavingsModalForm from "../../components/forms/SavingsModalForm";
+import PullToRefreshContainer from "../../components/ui/PullToRefreshContainer";
 import { useSettings } from "../../context/settingsContext";
 import { useDashboard } from "../../hooks/useDashboard";
 import type { DashboardSessionState } from "../../hooks/useDashboard";
@@ -45,6 +46,7 @@ interface DashboardProps {
   sessionState?: DashboardSessionState;
   onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void;
   onAddExpense?: () => void;
+  onRefresh?: () => Promise<void>;
 }
 
 export default function Dashboard({
@@ -62,6 +64,7 @@ export default function Dashboard({
   sessionState,
   onSessionStateChange,
   onAddExpense,
+  onRefresh,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings();
 
@@ -163,7 +166,13 @@ export default function Dashboard({
   const modalMonthKey = dash.monthKeys[dash.modalTargetMonthIndex];
 
   return (
-    <div className="flex flex-col h-full" data-testid="dashboard">
+    <PullToRefreshContainer
+      className="flex h-full flex-col"
+      data-testid="dashboard"
+      onRefresh={onRefresh ?? (async () => undefined)}
+      scrollTargetRef={dash.scrollableRef}
+      scrollable={false}
+    >
       {/* ── Fixed header ── */}
       <div className="shrink-0">
         <div
@@ -453,6 +462,6 @@ export default function Dashboard({
           payees={payees}
         />
       </div>
-    </div>
+    </PullToRefreshContainer>
   );
 }

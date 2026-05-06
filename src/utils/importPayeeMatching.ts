@@ -26,6 +26,12 @@ export interface ImportPayeeMatchResult {
   candidatePayees: ImportPayeeCandidate[];
 }
 
+// Review UI expects these to be present for display.
+export type ImportPayeeReviewRow = Omit<ImportPayeeMatchResult, "date" | "amount"> & {
+  date: string;
+  amount: number;
+};
+
 export interface ImportPayeeMatchSummary {
   rowsFound: number;
   validRows: number;

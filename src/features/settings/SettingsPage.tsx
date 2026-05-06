@@ -159,7 +159,10 @@ export default function SettingsPage({
   }, [editHistoricalDataYears, expenses]);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="settings-page">
+    <main
+      className="max-w-7xl mx-auto px-4 py-6 space-y-4 sm:space-y-6"
+      data-testid="settings-page"
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">
@@ -194,7 +197,7 @@ export default function SettingsPage({
       </Card>
 
       {/* Typography + Number Format */}
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
         <Card title="Typography">
           <p className="text-xs text-theme-muted mb-1.5">
             Choose the font family and size for the app interface.
@@ -324,7 +327,7 @@ export default function SettingsPage({
       </Card>
 
       {/* Export + Import */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
         <CsvExportCard expenses={expenses} formatDate={formatDate} />
         <CsvImportCard
           onImportComplete={handleImportComplete}

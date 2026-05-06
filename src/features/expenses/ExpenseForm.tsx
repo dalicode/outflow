@@ -514,6 +514,7 @@ function CategoryModal({
 
   const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (editId == null) return;
     const name = editName.trim();
     if (!name) return;
     if (
@@ -523,26 +524,28 @@ function CategoryModal({
     )
       return;
     if (onCategoriesChange) {
-      await onCategoriesChange("update", { id: editId as number, name });
+      await onCategoriesChange("update", { id: editId, name });
     } else {
-      await StorageService.updateCategory(editId as number, { name });
+      await StorageService.updateCategory(editId, { name });
       refreshCategories?.();
     }
     setEditId(null);
   };
 
   const openMerge = async (cat: Category) => {
-    const count = await StorageService.getExpenseCountForCategory(cat.id as number);
+    if (cat.id == null) return;
+    const count = await StorageService.getExpenseCountForCategory(cat.id);
     setMergeExpenseCount(count);
     setMergeSource(cat);
   };
 
   const handleMerge = async (targetId: number) => {
-    await StorageService.mergeCategory(mergeSource!.id as number, targetId);
+    if (!mergeSource || mergeSource.id == null) return;
+    await StorageService.mergeCategory(mergeSource.id, targetId);
     await refreshCategories?.();
     if (onCategoriesChange) {
       // Trigger a refresh via the parent
-      await onCategoriesChange("delete", { id: mergeSource!.id });
+      await onCategoriesChange("delete", { id: mergeSource.id });
     }
     setMergeSource(null);
   };
@@ -775,6 +778,7 @@ function PayeeModal({
 
   const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (editId == null) return;
     const name = editName.trim();
     if (!name) return;
     if (
@@ -784,7 +788,7 @@ function PayeeModal({
     )
       return;
     try {
-      await StorageService.updatePayee(editId as number, name);
+      await StorageService.updatePayee(editId, name);
       setEditId(null);
       onPayeesChange?.();
       refreshPayees?.();
@@ -809,13 +813,15 @@ function PayeeModal({
   const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null);
 
   const openMerge = async (payee: Payee) => {
-    const count = await StorageService.getExpenseCountForPayee(payee.id as number);
+    if (payee.id == null) return;
+    const count = await StorageService.getExpenseCountForPayee(payee.id);
     setMergeExpenseCount(count);
     setMergeSource(payee);
   };
 
   const handleMerge = async (targetId: number) => {
-    await StorageService.mergePayee(mergeSource!.id as number, targetId);
+    if (!mergeSource || mergeSource.id == null) return;
+    await StorageService.mergePayee(mergeSource.id, targetId);
     onPayeesChange?.();
     await refreshPayees?.();
     setMergeSource(null);
@@ -1048,36 +1054,38 @@ export default function ExpenseForm({
   const [aliasSaved, setAliasSaved] = useState(false);
 
   const activeCategories = useMemo(
-    () => categories.filter((c) => !c.isArchived),
+    () =>
+      categories.filter(
+        (c): c is Category & { id: number } => !c.isArchived && c.id != null,
+      ),
     [categories],
   );
   const activePayees = useMemo(
     () =>
       payees
-        .filter((p) => !p.isArchived)
+        .filter((p): p is Payee & { id: number } => !p.isArchived && p.id != null)
         .sort((a, b) => a.name.localeCompare(b.name)),
     [payees],
   );
   const activeCategoryIds = useMemo(
-    () => new Set(activeCategories.map((category) => category.id!)),
+    () => new Set(activeCategories.map((category) => category.id)),
     [activeCategories],
   );
   const activePayeeIds = useMemo(
-    () => new Set(activePayees.map((payee) => payee.id!)),
+    () => new Set(activePayees.map((payee) => payee.id)),
     [activePayees],
   );
 
-  const categoryOptions = useMemo(
+  const categoryOptions = useMemo<ComboboxOption[]>(
     () =>
       activeCategories.map((c) => ({
-        id: c.id!,
+        id: c.id,
         label: normalizeName(c.name),
       })),
     [activeCategories],
   );
-  const payeeOptions = useMemo(
-    () =>
-      activePayees.map((p) => ({ id: p.id!, label: normalizeName(p.name) })),
+  const payeeOptions = useMemo<ComboboxOption[]>(
+    () => activePayees.map((p) => ({ id: p.id, label: normalizeName(p.name) })),
     [activePayees],
   );
   const recentCategoryOptions = useMemo(() => {
@@ -1111,7 +1119,7 @@ export default function ExpenseForm({
   )?.label;
 
   const set =
-    (field: string) =>
+    <K extends keyof typeof form>(field: K) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [field]: e.target.value }));
 

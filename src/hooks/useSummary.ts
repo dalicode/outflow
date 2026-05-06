@@ -4,7 +4,7 @@ import { getMonthlyFinancialSummary } from "../utils/financeEngine";
 import type {
   Expense,
   FixedExpense,
-  MonthlyFinancialSummary,
+  MonthlySummary,
   Category,
   FixedExpenseSnapshot,
   IncomeSnapshot,
@@ -64,10 +64,10 @@ export function useSummary({ expenses }: UseSummaryParams) {
         StorageService.getCategories(),
       ]);
 
-      setIncomeRaw(amt);
-      setIncomeFreq(freq);
-      setMonthlyIncome(monthly);
-      setSavingsRate(rate);
+      setIncomeRaw(String((amt as string | null) ?? ""));
+      setIncomeFreq(String((freq as string | null) ?? "monthly"));
+      setMonthlyIncome(Number((monthly as number | null) ?? 0));
+      setSavingsRate(Number((rate as number | null) ?? 0));
       setFixedExpenses(activeFixed);
       setAllFixedExpenses(allFixed);
       setSchedules(schedules);
@@ -78,7 +78,7 @@ export function useSummary({ expenses }: UseSummaryParams) {
     load();
   }, [expenses, currentYear, currentMonth]);
 
-  const financialSummary: MonthlyFinancialSummary | null = useMemo(() => {
+  const financialSummary: MonthlySummary | null = useMemo(() => {
     const virtualSnapshots: FixedExpenseSnapshot[] = fixedExpenses.map((f) => ({
       fixedExpenseId: f.id as number,
       year: currentYear,

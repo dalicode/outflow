@@ -13,6 +13,58 @@ let modalDepth = 0;
 // Shared flag: true while a modal is programmatically calling history.back()
 // to clean up its own entry. Prevents other modals from responding to that pop.
 let programmaticBack = false;
+let bodyScrollLockCount = 0;
+let lockedScrollY = 0;
+let previousBodyStyles: Partial<CSSStyleDeclaration> | null = null;
+
+function lockBodyScroll(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+
+  bodyScrollLockCount += 1;
+  if (bodyScrollLockCount > 1) return;
+
+  const bodyStyle = document.body.style;
+  lockedScrollY = window.scrollY;
+  previousBodyStyles = {
+    overflow: bodyStyle.overflow,
+    position: bodyStyle.position,
+    top: bodyStyle.top,
+    left: bodyStyle.left,
+    right: bodyStyle.right,
+    width: bodyStyle.width,
+    touchAction: bodyStyle.touchAction,
+  };
+
+  bodyStyle.overflow = "hidden";
+  bodyStyle.position = "fixed";
+  bodyStyle.top = `-${lockedScrollY}px`;
+  bodyStyle.left = "0";
+  bodyStyle.right = "0";
+  bodyStyle.width = "100%";
+  bodyStyle.touchAction = "none";
+}
+
+function unlockBodyScroll(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (bodyScrollLockCount === 0) return;
+
+  bodyScrollLockCount -= 1;
+  if (bodyScrollLockCount > 0) return;
+
+  const bodyStyle = document.body.style;
+  const restore = previousBodyStyles;
+
+  bodyStyle.overflow = restore?.overflow ?? "";
+  bodyStyle.position = restore?.position ?? "";
+  bodyStyle.top = restore?.top ?? "";
+  bodyStyle.left = restore?.left ?? "";
+  bodyStyle.right = restore?.right ?? "";
+  bodyStyle.width = restore?.width ?? "";
+  bodyStyle.touchAction = restore?.touchAction ?? "";
+
+  window.scrollTo(0, lockedScrollY);
+  previousBodyStyles = null;
+}
 
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
@@ -215,6 +267,16 @@ export default function Modal({
       viewport?.removeEventListener("resize", updateViewportMetrics);
       viewport?.removeEventListener("scroll", updateViewportMetrics);
       window.removeEventListener("resize", updateViewportMetrics);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    lockBodyScroll();
+
+    return () => {
+      unlockBodyScroll();
     };
   }, [isOpen]);
 

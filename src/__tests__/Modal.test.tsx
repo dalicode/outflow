@@ -194,6 +194,37 @@ describe('Modal', () => {
     expect(modalCard.style.height).toBe('844px')
   })
 
+  it('locks body scroll while open and restores it on close', () => {
+    Object.defineProperty(window, 'scrollY', {
+      configurable: true,
+      value: 240,
+    })
+    window.scrollTo = vi.fn()
+
+    const { rerender } = render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
+        Content
+      </Modal>,
+    )
+
+    expect(document.body.style.position).toBe('fixed')
+    expect(document.body.style.top).toBe('-240px')
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.touchAction).toBe('none')
+
+    rerender(
+      <Modal isOpen={false} onClose={vi.fn()} title="Test Modal">
+        Content
+      </Modal>,
+    )
+
+    expect(document.body.style.position).toBe('')
+    expect(document.body.style.top).toBe('')
+    expect(document.body.style.overflow).toBe('')
+    expect(document.body.style.touchAction).toBe('')
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 240)
+  })
+
   it('calls onClose when clicking mobile Cancel button', () => {
     const onClose = vi.fn()
     setVisualViewport(390, 844)
