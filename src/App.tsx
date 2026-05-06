@@ -12,6 +12,7 @@ import { ROUTES } from "./constants/routes";
 import Navbar from "./components/layout/Navbar";
 import OfflineStatusBadge from "./components/pwa/OfflineStatusBadge";
 import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
+import PWAInstallPrompt from "./components/pwa/PWAInstallPrompt";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
 import ExpenseForm from "./features/expenses/ExpenseForm";
 import Dashboard from "./features/dashboard/Dashboard";
@@ -112,7 +113,7 @@ function ScrollablePage({
       {children}
       {showBottomSpacer && (
         <div
-          className={cn("sm:hidden", bottomSpacerClassName ?? "h-32")}
+          className={cn("sm:hidden", bottomSpacerClassName ?? "mobile-bottom-spacer")}
           aria-hidden="true"
         />
       )}
@@ -436,6 +437,12 @@ function AppShell() {
   return (
     <BrowserRouter>
       <div className="h-dvh bg-theme-background flex">
+        {/* iPhone PWA status bar cover — fills safe-area-inset-top with app background */}
+        <div
+          className="fixed inset-x-0 top-0 z-[100] bg-theme-background sm:hidden"
+          style={{ height: 'env(safe-area-inset-top, 0px)' }}
+          aria-hidden="true"
+        />
         {!isReady ? (
           <LoadingOverlay
             isOpen={true}
@@ -445,6 +452,7 @@ function AppShell() {
         ) : (
           <>
             <PWAUpdatePrompt />
+            <PWAInstallPrompt />
             <OfflineStatusBadge />
             <Navbar
               onAddExpense={() => setShowForm(true)}
@@ -492,7 +500,7 @@ function AppShell() {
                     <ScrollablePage
                       onScroll={handlePageScroll}
                       onRouteChange={resetScrollDirection}
-                      bottomSpacerClassName="h-20"
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
                       <SummaryPage expenses={visibleExpenses} />
                     </ScrollablePage>

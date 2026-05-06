@@ -21,30 +21,52 @@ const DashboardIcon = ({ active }: NavIconProps) => (
   <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
     {/* Receipt / transactions icon */}
     <rect
-      x="4" y="2" width="16" height="20" rx="2"
+      x="4"
+      y="2"
+      width="16"
+      height="20"
+      rx="2"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
       opacity="0.15"
     />
-    <line x1="8" y1="7" x2="16" y2="7"
+    <line
+      x1="8"
+      y1="7"
+      x2="16"
+      y2="7"
       stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      strokeWidth="1.75" strokeLinecap="round"
+      strokeWidth="1.75"
+      strokeLinecap="round"
     />
-    <line x1="8" y1="11" x2="16" y2="11"
+    <line
+      x1="8"
+      y1="11"
+      x2="16"
+      y2="11"
       stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      strokeWidth="1.75" strokeLinecap="round"
+      strokeWidth="1.75"
+      strokeLinecap="round"
     />
-    <line x1="8" y1="15" x2="12" y2="15"
+    <line
+      x1="8"
+      y1="15"
+      x2="12"
+      y2="15"
       stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      strokeWidth="1.75" strokeLinecap="round"
+      strokeWidth="1.75"
+      strokeLinecap="round"
     />
     <circle
-      cx="17" cy="17" r="4"
+      cx="17"
+      cy="17"
+      r="4"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
     />
     <path
       d="M15.5 17h3M17 15.5v3"
       stroke="white"
-      strokeWidth="1.5" strokeLinecap="round"
+      strokeWidth="1.5"
+      strokeLinecap="round"
     />
   </svg>
 );
@@ -53,7 +75,11 @@ const SummaryIcon = ({ active }: NavIconProps) => (
   <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
     {/* Wallet icon */}
     <rect
-      x="2" y="6" width="20" height="14" rx="2"
+      x="2"
+      y="6"
+      width="20"
+      height="14"
+      rx="2"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
       opacity="0.15"
       stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
@@ -62,15 +88,22 @@ const SummaryIcon = ({ active }: NavIconProps) => (
     <path
       d="M2 10h20"
       stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      strokeWidth="1.75" strokeLinecap="round"
+      strokeWidth="1.75"
+      strokeLinecap="round"
     />
     <path
       d="M6 4l4-2 4 2"
       stroke={active ? "var(--theme-primary)" : "var(--theme-muted)"}
-      strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
     <rect
-      x="15" y="13" width="5" height="4" rx="1"
+      x="15"
+      y="13"
+      width="5"
+      height="4"
+      rx="1"
       fill={active ? "var(--theme-primary)" : "var(--theme-muted)"}
     />
   </svg>
@@ -326,6 +359,7 @@ export default function Navbar({
   const [collapsed, setCollapsed] = useState(true);
   const [peekExpanded, setPeekExpanded] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileExpandedSettled, setMobileExpandedSettled] = useState(false);
   const [mobileDragOffset, setMobileDragOffset] = useState(0);
   const [mobileAutoHidden, setMobileAutoHidden] = useState(false);
   const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -365,6 +399,17 @@ export default function Navbar({
     },
     [haptics, isOnDashboard, onCycleDashboardView],
   );
+
+  // Delay the "settled" flag so pointer-events on the secondary row only
+  // enable after the container height transition finishes (~320ms)
+  useEffect(() => {
+    if (mobileExpanded) {
+      const t = setTimeout(() => setMobileExpandedSettled(true), 340);
+      return () => clearTimeout(t);
+    } else {
+      setMobileExpandedSettled(false);
+    }
+  }, [mobileExpanded]);
 
   useEffect(() => {
     if (!peekExpanded) return;
@@ -410,7 +455,6 @@ export default function Navbar({
     icon: Icon,
   }: NavItemConfig) => {
     const isCurrent = location.pathname === basePath;
-    const isDashboard = pageKey === "dashboard";
 
     return (
       <NavLink
@@ -595,11 +639,11 @@ export default function Navbar({
         </div>
 
         {/* Expand toggle (visible only when collapsed) */}
-          {collapsed && (
-            <div className="flex justify-center pb-2">
-              <button
-                onClick={() => {
-                  haptics.selection();
+        {collapsed && (
+          <div className="flex justify-center pb-2">
+            <button
+              onClick={() => {
+                haptics.selection();
                 setCollapsed(false);
               }}
               className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -721,9 +765,6 @@ export default function Navbar({
           mobileExpanded ? "h-48" : "h-32",
         )}
       >
-        {/* Static background coverage layer — only as tall as the nav */}
-        <div className="absolute inset-x-0 bottom-0 h-[calc(0.5rem+env(safe-area-inset-bottom))] bg-theme-background" />
-
         {/* Animated navbar UI */}
         <nav
           className={cn(
@@ -736,7 +777,7 @@ export default function Navbar({
         >
           <div
             className="mobile-nav-container"
-            data-expanded={mobileExpanded ? "true" : "false"}
+            data-expanded={mobileExpandedSettled ? "true" : "false"}
             data-secondary-interactive={
               mobileSecondaryInteractive ? "true" : "false"
             }
@@ -753,6 +794,7 @@ export default function Navbar({
               onPointerUp={handleMobileHandlePointerUp}
               onPointerCancel={handleMobileHandlePointerCancel}
               className="mobile-nav-handle"
+              style={{ touchAction: "none" }}
               aria-label={
                 mobileExpanded ? "Collapse navigation" : "Expand navigation"
               }

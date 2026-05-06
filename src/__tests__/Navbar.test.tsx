@@ -156,7 +156,6 @@ describe('Navbar', () => {
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(mobileNav).toHaveAttribute('data-expanded', 'true')
     expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
       'aria-expanded',
       'true',
@@ -183,7 +182,10 @@ describe('Navbar', () => {
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(mobileNav).toHaveAttribute('data-expanded', 'true')
+    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
 
     const collapseHandle = screen.getByLabelText('Collapse navigation')
     fireEvent.pointerDown(collapseHandle, { clientY: 100, pointerId: 1 })
@@ -215,13 +217,19 @@ describe('Navbar', () => {
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(getMobileNavContainer()).toHaveAttribute('data-expanded', 'true')
+    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
 
     rerender(
       <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
     )
 
-    expect(getMobileNavContainer()).toHaveAttribute('data-expanded', 'true')
+    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
 
     rerender(
       <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />,

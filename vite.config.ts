@@ -56,4 +56,7 @@ export default defineConfig({
       },
     }),
   ],
+  preview: {
+    allowedHosts: ["mortally-unless-reentry.ngrok-free.dev"],
+  },
 });

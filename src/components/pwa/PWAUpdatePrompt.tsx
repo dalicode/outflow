@@ -61,14 +61,14 @@ export default function PWAUpdatePrompt() {
           <button
             type="button"
             onClick={() => setDismissedVersion("waiting")}
-            className="btn-cancel-sm"
+            className="btn-modal-cancel px-4"
           >
             Later
           </button>
           <button
             type="button"
             onClick={() => void updateServiceWorker(true)}
-            className="btn-modal-primary"
+            className="btn-modal-primary px-4"
           >
             Update
           </button>
