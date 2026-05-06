@@ -66,7 +66,7 @@ export interface ThemeColors {
   chartPalette: string[];
 }
 
-function useThemeColors(): ThemeColors {
+export function useThemeColors(): ThemeColors {
   const { currentTheme } = useSettings();
   return useMemo(() => {
     const p = currentTheme.colors.primary;

@@ -5,6 +5,8 @@ import {
   parseViewParam,
   parseSpanParam,
   parseAnalyticsMonthParam,
+  parseTrendMonthParam,
+  parseTrendDrilldownParam,
   monthKeyToParts,
   partsToMonthKey,
 } from "../utils/urlParams";
@@ -142,5 +144,47 @@ describe("partsToMonthKey", () => {
     const key = "2026-05";
     const parts = monthKeyToParts(key);
     expect(partsToMonthKey(parts.year, parts.month)).toBe(key);
+  });
+});
+
+describe("parseTrendMonthParam", () => {
+  it("parses valid YYYY-MM format", () => {
+    expect(parseTrendMonthParam("2026-05")).toEqual({ year: 2026, monthIndex: 4 });
+    expect(parseTrendMonthParam("2026-01")).toEqual({ year: 2026, monthIndex: 0 });
+    expect(parseTrendMonthParam("2026-12")).toEqual({ year: 2026, monthIndex: 11 });
+  });
+
+  it("returns null for invalid formats", () => {
+    expect(parseTrendMonthParam(null)).toBeNull();
+    expect(parseTrendMonthParam("")).toBeNull();
+    expect(parseTrendMonthParam("2026-13")).toBeNull();
+    expect(parseTrendMonthParam("2026-00")).toBeNull();
+    expect(parseTrendMonthParam("26-05")).toBeNull();
+    expect(parseTrendMonthParam("2026/05")).toBeNull();
+    expect(parseTrendMonthParam("May 2026")).toBeNull();
+  });
+
+  it("returns null for years outside 2000-2100", () => {
+    expect(parseTrendMonthParam("1999-05")).toBeNull();
+    expect(parseTrendMonthParam("2101-05")).toBeNull();
+  });
+
+  it("converts 1-indexed month to 0-indexed monthIndex", () => {
+    expect(parseTrendMonthParam("2026-01")?.monthIndex).toBe(0);
+    expect(parseTrendMonthParam("2026-12")?.monthIndex).toBe(11);
+  });
+});
+
+describe("parseTrendDrilldownParam", () => {
+  it("returns true only for '1'", () => {
+    expect(parseTrendDrilldownParam("1")).toBe(true);
+  });
+
+  it("returns false for anything else", () => {
+    expect(parseTrendDrilldownParam(null)).toBe(false);
+    expect(parseTrendDrilldownParam("")).toBe(false);
+    expect(parseTrendDrilldownParam("true")).toBe(false);
+    expect(parseTrendDrilldownParam("yes")).toBe(false);
+    expect(parseTrendDrilldownParam("0")).toBe(false);
   });
 });

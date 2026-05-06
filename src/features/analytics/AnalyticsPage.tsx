@@ -5,14 +5,16 @@ import { useAnalytics } from "../../hooks/useAnalytics";
 import type { AnalyticsSessionState } from "../../hooks/useAnalytics";
 import AnalyticsCharts from "./AnalyticsCharts";
 import AnalyticsOverviewSection from "./AnalyticsOverviewSection";
+import IncomeTrendSection from "./incomeTrend/IncomeTrendSection";
 import YearStrip from "./YearStrip";
 import MonthStrip from "./MonthStrip";
-import type { Expense, Category } from "../../types";
+import type { Expense, Category, Payee } from "../../types";
 import "./analytics.css";
 
 interface AnalyticsPageProps {
   expenses: Expense[];
   categories: Category[];
+  payees: Payee[];
   sessionState?: AnalyticsSessionState;
   onSessionStateChange?: (patch: Partial<AnalyticsSessionState>) => void;
 }
@@ -20,6 +22,7 @@ interface AnalyticsPageProps {
 export default function AnalyticsPage({
   expenses,
   categories,
+  payees,
   sessionState,
   onSessionStateChange,
 }: AnalyticsPageProps) {
@@ -45,8 +48,11 @@ export default function AnalyticsPage({
     summaryCards,
     data,
     multiYearData,
+    trendMonth,
+    trendDrilldown,
   } = useAnalytics({ expenses, categories, formatAmount, sessionState, onSessionStateChange });
   const contentMotionKey = `${year}-${selectedMonth ?? "all"}`;
+  const priorYearsData = multiYearData.filter((d) => d.year < year);
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="analytics-page">
@@ -89,6 +95,23 @@ export default function AnalyticsPage({
         selectedMonth={selectedMonth}
         summaryCards={summaryCards}
         formatAmount={formatAmount}
+      />
+
+      <IncomeTrendSection
+        key={`income-trend-${year}`}
+        data={data}
+        expenses={expenses}
+        categories={categories}
+        payees={payees}
+        year={year}
+        currentYear={currentYear}
+        currentMonth={currentMonth}
+        priorYearsData={priorYearsData}
+        trendMonth={trendMonth}
+        trendDrilldown={trendDrilldown}
+        onTrendStateChange={(patch) =>
+          onSessionStateChange?.({ ...patch })
+        }
       />
 
       {/* Content */}

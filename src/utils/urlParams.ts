@@ -61,3 +61,19 @@ export function monthKeyToParts(monthKey: string): {
 export function partsToMonthKey(year: number, month: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}`;
 }
+
+export function parseTrendMonthParam(
+  value: string | null,
+): { year: number; monthIndex: number } | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
+  if (!match) return null;
+  const year = parseInt(match[1], 10);
+  const monthIndex = parseInt(match[2], 10) - 1;
+  if (year < 2000 || year > 2100) return null;
+  return { year, monthIndex };
+}
+
+export function parseTrendDrilldownParam(value: string | null): boolean {
+  return value === "1";
+}

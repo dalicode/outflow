@@ -5,6 +5,8 @@ import type { Expense, Category } from "../types";
 export interface AnalyticsSessionState {
   year: number;
   selectedMonth: number | null;
+  trendMonth: number | null;
+  trendDrilldown: boolean;
 }
 
 interface UseAnalyticsParams {
@@ -34,7 +36,11 @@ export function useAnalytics({
   const setYear = useCallback((newYear: number | ((prev: number) => number)) => {
     setYearState((prev) => {
       const next = typeof newYear === "function" ? newYear(prev) : newYear;
-      onSessionStateChange?.({ year: next });
+      onSessionStateChange?.({
+        year: next,
+        trendMonth: null,
+        trendDrilldown: false,
+      });
       return next;
     });
   }, [onSessionStateChange]);
@@ -68,7 +74,13 @@ export function useAnalytics({
   const handleYearChange = useCallback((newYear: number) => {
     setYear(newYear);
     setSelectedMonth(null);
-  }, [setYear, setSelectedMonth]);
+    onSessionStateChange?.({
+      year: newYear,
+      selectedMonth: null,
+      trendMonth: null,
+      trendDrilldown: false,
+    });
+  }, [setYear, setSelectedMonth, onSessionStateChange]);
 
   const prevMonth = useCallback(() => {
     if (selectedMonth === null) {
@@ -167,5 +179,7 @@ export function useAnalytics({
     summaryCards,
     data,
     multiYearData,
+    trendMonth: sessionState?.trendMonth ?? null,
+    trendDrilldown: sessionState?.trendDrilldown ?? false,
   };
 }

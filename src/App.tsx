@@ -8,6 +8,7 @@ import { ToastProvider, useToasts } from "./context/toastContext";
 import { supabase } from "./services/supabase";
 import { useExpenses, useCategories, usePayees } from "./hooks/useLocalData";
 import { cn } from "./utils/cn";
+import { parseYearParam, parseTrendMonthParam, parseTrendDrilldownParam } from "./utils/urlParams";
 import { ROUTES } from "./constants/routes";
 import Navbar from "./components/layout/Navbar";
 import OfflineStatusBadge from "./components/pwa/OfflineStatusBadge";
@@ -217,9 +218,22 @@ function AppShell() {
       },
     });
   const [analyticsSession, setAnalyticsSession] =
-    useState<AnalyticsSessionState>({
-      year: now.getFullYear(),
-      selectedMonth: null,
+    useState<AnalyticsSessionState>(() => {
+      const params = new URLSearchParams(window.location.search);
+      const year = parseYearParam(params.get("year"), now.getFullYear());
+      const trendMonthParsed = parseTrendMonthParam(params.get("trendMonth"));
+      const trendMonth =
+        trendMonthParsed && trendMonthParsed.year === year
+          ? trendMonthParsed.monthIndex
+          : null;
+      const trendDrilldown =
+        trendMonth !== null && parseTrendDrilldownParam(params.get("trendDrilldown"));
+      return {
+        year,
+        selectedMonth: null,
+        trendMonth,
+        trendDrilldown,
+      };
     });
 
   const handleDashboardSessionChange = useCallback(
@@ -231,10 +245,65 @@ function AppShell() {
 
   const handleAnalyticsSessionChange = useCallback(
     (patch: Partial<AnalyticsSessionState>) => {
-      setAnalyticsSession((prev) => ({ ...prev, ...patch }));
+      setAnalyticsSession((prev) => {
+        const next = { ...prev, ...patch };
+
+        const params = new URLSearchParams(window.location.search);
+
+        if (next.year !== now.getFullYear()) {
+          params.set("year", String(next.year));
+        } else {
+          params.delete("year");
+        }
+
+        if (next.trendMonth !== null) {
+          const monthNum = String(next.trendMonth + 1).padStart(2, "0");
+          params.set("trendMonth", `${next.year}-${monthNum}`);
+        } else {
+          params.delete("trendMonth");
+          params.delete("trendDrilldown");
+        }
+
+        if (next.trendDrilldown && next.trendMonth !== null) {
+          params.set("trendDrilldown", "1");
+        } else {
+          params.delete("trendDrilldown");
+        }
+
+        const newSearch = params.toString();
+        const newUrl = newSearch
+          ? `${window.location.pathname}?${newSearch}`
+          : window.location.pathname;
+
+        const isDrilldownEntry = next.trendDrilldown && !prev.trendDrilldown;
+        if (isDrilldownEntry) {
+          history.pushState(null, "", newUrl);
+        } else {
+          history.replaceState(null, "", newUrl);
+        }
+
+        return next;
+      });
     },
-    [],
+    [now],
   );
+
+  useEffect(() => {
+    const handlePop = () => {
+      const params = new URLSearchParams(window.location.search);
+      const trendDrilldown = parseTrendDrilldownParam(params.get("trendDrilldown"));
+
+      if (!trendDrilldown && analyticsSession.trendDrilldown) {
+        setAnalyticsSession((prev) => ({
+          ...prev,
+          trendDrilldown: false,
+        }));
+      }
+    };
+
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, [analyticsSession.trendDrilldown]);
 
   const handlePageScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -570,6 +639,7 @@ function AppShell() {
                       <AnalyticsPage
                         expenses={visibleExpenses}
                         categories={categories}
+                        payees={payees}
                         sessionState={analyticsSession}
                         onSessionStateChange={handleAnalyticsSessionChange}
                       />
