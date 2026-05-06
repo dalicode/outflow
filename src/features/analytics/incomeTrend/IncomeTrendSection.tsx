@@ -3,7 +3,9 @@ import { useSettings } from "../../../context/settingsContext";
 import IncomeTrendYearChart from "./IncomeTrendYearChart";
 import IncomeTrendMonthPreview from "./IncomeTrendMonthPreview";
 import IncomeTrendMonthDrilldown from "./IncomeTrendMonthDrilldown";
+import IncomeTrendExpensePreview from "./IncomeTrendExpensePreview";
 import IncomeFlowBar from "../IncomeFlowBar";
+import AnalyticsCharts from "../AnalyticsCharts";
 import {
   buildYearTrendRows,
 } from "../../../utils/analyticsTrendUtils";
@@ -37,6 +39,7 @@ interface IncomeTrendSectionProps {
   monthlyRemaining: (number | null)[];
   monthCount: number;
   isCurrentYear: boolean;
+  multiYearData: AnalyticsData[];
 }
 
 export default function IncomeTrendSection({
@@ -63,6 +66,7 @@ export default function IncomeTrendSection({
   monthlyRemaining,
   monthCount,
   isCurrentYear,
+  multiYearData,
 }: IncomeTrendSectionProps) {
   const { formatAmount, formatDate } = useSettings();
   const colors = useThemeColors();
@@ -79,6 +83,13 @@ export default function IncomeTrendSection({
       ),
     [data, expenses, year, currentYear, currentMonth, priorYearsData],
   );
+
+  const yearTopExpenses = useMemo(() => {
+    return expenses
+      .filter((e) => e.date?.startsWith(`${year}-`))
+      .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
+      .slice(0, 20);
+  }, [expenses, year]);
 
   const prevCumulativeRemaining =
     trendMonth !== null && trendMonth > 0
@@ -104,19 +115,31 @@ export default function IncomeTrendSection({
           <span className="text-xs text-theme-muted">Loading…</span>
         </div>
       ) : trendDrilldown && trendMonth !== null && trendRows[trendMonth] ? (
-        <IncomeTrendMonthDrilldown
-          data={data}
-          expenses={expenses}
-          categories={categories}
-          payees={payees}
-          year={year}
-          monthIndex={trendMonth}
-          cumulativeRemaining={trendRows[trendMonth].cumulativeRemaining}
-          colors={colors}
-          formatAmount={formatAmount}
-          formatDate={formatDate}
-          onBack={() => onTrendStateChange({ trendDrilldown: false })}
-        />
+        <>
+          <IncomeTrendMonthDrilldown
+            data={data}
+            expenses={expenses}
+            categories={categories}
+            payees={payees}
+            year={year}
+            monthIndex={trendMonth}
+            cumulativeRemaining={trendRows[trendMonth].cumulativeRemaining}
+            colors={colors}
+            formatAmount={formatAmount}
+            formatDate={formatDate}
+            onBack={() => onTrendStateChange({ trendDrilldown: false })}
+          />
+          <div className="border-t border-theme-border">
+            <AnalyticsCharts
+              data={data}
+              multiYearData={multiYearData}
+              year={year}
+              currentYear={currentYear}
+              currentMonth={currentMonth}
+              selectedMonth={trendMonth}
+            />
+          </div>
+        </>
       ) : (
         <>
           <div className="px-4 pt-4 pb-2 sm:px-5 sm:pt-5">
@@ -160,6 +183,33 @@ export default function IncomeTrendSection({
               formatAmount={formatAmount}
             />
           </div>
+
+          {trendMonth === null && (
+            <>
+              <div className="border-t border-theme-border">
+                <AnalyticsCharts
+                  data={data}
+                  multiYearData={multiYearData}
+                  year={year}
+                  currentYear={currentYear}
+                  currentMonth={currentMonth}
+                  selectedMonth={null}
+                />
+              </div>
+              <div className="px-4 py-4 sm:px-5 border-t border-theme-border">
+                <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+                  Top Expenses
+                </h3>
+                <IncomeTrendExpensePreview
+                  expenses={yearTopExpenses}
+                  categories={categories}
+                  payees={payees}
+                  formatAmount={formatAmount}
+                  formatDate={formatDate}
+                />
+              </div>
+            </>
+          )}
 
           {trendMonth !== null && trendRows[trendMonth] && (
             <IncomeTrendMonthPreview

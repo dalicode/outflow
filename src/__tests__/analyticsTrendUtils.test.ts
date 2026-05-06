@@ -557,13 +557,13 @@ describe("buildMonthDrilldownData", () => {
     expect(result.savingsRate).toBeCloseTo(20);
   });
 
-  it("expensePreview contains at most 5 items", () => {
-    const expenses: Expense[] = Array.from({ length: 10 }, (_, i) =>
+  it("expensePreview contains at most 20 items", () => {
+    const expenses: Expense[] = Array.from({ length: 25 }, (_, i) =>
       makeExpense({ id: i + 1, date: "2026-05-10", amount: (i + 1) * 10 }),
     );
     const data = makeAnalyticsData();
     const result = buildMonthDrilldownData(data, expenses, 2026, 4);
-    expect(result.expensePreview).toHaveLength(5);
+    expect(result.expensePreview).toHaveLength(20);
   });
 
   it("expensePreview is sorted by amount descending", () => {

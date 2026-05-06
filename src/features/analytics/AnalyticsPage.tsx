@@ -3,7 +3,6 @@ import { useViewportWidth } from "../../hooks/useViewportWidth";
 import { useMaxVisible } from "../../hooks/useMaxVisible";
 import { useAnalytics } from "../../hooks/useAnalytics";
 import type { AnalyticsSessionState } from "../../hooks/useAnalytics";
-import AnalyticsCharts from "./AnalyticsCharts";
 import IncomeTrendSection from "./incomeTrend/IncomeTrendSection";
 import YearStrip from "./YearStrip";
 import type { Expense, Category, Payee } from "../../types";
@@ -38,7 +37,6 @@ export default function AnalyticsPage({
     trendMonth,
     trendDrilldown,
   } = useAnalytics({ expenses, categories, sessionState, onSessionStateChange });
-  const contentMotionKey = `${year}-${trendMonth ?? "all"}`;
   const priorYearsData = multiYearData.filter((d) => d.year < year);
   const isCurrentYear = year === currentYear;
   const monthCount = isCurrentYear ? currentMonth + 1 : 12;
@@ -68,6 +66,7 @@ export default function AnalyticsPage({
         currentYear={currentYear}
         currentMonth={currentMonth}
         priorYearsData={priorYearsData}
+        multiYearData={multiYearData}
         trendMonth={trendMonth}
         trendDrilldown={trendDrilldown}
         onTrendStateChange={(patch) =>
@@ -86,21 +85,6 @@ export default function AnalyticsPage({
         monthCount={monthCount}
         isCurrentYear={isCurrentYear}
       />
-
-      {/* Content */}
-      <div
-        key={`charts-${contentMotionKey}`}
-        className="motion-fade-up rounded-theme-large bg-theme-surface shadow-sm overflow-hidden"
-      >
-        <AnalyticsCharts
-          data={data}
-          multiYearData={multiYearData}
-          year={year}
-          currentYear={currentYear}
-          currentMonth={currentMonth}
-          selectedMonth={trendMonth}
-        />
-      </div>
     </main>
   );
 }

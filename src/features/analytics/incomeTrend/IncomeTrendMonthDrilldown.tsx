@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { cn } from "../../../utils/cn";
 import { buildMonthDrilldownData } from "../../../utils/analyticsTrendUtils";
 import IncomeTrendDrilldownHeader from "./IncomeTrendDrilldownHeader";
 import IncomeTrendDailyChart from "./IncomeTrendDailyChart";
@@ -92,24 +91,19 @@ export default function IncomeTrendMonthDrilldown({
             />
           </div>
         )}
+      </div>
 
-        <div
-          className={cn(
-            "px-4 py-4 sm:px-5 bg-theme-surface border-t border-theme-border",
-            !hasPayees && "md:col-span-2",
-          )}
-        >
-          <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-            Top Expenses
-          </h3>
-          <IncomeTrendExpensePreview
-            expenses={drilldownData.expensePreview}
-            categories={categories}
-            payees={payees}
-            formatAmount={formatAmount}
-            formatDate={formatDate}
-          />
-        </div>
+      <div className="px-4 py-4 sm:px-5 border-t border-theme-border">
+        <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+          Top Expenses
+        </h3>
+        <IncomeTrendExpensePreview
+          expenses={drilldownData.expensePreview}
+          categories={categories}
+          payees={payees}
+          formatAmount={formatAmount}
+          formatDate={formatDate}
+        />
       </div>
     </div>
   );

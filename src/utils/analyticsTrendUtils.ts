@@ -107,7 +107,7 @@ export interface MonthDrilldownData {
   categoryBreakdown: CategoryBreakdownRow[];
   /** Empty array if no payee data exists */
   payeeBreakdown: PayeeBreakdownRow[];
-  /** Top 5 expenses by amount descending */
+  /** Top 20 expenses by amount descending */
   expensePreview: Expense[];
 }
 
@@ -344,11 +344,11 @@ export function buildMonthDrilldownData(
   const saved = data.monthlyTotalSavings[monthIndex] ?? 0;
   const savingsRate = income === 0 ? null : getSavingsRate(income, saved);
 
-  // Top 5 expenses by amount descending
+  // Top 20 expenses by amount descending
   const expensePreview = expenses
     .filter((e) => e.date?.startsWith(monthKey))
     .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
-    .slice(0, 5);
+    .slice(0, 20);
 
   return {
     monthKey,

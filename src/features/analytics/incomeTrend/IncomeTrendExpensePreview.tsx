@@ -29,13 +29,14 @@ export default function IncomeTrendExpensePreview({
   if (expenses.length === 0) {
     return (
       <p className="text-xs text-theme-muted py-2 text-center">
-        No expenses this month
+        No expenses
       </p>
     );
   }
 
   return (
-    <ul className="divide-y divide-theme-border">
+    <div className="max-h-96 overflow-y-auto overscroll-contain">
+      <ul className="divide-y divide-theme-border">
       {expenses.map((exp) => {
         const catName =
           exp.categoryId != null
@@ -71,5 +72,6 @@ export default function IncomeTrendExpensePreview({
         );
       })}
     </ul>
+  </div>
   );
 }

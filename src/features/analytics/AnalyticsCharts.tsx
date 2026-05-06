@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -15,6 +15,8 @@ import {
   BarChart,
   Bar,
   Legend,
+  ComposedChart,
+  LabelList,
 } from "recharts";
 import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
@@ -224,30 +226,30 @@ interface ChartProps {
   monthCount: number;
 }
 
-const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
+// ── 1. Monthly Stacked Bar + Income Line ─────────────────────────────────────
+
+const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
   const chartData = useMemo(() => {
-    return MONTHS.slice(0, monthCount).map((m, i) => ({
-      month: m,
-      total: data.monthlyTotals[i] || 0,
-      savings: data.monthlyTotalSavings[i] || 0,
-    }));
+    return MONTHS.slice(0, monthCount).map((m, i) => {
+      const fixed = data.monthlyFixedTotals[i] || 0;
+      const variable = data.monthlyVariableTotals[i] || 0;
+      const income = data.monthlyIncome[i] || 0;
+      const prevTotal = i > 0 ? (data.monthlyTotals[i - 1] || 0) : null;
+      const total = data.monthlyTotals[i] || 0;
+      const momDelta = prevTotal !== null ? total - prevTotal : null;
+      return { month: m, fixed, variable, income, momDelta };
+    });
   }, [data, monthCount]);
 
-  const hasData = chartData.some((d) => d.total > 0);
+  const hasData = chartData.some((d) => d.fixed > 0 || d.variable > 0);
   if (!hasData) return <EmptyState label="No spending data" />;
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <AreaChart
+      <ComposedChart
         data={chartData}
-        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+        margin={{ top: 24, right: 10, left: 0, bottom: 0 }}
       >
-        <defs>
-          <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={colors.primary} stopOpacity={0} />
-          </linearGradient>
-        </defs>
         <CartesianGrid
           strokeDasharray="3 3"
           stroke={colors.grid}
@@ -267,37 +269,70 @@ const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
           content={
             <CustomTooltip
               colors={colors}
-              formatter={(v: number, name: string) => [
-                fmtCompact(v),
-                name === "total" ? "Total Expenses" : "Total Savings",
-              ]}
+              formatter={(v: number, name: string) => {
+                if (name === "fixed") return [fmtCompact(v), "Fixed"];
+                if (name === "variable") return [fmtCompact(v), "Variable"];
+                if (name === "income") return [fmtCompact(v), "Income"];
+                return [fmtCompact(v), name];
+              }}
             />
           }
         />
         <Legend
           wrapperStyle={{ fontSize: "12px", color: colors.text }}
-          formatter={(v: string) =>
-            v === "total" ? "Total Expenses" : "Total Savings"
-          }
+          formatter={(v: string) => {
+            if (v === "fixed") return "Fixed";
+            if (v === "variable") return "Variable";
+            if (v === "income") return "Income";
+            return v;
+          }}
         />
-        <Area
-          type="monotone"
-          dataKey="total"
-          stroke={colors.primary}
-          strokeWidth={2}
-          fill="url(#trendGrad)"
-          dot={{ r: 3, fill: colors.primary }}
-          activeDot={{ r: 5 }}
+        <Bar
+          dataKey="fixed"
+          stackId="spend"
+          fill={colors.primary}
+          maxBarSize={32}
+          radius={[0, 0, 0, 0]}
         />
+        <Bar
+          dataKey="variable"
+          stackId="spend"
+          fill={colors.danger}
+          maxBarSize={32}
+          radius={[3, 3, 0, 0]}
+        >
+          <LabelList
+            dataKey="momDelta"
+            position="top"
+            content={(props) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const { x, y, width, value } = props as any;
+              if (value == null || value === 0) return null;
+              const isPositive = value > 0;
+              return (
+                <text
+                  x={(x as number) + (width as number) / 2}
+                  y={(y as number) - 4}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill={isPositive ? colors.danger : colors.success}
+                >
+                  {isPositive ? "+" : "−"}{fmtCompact(Math.abs(value))}
+                </text>
+              );
+            }}
+          />
+        </Bar>
         <Line
           type="monotone"
-          dataKey="savings"
+          dataKey="income"
           stroke={colors.success}
           strokeWidth={2}
           dot={{ r: 3, fill: colors.success }}
           activeDot={{ r: 5 }}
+          strokeDasharray="4 2"
         />
-      </AreaChart>
+      </ComposedChart>
     </ResponsiveContainer>
   );
 };
@@ -1136,6 +1171,233 @@ const MonthMetricCards = ({
   );
 };
 
+// ── 5. Ranked Category Viz — bar list with delta ─────────────────────────────
+
+const RankedCategoryViz = ({
+  data,
+  focusMonth,
+  colors,
+  formatAmount,
+}: {
+  data: AnalyticsData;
+  focusMonth: number | null;
+  colors: ThemeColors;
+  formatAmount: (n: number) => string;
+}) => {
+  const rows = useMemo(() => {
+    if (focusMonth == null) {
+      // Year view — aggregate using yearTotal across all months
+      const yearVariableTotal = (data.variableRows || []).reduce(
+        (s, r) => s + r.yearTotal,
+        0,
+      );
+      return (data.variableRows || [])
+        .filter((row) => row.yearTotal > 0)
+        .map((row) => ({
+          key: row.key,
+          name: row.name,
+          focus: row.yearTotal,
+          previous: 0,
+          total: row.yearTotal,
+          share:
+            yearVariableTotal > 0
+              ? (row.yearTotal / yearVariableTotal) * 100
+              : 0,
+          delta: 0,
+        }))
+        .sort((a, b) => b.focus - a.focus)
+        .slice(0, 8);
+    }
+    // Month view — existing logic unchanged
+    const focusTotal = data.monthlyVariableTotals[focusMonth] || 0;
+    return (data.variableRows || [])
+      .map((row) => {
+        const focus = row.amounts[focusMonth] || 0;
+        const previous = focusMonth > 0 ? row.amounts[focusMonth - 1] || 0 : 0;
+        return {
+          key: row.key,
+          name: row.name,
+          focus,
+          previous,
+          total: row.yearTotal,
+          share: focusTotal > 0 ? (focus / focusTotal) * 100 : 0,
+          delta: focus - previous,
+        };
+      })
+      .filter((row) => row.focus > 0 || row.total > 0)
+      .sort((a, b) => b.focus - a.focus || b.total - a.total)
+      .slice(0, 8);
+  }, [data.variableRows, data.monthlyVariableTotals, focusMonth]);
+
+  if (rows.length === 0) return <EmptyState label="No category data" />;
+
+  const maxAmount = rows[0]?.focus ?? 0;
+
+  return (
+    <div className="space-y-2.5">
+      {rows.map((row) => {
+        const barWidth = maxAmount > 0 ? (row.focus / maxAmount) * 100 : 0;
+        const color = getCategoryColor(row.name);
+        const hasDelta = row.previous > 0;
+        const deltaPositive = row.delta > 0;
+
+        return (
+          <div key={row.key} className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className="inline-block w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-sm text-theme-text truncate">
+                  {row.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {hasDelta && row.delta !== 0 && (
+                  <span
+                    className="text-[0.6875rem] font-medium tabular-nums"
+                    style={{
+                      color: deltaPositive ? colors.danger : colors.success,
+                    }}
+                  >
+                    {deltaPositive ? "+" : "−"}
+                    {formatAmount(Math.abs(row.delta))}
+                  </span>
+                )}
+                <span className="text-xs text-theme-muted tabular-nums w-8 text-right">
+                  {row.share.toFixed(0)}%
+                </span>
+                <span className="text-sm font-medium text-theme-text tabular-nums w-20 text-right">
+                  {formatAmount(row.focus)}
+                </span>
+              </div>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-theme-background overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${barWidth}%`, backgroundColor: color }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── 6. Ranked Payee Viz — bar list with delta ────────────────────────────────
+
+const RankedPayeeViz = ({
+  data,
+  focusMonth,
+  colors,
+  formatAmount,
+}: {
+  data: AnalyticsData;
+  focusMonth: number | null;
+  colors: ThemeColors;
+  formatAmount: (n: number) => string;
+}) => {
+  const rows = useMemo(() => {
+    if (focusMonth == null) {
+      // Year view — aggregate using yearTotal across all months
+      const yearPayeeTotal = (data.payeeRows || []).reduce(
+        (s, r) => s + r.yearTotal,
+        0,
+      );
+      return (data.payeeRows || [])
+        .filter((row) => row.yearTotal > 0)
+        .map((row) => ({
+          key: row.key,
+          name: row.name,
+          focus: row.yearTotal,
+          previous: 0,
+          total: row.yearTotal,
+          share:
+            yearPayeeTotal > 0 ? (row.yearTotal / yearPayeeTotal) * 100 : 0,
+          delta: 0,
+        }))
+        .sort((a, b) => b.focus - a.focus)
+        .slice(0, 8);
+    }
+    // Month view — existing logic unchanged
+    const focusTotal = data.payeeRows.reduce(
+      (sum, row) => sum + (row.amounts[focusMonth] || 0),
+      0,
+    );
+    return (data.payeeRows || [])
+      .map((row) => {
+        const focus = row.amounts[focusMonth] || 0;
+        const previous = focusMonth > 0 ? row.amounts[focusMonth - 1] || 0 : 0;
+        return {
+          key: row.key,
+          name: row.name,
+          focus,
+          previous,
+          total: row.yearTotal,
+          share: focusTotal > 0 ? (focus / focusTotal) * 100 : 0,
+          delta: focus - previous,
+        };
+      })
+      .filter((row) => row.focus > 0 || row.total > 0)
+      .sort((a, b) => b.focus - a.focus || b.total - a.total)
+      .slice(0, 8);
+  }, [data.payeeRows, focusMonth]);
+
+  if (rows.length === 0) return <EmptyState label="No payee data" />;
+
+  const maxAmount = rows[0]?.focus ?? 0;
+
+  return (
+    <div className="space-y-2.5">
+      {rows.map((row) => {
+        const barWidth = maxAmount > 0 ? (row.focus / maxAmount) * 100 : 0;
+        const hasDelta = row.previous > 0;
+        const deltaPositive = row.delta > 0;
+
+        return (
+          <div key={row.key} className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="inline-block w-2 h-2 rounded-full shrink-0 bg-theme-primary" />
+                <span className="text-sm text-theme-text truncate">
+                  {row.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {hasDelta && row.delta !== 0 && (
+                  <span
+                    className="text-[0.6875rem] font-medium tabular-nums"
+                    style={{
+                      color: deltaPositive ? colors.danger : colors.success,
+                    }}
+                  >
+                    {deltaPositive ? "+" : "−"}
+                    {formatAmount(Math.abs(row.delta))}
+                  </span>
+                )}
+                <span className="text-xs text-theme-muted tabular-nums w-8 text-right">
+                  {row.share.toFixed(0)}%
+                </span>
+                <span className="text-sm font-medium text-theme-text tabular-nums w-20 text-right">
+                  {formatAmount(row.focus)}
+                </span>
+              </div>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-theme-background overflow-hidden">
+              <div
+                className="h-full rounded-full bg-theme-primary transition-all duration-500"
+                style={{ width: `${barWidth}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ── Empty State ──────────────────────────────────────────────────────────────
 
 const EmptyState = ({ label }: { label: string }) => {
@@ -1150,18 +1412,72 @@ const EmptyState = ({ label }: { label: string }) => {
 
 const ChartCard = ({
   title,
+  headerAction,
   children,
 }: {
   title: string;
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
 }) => {
   return (
     <div className="rounded-theme-large bg-theme-surface shadow-sm p-4">
-      <h3 className="text-sm font-semibold text-theme-text mb-3">{title}</h3>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
+        {headerAction}
+      </div>
       {children}
     </div>
   );
 };
+
+const ViewToggle = ({
+  isViz,
+  onToggle,
+}: {
+  isViz: boolean;
+  onToggle: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    className="flex items-center gap-1 rounded-theme-small border border-theme-border px-2 py-1 text-[0.6875rem] font-medium text-theme-muted hover:text-theme-text hover:border-theme-text transition-colors"
+    aria-label={isViz ? "Switch to table view" : "Switch to chart view"}
+  >
+    {isViz ? (
+      <>
+        <svg
+          className="w-3 h-3"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <rect x="1" y="1" width="14" height="14" rx="1" />
+          <line x1="1" y1="5" x2="15" y2="5" />
+          <line x1="1" y1="9" x2="15" y2="9" />
+          <line x1="1" y1="13" x2="15" y2="13" />
+          <line x1="5" y1="1" x2="5" y2="15" />
+        </svg>
+        Table
+      </>
+    ) : (
+      <>
+        <svg
+          className="w-3 h-3"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <rect x="1" y="6" width="3" height="9" />
+          <rect x="6" y="3" width="3" height="12" />
+          <rect x="11" y="1" width="3" height="14" />
+        </svg>
+        Chart
+      </>
+    )}
+  </button>
+);
 
 // ── Year View Layout ─────────────────────────────────────────────────────────
 
@@ -1169,60 +1485,57 @@ interface ViewProps {
   data: AnalyticsData;
   colors: ThemeColors;
   monthCount: number;
+  formatAmount: (n: number) => string;
 }
 
-const YearView = ({ data, colors, monthCount }: ViewProps) => {
+const YearView = ({ data, colors, monthCount, formatAmount }: ViewProps) => {
+  const [trendViz, setTrendViz] = useState(true);
+  const [catViz, setCatViz] = useState(true);
+  const [payeeViz, setPayeeViz] = useState(true);
+
   return (
     <div className="space-y-4">
-      {/* Row 1: Monthly Trend (full width) */}
-      <ChartCard title="Monthly Spending Trend">
-        <MonthlyTrendChart
-          data={data}
-          colors={colors}
-          monthCount={monthCount}
-        />
-      </ChartCard>
-
-      {/* Row 2: Monthly comparison + category movement (2-col on desktop) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title="Monthly Comparison">
+      {/* Row 1: Monthly Spending (stacked bar + income line, toggles to table) */}
+      <ChartCard
+        title="Monthly Spending"
+        headerAction={
+          <ViewToggle isViz={trendViz} onToggle={() => setTrendViz((v) => !v)} />
+        }
+      >
+        {trendViz ? (
+          <MonthlyStackedChart data={data} colors={colors} monthCount={monthCount} />
+        ) : (
           <MonthlyComparisonTable data={data} monthCount={monthCount} />
-        </ChartCard>
-        <ChartCard title="Category Movement">
-          <RankedCategoryTable
-            data={data}
-            focusMonth={getFocusMonthIndex(monthCount, null)}
-            focusLabel="Latest visible month"
-          />
-        </ChartCard>
-      </div>
-
-      {/* Row 3: Payee concentration + savings health (2-col on desktop) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title="Payee Concentration">
-          <RankedPayeeTable
-            data={data}
-            focusMonth={getFocusMonthIndex(monthCount, null)}
-            focusLabel="Latest visible month"
-          />
-        </ChartCard>
-        <ChartCard title="Savings and Budget Health">
-          <SavingsHealthTable
-            data={data}
-            monthCount={monthCount}
-            selectedMonth={null}
-          />
-        </ChartCard>
-      </div>
-
-      {/* Row 4: Fixed expense stability (full width) */}
-      <ChartCard title="Fixed Expense Stability">
-        <FixedStabilityTable
-          data={data}
-          monthCount={monthCount}
-          selectedMonth={null}
-        />
+        )}
       </ChartCard>
+
+      {/* Row 2: Category movement + Payee concentration (2-col on desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartCard
+          title="Category Movement"
+          headerAction={
+            <ViewToggle isViz={catViz} onToggle={() => setCatViz((v) => !v)} />
+          }
+        >
+          {catViz ? (
+            <RankedCategoryViz data={data} focusMonth={null} colors={colors} formatAmount={formatAmount} />
+          ) : (
+            <RankedCategoryTable data={data} focusMonth={null} focusLabel="Year total" />
+          )}
+        </ChartCard>
+        <ChartCard
+          title="Payee Concentration"
+          headerAction={
+            <ViewToggle isViz={payeeViz} onToggle={() => setPayeeViz((v) => !v)} />
+          }
+        >
+          {payeeViz ? (
+            <RankedPayeeViz data={data} focusMonth={null} colors={colors} formatAmount={formatAmount} />
+          ) : (
+            <RankedPayeeTable data={data} focusMonth={null} focusLabel="Year total" />
+          )}
+        </ChartCard>
+      </div>
     </div>
   );
 };
@@ -1234,6 +1547,7 @@ interface MonthViewProps {
   multiYearData: AnalyticsData[];
   colors: ThemeColors;
   selectedMonth: number;
+  formatAmount: (n: number) => string;
 }
 
 const MonthView = ({
@@ -1241,10 +1555,14 @@ const MonthView = ({
   multiYearData,
   colors,
   selectedMonth,
+  formatAmount,
 }: MonthViewProps) => {
+  const [catViz, setCatViz] = useState(true);
+  const [payeeViz, setPayeeViz] = useState(true);
+
   return (
     <div className="space-y-4">
-      {/* Row 3: Year over Year */}
+      {/* Year over Year */}
       <ChartCard title={`${MONTHS[selectedMonth]} Year over Year`}>
         <YearOverYearChart
           multiYearData={multiYearData}
@@ -1254,39 +1572,52 @@ const MonthView = ({
         />
       </ChartCard>
 
-      {/* Row 4: Category movement + payee concentration (2-col on desktop) */}
+      {/* Category movement + payee concentration (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title={`${MONTHS[selectedMonth]} Category Movement`}>
-          <RankedCategoryTable
-            data={data}
-            focusMonth={selectedMonth}
-            focusLabel={`${MONTHS[selectedMonth]} focus`}
-          />
+        <ChartCard
+          title={`${MONTHS[selectedMonth]} Category Movement`}
+          headerAction={
+            <ViewToggle isViz={catViz} onToggle={() => setCatViz((v) => !v)} />
+          }
+        >
+          {catViz ? (
+            <RankedCategoryViz
+              data={data}
+              focusMonth={selectedMonth}
+              colors={colors}
+              formatAmount={formatAmount}
+            />
+          ) : (
+            <RankedCategoryTable
+              data={data}
+              focusMonth={selectedMonth}
+              focusLabel={`${MONTHS[selectedMonth]} focus`}
+            />
+          )}
         </ChartCard>
-        <ChartCard title={`${MONTHS[selectedMonth]} Payee Concentration`}>
-          <RankedPayeeTable
-            data={data}
-            focusMonth={selectedMonth}
-            focusLabel={`${MONTHS[selectedMonth]} focus`}
-          />
-        </ChartCard>
-      </div>
-
-      {/* Row 5: Savings health + fixed stability (2-col on desktop) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title={`${MONTHS[selectedMonth]} Savings and Budget Health`}>
-          <SavingsHealthTable
-            data={data}
-            monthCount={0}
-            selectedMonth={selectedMonth}
-          />
-        </ChartCard>
-        <ChartCard title={`${MONTHS[selectedMonth]} Fixed Expense Stability`}>
-          <FixedStabilityTable
-            data={data}
-            monthCount={0}
-            selectedMonth={selectedMonth}
-          />
+        <ChartCard
+          title={`${MONTHS[selectedMonth]} Payee Concentration`}
+          headerAction={
+            <ViewToggle
+              isViz={payeeViz}
+              onToggle={() => setPayeeViz((v) => !v)}
+            />
+          }
+        >
+          {payeeViz ? (
+            <RankedPayeeViz
+              data={data}
+              focusMonth={selectedMonth}
+              colors={colors}
+              formatAmount={formatAmount}
+            />
+          ) : (
+            <RankedPayeeTable
+              data={data}
+              focusMonth={selectedMonth}
+              focusLabel={`${MONTHS[selectedMonth]} focus`}
+            />
+          )}
         </ChartCard>
       </div>
     </div>
@@ -1313,18 +1644,25 @@ export default function AnalyticsCharts({
   selectedMonth,
 }: AnalyticsChartsProps) {
   const colors = useThemeColors();
+  const { formatAmount } = useSettings();
   const monthCount = getMonthCount(year, currentYear, currentMonth);
 
   return (
     <div className="space-y-4 p-4 md:p-5">
       {selectedMonth === null ? (
-        <YearView data={data} colors={colors} monthCount={monthCount} />
+        <YearView
+          data={data}
+          colors={colors}
+          monthCount={monthCount}
+          formatAmount={formatAmount}
+        />
       ) : (
         <MonthView
           data={data}
           multiYearData={multiYearData}
           colors={colors}
           selectedMonth={selectedMonth}
+          formatAmount={formatAmount}
         />
       )}
     </div>
