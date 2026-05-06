@@ -1,9 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import { expect, resetAppState } from "./helpers";
+
+const CSV_IMPORT_SAMPLE = [
+  "date,amount,category,description",
+  "2026-04-03,12.45,Food,Coffee shop",
+  "2026-04-08,84.10,Transportation,Train pass",
+].join("\n");
 
 test.describe("Settings — mobile", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/settings");
-    await page.getByTestId("settings-page").waitFor({ timeout: 15000 });
+    await resetAppState(page, { route: "/settings" });
   });
 
   test("settings page renders", async ({ page }) => {
@@ -39,5 +45,46 @@ test.describe("Settings — mobile", () => {
 
     await page.getByTestId("btn-add-schedule").scrollIntoViewIfNeeded();
     await expect(page.getByTestId("btn-add-schedule")).toBeVisible();
+  });
+
+  test("csv import follow-up can be dismissed with guidance to reopen it later", async ({ page }) => {
+    await page
+      .locator("input[type='file'][accept='.csv']")
+      .setInputFiles({
+        name: "transactions.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(CSV_IMPORT_SAMPLE, "utf-8"),
+      });
+
+    const reviewDialog = page.getByRole("dialog", { name: "Review Import" });
+    await expect(reviewDialog).toBeVisible();
+    await reviewDialog.getByTestId("btn-import-confirm").click();
+
+    const followUp = page.getByRole("dialog", { name: "Complete Imported Months" });
+    await expect(followUp).toBeVisible();
+    await followUp.getByRole("button", { name: "Later" }).click();
+
+    await expect(followUp).not.toBeVisible({ timeout: 5000 });
+  });
+
+  test("csv import follow-up can open the historical data editor on mobile", async ({ page }) => {
+    await page
+      .locator("input[type='file'][accept='.csv']")
+      .setInputFiles({
+        name: "transactions.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(CSV_IMPORT_SAMPLE, "utf-8"),
+      });
+
+    const reviewDialog = page.getByRole("dialog", { name: "Review Import" });
+    await expect(reviewDialog).toBeVisible();
+    await reviewDialog.getByTestId("btn-import-confirm").click();
+
+    const followUp = page.getByRole("dialog", { name: "Complete Imported Months" });
+    await expect(followUp).toBeVisible();
+    await followUp.getByRole("button", { name: "Review Historical Data" }).click();
+
+    await expect(followUp).not.toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("dialog", { name: "Edit Historical Data" })).toBeVisible();
   });
 });

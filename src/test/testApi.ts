@@ -35,6 +35,11 @@ const testApi = {
   getCategories: () => StorageService.getCategories(),
   getPayees: () => StorageService.getPayees(),
   getAllExpenses: () => StorageService.getAll(),
+  getAllIncomeSnapshots: () => StorageService.getAllIncomeSnapshots(),
+  getAllSavingsSnapshots: () => StorageService.getAllSavingsSnapshots(),
+  getAllFixedExpenseSnapshots: () => StorageService.getAllFixedExpenseSnapshots(),
+  addCategory: (name: string) => StorageService.addCategory(name),
+  addPayee: (name: string) => StorageService.addPayee(name),
   addFixedExpense: (item: { name: string; amount: number }) =>
     StorageService.addFixedExpense(item),
   setSetting: (key: string, value: unknown) =>

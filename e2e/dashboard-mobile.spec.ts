@@ -1,6 +1,7 @@
 import { test } from "@playwright/test";
 import {
   expect,
+  longPressElement,
   openMobileSecondaryNav,
   resetAppState,
 } from "./helpers";
@@ -64,5 +65,42 @@ test.describe("Dashboard — mobile", () => {
     await page.getByTestId("view-tab-expenses").first().click();
     const expenseRows = page.locator("[data-testid^='expense-row-mobile-']");
     await expect(expenseRows).toHaveCount(3);
+  });
+
+  test("bulk delete from the mobile selection banner can be undone", async ({ page }) => {
+    await resetAppState(page, {
+      expenses: [
+        { date: "2026-05-01", amount: 10.0, description: "Coffee" },
+        { date: "2026-05-02", amount: 25.0, description: "Lunch" },
+        { date: "2026-05-03", amount: 5.0, description: "Snack" },
+      ],
+    });
+
+    await page.getByTestId("view-tab-expenses").first().click();
+    await longPressElement(page, "[data-testid^='expense-row-mobile-']");
+
+    const banner = page.getByTestId("selection-banner");
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText("1 selected");
+
+    await page.locator("[data-testid^='expense-row-mobile-']").nth(1).click();
+    await expect(banner).toContainText("2 selected");
+
+    await page.getByTestId("btn-selection-menu").click();
+    await page.getByTestId("btn-delete-selection").click();
+
+    const confirmDialog = page.getByRole("dialog", { name: "Confirm Delete" });
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole("button", { name: "Delete" }).click();
+
+    const expenseRows = page.locator("[data-testid^='expense-row-mobile-']");
+    await expect(expenseRows).toHaveCount(1);
+    await expect(page.getByText("Deleted 2 expenses.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Undo" }).click();
+
+    await expect(expenseRows).toHaveCount(3);
+    await expect(expenseRows.filter({ hasText: "Coffee" })).toHaveCount(1);
+    await expect(expenseRows.filter({ hasText: "Lunch" })).toHaveCount(1);
   });
 });

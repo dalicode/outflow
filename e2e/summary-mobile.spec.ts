@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import { expect, resetAppState } from "./helpers";
 
 async function navigateToPage(page: import("@playwright/test").Page, path: string) {
   // On mobile, nav links may be in collapsed bottom navigation.
@@ -12,8 +13,7 @@ async function navigateToPage(page: import("@playwright/test").Page, path: strin
 
 test.describe("Summary/Budget — mobile", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
+    await resetAppState(page, { route: "/summary" });
   });
 
   test("navigate to summary page via URL", async ({ page }) => {
@@ -22,7 +22,6 @@ test.describe("Summary/Budget — mobile", () => {
   });
 
   test("open income modal from summary", async ({ page }) => {
-    await page.goto("/summary");
     await expect(page.getByTestId("summary-page")).toBeVisible();
 
     await page.getByTestId("btn-open-income-modal").click();
@@ -30,7 +29,6 @@ test.describe("Summary/Budget — mobile", () => {
   });
 
 test("set income — modal opens and saves", async ({ page }) => {
-    await page.goto("/summary");
     await expect(page.getByTestId("summary-page")).toBeVisible();
 
     // Open income modal
@@ -54,15 +52,30 @@ test("set income — modal opens and saves", async ({ page }) => {
   });
 
   test("open savings modal from summary", async ({ page }) => {
-    await page.goto("/summary");
     await expect(page.getByTestId("summary-page")).toBeVisible();
 
     await page.getByTestId("btn-open-savings-modal").click();
     await expect(page.getByRole("dialog", { name: "Edit Auto Savings" })).toBeVisible();
   });
 
+  test("set savings rate and show the saved monthly amount", async ({ page }) => {
+    await page.getByTestId("btn-open-income-modal").click();
+    await page.locator('#income-modal-form input[type="number"]').fill("5000");
+    await page.getByTestId("btn-save-income").click();
+
+    await page.getByTestId("btn-open-savings-modal").click();
+    const dialog = page.getByRole("dialog", { name: "Edit Auto Savings" });
+    await expect(dialog).toBeVisible();
+
+    await page.locator('#savings-modal-form input[type="number"]').nth(1).fill("20");
+    await page.getByTestId("btn-save-savings").click();
+
+    await expect(dialog).not.toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId("btn-open-savings-modal")).toContainText(/20\.0+%/);
+    await expect(page.getByTestId("btn-open-savings-modal")).toContainText("$1,000.00");
+  });
+
   test("add a fixed expense — modal opens with fields", async ({ page }) => {
-    await page.goto("/summary");
     await expect(page.getByTestId("summary-page")).toBeVisible();
 
     // Click add fixed expense
@@ -82,5 +95,22 @@ test("set income — modal opens and saves", async ({ page }) => {
 
     // Verify Add button exists
     await expect(dialog.locator("button", { hasText: "Add" })).toBeVisible();
+  });
+
+  test("add a fixed expense and show it in the budget list", async ({ page }) => {
+    await page.getByTestId("btn-add-fixed-expense").click();
+    const dialog = page.getByRole("dialog", { name: "Add Fixed Expense" });
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByRole("textbox", { name: "Name" }).fill("Rent");
+    const amountInput = dialog.locator('[aria-label="Amount"]');
+    await amountInput.click();
+    await amountInput.pressSequentially("120000");
+    await expect(amountInput).toHaveValue(/\$1,200\.00/);
+    await dialog.getByRole("button", { name: "Add" }).click();
+
+    const fixedExpenseRow = page.locator("li").filter({ hasText: "Rent" });
+    await expect(fixedExpenseRow).toBeVisible();
+    await expect(fixedExpenseRow.getByText("$1,200.00")).toBeVisible();
   });
 });

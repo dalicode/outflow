@@ -53,6 +53,26 @@ export async function seedSettings(
   }, settings);
 }
 
+export async function addCategory(page: Page, name: string): Promise<number> {
+  return page.evaluate(async (categoryName) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.addCategory(categoryName);
+  }, name);
+}
+
+export async function addPayee(page: Page, name: string): Promise<number> {
+  return page.evaluate(async (payeeName) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.addPayee(payeeName);
+  }, name);
+}
+
 export async function exportAllData(page: Page): Promise<Record<string, unknown>> {
   return page.evaluate(async () => {
     const api = (window as Window & {
@@ -87,6 +107,66 @@ export async function getCategories(page: Page): Promise<Array<{ id?: number; na
     }).outflowTestApi;
     if (!api) throw new Error("outflowTestApi not found");
     return api.getCategories();
+  });
+}
+
+export async function getAllExpenses(
+  page: Page,
+): Promise<Array<{ id?: number; date: string; amount: number; description?: string }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getAllExpenses();
+  });
+}
+
+export async function getPayees(
+  page: Page,
+): Promise<Array<{ id?: number; name: string; isArchived?: boolean; mergedIntoPayeeId?: number | null }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getPayees();
+  });
+}
+
+export async function getIncomeSnapshots(
+  page: Page,
+): Promise<Array<{ year: number; month: number; amountSnapshot: number }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getAllIncomeSnapshots();
+  });
+}
+
+export async function getSavingsSnapshots(
+  page: Page,
+): Promise<Array<{ year: number; month: number; rateSnapshot: number }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getAllSavingsSnapshots();
+  });
+}
+
+export async function getFixedExpenseSnapshots(
+  page: Page,
+): Promise<Array<{ year: number; month: number; amountSnapshot: number; nameSnapshot: string }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getAllFixedExpenseSnapshots();
   });
 }
 
@@ -179,6 +259,41 @@ export async function openMobileSecondaryNav(page: Page): Promise<void> {
   await expect(
     page.locator(".mobile-nav-row-secondary").getByTestId("nav-analytics"),
   ).toBeVisible({ timeout: 2000 });
+}
+
+export async function longPressElement(
+  page: Page,
+  selector: string,
+  durationMs = 650,
+): Promise<void> {
+  const locator = page.locator(selector).first();
+  const box = await locator.boundingBox();
+  if (!box) {
+    throw new Error(`Element for long press is not measurable: ${selector}`);
+  }
+
+  const clientX = Math.round(box.x + box.width / 2);
+  const clientY = Math.round(box.y + box.height / 2);
+
+  const touchPayload = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    touches: [{ identifier: 1, clientX, clientY }],
+    targetTouches: [{ identifier: 1, clientX, clientY }],
+    changedTouches: [{ identifier: 1, clientX, clientY }],
+  };
+
+  await locator.dispatchEvent("touchstart", touchPayload);
+  await page.waitForTimeout(durationMs);
+  await locator.dispatchEvent("touchend", {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    touches: [],
+    targetTouches: [],
+    changedTouches: [{ identifier: 1, clientX, clientY }],
+  });
 }
 
 export { expect };
