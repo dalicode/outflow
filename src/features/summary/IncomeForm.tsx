@@ -42,6 +42,7 @@ export default function IncomeForm({
       <button
         type="button"
         onClick={() => setShowModal(true)}
+        data-testid="btn-open-income-modal"
         className="w-full text-left group"
         aria-label="Edit income"
       >

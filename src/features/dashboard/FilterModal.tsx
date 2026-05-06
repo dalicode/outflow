@@ -419,11 +419,12 @@ export default function FilterModal({
         <ModalFooter>
           <button
             onClick={handleClearAll}
+            data-testid="btn-clear-all-filters"
             className="btn-cancel-sm flex-1"
           >
             Clear all
           </button>
-          <button onClick={handleDone} className="btn-modal-primary flex-1">
+          <button onClick={handleDone} data-testid="btn-apply-filters" className="btn-modal-primary flex-1">
             Done
           </button>
         </ModalFooter>

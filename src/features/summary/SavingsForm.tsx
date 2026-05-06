@@ -25,6 +25,7 @@ export default function SavingsForm({
       <button
         type="button"
         onClick={() => setShowModal(true)}
+        data-testid="btn-open-savings-modal"
         className="w-full text-left group"
         aria-label="Edit savings goal"
       >

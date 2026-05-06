@@ -276,6 +276,7 @@ export default function BackupSection({
           <div className="flex gap-2">
             <button
               onClick={handleBackupExport}
+              data-testid="btn-export-backup"
               className="settings-action-btn"
             >
               Export Backup
@@ -305,7 +306,7 @@ export default function BackupSection({
               onChange={handleBackupImport}
               className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
             />
-            <span className="settings-action-btn shrink-0">
+            <span className="settings-action-btn shrink-0" data-testid="btn-import-backup">
               Choose File
             </span>
           </label>

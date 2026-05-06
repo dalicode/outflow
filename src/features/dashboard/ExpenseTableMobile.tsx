@@ -61,8 +61,9 @@ export default function ExpenseTableMobile({
             return (
               <div
                 key={exp.id}
+                data-testid={`expense-row-mobile-${exp.id}`}
                 className={cn(
-                  "grid items-center gap-x-3 py-1 px-3",
+                  "grid items-center gap-x-3 py-1 px-3 expense-row-mobile",
                   isSelected && "selected-row border-l-4 border-theme-primary",
                   "row-hover",
                 )}

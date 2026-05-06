@@ -97,7 +97,7 @@ export default function PayeesPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="payees-page">
         <h1 className="text-xl font-bold text-theme-text">Payees</h1>
 
         {/* Search + Add */}
@@ -123,6 +123,7 @@ export default function PayeesPage() {
             <button
               onClick={handleAdd}
               disabled={!newName.trim()}
+              data-testid="btn-add-payee"
               className="bg-theme-primary hover:opacity-90 disabled:opacity-40 text-white text-xs font-medium px-4 py-2 rounded-theme-small transition-opacity whitespace-nowrap"
             >
               Add
@@ -137,6 +138,7 @@ export default function PayeesPage() {
           {filteredPayees.map((payee) => (
             <div
               key={payee.id}
+              data-testid={`payee-row-${payee.id}`}
               className="flex items-center justify-between py-2 px-3 rounded-theme-small border-b border-theme-border hover:bg-theme-background transition-colors"
             >
               {editingId === payee.id ? (
@@ -170,6 +172,7 @@ export default function PayeesPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => startEdit(payee)}
+                      data-testid={`btn-edit-payee-${payee.id}`}
                       className="text-xs text-theme-primary hover:opacity-80 font-medium"
                     >
                       Edit
@@ -184,6 +187,7 @@ export default function PayeesPage() {
                     )}
                     <button
                       onClick={() => setDeleteTarget(payee)}
+                      data-testid={`btn-delete-payee-${payee.id}`}
                       className="text-xs text-theme-danger hover:opacity-80"
                     >
                       Delete

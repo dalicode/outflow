@@ -42,6 +42,7 @@ export default function DashboardViewTabs({
           <div className="flex gap-0.5">
             <button
               onClick={onSwitchToCategories}
+              data-testid="view-tab-categories"
               className={cn(
                 "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
                 "motion-safe:active:scale-[0.98]",
@@ -54,6 +55,7 @@ export default function DashboardViewTabs({
             </button>
             <button
               onClick={onSwitchToPayees}
+              data-testid="view-tab-payees"
               className={cn(
                 "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
                 "motion-safe:active:scale-[0.98]",
@@ -66,6 +68,7 @@ export default function DashboardViewTabs({
             </button>
             <button
               onClick={onSwitchToExpenses}
+              data-testid="view-tab-expenses"
               className={cn(
                 "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
                 "motion-safe:active:scale-[0.98]",
@@ -78,6 +81,7 @@ export default function DashboardViewTabs({
             </button>
           </div>
           <button
+            data-testid="btn-open-filters"
             className={cn(
               "text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-[background-color,color,transform,box-shadow] duration-150 flex items-center gap-1.5",
               "motion-safe:active:scale-[0.98]",

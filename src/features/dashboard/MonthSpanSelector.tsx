@@ -28,6 +28,7 @@ export default function MonthSpanSelector({
             <button
               key={n}
               onClick={() => onSpanChange(n)}
+              data-testid={`span-${n}m`}
               className={cn(
                 "dashboard-tab motion-safe:active:scale-[0.98]",
                 monthSpan === n && "dashboard-tab-active",

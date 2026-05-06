@@ -159,7 +159,7 @@ export default function SettingsPage({
   }, [editHistoricalDataYears, expenses]);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="settings-page">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-theme-text tracking-tight">
@@ -354,6 +354,7 @@ export default function SettingsPage({
         </p>
         <button
           onClick={() => setIsHistoricalDataModalOpen(true)}
+          data-testid="btn-open-historical-data"
           className="settings-action-btn"
         >
           Edit Historical Data
@@ -421,7 +422,7 @@ export default function SettingsPage({
           onEdit={handleEditSchedule}
           onDelete={deleteSchedule}
         />
-        <button onClick={handleAddSchedule} className="settings-action-btn">
+        <button onClick={handleAddSchedule} data-testid="btn-add-schedule" className="settings-action-btn">
           + Add Schedule
         </button>
       </Card>

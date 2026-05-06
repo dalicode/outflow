@@ -86,13 +86,13 @@ export default function SavingsModalForm({
           <button type="button" onClick={onClose} className="btn-cancel-sm flex-1">
             Cancel
           </button>
-          <button type="submit" form="savings-modal-form" className="btn-modal-primary flex-1">
+          <button type="submit" form="savings-modal-form" data-testid="btn-save-savings" className="btn-modal-primary flex-1">
             Save
           </button>
         </ModalFooter>
       }
     >
-      <form id="savings-modal-form" onSubmit={submit} className="space-y-4">
+      <form id="savings-modal-form" onSubmit={submit} className="space-y-4" data-testid="savings-form">
         {description && (
           <p className="text-xs text-theme-muted">{description}</p>
         )}

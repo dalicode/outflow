@@ -4,14 +4,18 @@ import { cn } from "../../utils/cn";
 interface MobileSelectionBannerProps {
   count: number;
   onEdit: () => void;
+  onCopy: () => void;
   onDelete: () => void;
+  onSelectAll: () => void;
   onDeselectAll: () => void;
 }
 
 export default function MobileSelectionBanner({
   count,
   onEdit,
+  onCopy,
   onDelete,
+  onSelectAll,
   onDeselectAll,
 }: MobileSelectionBannerProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,7 +33,7 @@ export default function MobileSelectionBanner({
   }, [menuOpen]);
 
   return (
-    <div className="mobile-banner">
+    <div className="mobile-banner" data-testid="selection-banner">
       <span className="text-sm font-semibold text-theme-text">
         {count} selected
       </span>
@@ -37,6 +41,7 @@ export default function MobileSelectionBanner({
       <div className="flex items-center gap-3">
         <button
           onClick={onEdit}
+          data-testid="btn-edit-selection"
           className={cn(
             "text-sm font-medium px-3 py-1.5 rounded-theme-medium transition-colors",
             "text-theme-primary hover:bg-theme-primary-subtle",
@@ -48,6 +53,7 @@ export default function MobileSelectionBanner({
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((p) => !p)}
+            data-testid="btn-selection-menu"
             className="p-2 rounded-theme-medium hover:bg-theme-background transition-colors"
             aria-label="More options"
           >
@@ -71,24 +77,46 @@ export default function MobileSelectionBanner({
                 bottom: "calc(100% + 8px)",
               }}
             >
-              <button
-                className="context-menu-item w-full text-left context-menu-item-danger"
-                onClick={() => {
-                  onDelete();
-                  setMenuOpen(false);
-                }}
-              >
-                Delete
-              </button>
-              <button
-                className="context-menu-item w-full text-left"
-                onClick={() => {
-                  onDeselectAll();
-                  setMenuOpen(false);
-                }}
-              >
-                Deselect all
-              </button>
+<button
+                  className="context-menu-item w-full text-left"
+                  data-testid="btn-copy-selection"
+                  onClick={() => {
+                    onCopy();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Copy
+                </button>
+                <button
+                  className="context-menu-item w-full text-left context-menu-item-danger"
+                  data-testid="btn-delete-selection"
+                  onClick={() => {
+                    onDelete();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  className="context-menu-item w-full text-left"
+                  data-testid="btn-select-all"
+                  onClick={() => {
+                    onSelectAll();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Select all
+                </button>
+                <button
+                  className="context-menu-item w-full text-left"
+                  data-testid="btn-deselect-all"
+                  onClick={() => {
+                    onDeselectAll();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Deselect all
+                </button>
             </div>
           )}
         </div>

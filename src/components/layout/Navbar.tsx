@@ -414,6 +414,7 @@ export default function Navbar({
         to={basePath}
         end
         aria-label={label}
+        data-testid={`nav-${pageKey}`}
         onClick={(e) => handleNavLinkClick(pageKey, e)}
         className={({ isActive }) =>
           cn(
@@ -623,6 +624,7 @@ export default function Navbar({
                 key={pageKey}
                 to={basePath}
                 end
+                data-testid={`nav-${pageKey}`}
                 onClick={(e) => handleNavLinkClick(pageKey, e)}
                 className={cn(
                   "flex items-center rounded-theme-medium nav-item-hover",
@@ -651,6 +653,7 @@ export default function Navbar({
               haptics.selection();
               onAddExpense(e);
             }}
+            data-testid="btn-add-expense"
             className={cn(
               "w-full flex items-center rounded-theme-medium text-theme-primary nav-item-hover hover:bg-theme-primary-subtle active:scale-95",
               collapsed
@@ -758,6 +761,7 @@ export default function Navbar({
                   haptics.selection();
                   onAddExpense(e);
                 }}
+                data-testid="btn-add-expense"
                 className={cn(
                   "mobile-add-btn",
                   isMobileNavHidden && "opacity-0",

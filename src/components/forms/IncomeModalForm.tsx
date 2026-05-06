@@ -101,13 +101,13 @@ export default function IncomeModalForm({
           <button type="button" onClick={onClose} className="btn-cancel-sm flex-1">
             Cancel
           </button>
-          <button type="submit" form="income-modal-form" className="btn-modal-primary flex-1">
+          <button type="submit" form="income-modal-form" data-testid="btn-save-income" className="btn-modal-primary flex-1">
             Save
           </button>
         </ModalFooter>
       }
     >
-      <form id="income-modal-form" onSubmit={submit} className="space-y-4">
+      <form id="income-modal-form" onSubmit={submit} className="space-y-4" data-testid="income-form">
         {description && (
           <p className="text-xs text-theme-muted">{description}</p>
         )}

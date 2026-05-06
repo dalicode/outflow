@@ -1255,6 +1255,7 @@ export default function ExpenseForm({
             <button
               type="submit"
               form="expense-form"
+              data-testid="btn-save-expense"
               className="btn-save-expense min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem] motion-safe:active:scale-[0.98]"
             >
               {isEdit ? "Save Changes" : "Save Expense"}
@@ -1262,7 +1263,7 @@ export default function ExpenseForm({
           </ModalFooter>
         }
       >
-        <form id="expense-form" onSubmit={submit} className="space-y-4">
+        <form id="expense-form" onSubmit={submit} className="space-y-4" data-testid="expense-form">
           {error && <p className="text-theme-danger text-sm">{error}</p>}
           <div className="flex flex-col gap-1 text-sm text-theme-muted">
             <span>Date</span>
@@ -1308,7 +1309,7 @@ export default function ExpenseForm({
               />
             </div>
             {/* Mobile */}
-            <div className="block sm:hidden">
+            <div className="block sm:hidden" data-testid="mobile-payee-trigger">
               <SingleSelectTrigger
                 value={selectedPayeeName}
                 placeholder="Select payee"
@@ -1379,7 +1380,7 @@ export default function ExpenseForm({
               />
             </div>
             {/* Mobile */}
-            <div className="block sm:hidden">
+            <div className="block sm:hidden" data-testid="mobile-category-trigger">
               <SingleSelectTrigger
                 value={selectedCategoryName}
                 placeholder="Select category"

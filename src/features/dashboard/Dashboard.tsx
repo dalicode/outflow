@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect } from "react";
+import { useMemo, useCallback, useEffect, useRef } from "react";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
 import Modal from "../../components/ui/Modal";
@@ -19,6 +19,7 @@ import MonthSpanSelector from "./MonthSpanSelector";
 import DashboardMonthStrip from "./DashboardMonthStrip";
 import DashboardViewTabs from "./DashboardViewTabs";
 import ExpensesView from "./ExpensesView";
+import type { ExpenseTableHandle } from "./ExpenseTable";
 import FilterModal from "./FilterModal";
 import CategoryViewTable from "./CategoryViewTable";
 import CategoryDrilldown from "./CategoryDrilldown";
@@ -137,19 +138,32 @@ export default function Dashboard({
     [dash.monthSummaries],
   );
 
+  const expenseTableRef = useRef<ExpenseTableHandle>(null);
+
   const triggerMobileEdit = useCallback(() => {
-    const id = Array.from(dash.selectedIds)[0];
-    if (id != null) {
-      dash.setMobileEditTrigger(id);
-      requestAnimationFrame(() => dash.setMobileEditTrigger(null));
+    if (dash.selectedIds.size > 1) {
+      expenseTableRef.current?.handleEditRequest(Array.from(dash.selectedIds));
+    } else {
+      const id = Array.from(dash.selectedIds)[0];
+      if (id != null) {
+        dash.setMobileEditTrigger(id);
+        requestAnimationFrame(() => dash.setMobileEditTrigger(null));
+      }
     }
   }, [dash.selectedIds, dash.setMobileEditTrigger]);
+
+  const handleMobileCopy = useCallback(() => {
+    const ids = Array.from(dash.selectedIds);
+    if (ids.length > 0) {
+      expenseTableRef.current?.handleCopyRequest(ids);
+    }
+  }, [dash.selectedIds]);
 
   // ── Income / Savings modal helpers ──
   const modalMonthKey = dash.monthKeys[dash.modalTargetMonthIndex];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" data-testid="dashboard">
       {/* ── Fixed header ── */}
       <div className="shrink-0">
         <div
@@ -355,6 +369,7 @@ export default function Dashboard({
                 </div>
               ) : (
                 <ExpensesView
+                  ref={expenseTableRef}
                   expenses={dash.filteredExpenses}
                   categories={categories}
                   payees={payees}
@@ -380,7 +395,9 @@ export default function Dashboard({
           <MobileSelectionBanner
             count={dash.selectedIds.size}
             onEdit={triggerMobileEdit}
+            onCopy={handleMobileCopy}
             onDelete={dash.openDeleteConfirmation}
+            onSelectAll={dash.toggleSelectAll}
             onDeselectAll={dash.clearSelection}
           />
         )}

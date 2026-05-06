@@ -34,6 +34,7 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
         </p>
         <button
           onClick={() => setIsClearModalOpen(true)}
+          data-testid="btn-clear-data"
           className="settings-danger-btn"
         >
           Clear All Data

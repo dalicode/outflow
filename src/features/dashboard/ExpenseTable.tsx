@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { useSettings } from "../../context/settingsContext";
+import { useToasts } from "../../context/toastContext";
 import { useContextMenu } from "../../hooks/useContextMenu";
 import { cn } from "../../utils/cn";
 import DataTable from "../../components/ui/DataTable";
@@ -11,6 +12,7 @@ import ExpenseForm from "../expenses/ExpenseForm";
 import { normalizeName } from "../../utils/normalizeName";
 import { getExpenseColumns } from "./expenseColumns";
 import { useExpenseCellEditing } from "./useExpenseCellEditing";
+import { copyExpensesToClipboard } from "../../utils/copyExpenses";
 import type { Expense, Category, Payee } from "../../types";
 
 interface ExpenseTableProps {
@@ -29,7 +31,12 @@ interface ExpenseTableProps {
   refreshPayees?: () => Promise<void>;
 }
 
-export default function ExpenseTable({
+export interface ExpenseTableHandle {
+  handleEditRequest: (ids: number[]) => void;
+  handleCopyRequest: (ids: number[]) => Promise<void>;
+}
+
+const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function ExpenseTable({
   expenses,
   onUpdate,
   onDelete,
@@ -43,8 +50,9 @@ export default function ExpenseTable({
   mobileEditTrigger,
   refreshCategories,
   refreshPayees,
-}: ExpenseTableProps) {
+}: ExpenseTableProps, ref: React.Ref<ExpenseTableHandle>) {
   const { formatAmount, formatDate, settings } = useSettings();
+  const { showToast } = useToasts();
   const {
     menu,
     open: openContextMenu,
@@ -155,6 +163,22 @@ export default function ExpenseTable({
     [expenses, openBulkEditModal, openExpenseEditor],
   );
 
+  const handleCopyRequest = useCallback(
+    async (ids: number[]) => {
+      const selected = expenses.filter((e) => ids.includes(e.id as number));
+      await copyExpensesToClipboard(selected, categories, payees, formatDate, formatAmount);
+      if (!isMobile) {
+        showToast({ message: "Copied to clipboard", tone: "success" });
+      }
+    },
+    [expenses, categories, payees, formatDate, formatAmount, showToast, isMobile],
+  );
+
+  useImperativeHandle(ref, () => ({
+    handleEditRequest,
+    handleCopyRequest,
+  }));
+
   const handleDeleteRequest = useCallback((ids: number[]) => {
     setDeleteTargetIds(ids);
     setShowDeleteConfirm(true);
@@ -198,13 +222,18 @@ export default function ExpenseTable({
     });
 
     items.push({
+      label: isMulti ? `Copy ${ids.length} rows` : "Copy",
+      onClick: () => void handleCopyRequest(ids),
+    });
+
+    items.push({
       label: isMulti ? `Delete ${ids.length} rows` : "Delete",
       onClick: () => handleDeleteRequest(ids),
       danger: true,
     });
 
     return items;
-  }, [menu, selectedIds, handleDeleteRequest, handleEditRequest]);
+  }, [menu, selectedIds, handleDeleteRequest, handleEditRequest, handleCopyRequest]);
 
   const bulkEditExpenses = useMemo(
     () =>
@@ -269,7 +298,7 @@ export default function ExpenseTable({
 
   if (expenses.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12" data-testid="expense-table-empty">
         <p className="text-sm text-theme-muted">
           No expenses yet. Hit <strong className="text-theme-primary">+</strong>{" "}
           to add one.
@@ -279,7 +308,7 @@ export default function ExpenseTable({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="expense-table">
       {isMobile ? (
         <ExpenseTableMobile
           expenses={expenses}
@@ -355,4 +384,6 @@ export default function ExpenseTable({
       )}
     </div>
   );
-}
+});
+
+export default ExpenseTable;

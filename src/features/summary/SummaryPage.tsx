@@ -31,7 +31,7 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
   const incomeIsSet = parseFloat(String(incomeRaw || 0)) > 0;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
+    <main className="mx-auto max-w-7xl px-4 py-6 space-y-6" data-testid="summary-page">
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">
         Budget
       </h1>

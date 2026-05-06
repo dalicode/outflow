@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { cn } from "../../utils/cn";
 import ExpenseTable from "./ExpenseTable";
 import type { Expense, Category, Payee } from "../../types";
@@ -19,7 +20,7 @@ interface ExpensesViewProps {
   refreshPayees?: () => Promise<void>;
 }
 
-export default function ExpensesView({
+const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, ExpensesViewProps>(function ExpensesView({
   expenses,
   categories,
   payees,
@@ -34,7 +35,7 @@ export default function ExpensesView({
   viewAnimation,
   refreshCategories,
   refreshPayees,
-}: ExpensesViewProps) {
+}, ref) {
   return (
     <div
       className={cn(
@@ -43,6 +44,7 @@ export default function ExpensesView({
       )}
     >
       <ExpenseTable
+        ref={ref}
         expenses={expenses}
         onUpdate={onUpdate}
         onDelete={onDelete}
@@ -59,4 +61,6 @@ export default function ExpensesView({
       />
     </div>
   );
-}
+});
+
+export default ExpensesView;

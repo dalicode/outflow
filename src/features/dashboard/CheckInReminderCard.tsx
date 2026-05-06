@@ -23,7 +23,7 @@ export default function CheckInReminderCard({
   if (!shouldShow) return null;
 
   return (
-    <Card variant="minimal" className="mb-4 border border-theme-border/70">
+    <Card variant="minimal" className="mb-4 border-[color:color-mix(in_srgb,var(--theme-border)_70%,var(--theme-surface))]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-semibold text-theme-text">

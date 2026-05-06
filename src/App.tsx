@@ -146,6 +146,12 @@ function SyncDot({ status }: { status: SyncStatus }) {
 }
 
 function AppShell() {
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      import("./test/testApi").then(({ installTestApi }) => installTestApi());
+    }
+  }, []);
+
   const { user, loading, syncStatus, triggerSync, signOut } = useAuth();
   const { loaded: settingsLoaded, save: saveSettings } = useSettings();
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses();

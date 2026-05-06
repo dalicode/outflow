@@ -91,6 +91,7 @@ export default function FixedExpensesList({
         </div>
         <button
           onClick={openAdd}
+          data-testid="btn-add-fixed-expense"
           className="flex items-center gap-1.5 text-xs font-medium text-theme-primary hover:opacity-80 transition-opacity"
         >
           <span className="text-base leading-none">+</span>
@@ -125,12 +126,14 @@ export default function FixedExpensesList({
               <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => openEdit(item)}
+                  data-testid={`btn-edit-fixed-expense-${item.id}`}
                   className="text-xs text-theme-primary hover:opacity-80"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => setConfirmDeleteId(item.id as number)}
+                  data-testid={`btn-delete-fixed-expense-${item.id}`}
                   className="text-xs text-theme-danger hover:opacity-80"
                 >
                   Delete
