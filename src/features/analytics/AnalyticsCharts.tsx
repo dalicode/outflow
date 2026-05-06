@@ -17,6 +17,7 @@ import {
   Legend,
 } from "recharts";
 import { useSettings } from "../../context/settingsContext";
+import { cn } from "../../utils/cn";
 import { getCategoryColor } from "../summary/summaryColorUtils";
 import type { AnalyticsData } from "../../types";
 
@@ -300,13 +301,496 @@ const MonthlyTrendChart = ({ data, colors, monthCount }: ChartProps) => {
   );
 };
 
+// ── Table helpers ────────────────────────────────────────────────────────────
+
+function getFocusMonthIndex(
+  monthCount: number,
+  selectedMonth: number | null,
+): number | null {
+  if (selectedMonth !== null) return selectedMonth;
+  if (monthCount <= 0) return null;
+  return monthCount - 1;
+}
+
+function fmtChange(value: number | null): string {
+  if (value == null || isNaN(value)) return "—";
+  if (value === 0) return "$0";
+  const amount = fmtFull(Math.abs(value));
+  return value > 0 ? `+${amount}` : `-${amount}`;
+}
+
+// ── 1b. Monthly comparison table ────────────────────────────────────────────
+
+interface MonthlyComparisonTableProps {
+  data: AnalyticsData;
+  monthCount: number;
+}
+
+const MonthlyComparisonTable = ({ data, monthCount }: MonthlyComparisonTableProps) => {
+  const rows = useMemo(
+    () =>
+      MONTHS.slice(0, monthCount).map((month, index) => {
+        const spending = data.monthlyTotals[index] || 0;
+        const previous = index > 0 ? data.monthlyTotals[index - 1] || 0 : null;
+        const savingsRate = data.monthlySavingsPct[index];
+        const remaining = data.monthlyRemaining[index] ?? 0;
+        return {
+          month,
+          income: data.monthlyIncome[index] || 0,
+          fixed: data.monthlyFixedTotals[index] || 0,
+          variable: data.monthlyVariableTotals[index] || 0,
+          spending,
+          remaining,
+          savingsRate: savingsRate ?? 0,
+          delta: previous == null ? null : spending - previous,
+        };
+      }),
+    [data, monthCount],
+  );
+
+  if (rows.length === 0) return <EmptyState label="No month data" />;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="analytics-breakdown-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Income</th>
+            <th>Spend</th>
+            <th>Fixed</th>
+            <th>Variable</th>
+            <th>Remaining</th>
+            <th>Savings %</th>
+            <th>MoM</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.month}>
+              <td className="font-semibold text-theme-text">{row.month}</td>
+              <td className="tabular-nums">{fmtFull(row.income)}</td>
+              <td className="tabular-nums">{fmtFull(row.spending)}</td>
+              <td className="tabular-nums">{fmtFull(row.fixed)}</td>
+              <td className="tabular-nums">{fmtFull(row.variable)}</td>
+              <td
+                className={cn(
+                  "tabular-nums",
+                  row.remaining < 0 ? "text-theme-danger" : "text-theme-success",
+                )}
+              >
+                {fmtFull(row.remaining)}
+              </td>
+              <td className="tabular-nums">{fmtPct(row.savingsRate)}</td>
+              <td
+                className={cn(
+                  "tabular-nums",
+                  row.delta == null || row.delta === 0
+                    ? "text-theme-muted"
+                    : row.delta > 0
+                      ? "text-theme-danger"
+                      : "text-theme-success",
+                )}
+              >
+                {fmtChange(row.delta)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// ── 2b. Ranked movement table ───────────────────────────────────────────────
+
+interface RankedCategoryTableProps {
+  data: AnalyticsData;
+  focusMonth: number | null;
+  focusLabel: string;
+}
+
+const RankedCategoryTable = ({
+  data,
+  focusMonth,
+  focusLabel,
+}: RankedCategoryTableProps) => {
+  const rows = useMemo(() => {
+    if (focusMonth == null) return [];
+    const focusTotal = data.monthlyVariableTotals[focusMonth] || 0;
+    return (data.variableRows || [])
+      .map((row) => {
+        const focus = row.amounts[focusMonth] || 0;
+        const previous = focusMonth > 0 ? row.amounts[focusMonth - 1] || 0 : 0;
+        return {
+          key: row.key,
+          name: row.name,
+          focus,
+          previous,
+          total: row.yearTotal,
+          share: focusTotal > 0 ? (focus / focusTotal) * 100 : 0,
+        };
+      })
+      .filter((row) => row.focus > 0 || row.total > 0)
+      .sort((a, b) => b.focus - a.focus || b.total - a.total)
+      .slice(0, 8);
+  }, [data.variableRows, data.monthlyVariableTotals, focusMonth]);
+
+  if (focusMonth == null) return <EmptyState label="No category data" />;
+  if (rows.length === 0) return <EmptyState label="No category data" />;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="analytics-breakdown-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>{focusLabel}</th>
+            <th>Previous</th>
+            <th>Delta</th>
+            <th>Share</th>
+            <th>Year total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const delta = row.focus - row.previous;
+            return (
+              <tr key={row.key}>
+                <td className="font-semibold text-theme-text">{row.name}</td>
+                <td className="tabular-nums">{fmtFull(row.focus)}</td>
+                <td className="tabular-nums">{fmtFull(row.previous)}</td>
+                <td
+                  className={cn(
+                    "tabular-nums",
+                    delta === 0
+                      ? "text-theme-muted"
+                      : delta > 0
+                        ? "text-theme-danger"
+                        : "text-theme-success",
+                  )}
+                >
+                  {fmtChange(delta)}
+                </td>
+                <td className="tabular-nums">{`${row.share.toFixed(1)}%`}</td>
+                <td className="tabular-nums">{fmtFull(row.total)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+interface RankedPayeeTableProps {
+  data: AnalyticsData;
+  focusMonth: number | null;
+  focusLabel: string;
+}
+
+const RankedPayeeTable = ({
+  data,
+  focusMonth,
+  focusLabel,
+}: RankedPayeeTableProps) => {
+  const rows = useMemo(() => {
+    if (focusMonth == null) return [];
+    const focusTotal = data.payeeRows.reduce(
+      (sum, row) => sum + (row.amounts[focusMonth] || 0),
+      0,
+    );
+    return (data.payeeRows || [])
+      .map((row) => {
+        const focus = row.amounts[focusMonth] || 0;
+        const previous = focusMonth > 0 ? row.amounts[focusMonth - 1] || 0 : 0;
+        return {
+          key: row.key,
+          name: row.name,
+          focus,
+          previous,
+          total: row.yearTotal,
+          share: focusTotal > 0 ? (focus / focusTotal) * 100 : 0,
+        };
+      })
+      .filter((row) => row.focus > 0 || row.total > 0)
+      .sort((a, b) => b.focus - a.focus || b.total - a.total)
+      .slice(0, 8);
+  }, [data.payeeRows, focusMonth]);
+
+  if (focusMonth == null) return <EmptyState label="No payee data" />;
+  if (rows.length === 0) return <EmptyState label="No payee data" />;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="analytics-breakdown-table">
+        <thead>
+          <tr>
+            <th>Payee</th>
+            <th>{focusLabel}</th>
+            <th>Previous</th>
+            <th>Delta</th>
+            <th>Share</th>
+            <th>Year total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const delta = row.focus - row.previous;
+            return (
+              <tr key={row.key}>
+                <td className="font-semibold text-theme-text">{row.name}</td>
+                <td className="tabular-nums">{fmtFull(row.focus)}</td>
+                <td className="tabular-nums">{fmtFull(row.previous)}</td>
+                <td
+                  className={cn(
+                    "tabular-nums",
+                    delta === 0
+                      ? "text-theme-muted"
+                      : delta > 0
+                        ? "text-theme-danger"
+                        : "text-theme-success",
+                  )}
+                >
+                  {fmtChange(delta)}
+                </td>
+                <td className="tabular-nums">{`${row.share.toFixed(1)}%`}</td>
+                <td className="tabular-nums">{fmtFull(row.total)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// ── 3b. Savings / budget health table ───────────────────────────────────────
+
+interface SavingsHealthTableProps {
+  data: AnalyticsData;
+  monthCount: number;
+  selectedMonth: number | null;
+}
+
+const SavingsHealthTable = ({
+  data,
+  monthCount,
+  selectedMonth,
+}: SavingsHealthTableProps) => {
+  if (selectedMonth !== null) {
+    const m = selectedMonth;
+    const income = data.monthlyIncome[m] || 0;
+    const spend = data.monthlyTotals[m] || 0;
+    const remaining = data.monthlyRemaining[m] ?? 0;
+    const savingsRate = data.monthlySavingsPct[m] ?? 0;
+    const budgetUsed = income > 0 ? (spend / income) * 100 : 0;
+    const pace =
+      remaining < 0
+        ? "Over budget"
+        : savingsRate >= 60
+          ? "Strong"
+          : savingsRate >= 40
+            ? "On track"
+            : "Watch";
+
+    const rows = [
+      ["Income", fmtFull(income)],
+      ["Spend", fmtFull(spend)],
+      ["Remaining", fmtFull(remaining)],
+      ["Savings rate", fmtPct(savingsRate)],
+      ["Budget used", fmtPct(budgetUsed)],
+      ["Pace", pace],
+    ];
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="analytics-breakdown-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, value]) => (
+              <tr key={label}>
+                <td className="font-semibold text-theme-text">{label}</td>
+                <td className="tabular-nums">{value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  const rows = MONTHS.slice(0, monthCount).map((month, index) => {
+    const income = data.monthlyIncome[index] || 0;
+    const spend = data.monthlyTotals[index] || 0;
+    const remaining = data.monthlyRemaining[index] ?? 0;
+    const savingsRate = data.monthlySavingsPct[index] ?? 0;
+    const budgetUsed = income > 0 ? (spend / income) * 100 : 0;
+    const pace =
+      remaining < 0
+        ? "Over budget"
+        : budgetUsed <= 50
+          ? "Under pace"
+          : budgetUsed <= 75
+            ? "On track"
+            : "Ahead of pace";
+    return {
+      month,
+      income,
+      spend,
+      remaining,
+      savingsRate,
+      budgetUsed,
+      pace,
+    };
+  });
+
+  if (rows.length === 0) return <EmptyState label="No budget health data" />;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="analytics-breakdown-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Income</th>
+            <th>Spend</th>
+            <th>Remaining</th>
+            <th>Savings %</th>
+            <th>Budget used</th>
+            <th>Pace</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.month}>
+              <td className="font-semibold text-theme-text">{row.month}</td>
+              <td className="tabular-nums">{fmtFull(row.income)}</td>
+              <td className="tabular-nums">{fmtFull(row.spend)}</td>
+              <td
+                className={cn(
+                  "tabular-nums",
+                  row.remaining < 0 ? "text-theme-danger" : "text-theme-success",
+                )}
+              >
+                {fmtFull(row.remaining)}
+              </td>
+              <td className="tabular-nums">{fmtPct(row.savingsRate)}</td>
+              <td className="tabular-nums">{fmtPct(row.budgetUsed)}</td>
+              <td className="text-theme-text">{row.pace}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// ── 4b. Fixed stability table ───────────────────────────────────────────────
+
+interface FixedStabilityTableProps {
+  data: AnalyticsData;
+  monthCount: number;
+  selectedMonth: number | null;
+}
+
+const FixedStabilityTable = ({
+  data,
+  monthCount,
+  selectedMonth,
+}: FixedStabilityTableProps) => {
+  const focusMonth = getFocusMonthIndex(monthCount, selectedMonth);
+
+  const rows = useMemo(() => {
+    if (focusMonth == null) return [];
+    return data.fixedRows
+      .map((row) => {
+        const focus = row.amounts[focusMonth] || 0;
+        const previous = focusMonth > 0 ? row.amounts[focusMonth - 1] || 0 : 0;
+        const activeMonths = row.amounts.filter((value) => value > 0).length;
+        return {
+          key: row.id,
+          name: row.name,
+          focus,
+          previous,
+          total: row.yearTotal,
+          activeMonths,
+          isArchived: row.isArchived,
+        };
+      })
+      .filter((row) => row.focus > 0 || row.total > 0)
+      .sort((a, b) => b.focus - a.focus || b.total - a.total)
+      .slice(0, 8);
+  }, [data.fixedRows, focusMonth]);
+
+  if (focusMonth == null) return <EmptyState label="No fixed expense data" />;
+  if (rows.length === 0) return <EmptyState label="No fixed expense data" />;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="analytics-breakdown-table">
+        <thead>
+          <tr>
+            <th>Fixed item</th>
+            <th>Focus</th>
+            <th>Previous</th>
+            <th>Delta</th>
+            <th>Year total</th>
+            <th>Active months</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const delta = row.focus - row.previous;
+            return (
+              <tr key={row.key}>
+                <td className="font-semibold text-theme-text">
+                  <div className="flex items-center gap-2">
+                    <span>{row.name}</span>
+                    {row.isArchived && (
+                      <span className="rounded-full border border-theme-border px-1.5 py-0.5 text-[0.625rem] text-theme-muted">
+                        Archived
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="tabular-nums">{fmtFull(row.focus)}</td>
+                <td className="tabular-nums">{fmtFull(row.previous)}</td>
+                <td
+                  className={cn(
+                    "tabular-nums",
+                    delta === 0
+                      ? "text-theme-muted"
+                      : delta > 0
+                        ? "text-theme-danger"
+                        : "text-theme-success",
+                  )}
+                >
+                  {fmtChange(delta)}
+                </td>
+                <td className="tabular-nums">{fmtFull(row.total)}</td>
+                <td className="tabular-nums">{row.activeMonths}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 // ── 2. Category Breakdown ────────────────────────────────────────────────────
 
 interface CategoryBreakdownChartProps extends ChartProps {
   selectedMonth: number | null;
 }
 
-const CategoryBreakdownChart = ({
+export const CategoryBreakdownChart = ({
   data,
   colors,
   monthCount,
@@ -401,7 +885,7 @@ const CategoryBreakdownChart = ({
 
 // ── 2b. Payee Breakdown ──────────────────────────────────────────────────────
 
-const PayeeBreakdownChart = ({
+export const PayeeBreakdownChart = ({
   data,
   colors,
   monthCount,
@@ -466,7 +950,7 @@ const PayeeBreakdownChart = ({
 
 // ── 3. Savings Rate Trend ────────────────────────────────────────────────────
 
-const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
+export const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
   const chartData = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => ({
       month: m,
@@ -522,7 +1006,7 @@ const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
 
 // ── 4. Monthly Total Savings ─────────────────────────────────────────────────
 
-const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProps) => {
+export const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProps) => {
   const chartData = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => ({
       month: m,
@@ -761,51 +1245,44 @@ const YearView = ({ data, colors, monthCount }: ViewProps) => {
         />
       </ChartCard>
 
-      {/* Row 2: Breakdown + Savings (2-col on desktop) */}
+      {/* Row 2: Monthly comparison + category movement (2-col on desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title="Category Breakdown">
-          <CategoryBreakdownChart
+        <ChartCard title="Monthly Comparison">
+          <MonthlyComparisonTable data={data} monthCount={monthCount} />
+        </ChartCard>
+        <ChartCard title="Category Movement">
+          <RankedCategoryTable
             data={data}
-            colors={colors}
-            monthCount={monthCount}
-            selectedMonth={null}
+            focusMonth={getFocusMonthIndex(monthCount, null)}
+            focusLabel="Latest visible month"
           />
         </ChartCard>
-        <ChartCard title="Payee Breakdown">
-          <PayeeBreakdownChart
+      </div>
+
+      {/* Row 3: Payee concentration + savings health (2-col on desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartCard title="Payee Concentration">
+          <RankedPayeeTable
             data={data}
-            colors={colors}
+            focusMonth={getFocusMonthIndex(monthCount, null)}
+            focusLabel="Latest visible month"
+          />
+        </ChartCard>
+        <ChartCard title="Savings and Budget Health">
+          <SavingsHealthTable
+            data={data}
             monthCount={monthCount}
             selectedMonth={null}
           />
         </ChartCard>
       </div>
 
-      {/* Row 3: Savings Rate + Income vs. Expenses (2-col on desktop) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title="Savings Rate Trend">
-          <SavingsRateChart
-            data={data}
-            colors={colors}
-            monthCount={monthCount}
-          />
-        </ChartCard>
-        <ChartCard title="Income vs. Expenses">
-          <IncomeVsExpensesChart
-            data={data}
-            colors={colors}
-            monthCount={monthCount}
-            selectedMonth={null}
-          />
-        </ChartCard>
-      </div>
-
-      {/* Row 4: Monthly Total Savings (full width) */}
-      <ChartCard title="Monthly Total Savings">
-        <MonthlyTotalSavingsChart
+      {/* Row 4: Fixed expense stability (full width) */}
+      <ChartCard title="Fixed Expense Stability">
+        <FixedStabilityTable
           data={data}
-          colors={colors}
           monthCount={monthCount}
+          selectedMonth={null}
         />
       </ChartCard>
     </div>
@@ -830,27 +1307,7 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
         colors={colors}
       />
 
-      {/* Row 2: Category Breakdown + Payee Breakdown (2-col on desktop) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title={`${MONTHS[selectedMonth]} Category Breakdown`}>
-          <CategoryBreakdownChart
-            data={data}
-            colors={colors}
-            monthCount={0}
-            selectedMonth={selectedMonth}
-          />
-        </ChartCard>
-        <ChartCard title={`${MONTHS[selectedMonth]} Payee Breakdown`}>
-          <PayeeBreakdownChart
-            data={data}
-            colors={colors}
-            monthCount={0}
-            selectedMonth={selectedMonth}
-          />
-        </ChartCard>
-      </div>
-
-      {/* Row 3: Income vs. Expenses */}
+      {/* Row 2: Income vs. Expenses */}
       <ChartCard title={`${MONTHS[selectedMonth]} Income vs. Expenses`}>
         <IncomeVsExpensesChart
           data={data}
@@ -859,6 +1316,42 @@ const MonthView = ({ data, colors, selectedMonth }: MonthViewProps) => {
           selectedMonth={selectedMonth}
         />
       </ChartCard>
+
+      {/* Row 3: Category movement + payee concentration (2-col on desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartCard title={`${MONTHS[selectedMonth]} Category Movement`}>
+          <RankedCategoryTable
+            data={data}
+            focusMonth={selectedMonth}
+            focusLabel={`${MONTHS[selectedMonth]} focus`}
+          />
+        </ChartCard>
+        <ChartCard title={`${MONTHS[selectedMonth]} Payee Concentration`}>
+          <RankedPayeeTable
+            data={data}
+            focusMonth={selectedMonth}
+            focusLabel={`${MONTHS[selectedMonth]} focus`}
+          />
+        </ChartCard>
+      </div>
+
+      {/* Row 4: Savings health + fixed stability (2-col on desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartCard title={`${MONTHS[selectedMonth]} Savings and Budget Health`}>
+          <SavingsHealthTable
+            data={data}
+            monthCount={0}
+            selectedMonth={selectedMonth}
+          />
+        </ChartCard>
+        <ChartCard title={`${MONTHS[selectedMonth]} Fixed Expense Stability`}>
+          <FixedStabilityTable
+            data={data}
+            monthCount={0}
+            selectedMonth={selectedMonth}
+          />
+        </ChartCard>
+      </div>
     </div>
   );
 };

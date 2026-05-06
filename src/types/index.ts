@@ -109,12 +109,27 @@ export interface Schedule {
   effectiveYear: number
   effectiveMonth: number
   newValue: number
+  previousValue?: number | null
+  materializedAt?: string
   isActive: number  // IndexedDB cannot index booleans; stored as 1/0
   note?: string
   createdAt?: string
   day?: number        // 1–31, used by expense schedules
   categoryId?: number // used by expense schedules
   payeeId?: number    // used by expense schedules
+}
+
+export interface ScheduleMaterializationNotice {
+  id: string
+  type: ScheduleType
+  title: string
+  summary: string
+  effectiveYear: number
+  effectiveMonth: number
+  effectiveLabel: string
+  previousValue: number | null
+  newValue: number
+  appliedAt: string
 }
 
 // ── Settings ────────────────────────────────────────────────────────────────

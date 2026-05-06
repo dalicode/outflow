@@ -20,7 +20,7 @@ import ScheduleList from "./ScheduleList";
 import DangerZone from "./DangerZone";
 import ReminderSettingsCard from "./ReminderSettingsCard";
 import PrivacyBackupCard from "./PrivacyBackupCard";
-import type { Expense, Schedule, Category } from "../../types";
+import type { Expense, Schedule, Category, ScheduleMaterializationNotice } from "../../types";
 
 interface RowProps {
   label: string;
@@ -80,11 +80,23 @@ export default function SettingsPage({
   const [monthlyIncome, setMonthlyIncome] = useState("");
   const [savingsRate, setSavingsRate] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [appliedScheduleNotices, setAppliedScheduleNotices] = useState<
+    ScheduleMaterializationNotice[]
+  >([]);
 
   const { schedules, loadSchedules, deleteSchedule } = useScheduleList();
 
   useEffect(() => {
     StorageService.getCategories().then(setCategories);
+  }, []);
+
+  useEffect(() => {
+    StorageService.getSetting<ScheduleMaterializationNotice[]>(
+      "scheduleMaterializationLog",
+      [],
+    ).then((log) => {
+      setAppliedScheduleNotices(Array.isArray(log) ? log : []);
+    });
   }, []);
 
   // Load current global values for quick-add in Edit Historical Data
@@ -134,6 +146,11 @@ export default function SettingsPage({
   const handleScheduleModalClose = () => {
     setIsScheduleModalOpen(false);
     setScheduleToEdit(null);
+  };
+
+  const handleDismissAppliedScheduleNotices = async () => {
+    await StorageService.setSetting("scheduleMaterializationLog", []);
+    setAppliedScheduleNotices([]);
   };
 
   const handleClearAll = async () => {
@@ -348,6 +365,45 @@ export default function SettingsPage({
 
       {/* Import Log */}
       <ImportLogPanel importStatus={importStatus} importErrors={importErrors} />
+
+      {appliedScheduleNotices.length > 0 && (
+        <Card title="Applied Schedule Updates">
+          <p className="text-xs text-theme-muted mb-3">
+            These scheduled changes were applied the last time Outflow opened.
+          </p>
+          <div className="space-y-2">
+            {appliedScheduleNotices.map((notice) => (
+              <div
+                key={notice.id}
+                className="rounded-theme-small border border-theme-border bg-theme-background px-3 py-2"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-theme-text">
+                      {notice.title}
+                    </p>
+                    <p className="text-xs text-theme-muted mt-0.5">
+                      {notice.summary}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-theme-primary">
+                    {notice.effectiveLabel}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={handleDismissAppliedScheduleNotices}
+              className="settings-edit-btn"
+            >
+              Dismiss
+            </button>
+          </div>
+        </Card>
+      )}
 
       {/* Historical Data editor */}
       <Card title="Historical Data">

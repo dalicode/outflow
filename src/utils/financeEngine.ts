@@ -13,6 +13,12 @@
 
 import type { Expense, FixedExpense, FixedExpenseSnapshot, Schedule, FinanceEngineData, MonthlySummary, YearSummary, VariableGridResult } from "../types";
 
+interface MonthlySummaryOptions {
+  currentYear?: number;
+  currentMonth?: number;
+  historicalOnly?: boolean;
+}
+
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -66,24 +72,38 @@ function resolveMonthlyValues(
   schedules: Schedule[] | undefined,
   scheduleType: string,
   snapshots?: Array<{ year: number; month: number; amountSnapshot?: number; rateSnapshot?: number }>,
+  now: MonthlySummaryOptions = {
+    currentYear: new Date().getFullYear(),
+    currentMonth: new Date().getMonth(),
+  },
 ): number[] {
-  // Start with global fallback for all months
-  let values: number[] = Array(12).fill(globalValue);
+  const values: number[] = Array(12).fill(0);
 
-  // Apply active schedules (projections for future months)
-  values = applySchedules(values, year, schedules ?? [], scheduleType);
+  for (let m = 0; m < 12; m++) {
+    const month = m + 1;
+    const isHistorical =
+      year < now.currentYear ||
+      (year === now.currentYear && m < now.currentMonth);
+    const snap = snapshots?.find((s) => s.year === year && s.month === month);
 
-  // Snapshots always win for that month — they override live globals and schedules
-  if (snapshots && snapshots.length > 0) {
-    for (let m = 0; m < 12; m++) {
-      const month = m + 1;
-      const snap = snapshots.find((s) => s.year === year && s.month === month);
-      if (snap) {
-        values[m] = scheduleType === "income"
-          ? (snap.amountSnapshot ?? globalValue)
-          : (snap.rateSnapshot ?? globalValue);
-      }
+    if (isHistorical || now.historicalOnly) {
+      values[m] = scheduleType === "income"
+        ? (snap?.amountSnapshot ?? 0)
+        : (snap?.rateSnapshot ?? 0);
+      continue;
     }
+
+    const scheduled = applySchedules(Array(12).fill(globalValue), year, schedules ?? [], scheduleType);
+    let value = scheduled[m] ?? globalValue;
+
+    if (snap) {
+      value =
+        scheduleType === "income"
+          ? (snap.amountSnapshot ?? value)
+          : (snap.rateSnapshot ?? value);
+    }
+
+    values[m] = value;
   }
 
   return values;
@@ -133,6 +153,10 @@ function getFixedExpensesForMonth(
   snapshots: FixedExpenseSnapshot[],
   fixedDefinitions: FixedExpense[],
   schedules: Schedule[] | undefined,
+  now: MonthlySummaryOptions = {
+    currentYear: new Date().getFullYear(),
+    currentMonth: new Date().getMonth(),
+  },
 ) {
   // month is 0-indexed (0-11)
   const targetMonth = month + 1;
@@ -150,13 +174,12 @@ function getFixedExpensesForMonth(
   }));
 
   // Apply active schedules for future months
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.currentYear;
+  const currentMonth = now.currentMonth + 1;
   const isFutureOrCurrent =
     year > currentYear || (year === currentYear && targetMonth >= currentMonth);
 
-  if (isFutureOrCurrent && schedules && schedules.length > 0) {
+  if (!now.historicalOnly && isFutureOrCurrent && schedules && schedules.length > 0) {
     const applicable = schedules
       .filter((s) => s.isActive && s.type === "fixedExpense")
       .filter(
@@ -204,7 +227,12 @@ const getVariableExpensesForMonth = (year: number, month: number, expenses: Expe
  * @param data
  * @returns {MonthlySummary}
  */
-export function getMonthlyFinancialSummary(year: number, month: number, data: FinanceEngineData): MonthlySummary {
+export function getMonthlyFinancialSummary(
+  year: number,
+  month: number,
+  data: FinanceEngineData,
+  opts: MonthlySummaryOptions = {},
+): MonthlySummary {
   const {
     expenses,
     snapshots,
@@ -214,13 +242,40 @@ export function getMonthlyFinancialSummary(year: number, month: number, data: Fi
     schedules,
   } = data;
 
-  const incomeValues = resolveMonthlyValues(year, globalIncome, schedules, "income", data.incomeSnapshots);
-  const savingsRateValues = resolveMonthlyValues(year, globalSavingsRate, schedules, "savingsRate", data.savingsSnapshots);
+  const now = {
+    currentYear: opts.currentYear ?? new Date().getFullYear(),
+    currentMonth: opts.currentMonth ?? new Date().getMonth(),
+    historicalOnly: opts.historicalOnly,
+  };
+
+  const incomeValues = resolveMonthlyValues(
+    year,
+    globalIncome,
+    schedules,
+    "income",
+    data.incomeSnapshots,
+    now,
+  );
+  const savingsRateValues = resolveMonthlyValues(
+    year,
+    globalSavingsRate,
+    schedules,
+    "savingsRate",
+    data.savingsSnapshots,
+    now,
+  );
 
   const income = incomeValues[month] || 0;
   const savingsRate = savingsRateValues[month] || 0;
 
-  const fixedResult = getFixedExpensesForMonth(year, month, snapshots, fixedExpenses, schedules);
+  const fixedResult = getFixedExpensesForMonth(
+    year,
+    month,
+    snapshots,
+    fixedExpenses,
+    schedules,
+    now,
+  );
   const fixedExpensesTotal = fixedResult.total;
 
   const variableExpenses = getVariableExpensesForMonth(year, month, expenses);
@@ -285,7 +340,12 @@ export function getYearFinancialSummary(year: number, data: FinanceEngineData, o
   // 1. Build 12 monthly summaries using augmented snapshots
   const months: MonthlySummary[] = [];
   for (let m = 0; m < 12; m++) {
-    months.push(getMonthlyFinancialSummary(year, m, augmentedData));
+    months.push(
+      getMonthlyFinancialSummary(year, m, augmentedData, {
+        currentYear: nowYear,
+        currentMonth: nowMonth,
+      }),
+    );
   }
 
   // 2. Build year-level fixed rows using augmented snapshots

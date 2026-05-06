@@ -110,14 +110,12 @@ export function useDashboardData(
       const currentYear = today.getFullYear();
       const currentMonth = today.getMonth();
 
-      const [allFixed, globalIncome, globalRate, schedules] = await Promise.all(
-        [
-          StorageService.getFixedExpenses(),
-          StorageService.getSetting("monthlyIncome", 0),
-          StorageService.getSetting("savingsRate", 0),
-          StorageService.getActiveSchedules(),
-        ],
-      );
+      const [allFixed, globalIncome, globalRate, schedules] = await Promise.all([
+        StorageService.getFixedExpenses(),
+        StorageService.getSetting("monthlyIncome", 0),
+        StorageService.getSetting("savingsRate", 0),
+        StorageService.getActiveSchedules(),
+      ]);
 
       const [snaps, incSnaps, savSnaps] = await Promise.all([
         StorageService.getSnapshotsForYear(currentYear),
@@ -125,15 +123,7 @@ export function useDashboardData(
         StorageService.getSavingsSnapshotsForYear(currentYear),
       ]);
 
-      const monthSnapshots = allFixed
-        .filter((f) => f.isArchived !== true)
-        .map((f) => ({
-          fixedExpenseId: f.id as number,
-          year: currentYear,
-          month: currentMonth + 1,
-          amountSnapshot: f.amount,
-          nameSnapshot: f.name,
-        }));
+      const monthSnapshots = snaps.filter((s) => s.month === currentMonth + 1);
 
       const data = {
         expenses,
@@ -146,7 +136,10 @@ export function useDashboardData(
         savingsSnapshots: savSnaps,
       };
 
-      const summary = getMonthlyFinancialSummary(currentYear, currentMonth, data);
+      const summary = getMonthlyFinancialSummary(currentYear, currentMonth, data, {
+        currentYear,
+        currentMonth,
+      });
       setFinancialSummary(summary);
     };
     loadCurrentMonthSummary();

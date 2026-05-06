@@ -95,10 +95,10 @@ export default function CategoryViewTable({
     monthSpan > 1 ? 2 + monthSpan + (showGrandTotal ? 1 : 0) : 3;
 
   return (
-    <table className="w-full text-sm border-separate border-spacing-0">
+    <table className="w-full table-fixed text-sm border-separate border-spacing-0">
       <thead className="sticky top-0 z-10">
         <tr>
-          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
+          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
             Category
           </th>
           {monthSpan > 1 ? (
@@ -153,8 +153,8 @@ export default function CategoryViewTable({
                 key={name}
                 className="border-b border-theme-muted-subtle row-hover"
               >
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium">
-                  {name}
+                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
+                  <span className="block min-w-0 truncate">{name}</span>
                 </td>
                 {monthSpan > 1 ? (
                   <>
@@ -234,7 +234,7 @@ export default function CategoryViewTable({
             <tr>
               <td
                 colSpan={colSpanCount}
-                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
+                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden"
               >
                 Fixed Expenses
               </td>
@@ -246,8 +246,8 @@ export default function CategoryViewTable({
               );
               return (
                 <tr key={fe.id} className="row-hover">
-                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap">
-                    {fe.name}
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
+                    <span className="block min-w-0 truncate">{fe.name}</span>
                   </td>
                   {monthSpan > 1 ? (
                     <>
@@ -297,7 +297,7 @@ export default function CategoryViewTable({
             <tr>
               <td
                 colSpan={colSpanCount}
-                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap"
+                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden"
               >
                 Budget Summary
               </td>
@@ -305,8 +305,8 @@ export default function CategoryViewTable({
 
             {/* Income */}
             <tr className="row-hover">
-              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
-                Income
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
+                <span className="block min-w-0 truncate">Income</span>
               </td>
               {monthSpan > 1 ? (
                 <>
@@ -377,8 +377,8 @@ export default function CategoryViewTable({
 
             {/* Auto Savings */}
             <tr className="row-hover">
-              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium inline-flex items-center gap-1">
-                Auto Savings
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
+                <span className="block min-w-0 truncate">Auto Savings</span>
               </td>
               {monthSpan > 1 ? (
                 <>
@@ -449,8 +449,8 @@ export default function CategoryViewTable({
 
             {/* Remaining */}
             <tr className="row-hover">
-              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium">
-                Remaining
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
+                <span className="block min-w-0 truncate">Remaining</span>
               </td>
               {monthSpan > 1 ? (
                 <>
@@ -505,8 +505,8 @@ export default function CategoryViewTable({
 
             {/* Total Savings */}
             <tr className="row-hover">
-              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap font-medium">
-                Total Savings
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
+                <span className="block min-w-0 truncate">Total Savings</span>
               </td>
               {monthSpan > 1 ? (
                 <>

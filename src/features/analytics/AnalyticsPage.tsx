@@ -4,9 +4,9 @@ import { useMaxVisible } from "../../hooks/useMaxVisible";
 import { useAnalytics } from "../../hooks/useAnalytics";
 import type { AnalyticsSessionState } from "../../hooks/useAnalytics";
 import AnalyticsCharts from "./AnalyticsCharts";
+import AnalyticsOverviewSection from "./AnalyticsOverviewSection";
 import YearStrip from "./YearStrip";
 import MonthStrip from "./MonthStrip";
-import SummaryCard from "./SummaryCard";
 import type { Expense, Category } from "../../types";
 import "./analytics.css";
 
@@ -80,15 +80,15 @@ export default function AnalyticsPage({
         isAtCurrentMonth={isAtCurrentMonth}
       />
 
-      {/* Summary strip */}
-      <div
-        key={contentMotionKey}
-        className="motion-fade-up flex md:grid md:grid-cols-4 gap-3 overflow-x-auto md:overflow-visible pb-2 md:pb-0"
-      >
-        {summaryCards.map((card) => (
-          <SummaryCard key={card.label} {...card} />
-        ))}
-      </div>
+      <AnalyticsOverviewSection
+        data={data}
+        year={year}
+        currentYear={currentYear}
+        currentMonth={currentMonth}
+        selectedMonth={selectedMonth}
+        summaryCards={summaryCards}
+        formatAmount={formatAmount}
+      />
 
       {/* Content */}
       <div

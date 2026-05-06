@@ -10,10 +10,12 @@ import type {
   IncomeSnapshot,
   SavingsSnapshot,
   Schedule,
+  ScheduleMaterializationNotice,
   SyncQueueItem,
   CategoryMergeHistory,
   PayeeMergeHistory,
 } from "../types";
+import { buildScheduleMaterializationNotice } from "../utils/scheduleNotificationUtils";
 
 interface Setting {
   key: string;
@@ -1022,13 +1024,17 @@ async function snapshotIncome(year: number, month: number, amount: number) {
     await db.incomeSnapshots.update(existing.id as number, {
       amountSnapshot: amount,
     });
+    const updated = await db.incomeSnapshots.get(existing.id as number);
+    await enqueue("incomeSnapshots", "update", updated as unknown as Record<string, unknown>);
   } else {
-    await db.incomeSnapshots.add({
+    const id = await db.incomeSnapshots.add({
       year,
       month,
       amountSnapshot: amount,
       createdAt: new Date().toISOString(),
     });
+    const row = await db.incomeSnapshots.get(id);
+    await enqueue("incomeSnapshots", "insert", row as unknown as Record<string, unknown>);
   }
 }
 
@@ -1038,104 +1044,238 @@ async function snapshotSavings(year: number, month: number, rate: number) {
     await db.savingsSnapshots.update(existing.id as number, {
       rateSnapshot: rate,
     });
+    const updated = await db.savingsSnapshots.get(existing.id as number);
+    await enqueue("savingsSnapshots", "update", updated as unknown as Record<string, unknown>);
   } else {
-    await db.savingsSnapshots.add({
+    const id = await db.savingsSnapshots.add({
       year,
       month,
       rateSnapshot: rate,
       createdAt: new Date().toISOString(),
     });
+    const row = await db.savingsSnapshots.get(id);
+    await enqueue("savingsSnapshots", "insert", row as unknown as Record<string, unknown>);
   }
 }
 
 // ── Schedule Materialization ──────────────────────────────
-// When a schedule's effective date arrives, execute it: write month-specific
-// data where needed, update live globals / fixed-expense definitions, and archive it.
+// When a schedule's effective date arrives, execute it by updating the live
+// values only. Historical snapshots are written on rollover, so the schedule
+// stays active until its effective month has been committed into snapshots.
 
-async function materializePendingSnapshots() {
+function compareScheduleDates(aYear: number, aMonth: number, bYear: number, bMonth: number) {
+  if (aYear !== bYear) return aYear - bYear;
+  return aMonth - bMonth;
+}
+
+function isBeforeMonth(year: number, month: number, refYear: number, refMonth: number) {
+  return year < refYear || (year === refYear && month < refMonth);
+}
+
+function isBeforeOrEqualMonth(year: number, month: number, refYear: number, refMonth: number) {
+  return year < refYear || (year === refYear && month <= refMonth);
+}
+
+function resolveScheduleValueForMonth(
+  schedules: Schedule[],
+  targetYear: number,
+  targetMonth: number,
+  fallbackValue: number,
+  type: Schedule["type"],
+  targetId: number | null = null,
+): number {
+  const relevant = schedules
+    .filter((schedule) => schedule.isActive === 1 && schedule.type === type)
+    .filter((schedule) => targetId == null || schedule.targetId === targetId)
+    .sort((a, b) =>
+      compareScheduleDates(
+        a.effectiveYear,
+        a.effectiveMonth,
+        b.effectiveYear,
+        b.effectiveMonth,
+      ),
+    );
+
+  if (relevant.length === 0) return fallbackValue;
+
+  const applied = relevant.filter((schedule) =>
+    isBeforeOrEqualMonth(
+      schedule.effectiveYear,
+      schedule.effectiveMonth,
+      targetYear,
+      targetMonth,
+    ),
+  );
+
+  if (applied.length > 0) {
+    const base = applied[0].previousValue ?? fallbackValue;
+    return applied.reduce((value, schedule) => schedule.newValue, base);
+  }
+
+  const nextSchedule = relevant.find((schedule) =>
+    isBeforeMonth(
+      targetYear,
+      targetMonth,
+      schedule.effectiveYear,
+      schedule.effectiveMonth,
+    ),
+  );
+
+  return nextSchedule?.previousValue ?? fallbackValue;
+}
+
+async function materializePendingSnapshots(): Promise<ScheduleMaterializationNotice[]> {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+  const currentKey = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
 
   const schedules = await db.schedules.where("isActive").equals(1).toArray();
   const fixedDefs = await db.fixedExpenses.toArray();
   const fixedDefMap = new Map(fixedDefs.map((f) => [f.id, f]));
+  const monthlyIncomeRow = await db.settings.get("monthlyIncome");
+  const savingsRateRow = await db.settings.get("savingsRate");
+  const noticeRow = await db.settings.get("scheduleMaterializationLog");
+  let liveIncome = (monthlyIncomeRow?.value as number) ?? 0;
+  let liveSavingsRate = (savingsRateRow?.value as number) ?? 0;
+  const existingNoticeLog = Array.isArray(noticeRow?.value)
+    ? (noticeRow.value as ScheduleMaterializationNotice[])
+    : [];
+  const newNotices: ScheduleMaterializationNotice[] = [];
 
-  for (const schedule of schedules) {
-    const isEffective =
+  const dueSchedules = [...schedules]
+    .filter((schedule) =>
       schedule.effectiveYear < currentYear ||
-      (schedule.effectiveYear === currentYear &&
-        schedule.effectiveMonth <= currentMonth);
+      (schedule.effectiveYear === currentYear && schedule.effectiveMonth <= currentMonth),
+    )
+    .sort((a, b) =>
+      compareScheduleDates(
+        a.effectiveYear,
+        a.effectiveMonth,
+        b.effectiveYear,
+        b.effectiveMonth,
+      ),
+    );
 
-    if (!isEffective) continue;
-
+  for (const schedule of dueSchedules) {
     if (schedule.type === "income") {
-      const existing = await db.incomeSnapshots
-        .where({ year: schedule.effectiveYear, month: schedule.effectiveMonth })
-        .first();
-      if (!existing) {
-        await db.incomeSnapshots.add({
-          year: schedule.effectiveYear,
-          month: schedule.effectiveMonth,
-          amountSnapshot: schedule.newValue,
-          createdAt: now.toISOString(),
+      const firstMaterialization =
+        schedule.previousValue == null || schedule.materializedAt == null;
+      if (firstMaterialization) {
+        await db.schedules.update(schedule.id as number, {
+          previousValue: liveIncome,
+          materializedAt: currentKey,
         });
+        newNotices.push(
+          buildScheduleMaterializationNotice(schedule, {
+            appliedAt: now.toISOString(),
+            previousValue: liveIncome,
+          }),
+        );
       }
-      await db.settings.put({ key: "monthlyIncome", value: schedule.newValue });
+      liveIncome = schedule.newValue;
+      await db.settings.put({ key: "monthlyIncome", value: liveIncome });
+      await db.settings.put({
+        key: "monthlyIncomeUpdatedAt",
+        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, "0")}`,
+      });
+      await enqueue("settings", "upsert", { key: "monthlyIncome", value: liveIncome });
+      await enqueue("settings", "upsert", {
+        key: "monthlyIncomeUpdatedAt",
+        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, "0")}`,
+      });
+      const updatedSchedule = await db.schedules.get(schedule.id as number);
+      await enqueue("schedules", "update", updatedSchedule as unknown as Record<string, unknown>);
     } else if (schedule.type === "savingsRate") {
-      const existing = await db.savingsSnapshots
-        .where({ year: schedule.effectiveYear, month: schedule.effectiveMonth })
-        .first();
-      if (!existing) {
-        await db.savingsSnapshots.add({
-          year: schedule.effectiveYear,
-          month: schedule.effectiveMonth,
-          rateSnapshot: schedule.newValue,
-          createdAt: now.toISOString(),
+      const firstMaterialization =
+        schedule.previousValue == null || schedule.materializedAt == null;
+      if (firstMaterialization) {
+        await db.schedules.update(schedule.id as number, {
+          previousValue: liveSavingsRate,
+          materializedAt: currentKey,
         });
+        newNotices.push(
+          buildScheduleMaterializationNotice(schedule, {
+            appliedAt: now.toISOString(),
+            previousValue: liveSavingsRate,
+          }),
+        );
       }
-      await db.settings.put({ key: "savingsRate", value: schedule.newValue });
+      liveSavingsRate = schedule.newValue;
+      await db.settings.put({ key: "savingsRate", value: liveSavingsRate });
+      await db.settings.put({
+        key: "savingsRateUpdatedAt",
+        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, "0")}`,
+      });
+      await enqueue("settings", "upsert", { key: "savingsRate", value: liveSavingsRate });
+      await enqueue("settings", "upsert", {
+        key: "savingsRateUpdatedAt",
+        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, "0")}`,
+      });
+      const updatedSchedule = await db.schedules.get(schedule.id as number);
+      await enqueue("schedules", "update", updatedSchedule as unknown as Record<string, unknown>);
     } else if (schedule.type === "fixedExpense" && schedule.targetId != null) {
-      const existing = await db.fixedExpenseSnapshots
-        .where("[fixedExpenseId+year+month]")
-        .equals([
-          schedule.targetId,
-          schedule.effectiveYear,
-          schedule.effectiveMonth,
-        ])
-        .first();
       const def = fixedDefMap.get(schedule.targetId);
-      if (!existing) {
-        await db.fixedExpenseSnapshots.add({
-          fixedExpenseId: schedule.targetId,
-          nameSnapshot: def?.name ?? "Unknown",
-          amountSnapshot: schedule.newValue,
-          year: schedule.effectiveYear,
-          month: schedule.effectiveMonth,
-          createdAt: now.toISOString(),
+      const firstMaterialization =
+        schedule.previousValue == null || schedule.materializedAt == null;
+      if (firstMaterialization) {
+        await db.schedules.update(schedule.id as number, {
+          previousValue: def?.amount ?? 0,
+          materializedAt: currentKey,
         });
+        newNotices.push(
+          buildScheduleMaterializationNotice(schedule, {
+            appliedAt: now.toISOString(),
+            previousValue: def?.amount ?? 0,
+            label: def?.name ?? "Fixed expense",
+          }),
+        );
       }
       if (def) {
         await db.fixedExpenses.update(schedule.targetId, {
           amount: schedule.newValue,
           updatedAt: now.toISOString(),
         });
+        def.amount = schedule.newValue;
+        def.updatedAt = now.toISOString();
+        const updatedDef = await db.fixedExpenses.get(schedule.targetId);
+        await enqueue("fixedExpenses", "update", updatedDef as unknown as Record<string, unknown>);
       }
+      const updatedSchedule = await db.schedules.get(schedule.id as number);
+      await enqueue("schedules", "update", updatedSchedule as unknown as Record<string, unknown>);
     } else if (schedule.type === "expense") {
       const day = schedule.day ?? 1;
       const date = `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      await db.expenses.add({
+      const expenseId = await db.expenses.add({
         date,
         amount: schedule.newValue,
         categoryId: schedule.categoryId,
         description: schedule.note,
         createdAt: now.toISOString(),
       });
+      const expenseRow = await db.expenses.get(expenseId);
+      await enqueue("expenses", "insert", expenseRow as unknown as Record<string, unknown>);
+      newNotices.push(
+        buildScheduleMaterializationNotice(schedule, {
+          appliedAt: now.toISOString(),
+          label: schedule.note?.trim() || "Planned expense",
+        }),
+      );
+      await db.schedules.update(schedule.id as number, { isActive: 0 });
+      const updatedSchedule = await db.schedules.get(schedule.id as number);
+      await enqueue("schedules", "update", updatedSchedule as unknown as Record<string, unknown>);
     }
-
-    // Archive the schedule
-    await db.schedules.update(schedule.id as number, { isActive: 0 });
   }
+
+  if (newNotices.length > 0) {
+    const mergedLog = [...newNotices, ...existingNoticeLog].slice(0, 20);
+    await db.settings.put({
+      key: "scheduleMaterializationLog",
+      value: mergedLog,
+    });
+  }
+
+  return newNotices;
 }
 
 // ── Monthly Snapshot Rollover ─────────────────────────────
@@ -1155,12 +1295,14 @@ async function rolloverSnapshots() {
   // First-time: initialize without rollover
   if (!lastOpenKey) {
     await db.settings.put({ key: "lastAppOpenMonthKey", value: currentKey });
+    await enqueue("settings", "upsert", { key: "lastAppOpenMonthKey", value: currentKey });
     return;
   }
 
   // Backward time travel guard
   if (lastOpenKey >= currentKey) {
     await db.settings.put({ key: "lastAppOpenMonthKey", value: currentKey });
+    await enqueue("settings", "upsert", { key: "lastAppOpenMonthKey", value: currentKey });
     return;
   }
 
@@ -1186,6 +1328,7 @@ async function rolloverSnapshots() {
 
   if (gapMonths.length === 0) {
     await db.settings.put({ key: "lastAppOpenMonthKey", value: currentKey });
+    await enqueue("settings", "upsert", { key: "lastAppOpenMonthKey", value: currentKey });
     return;
   }
 
@@ -1197,6 +1340,7 @@ async function rolloverSnapshots() {
     fixedSnaps,
     globalIncomeRow,
     globalRateRow,
+    activeSchedules,
   ] = await Promise.all([
     db.fixedExpenses.toArray(),
     db.incomeSnapshots.toArray(),
@@ -1204,6 +1348,7 @@ async function rolloverSnapshots() {
     db.fixedExpenseSnapshots.toArray(),
     db.settings.get("monthlyIncome"),
     db.settings.get("savingsRate"),
+    db.schedules.where("isActive").equals(1).toArray(),
   ]);
 
   const activeFixed = allFixedDefs.filter((f) => f.isArchived !== true);
@@ -1230,9 +1375,9 @@ async function rolloverSnapshots() {
     month: number;
     createdAt: string;
   }[] = [];
+  const scheduleUpdates: Schedule[] = [];
 
   for (const { year, month } of gapMonths) {
-    // Income: use the current live global value
     const hasIncome = incomeSnaps.some(
       (s) => s.year === year && s.month === month,
     );
@@ -1240,12 +1385,17 @@ async function rolloverSnapshots() {
       incomeToAdd.push({
         year,
         month,
-        amountSnapshot: globalIncome,
+        amountSnapshot: resolveScheduleValueForMonth(
+          activeSchedules,
+          year,
+          month,
+          globalIncome,
+          "income",
+        ),
         createdAt: now.toISOString(),
       });
     }
 
-    // Savings: use the current live global value
     const hasSavings = savingsSnaps.some(
       (s) => s.year === year && s.month === month,
     );
@@ -1253,12 +1403,17 @@ async function rolloverSnapshots() {
       savingsToAdd.push({
         year,
         month,
-        rateSnapshot: globalRate,
+        rateSnapshot: resolveScheduleValueForMonth(
+          activeSchedules,
+          year,
+          month,
+          globalRate,
+          "savingsRate",
+        ),
         createdAt: now.toISOString(),
       });
     }
 
-    // Fixed expenses: use the current live definition amount
     for (const def of activeFixed) {
       if (!def.id) continue;
       const hasFixed = fixedSnaps.some(
@@ -1269,11 +1424,27 @@ async function rolloverSnapshots() {
         fixedToAdd.push({
           fixedExpenseId: def.id,
           nameSnapshot: def.name,
-          amountSnapshot: def.amount,
+          amountSnapshot: resolveScheduleValueForMonth(
+            activeSchedules,
+            year,
+            month,
+            def.amount,
+            "fixedExpense",
+            def.id as number,
+          ),
           year,
           month,
           createdAt: now.toISOString(),
         });
+      }
+    }
+
+    for (const schedule of activeSchedules) {
+      if (
+        schedule.id != null &&
+        isBeforeOrEqualMonth(schedule.effectiveYear, schedule.effectiveMonth, year, month)
+      ) {
+        scheduleUpdates.push(schedule);
       }
     }
   }
@@ -1291,10 +1462,30 @@ async function rolloverSnapshots() {
       if (incomeToAdd.length) await db.incomeSnapshots.bulkAdd(incomeToAdd);
       if (savingsToAdd.length) await db.savingsSnapshots.bulkAdd(savingsToAdd);
       if (fixedToAdd.length) await db.fixedExpenseSnapshots.bulkAdd(fixedToAdd);
+      for (const row of incomeToAdd) {
+        await enqueue("incomeSnapshots", "insert", row as unknown as Record<string, unknown>);
+      }
+      for (const row of savingsToAdd) {
+        await enqueue("savingsSnapshots", "insert", row as unknown as Record<string, unknown>);
+      }
+      for (const row of fixedToAdd) {
+        await enqueue("fixedExpenseSnapshots", "insert", row as unknown as Record<string, unknown>);
+      }
+      const uniqueScheduleIds = new Set(
+        scheduleUpdates
+          .filter((schedule) => schedule.id != null)
+          .map((schedule) => schedule.id as number),
+      );
+      for (const scheduleId of uniqueScheduleIds) {
+        await db.schedules.update(scheduleId, { isActive: 0 });
+        const updatedSchedule = await db.schedules.get(scheduleId);
+        await enqueue("schedules", "update", updatedSchedule as unknown as Record<string, unknown>);
+      }
       await db.settings.put({
         key: "lastAppOpenMonthKey",
         value: currentKey,
       });
+      await enqueue("settings", "upsert", { key: "lastAppOpenMonthKey", value: currentKey });
     },
   );
 }
@@ -1687,13 +1878,21 @@ export const StorageService = {
             .modify({ categoryId: targetCategoryId });
         }
 
-        await db.categoryMergeHistory.add({
+        const mergeId = await db.categoryMergeHistory.add({
           sourceCategoryId,
           targetCategoryId,
           affectedExpenseIds: affectedIds,
           createdAt: now,
           revertedAt: null,
         } as CategoryMergeHistory);
+        const mergeRow = await db.categoryMergeHistory.get(mergeId);
+        if (mergeRow) {
+          await enqueue(
+            "categoryMergeHistory",
+            "insert",
+            mergeRow as unknown as Record<string, unknown>,
+          );
+        }
 
         await db.categories.update(sourceCategoryId, {
           isArchived: true,
@@ -1733,13 +1932,21 @@ export const StorageService = {
             .modify({ payeeId: targetPayeeId });
         }
 
-        await db.payeeMergeHistory.add({
+        const mergeId = await db.payeeMergeHistory.add({
           sourcePayeeId,
           targetPayeeId,
           affectedExpenseIds: affectedIds,
           createdAt: now,
           revertedAt: null,
         } as PayeeMergeHistory);
+        const mergeRow = await db.payeeMergeHistory.get(mergeId);
+        if (mergeRow) {
+          await enqueue(
+            "payeeMergeHistory",
+            "insert",
+            mergeRow as unknown as Record<string, unknown>,
+          );
+        }
 
         await db.payees.update(sourcePayeeId, {
           isArchived: true,

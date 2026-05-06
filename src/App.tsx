@@ -27,6 +27,7 @@ import type { DashboardSessionState } from "./hooks/useDashboard";
 import type { AnalyticsSessionState } from "./hooks/useAnalytics";
 import type { SyncStatus } from "./types";
 import type { Expense } from "./types";
+import { summarizeScheduleMaterializationNotices } from "./utils/scheduleNotificationUtils";
 
 function useScrollVisibility() {
   const [isScrolling, setIsScrolling] = useState(false);
@@ -181,6 +182,18 @@ function AppShell() {
     [],
   );
 
+  const announceAppliedScheduleUpdates = useCallback(
+    (notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>) => {
+      if (!notices || notices.length === 0) return;
+      showToast({
+        message: summarizeScheduleMaterializationNotices(notices),
+        tone: "success",
+        durationMs: 6500,
+      });
+    },
+    [showToast],
+  );
+
   // Ref that Dashboard registers its cycleView fn into, so Navbar can call it
   const cycleDashboardViewRef = useRef<(() => void) | null>(null);
 
@@ -246,7 +259,7 @@ function AppShell() {
       const minLoadTime = (window as unknown as { outflowTestApi?: unknown }).outflowTestApi ? 0 : (hasVisited ? 1500 : 3000);
       const startTime = Date.now();
 
-      await StorageService.materializePendingSnapshots?.().catch(console.error);
+      const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(console.error);
       await StorageService.rolloverSnapshots?.().catch(console.error);
 
       const elapsed = Date.now() - startTime;
@@ -256,6 +269,7 @@ function AppShell() {
       }
 
       setSnapshotsReady(true);
+      announceAppliedScheduleUpdates(appliedNotices ?? []);
       if (!hasVisited) {
         localStorage.setItem("outflow:hasVisited", "true");
       }
@@ -265,13 +279,15 @@ function AppShell() {
 
   const handlePullRefresh = useCallback(async () => {
     try {
-      await StorageService.materializePendingSnapshots?.().catch(console.error);
+      const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(console.error);
       await StorageService.rolloverSnapshots?.().catch(console.error);
       await Promise.all([
         refreshExpenses(),
         refreshCategories(),
         refreshPayees(),
       ]);
+
+      announceAppliedScheduleUpdates(appliedNotices ?? []);
 
       if (navigator.onLine && supabase && user) {
         triggerSync?.();
@@ -288,6 +304,7 @@ function AppShell() {
     refreshCategories,
     refreshExpenses,
     refreshPayees,
+    announceAppliedScheduleUpdates,
     showToast,
     triggerSync,
     user,

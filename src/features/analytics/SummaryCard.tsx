@@ -1,4 +1,4 @@
-interface SummaryCardProps {
+export interface SummaryCardProps {
   label: string;
   value: string;
   tone: "success" | "danger" | "neutral";

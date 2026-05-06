@@ -65,6 +65,8 @@ create table fixed_expenses (
   user_id    uuid references auth.users not null,
   name       text not null,
   amount     numeric not null,
+  is_archived boolean default false,
+  archived_at timestamptz,
   updated_at timestamptz default now()
 );
 alter table fixed_expenses enable row level security;
@@ -86,6 +88,88 @@ create table fixed_expense_snapshots (
 );
 alter table fixed_expense_snapshots enable row level security;
 create policy "users own fixed_expense_snapshots" on fixed_expense_snapshots
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- income_snapshots (historical record — synced across devices)
+create table income_snapshots (
+  id              text primary key,
+  user_id         uuid references auth.users not null,
+  year            int not null,
+  month           int not null,
+  amount_snapshot numeric not null,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now(),
+  unique (user_id, year, month)
+);
+alter table income_snapshots enable row level security;
+create policy "users own income_snapshots" on income_snapshots
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- savings_snapshots (historical record — synced across devices)
+create table savings_snapshots (
+  id            text primary key,
+  user_id       uuid references auth.users not null,
+  year          int not null,
+  month         int not null,
+  rate_snapshot numeric not null,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now(),
+  unique (user_id, year, month)
+);
+alter table savings_snapshots enable row level security;
+create policy "users own savings_snapshots" on savings_snapshots
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- schedules (synced so future changes stay consistent across devices)
+create table schedules (
+  id              text primary key,
+  user_id         uuid references auth.users not null,
+  type            text not null,
+  target_id       text,
+  effective_year  int not null,
+  effective_month int not null,
+  new_value       numeric not null,
+  previous_value  numeric,
+  materialized_at timestamptz,
+  is_active       int not null default 1,
+  note            text,
+  day             int,
+  category_id     text,
+  payee_id        text,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
+);
+alter table schedules enable row level security;
+create policy "users own schedules" on schedules
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- merge history tables (synced so cross-device merges stay consistent)
+create table category_merge_history (
+  id                  text primary key,
+  user_id             uuid references auth.users not null,
+  source_category_id  text not null,
+  target_category_id  text not null,
+  affected_expense_ids int[] not null default '{}',
+  created_at          timestamptz not null,
+  reverted_at         timestamptz,
+  updated_at          timestamptz default now()
+);
+alter table category_merge_history enable row level security;
+create policy "users own category_merge_history" on category_merge_history
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create table payee_merge_history (
+  id                text primary key,
+  user_id           uuid references auth.users not null,
+  source_payee_id   text not null,
+  target_payee_id   text not null,
+  affected_expense_ids int[] not null default '{}',
+  created_at        timestamptz not null,
+  reverted_at       timestamptz,
+  updated_at        timestamptz default now()
+);
+alter table payee_merge_history enable row level security;
+create policy "users own payee_merge_history" on payee_merge_history
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- settings
@@ -128,13 +212,24 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 ```
 
-## 4. Profiles table
+## 4. Sync contract notes
+
+The Supabase schema above matches the current cloud-sync layer.
+
+Important notes:
+- Tables that sync to Supabase: `expenses`, `categories`, `payees`, `fixedExpenses`, `fixedExpenseSnapshots`, `incomeSnapshots`, `savingsSnapshots`, `schedules`, `categoryMergeHistory`, `payeeMergeHistory`, and `settings`.
+- `syncQueue` stays device-local and is **not** synced. It is the outbound work queue that the app drains after network reconnect.
+- Supabase row IDs are stored as `text`, but the app normalizes them back to local numeric IDs when pulling data down.
+- `settings.value` is stored as text in Supabase and serialized as JSON by the sync layer.
+- `profiles.backup_password` is optional and only used for the encrypted backup password auto-fill flow.
+
+## 5. Profiles table
 
 The `profiles` table stores:
 - `selected_theme` — synced visual theme preference across devices
 - `backup_password` — optional password for encrypted `.ofb` backup files (stored in plaintext; the user must trust their Supabase instance)
 
-## 5. Enable Google OAuth (optional)
+## 6. Enable Google OAuth (optional)
 
 In Supabase dashboard → **Authentication → Providers → Google**:
 - Enable Google provider
@@ -142,7 +237,7 @@ In Supabase dashboard → **Authentication → Providers → Google**:
 - Set the redirect URL in Google Cloud Console to:
   `https://your-project.supabase.co/auth/v1/callback`
 
-## 6. Run the app
+## 7. Run the app
 
 ```bash
 npm run dev

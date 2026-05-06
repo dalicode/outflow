@@ -44,6 +44,15 @@ const baseData: FinanceEngineData = {
 // ── getMonthlyFinancialSummary ──────────────────────────────────────────────
 
 describe('getMonthlyFinancialSummary', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('computes basic monthly summary with defaults', () => {
     const result = getMonthlyFinancialSummary(2024, 0, baseData)
 
@@ -145,7 +154,7 @@ describe('getMonthlyFinancialSummary', () => {
     expect(result.income).toBe(8000)
   })
 
-  it('applies schedules to past months when no snapshot exists', () => {
+  it('does not fall back to schedules or globals for historical months without snapshots', () => {
     const pastYear = 2020
     const schedule: Schedule = {
       type: 'income',
@@ -162,7 +171,30 @@ describe('getMonthlyFinancialSummary', () => {
     }
 
     const result = getMonthlyFinancialSummary(pastYear, 0, data)
-    expect(result.income).toBe(9999) // schedule applied even to past month
+    expect(result.income).toBe(0)
+    expect(result.savingsRate).toBe(0)
+    expect(result.autoSavings).toBe(0)
+    expect(result.fixedExpensesTotal).toBe(0)
+  })
+
+  it('historicalOnly mode ignores live globals for the selected month', () => {
+    const now = new Date()
+    const data: FinanceEngineData = {
+      ...baseData,
+      globalIncome: 9999,
+      globalSavingsRate: 55,
+    }
+
+    const result = getMonthlyFinancialSummary(now.getFullYear(), now.getMonth(), data, {
+      currentYear: now.getFullYear(),
+      currentMonth: now.getMonth(),
+      historicalOnly: true,
+    })
+
+    expect(result.income).toBe(0)
+    expect(result.savingsRate).toBe(0)
+    expect(result.autoSavings).toBe(0)
+    expect(result.remaining).toBe(0)
   })
 
   it('ignores archived schedules', () => {

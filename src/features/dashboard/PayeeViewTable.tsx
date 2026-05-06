@@ -35,10 +35,10 @@ export default function PayeeViewTable({
     monthSpan > 1 ? 2 + monthSpan + (showGrandTotal ? 1 : 0) : 4;
 
   return (
-    <table className="w-full text-sm border-separate border-spacing-0">
+    <table className="w-full table-fixed text-sm border-separate border-spacing-0">
       <thead className="sticky top-0 z-10">
         <tr>
-          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left">
+          <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
             Payee
           </th>
           {monthSpan > 1 ? (
@@ -83,8 +83,8 @@ export default function PayeeViewTable({
               key={row.name}
               className="border-b border-theme-muted-subtle row-hover"
             >
-              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text whitespace-nowrap">
-                {row.name}
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text w-[7rem] sm:w-[9rem] md:w-[11rem] lg:w-[14rem] max-w-[14rem] overflow-hidden">
+                <span className="block min-w-0 truncate">{row.name}</span>
               </td>
               {monthSpan > 1 ? (
                 <>
