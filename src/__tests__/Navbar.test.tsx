@@ -132,15 +132,15 @@ describe('Navbar', () => {
   it('keeps mobile navigation to two primary actions on click and reserves analytics/payees/settings for drag expansion', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
+    const mobileNav = document.body.querySelector('.mobile-nav-container')
+
     expect(screen.getByLabelText('Dashboard')).toBeInTheDocument()
     expect(screen.getByLabelText('Budget')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Settings')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
+    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
 
     fireEvent.click(screen.getByLabelText('Expand navigation'))
 
-    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
+    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
     expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -150,40 +150,46 @@ describe('Navbar', () => {
   it('expands and collapses mobile navigation with a vertical drag', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
+    const mobileNav = document.body.querySelector('.mobile-nav-container')
     const expandHandle = screen.getByLabelText('Expand navigation')
     fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
-    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
-    expect(screen.getByLabelText('Settings')).toBeInTheDocument()
+    expect(mobileNav).toHaveAttribute('data-expanded', 'true')
+    expect(screen.getByLabelText('Collapse navigation')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
 
     const collapseHandle = screen.getByLabelText('Collapse navigation')
     fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerMove(collapseHandle, { clientY: 120, pointerId: 1 })
     fireEvent.pointerUp(collapseHandle, { clientY: 120, pointerId: 1 })
 
-    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Payees')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Settings')).not.toBeInTheDocument()
+    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
+    expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
   })
 
   it('collapses the second row back to the first row on click', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
+    const mobileNav = document.body.querySelector('.mobile-nav-container')
     const expandHandle = screen.getByLabelText('Expand navigation')
     fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
+    expect(mobileNav).toHaveAttribute('data-expanded', 'true')
 
     const collapseHandle = screen.getByLabelText('Collapse navigation')
     fireEvent.pointerDown(collapseHandle, { clientY: 100, pointerId: 1 })
     fireEvent.click(collapseHandle)
 
-    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
+    expect(mobileNav).toHaveAttribute('data-expanded', 'false')
     expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -200,35 +206,39 @@ describe('Navbar', () => {
       { wrapper: Wrapper },
     )
 
+    const getMobileNav = () => document.body.querySelector('nav.mobile-nav-bounce')
+    const getMobileNavContainer = () =>
+      document.body.querySelector('.mobile-nav-container')
+
     const expandHandle = screen.getByLabelText('Expand navigation')
     fireEvent.pointerDown(expandHandle, { clientY: 120, pointerId: 1 })
     fireEvent.pointerMove(expandHandle, { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(expandHandle, { clientY: 80, pointerId: 1 })
 
-    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
+    expect(getMobileNavContainer()).toHaveAttribute('data-expanded', 'true')
 
     rerender(
       <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
     )
 
-    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
+    expect(getMobileNavContainer()).toHaveAttribute('data-expanded', 'true')
 
     rerender(
       <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />,
     )
 
-    expect(screen.queryByLabelText('Analytics')).not.toBeInTheDocument()
+    expect(getMobileNavContainer()).toHaveAttribute('data-expanded', 'false')
     expect(screen.getByLabelText('Expand navigation')).toHaveAttribute(
       'aria-expanded',
       'false',
     )
-    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
+    expect(getMobileNav()).toHaveClass(
       'translate-y-[calc(100%-18px)]',
     )
 
     fireEvent.click(screen.getByLabelText('Expand navigation'))
 
-    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
+    expect(getMobileNav()).toHaveClass(
       'translate-y-[calc(100%-18px)]',
     )
 
@@ -236,7 +246,7 @@ describe('Navbar', () => {
       <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
     )
 
-    expect(document.body.querySelector('nav.mobile-nav-bounce')).toHaveClass(
+    expect(getMobileNav()).toHaveClass(
       'translate-y-[calc(100%-18px)]',
     )
 

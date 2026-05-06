@@ -10,6 +10,8 @@ import { useExpenses, useCategories, usePayees } from "./hooks/useLocalData";
 import { cn } from "./utils/cn";
 import { ROUTES } from "./constants/routes";
 import Navbar from "./components/layout/Navbar";
+import OfflineStatusBadge from "./components/pwa/OfflineStatusBadge";
+import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
 import ExpenseForm from "./features/expenses/ExpenseForm";
 import Dashboard from "./features/dashboard/Dashboard";
@@ -442,6 +444,8 @@ function AppShell() {
           />
         ) : (
           <>
+            <PWAUpdatePrompt />
+            <OfflineStatusBadge />
             <Navbar
               onAddExpense={() => setShowForm(true)}
               syncDot={<SyncDot status={syncStatus} />}

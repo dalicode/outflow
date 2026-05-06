@@ -16,14 +16,16 @@ export default function PrivacyBackupCard() {
           Your data stays on this device unless you enable sync.
         </p>
         <p>
-          Outflow is local-first. Your spending history is stored in this browser
-          or device.
+          Outflow works offline after your first visit. Your spending history is
+          stored in this browser or device.
         </p>
         <p>
-          Export a backup anytime from Settings to protect your history.
+          Installable does not mean backed up. Export a backup anytime from
+          Settings to protect your history.
         </p>
         <p>
-          Clearing browser data may remove local history unless you export a backup.
+          Clearing browser data may remove local history unless you export a
+          backup.
         </p>
         <p>
           {lastBackup ? `Last backup: ${lastBackup}` : "No backup created yet."}
