@@ -1,32 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import { expect, resetAppState } from "./helpers";
 
 test.describe("Inline editing (desktop)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
-
-    // Seed expenses so the expenses table has data
-    const categoryId = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      const categories = await api.getCategories();
-      return categories[0]?.id;
+    await resetAppState(page, {
+      expenses: [
+        { date: "2026-05-01", amount: 15.5, description: "Lunch" },
+        { date: "2026-05-02", amount: 42.0, description: "Groceries" },
+        { date: "2026-05-03", amount: 5.0, description: "Snack" },
+      ],
     });
-
-    if (!categoryId) return;
-
-    await page.evaluate(async ({ catId }) => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      await api.seedExpenses([
-        { date: "2026-05-01", amount: 15.5, categoryId: catId as number, description: "Lunch" },
-        { date: "2026-05-02", amount: 42.0, categoryId: catId as number, description: "Groceries" },
-        { date: "2026-05-03", amount: 5.0, categoryId: catId as number, description: "Snack" },
-      ]);
-    }, { catId: categoryId });
-
-    await page.reload();
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
 
     // Switch to Expenses view to see the table with inline editing
     await page.getByTestId("view-tab-expenses").first().click();

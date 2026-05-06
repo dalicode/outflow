@@ -236,7 +236,7 @@ function AppShell() {
   useEffect(() => {
     const init = async () => {
       const hasVisited = localStorage.getItem("outflow:hasVisited") === "true";
-      const minLoadTime = hasVisited ? 1500 : 3000;
+      const minLoadTime = (window as unknown as { outflowTestApi?: unknown }).outflowTestApi ? 0 : (hasVisited ? 1500 : 3000);
       const startTime = Date.now();
 
       await StorageService.materializePendingSnapshots?.().catch(console.error);

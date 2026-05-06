@@ -1,21 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import {
+  clearAllData,
+  expect,
+  exportAllData,
+  importAllData,
+  resetAppState,
+} from "./helpers";
 
 test.describe("Expense CRUD", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    // Wait for the app to be ready (dashboard appears)
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
-
-    // Clear all data through the test API
-    await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      await api.clearAllData();
-    });
-
-    // Reload to reset the app state
-    await page.reload();
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
+    await resetAppState(page);
   });
 
   test("dashboard renders after clearing data", async ({ page }) => {
@@ -28,65 +22,27 @@ test.describe("Expense CRUD", () => {
   });
 
   test("data round-trip: seed, export, clear, re-import", async ({ page }) => {
-    // Get category ID
-    const categoryId = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      const categories = await api.getCategories();
-      return categories[0]?.id;
+    await resetAppState(page, {
+      expenses: [
+        { date: "2026-05-01", amount: 15.5, description: "Lunch" },
+        { date: "2026-05-02", amount: 42.0, description: "Groceries" },
+      ],
     });
 
-    if (!categoryId) return;
+    const data = await exportAllData(page);
 
-    // Seed some expenses
-    await page.evaluate(async ({ catId }) => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      await api.seedExpenses([
-        { date: "2026-05-01", amount: 15.5, categoryId: catId as number, description: "Lunch" },
-        { date: "2026-05-02", amount: 42.0, categoryId: catId as number, description: "Groceries" },
-      ]);
-    }, { catId: categoryId });
+    expect((data.expenses as unknown[])?.length).toBeGreaterThanOrEqual(2);
 
-    // Export data
-    const data = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      return api.exportAllData();
-    });
+    await clearAllData(page);
 
-    expect(data.expenses.length).toBeGreaterThanOrEqual(2);
+    const clearedData = await exportAllData(page);
 
-    // Clear data
-    await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      await api.clearAllData();
-    });
+    expect((clearedData.expenses as unknown[])?.length).toBe(0);
 
-    // Verify cleared
-    const clearedData = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      return api.exportAllData();
-    });
+    await importAllData(page, data, { replace: true });
 
-    expect(clearedData.expenses.length).toBe(0);
+    const restoredData = await exportAllData(page);
 
-    // Re-import
-    await page.evaluate(async (importData) => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      await api.importAllData(importData as Record<string, unknown>, { replace: true });
-    }, data as unknown as Record<string, unknown>);
-
-    // Verify restored
-    const restoredData = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      return api.exportAllData();
-    });
-
-    expect(restoredData.expenses.length).toBeGreaterThanOrEqual(2);
+    expect((restoredData.expenses as unknown[])?.length).toBeGreaterThanOrEqual(2);
   });
 });

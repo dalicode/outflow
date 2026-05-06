@@ -1,9 +1,13 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import {
+  expect,
+  openMobileSecondaryNav,
+  resetAppState,
+} from "./helpers";
 
 test.describe("Dashboard — mobile", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
+    await resetAppState(page);
   });
 
   test("mobile nav renders with add expense button", async ({ page }) => {
@@ -41,41 +45,24 @@ test.describe("Dashboard — mobile", () => {
     await expect(page.getByRole("dialog", { name: "Filter Transactions" })).toBeVisible();
   });
 
-  test("seed expenses and verify selection banner on long-press", async ({ page }) => {
-    // Seed some expenses
-    const categoryId = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      const categories = await api.getCategories();
-      return categories[0]?.id;
-    });
-
-    if (!categoryId) return;
-
-    await page.evaluate(async (catId) => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      await api.seedExpenses([
-        { date: "2026-05-01", amount: 10.0, categoryId: catId as number, description: "Coffee" },
-        { date: "2026-05-02", amount: 25.0, categoryId: catId as number, description: "Lunch" },
-        { date: "2026-05-03", amount: 5.0, categoryId: catId as number, description: "Snack" },
-      ]);
-    }, { catId: categoryId });
-
-    await page.reload();
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
-
-    // Switch to expenses view to see table
-    await page.getByTestId("view-tab-expenses").first().click();
-
-    // Tap on first expense row to enter edit (not selection on mobile tap)
-    const expenseRows = page.locator("[data-testid^='expense-row-mobile-']");
-    await expect(expenseRows.first()).toBeVisible({ timeout: 5000 });
+  test("expanded second-row nav icons respond immediately", async ({ page }) => {
+    await openMobileSecondaryNav(page);
+    await page.locator(".mobile-nav-row-secondary").getByTestId("nav-settings").click();
+    await expect(page).toHaveURL(/\/settings/);
+    await expect(page.getByTestId("settings-page")).toBeVisible();
   });
 
-  test("month span selector renders on wider viewports", async ({ page, browserName }) => {
-    // MonthSpanSelector only renders at >= the threshold for 2M spans
-    // On Pixel 5 (393px), it is hidden, so just verify dashboard is visible
-    await expect(page.getByTestId("dashboard")).toBeVisible();
+  test("expenses view shows seeded mobile rows", async ({ page }) => {
+    await resetAppState(page, {
+      expenses: [
+        { date: "2026-05-01", amount: 10.0, description: "Coffee" },
+        { date: "2026-05-02", amount: 25.0, description: "Lunch" },
+        { date: "2026-05-03", amount: 5.0, description: "Snack" },
+      ],
+    });
+
+    await page.getByTestId("view-tab-expenses").first().click();
+    const expenseRows = page.locator("[data-testid^='expense-row-mobile-']");
+    await expect(expenseRows).toHaveCount(3);
   });
 });

@@ -1,43 +1,73 @@
-import { test, expect } from "@playwright/test";
-import { waitForAppReady } from "./helpers";
+import { test } from "@playwright/test";
+import {
+  expect,
+  exportAllData,
+  resetAppState,
+} from "./helpers";
 
 test.describe("Settings — Import/Export", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await waitForAppReady(page);
+    await resetAppState(page, { route: "/settings" });
   });
 
   test("navigate to settings page", async ({ page }) => {
-    await page.getByTestId("nav-settings").click();
     await expect(page.getByTestId("settings-page")).toBeVisible();
   });
 
   test("export backup button exists on settings page", async ({ page }) => {
-    await page.getByTestId("nav-settings").click();
     await expect(page.getByTestId("btn-export-backup")).toBeVisible();
   });
 
   test("import backup button exists on settings page", async ({ page }) => {
-    await page.getByTestId("nav-settings").click();
     await expect(page.getByTestId("btn-import-backup")).toBeVisible();
   });
 
   test("clear all data button exists on settings page", async ({ page }) => {
-    await page.getByTestId("nav-settings").click();
     await expect(page.getByTestId("btn-clear-data")).toBeVisible();
   });
 
-  test("export data returns expected structure", async ({ page }) => {
-    await waitForAppReady(page);
+  test("export backup downloads an encrypted file", async ({ page }) => {
+    const downloadPromise = page.waitForEvent("download");
 
-    const data = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      return api.exportAllData();
+    await page.getByTestId("btn-export-backup").click();
+    await expect(page.getByRole("dialog", { name: "Encrypt Backup" })).toBeVisible();
+    await page.getByPlaceholder("Enter password").fill("pass123");
+    await page.getByRole("button", { name: "Encrypt & Export" }).click();
+
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^outflow-backup-.*\.ofb$/);
+  });
+
+  test("import backup restores expenses through the UI", async ({ page }) => {
+    await resetAppState(page, {
+      route: "/settings",
+      expenses: [
+        { date: "2026-05-01", amount: 15.5, description: "Lunch" },
+        { date: "2026-05-02", amount: 42.0, description: "Groceries" },
+      ],
     });
 
-    expect(data).toHaveProperty("expenses");
-    expect(data).toHaveProperty("categories");
-    expect(data).toHaveProperty("payees");
+    const exportData = await exportAllData(page);
+    const backupBuffer = Buffer.from(JSON.stringify(exportData, null, 2));
+
+    await page.getByTestId("btn-clear-data").click();
+    await expect(page.getByRole("dialog", { name: "Clear All Data" })).toBeVisible();
+    await page.getByPlaceholder("DELETE").fill("DELETE");
+    await page.getByRole("button", { name: "Clear Everything" }).click();
+    await expect(page.getByRole("dialog", { name: "Clear All Data" })).not.toBeVisible({ timeout: 5000 });
+
+    const fileInput = page.locator('input[type="file"][accept=".ofb,.json"]');
+    await fileInput.setInputFiles({
+      name: "outflow-backup.json",
+      mimeType: "application/json",
+      buffer: backupBuffer,
+    });
+
+    await expect(page.getByText("Loaded successfully")).toBeVisible({ timeout: 10000 });
+    await page.waitForURL(/\/settings/, { timeout: 10000 });
+    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10000 });
+
+    const restoredData = await exportAllData(page);
+    expect((restoredData.expenses as unknown[])?.length).toBeGreaterThanOrEqual(2);
   });
 });

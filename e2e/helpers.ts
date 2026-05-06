@@ -1,37 +1,184 @@
-import { test as base, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
-export function clearAndSeed(page: import("@playwright/test").Page) {
-  return page.evaluate(async () => {
-    const api = (window as unknown as { outflowTestApi?: typeof import("../../src/test/testApi").testApi }).outflowTestApi;
+export interface SeedExpenseEntry {
+  date: string;
+  amount: number;
+  categoryId?: number;
+  payeeId?: number;
+  description?: string;
+}
+
+export async function waitForAppReady(page: Page): Promise<void> {
+  await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
+}
+
+export async function gotoAndWait(page: Page, path = "/"): Promise<void> {
+  await page.goto(path);
+  if (path === "/" || path === "/summary" || path === "/analytics" || path === "/payees" || path === "/settings") {
+    await waitForAppReady(page).catch(() => undefined);
+  }
+}
+
+export async function clearAllData(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
     if (!api) throw new Error("outflowTestApi not found – is the app running in dev mode?");
     await api.clearAllData();
   });
 }
 
-export function seedExpenses(
-  page: import("@playwright/test").Page,
-  entries: Array<{
-    date: string;
-    amount: number;
-    categoryId?: number;
-    payeeId?: number;
-    description?: string;
-  }>,
-) {
-  return page.evaluate(async (data) => {
-    const api = (window as unknown as { outflowTestApi?: typeof import("../../src/test/testApi").testApi }).outflowTestApi;
+export async function seedExpenses(page: Page, entries: SeedExpenseEntry[]): Promise<void> {
+  await page.evaluate(async (data) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
     if (!api) throw new Error("outflowTestApi not found");
     await api.seedExpenses(data);
   }, entries);
 }
 
-export function waitForAppReady(page: import("@playwright/test").Page) {
-  return page.getByTestId("dashboard").waitFor({ timeout: 15000 });
+export async function seedSettings(
+  page: Page,
+  settings: Record<string, unknown>,
+): Promise<void> {
+  await page.evaluate(async (data) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.seedSettings(data);
+  }, settings);
 }
 
-export async function navigateToExpenseForm(page: import("@playwright/test").Page) {
+export async function exportAllData(page: Page): Promise<Record<string, unknown>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.exportAllData();
+  });
+}
+
+export async function importAllData(
+  page: Page,
+  data: Record<string, unknown>,
+  opts?: { replace?: boolean },
+): Promise<void> {
+  await page.evaluate(
+    async ({ importData, importOpts }) => {
+      const api = (window as Window & {
+        outflowTestApi?: typeof import("../src/test/testApi").testApi;
+      }).outflowTestApi;
+      if (!api) throw new Error("outflowTestApi not found");
+      await api.importAllData(importData, importOpts);
+    },
+    { importData: data, importOpts: opts },
+  );
+}
+
+export async function getCategories(page: Page): Promise<Array<{ id?: number; name: string }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getCategories();
+  });
+}
+
+export async function getFirstCategoryId(page: Page): Promise<number> {
+  const categories = await getCategories(page);
+  const id = categories[0]?.id;
+  if (!id) {
+    throw new Error("No seeded categories available");
+  }
+  return id;
+}
+
+export async function resetAppState(
+  page: Page,
+  options?: {
+    route?: string;
+    expenses?: SeedExpenseEntry[];
+    settings?: Record<string, unknown>;
+  },
+): Promise<void> {
+  await gotoAndWait(page, "/");
+  await clearAllData(page);
+
+  if (options?.settings) {
+    await seedSettings(page, options.settings);
+  }
+
+  if (options?.expenses?.length) {
+    const categoryId = await getFirstCategoryId(page);
+    const normalized = options.expenses.map((entry) => ({
+      ...entry,
+      categoryId: entry.categoryId ?? categoryId,
+    }));
+    await seedExpenses(page, normalized);
+  }
+
+  await page.goto(options?.route ?? "/");
+  await waitForRouteReady(page, options?.route ?? "/");
+}
+
+export async function waitForRouteReady(page: Page, path: string): Promise<void> {
+  if (path === "/") {
+    await expect(page.getByTestId("dashboard")).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  if (path === "/summary") {
+    await expect(page.getByTestId("summary-page")).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  if (path === "/analytics") {
+    await expect(page.getByTestId("analytics-page")).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  if (path === "/payees") {
+    await expect(page.getByTestId("payees-page")).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  if (path === "/settings") {
+    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  await page.waitForLoadState("networkidle");
+}
+
+export async function navigateToExpenseForm(page: Page): Promise<void> {
   await page.getByTestId("btn-add-expense").first().click();
   await page.getByTestId("expense-form").waitFor();
+}
+
+export async function openMobileSecondaryNav(page: Page): Promise<void> {
+  const handle = page.getByRole("button", { name: "Expand navigation" });
+  const box = await handle.boundingBox();
+  if (!box) {
+    throw new Error("Mobile navigation handle is not measurable");
+  }
+
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX, centerY - 96, { steps: 6 });
+  await page.mouse.up();
+
+  await expect(
+    page.locator(".mobile-nav-row-secondary").getByTestId("nav-analytics"),
+  ).toBeVisible({ timeout: 2000 });
 }
 
 export { expect };

@@ -1,31 +1,14 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import { expect, resetAppState } from "./helpers";
 
 test.describe("Filter modal (desktop)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
-
-    // Seed some expenses
-    const categoryId = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      const categories = await api.getCategories();
-      return categories[0]?.id;
+    await resetAppState(page, {
+      expenses: [
+        { date: "2026-05-01", amount: 15.5, description: "Lunch" },
+        { date: "2026-05-02", amount: 42.0, description: "Groceries" },
+      ],
     });
-
-    if (!categoryId) return;
-
-    await page.evaluate(async ({ catId }) => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      await api.seedExpenses([
-        { date: "2026-05-01", amount: 15.5, categoryId: catId as number, description: "Lunch" },
-        { date: "2026-05-02", amount: 42.0, categoryId: catId as number, description: "Groceries" },
-      ]);
-    }, { catId: categoryId });
-
-    await page.reload();
-    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
   });
 
   test("filter modal opens and closes", async ({ page }) => {
