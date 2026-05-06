@@ -329,6 +329,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           columns={columns}
           fixedLayout
           getRowClassName={getRowClassName}
+          getRowId={(exp) => `expense-row-${exp.id}`}
           onRowContextMenu={handleContextMenu}
         />
       )}

@@ -21,6 +21,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   fixedLayout?: boolean;
   getRowClassName?: (row: T) => string;
+  getRowId?: (row: T) => string;
   onRowContextMenu?: (e: React.MouseEvent, row: T) => void;
   onRowTouchStart?: (e: React.TouchEvent, row: T) => void;
   onRowTouchMove?: (e: React.TouchEvent) => void;
@@ -33,6 +34,7 @@ export default function DataTable<T>({
   emptyMessage = "No rows to display.",
   fixedLayout = false,
   getRowClassName,
+  getRowId,
   onRowContextMenu,
   onRowTouchStart,
   onRowTouchMove,
@@ -101,6 +103,7 @@ export default function DataTable<T>({
         {rows.map((row) => (
           <tr
             key={row.id}
+            data-testid={getRowId?.(row.original)}
             className={cn(
               "border-b border-theme-muted-subtle",
               getRowClassName?.(row.original),
