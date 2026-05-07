@@ -35,6 +35,7 @@ export default function SavingsModalForm({
   const { settings } = useSettings();
   const [amountDraft, setAmountDraft] = useState<string>("");
   const [percentDraft, setPercentDraft] = useState<string>("");
+  const [percentCents, setPercentCents] = useState<number>(0);
   const [error, setError] = useState("");
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol);
 
@@ -44,8 +45,10 @@ export default function SavingsModalForm({
   useEffect(() => {
     if (isOpen) {
       const rate = Number(initialRate || 0);
+      const cents = Math.round(rate * 100);
       const amount = hasIncome ? (rate / 100) * (monthlyIncome ?? 0) : 0;
-      setPercentDraft(rate.toFixed(2));
+      setPercentCents(cents);
+      setPercentDraft((cents / 100).toFixed(2));
       setAmountDraft(amount.toFixed(2));
       setError("");
     }
@@ -60,11 +63,71 @@ export default function SavingsModalForm({
   };
 
   const handlePercentChange = (value: string) => {
-    setPercentDraft(value);
     const pct = parseFloat(value || "0");
-    if (!isNaN(pct) && hasIncome) {
-      setAmountDraft(((pct / 100) * (monthlyIncome ?? 0)).toFixed(2));
+    if (!isNaN(pct)) {
+      const cents = Math.round(Math.min(pct, 100) * 100);
+      setPercentCents(cents);
+      setPercentDraft((cents / 100).toFixed(2));
+      if (hasIncome) {
+        setAmountDraft(((cents / 100 / 100) * (monthlyIncome ?? 0)).toFixed(2));
+      }
     }
+  };
+
+  const handlePercentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const isDigit = /^[0-9]$/.test(e.key);
+
+    if (isDigit) {
+      e.preventDefault();
+      const isSelected =
+        e.currentTarget.selectionStart === 0 &&
+        e.currentTarget.selectionEnd === e.currentTarget.value.length;
+      const base = isSelected ? 0 : percentCents;
+      const next = Math.min(base * 10 + Number(e.key), 10000);
+      setPercentCents(next);
+      const pct = next / 100;
+      setPercentDraft(pct.toFixed(2));
+      if (hasIncome) {
+        setAmountDraft(((pct / 100) * (monthlyIncome ?? 0)).toFixed(2));
+      }
+      return;
+    }
+
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      const isSelected =
+        e.currentTarget.selectionStart === 0 &&
+        e.currentTarget.selectionEnd === e.currentTarget.value.length;
+      const next = isSelected ? 0 : Math.floor(percentCents / 10);
+      setPercentCents(next);
+      const pct = next / 100;
+      setPercentDraft(pct.toFixed(2));
+      if (hasIncome) {
+        setAmountDraft(((pct / 100) * (monthlyIncome ?? 0)).toFixed(2));
+      }
+      return;
+    }
+
+    if (e.key === "Delete") {
+      e.preventDefault();
+      setPercentCents(0);
+      setPercentDraft("0.00");
+      if (hasIncome) setAmountDraft("0.00");
+      return;
+    }
+
+    if (
+      e.key === "Tab" ||
+      e.key === "Enter" ||
+      e.key === "Escape" ||
+      e.key.startsWith("Arrow") ||
+      e.metaKey ||
+      e.ctrlKey
+    ) {
+      return;
+    }
+
+    e.preventDefault();
   };
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -78,7 +141,6 @@ export default function SavingsModalForm({
     onSave(pct);
   };
 
-  const inputCls = "input-md w-full min-w-0";
   const displayError = externalError || error;
   const focusMoneyInput = (
     event: React.MouseEvent<HTMLDivElement>,
@@ -113,49 +175,45 @@ export default function SavingsModalForm({
         {displayError && (
           <p className="text-theme-danger text-xs">{displayError}</p>
         )}
-        <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
           {hasIncome && (
-            <div>
-              <label className="block text-sm text-theme-muted mb-1">
-                Amount
-              </label>
-              <div
-                className={cn(
-                  "input-md flex items-center px-3 py-0 focus-within:border-theme-primary focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]",
-                  displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-danger)_18%,transparent)]",
-                )}
-                onClick={focusMoneyInput}
-              >
-                <MoneyInput
-                  value={Number.parseFloat(amountDraft || "0")}
-                  onChange={(value) => handleAmountChange(value.toFixed(2))}
-                  currency={moneyConfig.currency}
-                  locale={moneyConfig.locale}
-                  placeholder="e.g. 500"
-                  variant="inline"
-                  inputClassName="text-sm"
-                />
-              </div>
+            <div
+              className={cn(
+                "input-md flex items-center px-3 py-0 w-full sm:flex-1 min-w-0 focus-within:border-theme-primary focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]",
+                displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-danger)_18%,transparent)]",
+              )}
+              onClick={focusMoneyInput}
+            >
+              <MoneyInput
+                value={Number.parseFloat(amountDraft || "0")}
+                onChange={(value) => handleAmountChange(value.toFixed(2))}
+                currency={moneyConfig.currency}
+                locale={moneyConfig.locale}
+                placeholder="e.g. 500"
+                variant="inline"
+                className="w-full"
+                inputClassName="text-sm"
+              />
             </div>
           )}
-          <div>
-            <label className="block text-sm text-theme-muted mb-1">
-              Percentage
-            </label>
-            <div className="flex gap-2 items-center">
-              <input
-                type="number"
-                value={percentDraft}
-                onChange={(e) => handlePercentChange(e.target.value)}
-                placeholder="e.g. 20"
-                min="0"
-                max="100"
-                step="0.01"
-                autoFocus
-                className={inputCls}
-              />
-              <span className="text-sm text-theme-muted shrink-0">%</span>
-            </div>
+          <div
+            className={cn(
+              "input-md flex items-center px-3 py-0 gap-2 w-full sm:w-36 focus-within:border-theme-primary focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]",
+              displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-danger)_18%,transparent)]",
+            )}
+          >
+            <input
+              type="text"
+              inputMode="numeric"
+              value={percentDraft}
+              onKeyDown={handlePercentKeyDown}
+              onChange={() => {}}
+              onFocus={(e) => e.currentTarget.select()}
+              placeholder="0.00"
+              autoFocus
+              className="flex-1 min-w-0 text-right font-semibold tabular-nums text-theme-text outline-none bg-transparent text-sm"
+            />
+            <span className="text-sm text-theme-muted shrink-0 pointer-events-none">%</span>
           </div>
         </div>
         {!hasIncome && (

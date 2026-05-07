@@ -389,7 +389,7 @@ export default function Dashboard({
                   selectedIds={dash.selectedIds}
                   onToggleSelect={dash.toggleExpenseSelection}
                   onToggleSelectAll={dash.toggleSelectAll}
-                  onBulkDelete={onBulkDelete}
+                  onBulkDelete={() => onBulkDelete(Array.from(dash.selectedIds))}
                   onUpdate={onUpdate}
                   onDelete={onDelete}
                   isMobile={isMobile}

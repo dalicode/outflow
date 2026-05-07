@@ -144,6 +144,7 @@ export default function IncomeModalForm({
               placeholder="Amount"
               autoFocus
               variant="inline"
+              className="w-full"
               inputClassName="text-sm"
             />
           </div>
