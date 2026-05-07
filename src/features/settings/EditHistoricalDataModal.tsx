@@ -90,7 +90,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-theme-large bg-theme-surface border border-theme-border shadow-sm p-4 space-y-3">
+    <div className="space-y-3 pt-5 border-t border-theme-border first:pt-0 first:border-t-0">
       <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
       {children}
     </div>
@@ -99,11 +99,49 @@ function SectionCard({
 
 // ── Reusable sub-components ──────────────────────────────────────────────────
 
-interface YearTabBarProps {
+interface HistoricalYearTabsProps {
   years: number[];
   activeYear: number | null;
   dirtyYears: Set<number>;
   onSelect: (year: number) => void;
+}
+
+function HistoricalYearTabs({
+  years,
+  activeYear,
+  dirtyYears,
+  onSelect,
+}: HistoricalYearTabsProps) {
+  return (
+    <div className="flex items-end gap-0.5 overflow-x-auto scrollbar-auto-hide px-1 pb-0">
+      {years.map((y) => {
+        const isActive = y === activeYear;
+        const isDirty = dirtyYears.has(y) && !isActive;
+        return (
+          <button
+            key={y}
+            onClick={() => onSelect(y)}
+            className={cn(
+              "shrink-0 px-3 py-1.5 rounded-t-theme-medium text-xs font-medium",
+              "transition-[background-color,color] duration-150",
+              "motion-safe:active:scale-[0.98]",
+              isActive
+                ? "bg-theme-surface text-theme-text border border-theme-border border-b-theme-surface -mb-px"
+                : "bg-theme-background text-theme-muted hover:text-theme-text",
+            )}
+            aria-current={isActive ? "page" : undefined}
+          >
+            <span className="flex items-center gap-1.5">
+              {y}
+              {isDirty && (
+                <span className="w-1.5 h-1.5 rounded-full bg-theme-primary inline-block" />
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function YearTabBar({
@@ -588,6 +626,9 @@ function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
           </tbody>
         </table>
       </div>
+      <p className="text-xs text-theme-muted mt-2">
+        Total Savings includes auto savings, remaining budget, and your recorded expenses for this period.
+      </p>
     </div>
   );
 }
@@ -1087,8 +1128,14 @@ export default function EditHistoricalDataModal({
         }
       }
 
-      setResultMsg(`Created/updated ${totalSnapshots} snapshot(s).`);
       onComplete?.();
+      setYearConfigs({});
+      setActiveYear(years.length > 0 ? years[0] : null);
+      setDirtyYears(new Set());
+      setSaveMode("merge");
+      setErrors({});
+      setResultMsg("");
+      onClose();
     } catch (err) {
       console.error("Edit historical data failed:", err);
       setResultMsg(`Error: ${(err as Error).message}`);
@@ -1151,9 +1198,9 @@ export default function EditHistoricalDataModal({
         </div>
       ) : (
         <>
-          {/* Year tabs — sit outside the card */}
-          {years.length > 1 && (
-            <YearTabBar
+          {/* Year tabs — attached to the card below */}
+          {years.length > 0 && (
+            <HistoricalYearTabs
               years={years}
               activeYear={activeYear}
               dirtyYears={dirtyYears}
@@ -1161,8 +1208,8 @@ export default function EditHistoricalDataModal({
             />
           )}
 
-          {/* Content */}
-          <div className="space-y-5">
+          {/* Containing card — anchors to the tabs above */}
+          <div className="rounded-theme-large bg-theme-surface border border-theme-border shadow-sm p-4 sm:p-5 space-y-5">
             {activeYear && (
               <>
                 {/* Income ranges */}

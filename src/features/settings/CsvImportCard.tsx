@@ -20,6 +20,7 @@ interface CsvImportCardProps {
   onImportComplete: (importedYears: number[]) => void;
   onStatusChange: (status: string) => void;
   onErrorsChange: (errors: string[]) => void;
+  variant?: "default" | "flat";
 }
 
 interface ValidImportRow {
@@ -45,6 +46,7 @@ export default function CsvImportCard({
   onImportComplete,
   onStatusChange,
   onErrorsChange,
+  variant = "default",
 }: CsvImportCardProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
@@ -401,7 +403,7 @@ export default function CsvImportCard({
   };
 
   return (
-    <Card title="Import CSV" className="flex-1">
+    <Card title="Import CSV" className="flex-1" variant={variant}>
       <p className="text-xs text-theme-muted mb-2">
         Import expenses from a CSV file. We’ll review uncertain payee matches
         before anything is saved.

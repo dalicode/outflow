@@ -129,48 +129,33 @@ describe('Navbar', () => {
     expect(collapseButton).toHaveClass('group-hover:opacity-100')
   })
 
-  it('keeps the pill and one-row states drag-only, and lets the expanded state collapse back to one row on click', () => {
+  it('toggles between one-row and expanded on click, and keeps pill as drag-only', () => {
     renderNavbar({ onAddExpense: vi.fn() })
     const mobileNav = document.body.querySelector('.mobile-nav-container')
-    const mobileWrapper = document.body.querySelector('div[style*="--mobile-nav-wrapper-height"]')
     const dragSurface = () => document.body.querySelector('.mobile-nav-container') as HTMLElement
 
     // Starts at stage 1 (one row)
     expect(mobileNav).toHaveAttribute('data-stage', '1')
-    expect(mobileWrapper).toHaveStyle({
-      '--mobile-nav-height': '88px',
-      '--mobile-nav-wrapper-height': '136px',
-      '--mobile-nav-overscan': '48px',
-      '--mobile-nav-collapsed-height': '76px',
-    })
-    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
+    expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
 
-    // Click at stage 1 does nothing
-    fireEvent.click(screen.getByLabelText('Expand more'))
-    expect(mobileNav).toHaveAttribute('data-stage', '1')
-    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
-
-    // Drag up anywhere on the bar: 1 → 2
-    fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
-    fireEvent.pointerMove(dragSurface(), { clientY: 80, pointerId: 1 })
-    fireEvent.pointerUp(dragSurface(), { clientY: 80, pointerId: 1 })
+    // Click at stage 1 goes to stage 2
+    fireEvent.click(screen.getByLabelText('Expand navigation'))
     expect(mobileNav).toHaveAttribute('data-stage', '2')
     expect(screen.getByLabelText('Collapse navigation')).toBeInTheDocument()
 
-    // Click at stage 2 tucks back to the default one-row state
+    // Click at stage 2 tucks back to stage 1
     const collapseHandle = screen.getByLabelText('Collapse navigation')
     fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
     fireEvent.click(collapseHandle)
     expect(mobileNav).toHaveAttribute('data-stage', '1')
-    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
+    expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
 
-    // Stage 0 pill also ignores clicks
-    fireEvent.pointerDown(screen.getByLabelText('Expand more'), { clientY: 200, pointerId: 1 })
-    fireEvent.pointerMove(screen.getByLabelText('Expand more'), { clientY: 280, pointerId: 1 })
-    fireEvent.pointerUp(screen.getByLabelText('Expand more'), { clientY: 280, pointerId: 1 })
-    expect(mobileNav).toHaveAttribute('data-stage', '0')
-    fireEvent.click(screen.getByLabelText('Expand navigation'))
-    expect(mobileNav).toHaveAttribute('data-stage', '0')
+    // Stage 0 pill ignores clicks — can only be reached via auto-hide
+    // Drag from stage 1 down still snaps to stage 1 (cannot reach stage 0 via drag)
+    fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
+    fireEvent.pointerMove(dragSurface(), { clientY: 280, pointerId: 1 })
+    fireEvent.pointerUp(dragSurface(), { clientY: 280, pointerId: 1 })
+    expect(mobileNav).toHaveAttribute('data-stage', '1')
   })
 
   it('expands and collapses mobile navigation with a vertical drag', () => {
@@ -189,12 +174,12 @@ describe('Navbar', () => {
     expect(mobileNav).toHaveAttribute('data-stage', '2')
     expect(screen.getByLabelText('Collapse navigation')).toBeInTheDocument()
 
-    // Drag down to collapse to stage 0
+    // Drag down to collapse to stage 1 (cannot reach stage 0 via drag)
     fireEvent.pointerDown(dragSurface(), { clientY: 80, pointerId: 1 })
     fireEvent.pointerMove(dragSurface(), { clientY: 260, pointerId: 1 })
     fireEvent.pointerUp(dragSurface(), { clientY: 260, pointerId: 1 })
 
-    expect(mobileNav).toHaveAttribute('data-stage', '0')
+    expect(mobileNav).toHaveAttribute('data-stage', '1')
     expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
   })
 
@@ -216,7 +201,7 @@ describe('Navbar', () => {
     fireEvent.click(collapseHandle)
 
     expect(mobileNav).toHaveAttribute('data-stage', '1')
-    expect(screen.getByLabelText('Expand more')).toBeInTheDocument()
+    expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
   })
 
   it('auto-collapses to stage-0 pill on scroll down and restores on scroll up', () => {
@@ -294,8 +279,8 @@ describe('Navbar', () => {
     expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
 
     fireEvent.click(screen.getByLabelText('Expand navigation'))
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
-    expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
+    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
+    expect(getMobileNav()).not.toHaveClass('translate-y-[calc(100%-18px)]')
 
     fireEvent.pointerDown(getMobileNavContainer() as HTMLElement, { clientY: 220, pointerId: 1 })
     fireEvent.pointerMove(getMobileNavContainer() as HTMLElement, { clientY: 90, pointerId: 1 })

@@ -374,6 +374,7 @@ export default function Navbar({
   const startHeightRef = useRef<number>(stageHeights[1]);
   const expandedSinceLastScrollRef = useRef(false);
   const mobileDragDistanceRef = useRef(0);
+  const pointerHistoryRef = useRef<Array<{ y: number; t: number }>>([]);
   const location = useLocation();
   const isOnDashboard = location.pathname === ROUTES.DASHBOARD;
   const justNavigatedRef = useRef(false);
@@ -416,12 +417,16 @@ export default function Navbar({
   const mobileExpansionProgress =
     (mobileNavHeight - mobileCollapsedHeight) /
     (mobileExpandedHeight - mobileCollapsedHeight);
+  const translateY = isMobileNavCollapsed
+    ? 0
+    : mobileExpandedHeight - mobileNavHeight;
   const mobileNavStyle = {
-    "--mobile-nav-height": `${mobileNavHeight}px`,
-    "--mobile-nav-wrapper-height": `${mobileNavHeight + mobileNavOverscan}px`,
+    "--mobile-nav-height": `${mobileExpandedHeight}px`,
+    "--mobile-nav-wrapper-height": `${mobileExpandedHeight + mobileNavOverscan}px`,
     "--mobile-nav-overscan": `${mobileNavOverscan}px`,
     "--mobile-nav-collapsed-height": `${mobileCollapsedHeight}px`,
     "--mobile-nav-progress": `${mobileExpansionProgress}`,
+    "--mobile-nav-translate-y": `${translateY}px`,
   } as CSSProperties;
   const renderMobileNavLink = ({
     pageKey,
@@ -453,14 +458,29 @@ export default function Navbar({
   };
   const handleMobileHandleClick = () => {
     if (isMobileNavBlocked) return;
-    if (mobileStage !== 2 || isMobileNavCollapsed) {
+
+    if (isMobileNavCollapsed) {
+      setMobileAutoHidden(false);
+      setMobileStage(1);
+      setMobileNavHeight(stageHeights[1]);
+      expandedSinceLastScrollRef.current = true;
       return;
     }
 
-    setMobileAutoHidden(false);
-    setMobileStage(1);
-    setMobileNavHeight(stageHeights[1]);
-    expandedSinceLastScrollRef.current = false;
+    if (mobileStage === 1) {
+      haptics.selection();
+      setMobileStage(2);
+      setMobileNavHeight(stageHeights[2]);
+      expandedSinceLastScrollRef.current = true;
+      return;
+    }
+
+    if (mobileStage === 2) {
+      haptics.selection();
+      setMobileStage(1);
+      setMobileNavHeight(stageHeights[1]);
+      expandedSinceLastScrollRef.current = false;
+    }
   };
   const handleMobileContainerPointerDown: PointerEventHandler<
     HTMLDivElement
@@ -492,10 +512,16 @@ export default function Navbar({
       setMobileAutoHidden(false);
     }
     const newHeight = Math.max(
-      mobileCollapsedHeight,
+      stageHeights[1],
       Math.min(mobileExpandedHeight, startHeightRef.current + rawDelta),
     );
     setMobileNavHeight(newHeight);
+
+    const now = performance.now();
+    pointerHistoryRef.current.push({ y: event.clientY, t: now });
+    pointerHistoryRef.current = pointerHistoryRef.current.filter(
+      (p) => now - p.t <= 100,
+    );
   };
   const handleMobileContainerPointerUp: PointerEventHandler<HTMLDivElement> = (
     event,
@@ -507,17 +533,43 @@ export default function Navbar({
       return;
     }
 
-    const nearestStage = ([0, 1, 2] as const).reduce((prev, curr) =>
-      Math.abs(stageHeights[curr] - mobileNavHeight) <
-      Math.abs(stageHeights[prev] - mobileNavHeight)
-        ? curr
-        : prev,
-    );
+    // Compute velocity from pointer history
+    const history = pointerHistoryRef.current;
+    let velocityPxPerMs = 0;
+    if (history.length >= 2) {
+      const oldest = history[0];
+      const newest = history[history.length - 1];
+      const dt = newest.t - oldest.t;
+      if (dt > 0) {
+        velocityPxPerMs = (newest.y - oldest.y) / dt;
+      }
+    }
+    pointerHistoryRef.current = [];
 
-    setMobileStage(nearestStage);
-    setMobileNavHeight(stageHeights[nearestStage]);
-    setMobileAutoHidden(nearestStage === 0);
-    expandedSinceLastScrollRef.current = nearestStage > 0;
+    const VELOCITY_THRESHOLD = 0.5;
+
+    let targetStage: 1 | 2;
+    if (velocityPxPerMs < -VELOCITY_THRESHOLD) {
+      targetStage = 2;
+    } else if (velocityPxPerMs > VELOCITY_THRESHOLD) {
+      targetStage = 1;
+    } else {
+      targetStage = ([1, 2] as const).reduce((prev, curr) =>
+        Math.abs(stageHeights[curr] - mobileNavHeight) <
+        Math.abs(stageHeights[prev] - mobileNavHeight)
+          ? curr
+          : prev,
+      );
+    }
+
+    if (targetStage !== mobileStage) {
+      haptics.selection();
+    }
+
+    setMobileStage(targetStage);
+    setMobileNavHeight(stageHeights[targetStage]);
+    setMobileAutoHidden(false);
+    expandedSinceLastScrollRef.current = targetStage > 0;
 
     mobileDragStartYRef.current = null;
     mobileDragDistanceRef.current = 0;
@@ -531,6 +583,7 @@ export default function Navbar({
   > = (event) => {
     mobileDragStartYRef.current = null;
     setMobileNavHeight(stageHeights[mobileStage]);
+    pointerHistoryRef.current = [];
     mobileDragDistanceRef.current = 0;
     setIsMobileDragging(false);
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
@@ -765,10 +818,10 @@ export default function Navbar({
               onClick={handleMobileHandleClick}
               className="mobile-nav-handle"
               aria-label={
-                mobileStage === 0
+                isMobileNavCollapsed
                   ? "Expand navigation"
                   : mobileStage === 1
-                    ? "Expand more"
+                    ? "Expand navigation"
                     : "Collapse navigation"
               }
             >

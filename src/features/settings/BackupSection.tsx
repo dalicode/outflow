@@ -25,6 +25,7 @@ interface BackupSectionProps {
   onStatus: (status: string) => void;
   onRefreshAll?: () => Promise<void> | void;
   triggerSync?: () => void;
+  variant?: "default" | "flat";
 }
 
 export default function BackupSection({
@@ -32,6 +33,7 @@ export default function BackupSection({
   onStatus,
   onRefreshAll,
   triggerSync,
+  variant = "default",
 }: BackupSectionProps) {
   const { save } = useSettings();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -268,7 +270,7 @@ export default function BackupSection({
   return (
     <>
       <div className="flex flex-col sm:flex-row gap-3">
-        <Card title="Export Backup" className="flex-1">
+        <Card title="Export Backup" className="flex-1" variant={variant}>
           <p className="text-xs text-theme-muted mb-2">
             Export your complete dataset as a password-encrypted .ofb backup
             file. Your data stays local unless you enable sync.
@@ -284,7 +286,7 @@ export default function BackupSection({
           </div>
         </Card>
 
-        <Card title="Import Backup" className="flex-1">
+        <Card title="Import Backup" className="flex-1" variant={variant}>
           <p className="text-xs text-theme-muted mb-2">
             Restore from an encrypted .ofb backup or a legacy plain JSON file.
             You can review version details before proceeding.

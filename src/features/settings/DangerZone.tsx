@@ -6,9 +6,10 @@ import LoadingOverlay from "../../components/ui/LoadingOverlay";
 
 interface DangerZoneProps {
   onClearAll: () => Promise<void>;
+  variant?: "default" | "flat";
 }
 
-export default function DangerZone({ onClearAll }: DangerZoneProps) {
+export default function DangerZone({ onClearAll, variant = "default" }: DangerZoneProps) {
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [isReloading, setIsReloading] = useState(false);
@@ -27,7 +28,7 @@ export default function DangerZone({ onClearAll }: DangerZoneProps) {
 
   return (
     <>
-      <Card title="Danger Zone" className="border-theme-danger-subtle">
+      <Card title="Danger Zone" className="border-theme-danger-subtle" variant={variant}>
         <p className="text-xs text-theme-muted mb-2">
           Permanently delete all expenses, categories, fixed expenses,
           snapshots, and settings. This cannot be undone.

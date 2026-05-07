@@ -10,9 +10,10 @@ import type { Expense } from "../../types";
 interface CsvExportCardProps {
   expenses: Expense[];
   formatDate: (iso: string) => string;
+  variant?: "default" | "flat";
 }
 
-export default function CsvExportCard({ expenses, formatDate }: CsvExportCardProps) {
+export default function CsvExportCard({ expenses, formatDate, variant = "default" }: CsvExportCardProps) {
   const [exportRange, setExportRange] = useState({ from: "", to: "" });
   const { payees } = usePayees();
   const [categories, setCategories] = useState<{ id?: number; name: string }[]>([]);
@@ -39,7 +40,7 @@ export default function CsvExportCard({ expenses, formatDate }: CsvExportCardPro
   };
 
   return (
-    <Card title="Export CSV" className="flex-1">
+    <Card title="Export CSV" className="flex-1" variant={variant}>
       <p className="text-xs text-theme-muted mb-2">
         Download your expenses as a CSV file for a selected date range.
       </p>

@@ -1,7 +1,12 @@
 import { useMemo } from "react";
 import { cn } from "../../utils/cn";
 import { getSavingsGradientColor } from "../../utils/colorHelpers";
-import type { MultiMonthCategoryRow, MultiMonthFixedRow, MonthlySummary, MonthKey } from "../../types";
+import type {
+  MultiMonthCategoryRow,
+  MultiMonthFixedRow,
+  MonthlySummary,
+  MonthKey,
+} from "../../types";
 
 interface PayeeViewTableProps {
   multiPayeeRows: MultiMonthCategoryRow[];
@@ -40,8 +45,7 @@ export default function PayeeViewTable({
     mk.year > now.getFullYear() ||
     (mk.year === now.getFullYear() && mk.month > now.getMonth());
 
-  const colCount =
-    monthSpan > 1 ? 2 + monthSpan + (showGrandTotal ? 1 : 0) : 3;
+  const colCount = monthSpan > 1 ? 2 + monthSpan + (showGrandTotal ? 1 : 0) : 3;
 
   const totalSavingsData = useMemo(() => {
     return monthSummaries.map((summary) => {
@@ -91,461 +95,470 @@ export default function PayeeViewTable({
 
   return (
     <div className="w-full overflow-x-auto">
-    <table className="w-full table-fixed text-sm border-separate border-spacing-0">
-      <thead className="sticky top-0 z-10">
-        <tr>
-  <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left min-w-[8rem]">
-    Payee
-  </th>
-          {monthSpan > 1 ? (
-            <>
-              <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-28">
-                Transactions
-              </th>
-              {reversedMonthKeys.map((mk, displayIdx) => (
-                <th
-                  key={mk.key}
-                  className={cn(
-                    "table-header-cell text-right tabular-nums w-32",
-                    displayIdx === 0 && "border-l border-theme-border",
-                  )}
-                >
-                  {mk.name}
-                </th>
-              ))}
-              {showGrandTotal && (
-                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-32">
-                  Total
-                </th>
-              )}
-            </>
-          ) : (
-            <>
-              <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-28">
-                Transactions
-              </th>
-              <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-32">
-                Amount
-              </th>
-            </>
-          )}
-        </tr>
-      </thead>
-      <tbody>
-        {multiPayeeRows.map((row) => {
-          const grandTotal = row.monthlyAmounts.reduce((s, v) => s + v, 0);
-          return (
-            <tr
-              key={row.name}
-              className="border-b border-theme-muted-subtle row-hover"
-            >
-              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text min-w-[8rem] overflow-hidden">
-                <span className="block min-w-0 truncate">{row.name}</span>
-              </td>
-              {monthSpan > 1 ? (
-                <>
-                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums text-theme-muted">
-                    {row.totalTransactions}
-                  </td>
-                  {reversedMonthKeys.map((mk, displayIdx) => {
-                    const dataIdx = monthKeys.length - 1 - displayIdx;
-                    const amount = row.monthlyAmounts[dataIdx] ?? 0;
-                    const future = isFutureMonth(mk);
-                    return (
-                      <td
-                        key={mk.key}
-                        className={cn(
-                          "py-1 text-right tabular-nums",
-                          displayIdx === 0 && "border-l border-theme-border",
-                          future && "text-theme-muted",
-                        )}
-                      >
-                        {amount !== 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => onPayeeClick(row.name, dataIdx)}
-                            className={cn(
-                              "px-1.5 sm:px-2 md:px-3 rounded-theme-small font-semibold transition-colors hover:bg-theme-border hover:underline",
-                              getNumberColorClass(amount),
-                            )}
-                          >
-                            {formatAmount(amount)}
-                          </button>
-                        ) : (
-                          <span className="px-1.5 sm:px-2 md:px-3 text-theme-muted">
-                            —
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  {showGrandTotal && (
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums text-theme-text font-medium">
-                      {formatAmount(grandTotal)}
-                    </td>
-                  )}
-                </>
-              ) : (
-                <>
-                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums text-theme-muted">
-                    {row.totalTransactions}
-                  </td>
-                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
-                    <button
-                      type="button"
-                      onClick={() => onPayeeClick(row.name, 0)}
-                      className={cn(
-                        "px-1.5 sm:px-2 md:px-3 rounded-theme-small font-semibold transition-colors hover:bg-theme-border hover:underline",
-                        getNumberColorClass(row.monthlyAmounts[0]),
-                      )}
-                    >
-                      {formatAmount(row.monthlyAmounts[0])}
-                    </button>
-                  </td>
-                </>
-              )}
-            </tr>
-          );
-        })}
-        {multiPayeeRows.length === 0 && (
+      <table className="w-full table-fixed text-sm border-separate border-spacing-0">
+        <thead className="sticky top-0 z-10">
           <tr>
-            <td
-              colSpan={colCount}
-              className="px-3 py-8 text-center text-sm text-theme-muted"
-            >
-              No payee data for this period.
-            </td>
+            <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left min-w-[8rem]">
+              Payee
+            </th>
+            {monthSpan > 1 ? (
+              <>
+                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                  Count
+                </th>
+                {reversedMonthKeys.map((mk, displayIdx) => (
+                  <th
+                    key={mk.key}
+                    className={cn(
+                      "table-header-cell text-right tabular-nums w-24",
+                      displayIdx === 0 && "border-l border-theme-border",
+                    )}
+                  >
+                    {mk.name}
+                  </th>
+                ))}
+                {showGrandTotal && (
+                  <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                    Total
+                  </th>
+                )}
+              </>
+            ) : (
+              <>
+                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                  Count
+                </th>
+                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                  Amount
+                </th>
+              </>
+            )}
           </tr>
-        )}
-      </tbody>
-      {multiFixedRows.length > 0 && (
-        <>
-          <tr>
-            <td
-              colSpan={colCount}
-              className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap min-w-[8rem] overflow-hidden"
-            >
-              Fixed Expenses
-            </td>
-          </tr>
-          {multiFixedRows.map((fe) => {
-            const fixedGrandTotal = fe.monthlyAmounts.reduce(
-              (s, v) => (s ?? 0) + (v ?? 0),
-              0,
-            );
+        </thead>
+        <tbody>
+          {multiPayeeRows.map((row) => {
+            const grandTotal = row.monthlyAmounts.reduce((s, v) => s + v, 0);
             return (
-              <tr key={fe.id} className="row-hover">
+              <tr
+                key={row.name}
+                className="border-b border-theme-muted-subtle row-hover"
+              >
                 <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text min-w-[8rem] overflow-hidden">
-                  <span className="block min-w-0 truncate">{fe.name}</span>
+                  <span className="block min-w-[8rem] truncate">
+                    {row.name}
+                  </span>
                 </td>
                 {monthSpan > 1 ? (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                      —
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums text-theme-muted">
+                      {row.totalTransactions}
                     </td>
-                    {[...fe.monthlyAmounts]
-                      .reverse()
-                      .map((amount, displayIdx) => (
+                    {reversedMonthKeys.map((mk, displayIdx) => {
+                      const dataIdx = monthKeys.length - 1 - displayIdx;
+                      const amount = row.monthlyAmounts[dataIdx] ?? 0;
+                      const future = isFutureMonth(mk);
+                      return (
                         <td
-                          key={displayIdx}
+                          key={mk.key}
                           className={cn(
-                            "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text",
+                            "py-1 text-right tabular-nums",
                             displayIdx === 0 && "border-l border-theme-border",
+                            future && "text-theme-muted",
                           )}
                         >
-                          {amount !== null ? formatAmount(amount) : "—"}
+                          {amount !== 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => onPayeeClick(row.name, dataIdx)}
+                              className={cn(
+                                "rounded-theme-small font-semibold transition-colors hover:bg-theme-border hover:underline",
+                                getNumberColorClass(amount),
+                              )}
+                            >
+                              {formatAmount(amount)}
+                            </button>
+                          ) : (
+                            <span className="text-theme-muted">
+                              —
+                            </span>
+                          )}
                         </td>
-                      ))}
+                      );
+                    })}
                     {showGrandTotal && (
-                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
-                        {formatAmount(fixedGrandTotal ?? 0)}
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums text-theme-text font-medium">
+                        {formatAmount(grandTotal)}
                       </td>
                     )}
                   </>
                 ) : (
                   <>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                      —
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums text-theme-muted">
+                      {row.totalTransactions}
                     </td>
-                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text">
-                      {fe.monthlyAmounts[0] !== null
-                        ? formatAmount(fe.monthlyAmounts[0])
-                        : "—"}
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
+                      <button
+                        type="button"
+                        onClick={() => onPayeeClick(row.name, 0)}
+                        className={cn(
+                          "rounded-theme-small font-semibold transition-colors hover:bg-theme-border hover:underline",
+                          getNumberColorClass(row.monthlyAmounts[0]),
+                        )}
+                      >
+                        {formatAmount(row.monthlyAmounts[0])}
+                      </button>
                     </td>
                   </>
                 )}
               </tr>
             );
           })}
-        </>
-      )}
-
-      {monthSummaries.length > 0 && (
-        <>
-          <tr>
-            <td
-              colSpan={colCount}
-              className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap min-w-[8rem] overflow-hidden"
-            >
-              Budget Summary
-            </td>
-          </tr>
-
-          {/* Income */}
-          <tr className="row-hover">
-            <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
-              <span className="block min-w-0 truncate">Income</span>
-            </td>
-            {monthSpan > 1 ? (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                {[...monthSummaries].reverse().map((summary, displayIdx) => {
-                  const dataIdx = monthSummaries.length - 1 - displayIdx;
-                  return (
-                    <td
-                      key={displayIdx}
-                      className={cn(
-                        "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums",
-                        displayIdx === 0 && "border-l border-theme-border",
+          {multiPayeeRows.length === 0 && (
+            <tr>
+              <td
+                colSpan={colCount}
+                className="px-3 py-8 text-center text-sm text-theme-muted"
+              >
+                No payee data for this period.
+              </td>
+            </tr>
+          )}
+        {multiFixedRows.length > 0 && (
+          <>
+            <tr>
+              <td
+                colSpan={colCount}
+                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap min-w-[8rem] overflow-hidden"
+              >
+                Fixed Expenses
+              </td>
+            </tr>
+            {multiFixedRows.map((fe) => {
+              const fixedGrandTotal = fe.monthlyAmounts.reduce(
+                (s, v) => (s ?? 0) + (v ?? 0),
+                0,
+              );
+              return (
+                <tr key={fe.id} className="row-hover">
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text min-w-[8rem] overflow-hidden">
+                    <span className="block min-w-[8rem] truncate">
+                      {fe.name}
+                    </span>
+                  </td>
+                  {monthSpan > 1 ? (
+                    <>
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                        —
+                      </td>
+                      {[...fe.monthlyAmounts]
+                        .reverse()
+                        .map((amount, displayIdx) => (
+                          <td
+                            key={displayIdx}
+                            className={cn(
+                              "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text",
+                              displayIdx === 0 &&
+                                "border-l border-theme-border",
+                            )}
+                          >
+                            {amount !== null ? formatAmount(amount) : "—"}
+                          </td>
+                        ))}
+                      {showGrandTotal && (
+                        <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
+                          {formatAmount(fixedGrandTotal ?? 0)}
+                        </td>
                       )}
-                    >
-                      {isFutureMonth(monthKeys[dataIdx]) ? (
-                        <span
-                          className="font-semibold text-theme-text cursor-not-allowed opacity-70"
-                          title="Use Schedule to change future values"
-                        >
-                          {formatAmount(summary.income)}
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => onIncomeClick(dataIdx)}
-                          className="font-semibold hover:underline text-theme-text"
-                        >
-                          {formatAmount(summary.income)}
-                        </button>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                        —
+                      </td>
+                      <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text">
+                        {fe.monthlyAmounts[0] !== null
+                          ? formatAmount(fe.monthlyAmounts[0])
+                          : "—"}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </>
+        )}
+
+        {monthSummaries.length > 0 && (
+          <>
+            <tr>
+              <td
+                colSpan={colCount}
+                className="table-header-cell px-1.5 sm:px-2 md:px-3 whitespace-nowrap min-w-[8rem] overflow-hidden"
+              >
+                Budget Summary
+              </td>
+            </tr>
+
+            {/* Income */}
+            <tr className="row-hover">
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
+                <span className="block min-w-[8rem] truncate">Income</span>
+              </td>
+              {monthSpan > 1 ? (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
+                  {[...monthSummaries].reverse().map((summary, displayIdx) => {
+                    const dataIdx = monthSummaries.length - 1 - displayIdx;
+                    return (
+                      <td
+                        key={displayIdx}
+                        className={cn(
+                          "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums",
+                          displayIdx === 0 && "border-l border-theme-border",
+                        )}
+                      >
+                        {isFutureMonth(monthKeys[dataIdx]) ? (
+                          <span
+                            className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                            title="Use Schedule to change future values"
+                          >
+                            {formatAmount(summary.income)}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onIncomeClick(dataIdx)}
+                            className="font-semibold hover:underline text-theme-text"
+                          >
+                            {formatAmount(summary.income)}
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
+                  {showGrandTotal && (
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
+                      {formatAmount(
+                        monthSummaries.reduce((s, m) => s + m.income, 0),
                       )}
                     </td>
-                  );
-                })}
-                {showGrandTotal && (
-                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
-                    {formatAmount(
-                      monthSummaries.reduce((s, m) => s + m.income, 0),
+                  )}
+                </>
+              ) : (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
+                    {isFutureMonth(monthKeys[0]) ? (
+                      <span
+                        className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                        title="Use Schedule to change future values"
+                      >
+                        {formatAmount(monthSummaries[0].income)}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => onIncomeClick(0)}
+                        className="font-semibold hover:underline text-theme-text"
+                      >
+                        {formatAmount(monthSummaries[0].income)}
+                      </button>
                     )}
                   </td>
-                )}
-              </>
-            ) : (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
-                  {isFutureMonth(monthKeys[0]) ? (
-                    <span
-                      className="font-semibold text-theme-text cursor-not-allowed opacity-70"
-                      title="Use Schedule to change future values"
-                    >
-                      {formatAmount(monthSummaries[0].income)}
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => onIncomeClick(0)}
-                      className="font-semibold hover:underline text-theme-text"
-                    >
-                      {formatAmount(monthSummaries[0].income)}
-                    </button>
-                  )}
-                </td>
-              </>
-            )}
-          </tr>
+                </>
+              )}
+            </tr>
 
-          {/* Auto Savings */}
-          <tr className="row-hover">
-            <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
-              <span className="block min-w-0 truncate">Auto Savings</span>
-            </td>
-            {monthSpan > 1 ? (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                {[...monthSummaries].reverse().map((summary, displayIdx) => {
-                  const dataIdx = monthSummaries.length - 1 - displayIdx;
-                  return (
-                    <td
-                      key={displayIdx}
-                      className={cn(
-                        "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums",
-                        displayIdx === 0 && "border-l border-theme-border",
-                      )}
-                    >
-                      {isFutureMonth(monthKeys[dataIdx]) ? (
-                        <span
-                          className="font-semibold text-theme-text cursor-not-allowed opacity-70"
-                          title="Use Schedule to change future values"
-                        >
-                          {formatAmount(summary.autoSavings)}
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => onSavingsClick(dataIdx)}
-                          className="font-semibold hover:underline text-theme-text"
-                        >
-                          {formatAmount(summary.autoSavings)}
-                        </button>
+            {/* Auto Savings */}
+            <tr className="row-hover">
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
+                <span className="block min-w-[8rem] truncate">
+                  Auto Savings
+                </span>
+              </td>
+              {monthSpan > 1 ? (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
+                  {[...monthSummaries].reverse().map((summary, displayIdx) => {
+                    const dataIdx = monthSummaries.length - 1 - displayIdx;
+                    return (
+                      <td
+                        key={displayIdx}
+                        className={cn(
+                          "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums",
+                          displayIdx === 0 && "border-l border-theme-border",
+                        )}
+                      >
+                        {isFutureMonth(monthKeys[dataIdx]) ? (
+                          <span
+                            className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                            title="Use Schedule to change future values"
+                          >
+                            {formatAmount(summary.autoSavings)}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onSavingsClick(dataIdx)}
+                            className="font-semibold hover:underline text-theme-text"
+                          >
+                            {formatAmount(summary.autoSavings)}
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
+                  {showGrandTotal && (
+                    <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
+                      {formatAmount(
+                        monthSummaries.reduce((s, m) => s + m.autoSavings, 0),
                       )}
                     </td>
-                  );
-                })}
-                {showGrandTotal && (
-                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
-                    {formatAmount(
-                      monthSummaries.reduce((s, m) => s + m.autoSavings, 0),
+                  )}
+                </>
+              ) : (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
+                    {isFutureMonth(monthKeys[0]) ? (
+                      <span
+                        className="font-semibold text-theme-text cursor-not-allowed opacity-70"
+                        title="Use Schedule to change future values"
+                      >
+                        {formatAmount(monthSummaries[0].autoSavings)}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => onSavingsClick(0)}
+                        className="font-semibold hover:underline text-theme-text"
+                      >
+                        {formatAmount(monthSummaries[0].autoSavings)}
+                      </button>
                     )}
                   </td>
-                )}
-              </>
-            ) : (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
-                  {isFutureMonth(monthKeys[0]) ? (
-                    <span
-                      className="font-semibold text-theme-text cursor-not-allowed opacity-70"
-                      title="Use Schedule to change future values"
-                    >
-                      {formatAmount(monthSummaries[0].autoSavings)}
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => onSavingsClick(0)}
-                      className="font-semibold hover:underline text-theme-text"
-                    >
-                      {formatAmount(monthSummaries[0].autoSavings)}
-                    </button>
-                  )}
-                </td>
-              </>
-            )}
-          </tr>
+                </>
+              )}
+            </tr>
 
-          {/* Remaining */}
-          <tr className="row-hover">
-            <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
-              <span className="block min-w-0 truncate">Remaining</span>
-            </td>
-            {monthSpan > 1 ? (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                {[...monthSummaries].reverse().map((summary, displayIdx) => {
-                  const dataIdx = monthSummaries.length - 1 - displayIdx;
-                  const cls = remainingClasses[dataIdx];
-                  return (
+            {/* Remaining */}
+            <tr className="row-hover">
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
+                <span className="block min-w-[8rem] truncate">Remaining</span>
+              </td>
+              {monthSpan > 1 ? (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
+                  {[...monthSummaries].reverse().map((summary, displayIdx) => {
+                    const dataIdx = monthSummaries.length - 1 - displayIdx;
+                    const cls = remainingClasses[dataIdx];
+                    return (
+                      <td
+                        key={displayIdx}
+                        className={cn(
+                          "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
+                          cls,
+                          displayIdx === 0 && "border-l border-theme-border",
+                        )}
+                      >
+                        {formatAmount(summary.remaining)}
+                      </td>
+                    );
+                  })}
+                  {showGrandTotal && (
                     <td
-                      key={displayIdx}
                       className={cn(
                         "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
-                        cls,
-                        displayIdx === 0 && "border-l border-theme-border",
+                        remainingGrandTotalClass,
                       )}
                     >
-                      {formatAmount(summary.remaining)}
+                      {formatAmount(
+                        monthSummaries.reduce((s, m) => s + m.remaining, 0),
+                      )}
                     </td>
-                  );
-                })}
-                {showGrandTotal && (
+                  )}
+                </>
+              ) : (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
                   <td
                     className={cn(
                       "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
-                      remainingGrandTotalClass,
+                      remainingClasses[0],
                     )}
                   >
-                    {formatAmount(
-                      monthSummaries.reduce((s, m) => s + m.remaining, 0),
-                    )}
+                    {formatAmount(monthSummaries[0].remaining)}
                   </td>
-                )}
-              </>
-            ) : (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                <td
-                  className={cn(
-                    "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
-                    remainingClasses[0],
-                  )}
-                >
-                  {formatAmount(monthSummaries[0].remaining)}
-                </td>
-              </>
-            )}
-          </tr>
+                </>
+              )}
+            </tr>
 
-          {/* Total Savings */}
-          <tr className="row-hover">
-            <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
-              <span className="block min-w-0 truncate">Total Savings</span>
-            </td>
-            {monthSpan > 1 ? (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                {[...monthSummaries].reverse().map((_, displayIdx) => {
-                  const dataIdx = monthSummaries.length - 1 - displayIdx;
-                  const { totalSavings, color } = totalSavingsData[dataIdx];
-                  return (
+            {/* Total Savings */}
+            <tr className="row-hover">
+              <td className="px-1.5 sm:px-2 md:px-3 py-1 text-theme-text font-medium min-w-[8rem] overflow-hidden">
+                <span className="block min-w-[8rem] truncate">
+                  Total Savings
+                </span>
+              </td>
+              {monthSpan > 1 ? (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
+                  {[...monthSummaries].reverse().map((_, displayIdx) => {
+                    const dataIdx = monthSummaries.length - 1 - displayIdx;
+                    const { totalSavings, color } = totalSavingsData[dataIdx];
+                    return (
+                      <td
+                        key={displayIdx}
+                        className={cn(
+                          "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
+                          displayIdx === 0 && "border-l border-theme-border",
+                        )}
+                        style={{ color }}
+                      >
+                        {formatAmount(totalSavings)}
+                      </td>
+                    );
+                  })}
+                  {showGrandTotal && (
                     <td
-                      key={displayIdx}
-                      className={cn(
-                        "px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold",
-                        displayIdx === 0 && "border-l border-theme-border",
-                      )}
-                      style={{ color }}
+                      className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
+                      style={{ color: grandTotalSavings.color }}
                     >
-                      {formatAmount(totalSavings)}
+                      {formatAmount(grandTotalSavings.grandTotal)}
                     </td>
-                  );
-                })}
-                {showGrandTotal && (
+                  )}
+                </>
+              ) : (
+                <>
+                  <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
+                    —
+                  </td>
                   <td
                     className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
-                    style={{ color: grandTotalSavings.color }}
+                    style={{ color: totalSavingsData[0]?.color }}
                   >
-                    {formatAmount(grandTotalSavings.grandTotal)}
+                    {formatAmount(
+                      monthSummaries[0].autoSavings +
+                        monthSummaries[0].remaining,
+                    )}
                   </td>
-                )}
-              </>
-            ) : (
-              <>
-                <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
-                  —
-                </td>
-                <td
-                  className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
-                  style={{ color: totalSavingsData[0]?.color }}
-                >
-                  {formatAmount(
-                    monthSummaries[0].autoSavings +
-                      monthSummaries[0].remaining,
-                  )}
-                </td>
-              </>
-            )}
-          </tr>
-        </>
-      )}
-    </table>
+                </>
+              )}
+            </tr>
+          </>
+        )}
+        </tbody>
+      </table>
     </div>
   );
 }

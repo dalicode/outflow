@@ -1,7 +1,11 @@
 import Card from "../../components/ui/Card";
 import { useSettings } from "../../context/settingsContext";
 
-export default function PrivacyBackupCard() {
+interface PrivacyBackupCardProps {
+  variant?: "default" | "flat";
+}
+
+export default function PrivacyBackupCard({ variant = "default" }: PrivacyBackupCardProps) {
   const { settings } = useSettings();
 
   const lastBackup =
@@ -10,7 +14,7 @@ export default function PrivacyBackupCard() {
       : null;
 
   return (
-    <Card title="Privacy & backups">
+    <Card title="Privacy & backups" variant={variant}>
       <div className="space-y-2 text-xs text-theme-muted">
         <p>
           Your data stays on this device unless you enable sync.

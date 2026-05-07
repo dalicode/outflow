@@ -18,7 +18,6 @@ import CsvImportCard from "./CsvImportCard";
 import ImportLogPanel from "./ImportLogPanel";
 import ScheduleList from "./ScheduleList";
 import DangerZone from "./DangerZone";
-import ReminderSettingsCard from "./ReminderSettingsCard";
 import PrivacyBackupCard from "./PrivacyBackupCard";
 import type { Expense, Schedule, Category, ScheduleMaterializationNotice } from "../../types";
 
@@ -176,240 +175,133 @@ export default function SettingsPage({
   }, [editHistoricalDataYears, expenses]);
 
   return (
-    <main
-      className="max-w-7xl mx-auto px-4 py-6 space-y-4 sm:space-y-6"
-      data-testid="settings-page"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-theme-text tracking-tight">
-          Settings
-        </h1>
-      </div>
+    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="settings-page">
+      <h1 className="text-2xl font-bold text-theme-text tracking-tight">Settings</h1>
 
-      {/* Theme */}
-      <Card title="Visual Theme">
-        <p className="text-xs text-theme-muted mb-2">
-          Choose a visual style. Changes apply instantly and sync across
-          devices.
-        </p>
+      {/* Appearance — single card */}
+      <Card title="Appearance">
         <ThemeSelector
           value={settings.visualTheme}
           onChange={(v) => save({ visualTheme: v })}
         />
         <div className="flex items-center gap-2 text-xs text-theme-muted pt-1">
           <span className="inline-block w-2 h-2 rounded-full bg-theme-success" />
-          Active:{" "}
-          <span className="font-medium text-theme-text">
-            {currentTheme.name}
-          </span>
-          <span className="text-theme-border">|</span>
-          Radius:{" "}
-          <span className="font-medium">
-            {currentTheme.borderRadius.small} /{" "}
-            {currentTheme.borderRadius.medium} /{" "}
-            {currentTheme.borderRadius.large}
-          </span>
+          Active: <span className="font-medium text-theme-text">{currentTheme.name}</span>
         </div>
-      </Card>
 
-      {/* Typography + Number Format */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
-        <Card title="Typography">
-          <p className="text-xs text-theme-muted mb-1.5">
-            Choose the font family and size for the app interface.
-          </p>
-          <Row
-            label="Font"
-            value={settings.font}
-            onChange={(v) => save({ font: v })}
-            options={[
-              ["system", "System UI"],
-              ["sans", "Sans-serif"],
-              ["serif", "Serif"],
-              ["mono", "Monospace"],
-              ["roboto", "Roboto"],
-              ["georgia", "Georgia"],
-              ["financeMono", "Data Mono"],
-            ]}
-          />
-          <Row
-            label="Font size"
-            value={settings.fontSize}
-            onChange={(v) => save({ fontSize: v })}
-            options={[
-              ["0.85", "Small (0.85×)"],
-              ["1", "Medium (1×)"],
-              ["1.15", "Large (1.15×)"],
-              ["1.3", "X-Large (1.3×)"],
-            ]}
-          />
-        </Card>
-
-        <Card title="Number Format">
-          <p className="text-xs text-theme-muted mb-1.5">
-            Set how currency amounts are displayed across the app.
-          </p>
-          <Row
-            label="Currency"
-            value={settings.currencySymbol}
-            onChange={(v) => save({ currencySymbol: v })}
-            options={[
-              ["$", "$ Dollar"],
-              ["€", "€ Euro"],
-              ["£", "£ Pound"],
-              ["¥", "¥ Yen"],
-              ["₹", "₹ Rupee"],
-            ]}
-          />
-          <Row
-            label="Decimals"
-            value={settings.decimalPlaces}
-            onChange={(v) => save({ decimalPlaces: v })}
-            options={[
-              ["0", "0"],
-              ["1", "1"],
-              ["2", "2"],
-            ]}
-          />
-          <Row
-            label="Separator"
-            value={settings.thousandSep}
-            onChange={(v) => save({ thousandSep: v })}
-            options={[
-              [",", "1,000"],
-              [".", "1.000"],
-              [" ", "1 000"],
-            ]}
-          />
-          <p className="text-xs text-theme-muted pt-0.5">
-            Preview:{" "}
-            <span
-              dangerouslySetInnerHTML={{
-                __html: formatAmount(1234567.89),
-              }}
-            />
-          </p>
-        </Card>
-      </div>
-
-      {/* Date Format */}
-      <Card title="Date Format">
-        <p className="text-xs text-theme-muted mb-1.5">
-          Choose how dates are shown throughout the app.
-        </p>
-        <Row
-          label="Format"
-          value={settings.dateFormat}
-          onChange={(v) => save({ dateFormat: v })}
-          options={[
-            ["MM/DD/YYYY", "MM/DD/YYYY"],
-            ["DD/MM/YYYY", "DD/MM/YYYY"],
-            ["YYYY-MM-DD", "YYYY-MM-DD"],
-          ]}
-        />
-        <p className="text-xs text-theme-muted pt-0.5">
-          Preview: {formatDate(getLocalToday())}
+        <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-3 mb-2">Display</p>
+        <Row label="Font" value={settings.font} onChange={(v) => save({ font: v })} options={[
+          ["system", "System UI"], ["sans", "Sans-serif"], ["serif", "Serif"],
+          ["mono", "Monospace"], ["roboto", "Roboto"], ["georgia", "Georgia"], ["financeMono", "Data Mono"],
+        ]} />
+        <Row label="Font size" value={settings.fontSize} onChange={(v) => save({ fontSize: v })} options={[
+          ["0.85", "Small"], ["1", "Medium"], ["1.15", "Large"], ["1.3", "X-Large"],
+        ]} />
+        <Row label="Currency" value={settings.currencySymbol} onChange={(v) => save({ currencySymbol: v })} options={[
+          ["$", "$ Dollar"], ["€", "€ Euro"], ["£", "£ Pound"], ["¥", "¥ Yen"], ["₹", "₹ Rupee"],
+        ]} />
+        <Row label="Decimals" value={settings.decimalPlaces} onChange={(v) => save({ decimalPlaces: v })} options={[
+          ["0", "0"], ["1", "1"], ["2", "2"],
+        ]} />
+        <Row label="Separator" value={settings.thousandSep} onChange={(v) => save({ thousandSep: v })} options={[
+          [",", "1,000"], [".", "1.000"], [" ", "1 000"],
+        ]} />
+        <Row label="Date format" value={settings.dateFormat} onChange={(v) => save({ dateFormat: v })} options={[
+          ["MM/DD/YYYY", "MM/DD/YYYY"], ["DD/MM/YYYY", "DD/MM/YYYY"], ["YYYY-MM-DD", "YYYY-MM-DD"],
+        ]} />
+        <p className="text-xs text-theme-muted pt-1">
+          Preview: {formatAmount(1234567.89)} · {formatDate(getLocalToday())}
         </p>
       </Card>
 
-      <ReminderSettingsCard />
-
-      {/* Haptics */}
-      <Card title="Haptics">
-        <p className="text-xs text-theme-muted mb-3">
-          Subtle vibration feedback for important mobile actions such as saving
-          expenses, switching views, and selecting options.
-        </p>
-        <label className="flex items-center justify-between gap-3 cursor-pointer">
-          <span className="text-sm text-theme-text">Enable haptics</span>
+      {/* Preferences — single card */}
+      <Card title="Preferences">
+        <label className="flex items-center justify-between gap-3 cursor-pointer py-1">
+          <div>
+            <span className="text-sm text-theme-text">Haptics</span>
+            <p className="text-xs text-theme-muted">Vibration feedback on mobile actions</p>
+          </div>
           <button
             type="button"
             role="switch"
             aria-checked={settings.hapticsEnabled}
             onClick={() => save({ hapticsEnabled: !settings.hapticsEnabled })}
-            className={cn(
-              "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200",
-              settings.hapticsEnabled ? "bg-theme-primary" : "bg-theme-border",
-            )}
+            className="settings-toggle"
           >
-            <span
-              className={cn(
-                "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
-                settings.hapticsEnabled ? "translate-x-5" : "translate-x-0",
-              )}
-            />
+            <span className="settings-toggle-thumb" />
           </button>
         </label>
+
+        <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-3 mb-2">Reminders</p>
+        <label className="flex items-center justify-between gap-3 cursor-pointer py-1">
+          <div>
+            <span className="text-sm text-theme-text">Check-in reminders</span>
+            <p className="text-xs text-theme-muted">Optional nudges to log spending</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(settings.enableCheckInReminders)}
+            onClick={() => void save({ enableCheckInReminders: !settings.enableCheckInReminders }).catch(console.warn)}
+            className="settings-toggle"
+          >
+            <span className="settings-toggle-thumb" />
+          </button>
+        </label>
+        {settings.enableCheckInReminders && (
+          <div className="mt-3 space-y-3">
+            <label className="flex flex-col gap-1 text-xs text-theme-muted">
+              Reminder time
+              <input
+                type="time"
+                value={settings.reminderTime ?? "20:00"}
+                onChange={(e) => void save({ reminderTime: e.target.value }).catch(console.warn)}
+                className="input-theme px-3 py-2 text-sm max-w-[10rem]"
+              />
+            </label>
+            <div>
+              <div className="mb-1 text-xs text-theme-muted">Days</div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "0", label: "Sun" }, { value: "1", label: "Mon" },
+                  { value: "2", label: "Tue" }, { value: "3", label: "Wed" },
+                  { value: "4", label: "Thu" }, { value: "5", label: "Fri" },
+                  { value: "6", label: "Sat" },
+                ].map((day) => {
+                  const reminderDays = settings.reminderDays ?? ["0","1","2","3","4","5","6"];
+                  const active = reminderDays.includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => {
+                        const next = active
+                          ? reminderDays.filter((v) => v !== day.value)
+                          : [...reminderDays, day.value];
+                        void save({ reminderDays: next }).catch(console.warn);
+                      }}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                        active
+                          ? "border-theme-primary bg-theme-primary-subtle text-theme-primary"
+                          : "border-theme-border bg-theme-surface text-theme-muted hover:text-theme-text",
+                      )}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Export + Import */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
-        <CsvExportCard expenses={expenses} formatDate={formatDate} />
-        <CsvImportCard
-          onImportComplete={handleImportComplete}
-          onStatusChange={setImportStatus}
-          onErrorsChange={setImportErrors}
-        />
-      </div>
-
-      <PrivacyBackupCard />
-
-      {/* Backup */}
-      <BackupSection
-        user={user}
-        onStatus={setImportStatus}
-        onRefreshAll={onRefreshAll}
-        triggerSync={triggerSync}
-      />
-
-      {/* Import Log */}
-      <ImportLogPanel importStatus={importStatus} importErrors={importErrors} />
-
-      {appliedScheduleNotices.length > 0 && (
-        <Card title="Applied Schedule Updates">
-          <p className="text-xs text-theme-muted mb-3">
-            These scheduled changes were applied the last time Outflow opened.
-          </p>
-          <div className="space-y-2">
-            {appliedScheduleNotices.map((notice) => (
-              <div
-                key={notice.id}
-                className="rounded-theme-small border border-theme-border bg-theme-background px-3 py-2"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-theme-text">
-                      {notice.title}
-                    </p>
-                    <p className="text-xs text-theme-muted mt-0.5">
-                      {notice.summary}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-theme-primary">
-                    {notice.effectiveLabel}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              onClick={handleDismissAppliedScheduleNotices}
-              className="settings-edit-btn"
-            >
-              Dismiss
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {/* Historical Data editor */}
-      <Card title="Historical Data">
+      {/* Data — single card */}
+      <Card title="Data">
+        <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">Historical Data</p>
         <p className="text-xs text-theme-muted mb-2">
-          Edit fixed expenses, savings rate, and monthly income for past months
-          and years.
+          Edit income, savings rate, and fixed expenses for past years.
         </p>
         <button
           onClick={() => setIsHistoricalDataModalOpen(true)}
@@ -418,8 +310,70 @@ export default function SettingsPage({
         >
           Edit Historical Data
         </button>
+
+        <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-3 mb-2">Scheduled Changes</p>
+        <div className={cn(appliedScheduleNotices.length > 0 && "pb-3 border-b border-theme-border")}>
+          <ScheduleList
+            schedules={schedules}
+            categories={categories}
+            onEdit={handleEditSchedule}
+            onDelete={deleteSchedule}
+          />
+          <button onClick={handleAddSchedule} data-testid="btn-add-schedule" className="settings-action-btn mt-2">
+            + Add Schedule
+          </button>
+        </div>
+
+        {appliedScheduleNotices.length > 0 && (
+          <>
+            <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-3 mb-2">Applied Updates</p>
+            <div className="space-y-2">
+              {appliedScheduleNotices.map((notice) => (
+                <div key={notice.id} className="rounded-theme-small border border-theme-border bg-theme-background px-3 py-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-theme-text">{notice.title}</p>
+                      <p className="text-xs text-theme-muted mt-0.5">{notice.summary}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-theme-primary">
+                      {notice.effectiveLabel}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button type="button" onClick={handleDismissAppliedScheduleNotices} className="settings-edit-btn">
+                Dismiss
+              </button>
+            </div>
+          </>
+        )}
       </Card>
 
+      {/* Import / Export section */}
+      <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider px-1">
+        Import / Export
+      </p>
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <CsvExportCard expenses={expenses} formatDate={formatDate} />
+        <CsvImportCard
+          onImportComplete={handleImportComplete}
+          onStatusChange={setImportStatus}
+          onErrorsChange={setImportErrors}
+        />
+      </div>
+      <ImportLogPanel importStatus={importStatus} importErrors={importErrors} />
+      <PrivacyBackupCard />
+      <BackupSection user={user} onStatus={setImportStatus} onRefreshAll={onRefreshAll} triggerSync={triggerSync} />
+
+      {/* Advanced section */}
+      <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider px-1">
+        Advanced
+      </p>
+      <DangerZone onClearAll={handleClearAll} />
+
+      {/* Modals */}
       <EditHistoricalDataModal
         isOpen={isHistoricalDataModalOpen}
         onClose={() => setIsHistoricalDataModalOpen(false)}
@@ -436,55 +390,26 @@ export default function SettingsPage({
       />
 
       <Modal
-        isOpen={
-          showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0
-        }
+        isOpen={showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0}
         onClose={dismissHistoricalCompletionPrompt}
         title="Complete Imported Months"
         size="md"
         footer={
           <div className="flex w-full flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={dismissHistoricalCompletionPrompt}
-              className="btn-cancel-sm flex-1"
-            >
+            <button type="button" onClick={dismissHistoricalCompletionPrompt} className="btn-cancel-sm flex-1">
               Later
             </button>
-            <button
-              type="button"
-              onClick={reviewHistoricalData}
-              className="btn-modal-primary flex-1"
-            >
+            <button type="button" onClick={reviewHistoricalData} className="btn-modal-primary flex-1">
               Review Historical Data
             </button>
           </div>
         }
       >
         <p className="text-sm text-theme-muted">
-          Your transactions were imported successfully. Add income, fixed
-          expenses, and savings rate for{" "}
-          {editHistoricalDataYears.join(", ") + " "}
-          to make summaries and analytics accurate.
+          Your transactions were imported successfully. Add income, fixed expenses, and savings rate for{" "}
+          {editHistoricalDataYears.join(", ") + " "} to make summaries and analytics accurate.
         </p>
       </Modal>
-
-      {/* Scheduled Changes */}
-      <Card title="Scheduled Changes">
-        <p className="text-xs text-theme-muted mb-2">
-          Plan future changes to income, savings rate, fixed expenses, and
-          expenses.
-        </p>
-        <ScheduleList
-          schedules={schedules}
-          categories={categories}
-          onEdit={handleEditSchedule}
-          onDelete={deleteSchedule}
-        />
-        <button onClick={handleAddSchedule} data-testid="btn-add-schedule" className="settings-action-btn">
-          + Add Schedule
-        </button>
-      </Card>
 
       <ScheduleModal
         isOpen={isScheduleModalOpen}
@@ -495,9 +420,6 @@ export default function SettingsPage({
           onRefreshAll?.();
         }}
       />
-
-      {/* Danger Zone */}
-      <DangerZone onClearAll={handleClearAll} />
     </main>
   );
 }
