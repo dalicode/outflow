@@ -1,239 +1,121 @@
 import { useMemo } from "react";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine,
+  Cell,
+  LabelList,
 } from "recharts";
-import { cn } from "../../utils/cn";
 import type { AnalyticsData } from "../../types";
 import type { ThemeColors } from "./AnalyticsCharts";
 
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
 function fmtCompact(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return "$0";
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-  return `$${Math.round(n)}`;
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return `${Math.round(n)}`;
 }
 
 function fmtFull(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return "$0.00";
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
-function fmtPct(n: number | null | undefined): string {
-  if (n == null || isNaN(n)) return "0%";
-  return `${n.toFixed(1)}%`;
+function fmtDelta(n: number): string {
+  const abs = fmtCompact(Math.abs(n));
+  return n >= 0 ? `+${abs}` : `−${abs}`;
 }
 
-function fmtChange(value: number): string {
-  if (value === 0) return "$0";
-  const amount = fmtFull(Math.abs(value));
-  return value > 0 ? `+${amount}` : `-${amount}`;
-}
+// ── Types ────────────────────────────────────────────────────────────────────
 
-interface MonthSnapshot {
-  year: number;
-  expenses: number;
-  income: number;
-}
-
-interface ChartPoint {
+interface YearPoint {
   label: string;
-  year: string;
-  expensesDelta: number;
-  incomeDelta: number;
-  prevExpenses: number;
-  currExpenses: number;
-  prevIncome: number;
-  currIncome: number;
+  year: number;
+  savings: number;
+  expenses: number;
+  savingsDelta: number | null;
+  expensesDelta: number | null;
 }
 
-interface CustomTooltipProps {
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+
+interface TooltipProps {
   active?: boolean;
-  payload?: Array<{
-    value: number;
-    name: string;
-    color: string;
-    payload: ChartPoint;
-  }>;
-  label?: string;
+  payload?: Array<{ value: number; name: string; color: string; payload: YearPoint }>;
   colors: ThemeColors;
 }
 
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-  colors,
-}: CustomTooltipProps) => {
+const YoYTooltip = ({ active, payload, colors }: TooltipProps) => {
   if (!active || !payload || payload.length === 0) return null;
-
-  const point = payload[0].payload;
+  const pt = payload[0].payload;
 
   return (
     <div
-      className="rounded-theme-medium border shadow-lg px-3 py-2 text-xs"
+      className="rounded-theme-medium border shadow-lg px-3 py-2.5 text-xs min-w-[190px]"
       style={{
         backgroundColor: colors.background,
         borderColor: colors.grid,
         color: colors.text,
       }}
     >
-      <div className="font-semibold mb-1.5" style={{ color: colors.text }}>
-        {point.label}
+      <div className="font-semibold mb-2" style={{ color: colors.text }}>
+        {pt.label}
       </div>
 
-      <div className="flex items-center gap-2 mb-1">
-        <span
-          className="inline-block w-2 h-2 rounded-full shrink-0"
-          style={{ backgroundColor: colors.danger }}
-        />
-        <span className="flex-1" style={{ color: colors.muted }}>
-          Expenses
-        </span>
-        <span style={{ color: colors.text }}>
-          {fmtFull(point.prevExpenses)} → {fmtFull(point.currExpenses)}
-        </span>
-        <span
-          className={cn(
-            "font-semibold",
-            point.expensesDelta <= 0
-              ? "text-theme-success"
-              : "text-theme-danger",
+      <div className="flex items-center justify-between gap-4 mb-1">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colors.success }} />
+          <span style={{ color: colors.muted }}>Savings</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium tabular-nums" style={{ color: colors.success }}>
+            {fmtFull(pt.savings)}
+          </span>
+          {pt.savingsDelta != null && (
+            <span
+              className="tabular-nums text-[0.625rem]"
+              style={{ color: pt.savingsDelta >= 0 ? colors.success : colors.danger }}
+            >
+              {fmtDelta(pt.savingsDelta)}
+            </span>
           )}
-        >
-          {point.expensesDelta > 0 ? "+" : ""}
-          {fmtChange(point.expensesDelta)} (
-          {fmtPct(
-            (point.expensesDelta /
-              Math.max(Math.abs(point.prevExpenses), 1)) *
-              100,
-          )}
-          )
-        </span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span
-          className="inline-block w-2 h-2 rounded-full shrink-0"
-          style={{ backgroundColor: colors.success }}
-        />
-        <span className="flex-1" style={{ color: colors.muted }}>
-          Income
-        </span>
-        <span style={{ color: colors.text }}>
-          {fmtFull(point.prevIncome)} → {fmtFull(point.currIncome)}
-        </span>
-        <span
-          className={cn(
-            "font-semibold",
-            point.incomeDelta >= 0
-              ? "text-theme-success"
-              : "text-theme-danger",
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colors.danger }} />
+          <span style={{ color: colors.muted }}>Expenses</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium tabular-nums" style={{ color: colors.danger }}>
+            {fmtFull(pt.expenses)}
+          </span>
+          {pt.expensesDelta != null && (
+            <span
+              className="tabular-nums text-[0.625rem]"
+              style={{ color: pt.expensesDelta <= 0 ? colors.success : colors.danger }}
+            >
+              {fmtDelta(pt.expensesDelta)}
+            </span>
           )}
-        >
-          {point.incomeDelta > 0 ? "+" : ""}
-          {fmtChange(point.incomeDelta)} (
-          {fmtPct(
-            (point.incomeDelta / Math.max(Math.abs(point.prevIncome), 1)) *
-              100,
-          )}
-          )
-        </span>
+        </div>
       </div>
     </div>
   );
 };
 
-interface DeltaBadgeProps {
-  current: number;
-  previous: number;
-  label: string;
-  colors: ThemeColors;
-}
-
-const DeltaBadge = ({ current, previous, label, colors }: DeltaBadgeProps) => {
-  if (previous === 0 && current === 0) return null;
-  const delta = current - previous;
-  const pct =
-    previous !== 0
-      ? (delta / Math.abs(previous)) * 100
-      : delta > 0
-        ? 100
-        : -100;
-  const isPositive = delta > 0;
-  const isGood = label === "Expenses" ? !isPositive : isPositive;
-
-  return (
-    <div className="flex items-center gap-1 text-[0.6875rem]">
-      <span className="text-theme-muted">{label}:</span>
-      <span
-        className={cn(
-          "font-semibold",
-          isGood ? "text-theme-success" : "text-theme-danger",
-        )}
-      >
-        {isPositive ? "+" : ""}
-        {fmtPct(pct)}
-      </span>
-      <span className="text-theme-muted">({fmtChange(delta)})</span>
-    </div>
-  );
-};
-
-interface ComparisonBadgeProps {
-  currYear: number;
-  prevYear: number;
-  curr: MonthSnapshot;
-  prev: MonthSnapshot;
-  colors: ThemeColors;
-}
-
-const ComparisonBadge = ({
-  currYear,
-  prevYear,
-  curr,
-  prev,
-  colors,
-}: ComparisonBadgeProps) => {
-  return (
-    <div
-      className="rounded-theme-medium border px-3 py-2"
-      style={{
-        backgroundColor: colors.background,
-        borderColor: colors.grid,
-      }}
-    >
-      <div className="text-[0.6875rem] font-medium mb-1 text-theme-muted">
-        {currYear} vs {prevYear}
-      </div>
-      <div className="space-y-0.5">
-        <DeltaBadge
-          current={curr.expenses}
-          previous={prev.expenses}
-          label="Expenses"
-          colors={colors}
-        />
-        <DeltaBadge
-          current={curr.income}
-          previous={prev.income}
-          label="Income"
-          colors={colors}
-        />
-      </div>
-    </div>
-  );
-};
+// ── Main component ───────────────────────────────────────────────────────────
 
 interface YearOverYearChartProps {
   multiYearData: AnalyticsData[];
@@ -248,68 +130,40 @@ export default function YearOverYearChart({
   colors,
   monthLabel,
 }: YearOverYearChartProps) {
-  const yoyData = useMemo<MonthSnapshot[]>(
-    () =>
-      multiYearData
-        .map((d) => ({
-          year: d.year,
-          expenses: d.monthlyTotals[selectedMonth] || 0,
-          income: d.monthlyIncome[selectedMonth] || 0,
-        }))
-        .filter((d) => d.expenses > 0 || d.income > 0),
-    [multiYearData, selectedMonth],
-  );
+  const points = useMemo<YearPoint[]>(() => {
+    const raw = multiYearData
+      .filter((d) => !d.loading)
+      .map((d) => ({
+        year: d.year,
+        savings: d.monthlySavings[selectedMonth] ?? 0,
+        expenses: d.monthlyTotals[selectedMonth] ?? 0,
+      }))
+      .filter((d) => d.savings !== 0 || d.expenses !== 0)
+      .sort((a, b) => a.year - b.year);
 
-  const deltaData = useMemo<ChartPoint[]>(() => {
-    return yoyData.slice(1).map((curr, i) => {
-      const prev = yoyData[i];
-      return {
-        label: `${curr.year} vs ${prev.year}`,
-        year: String(curr.year),
-        expensesDelta: curr.expenses - prev.expenses,
-        incomeDelta: curr.income - prev.income,
-        prevExpenses: prev.expenses,
-        currExpenses: curr.expenses,
-        prevIncome: prev.income,
-        currIncome: curr.income,
-      };
-    });
-  }, [yoyData]);
-
-  const badgeComparisons = useMemo(() => {
-    const count = Math.min(yoyData.length - 1, 3);
-    const comparisons: Array<{
-      currYear: number;
-      prevYear: number;
-      curr: MonthSnapshot;
-      prev: MonthSnapshot;
-    }> = [];
-    for (let i = 0; i < count; i++) {
-      const currIdx = yoyData.length - 1 - i;
-      const prevIdx = currIdx - 1;
-      comparisons.push({
-        currYear: yoyData[currIdx].year,
-        prevYear: yoyData[prevIdx].year,
-        curr: yoyData[currIdx],
-        prev: yoyData[prevIdx],
-      });
-    }
-    return comparisons;
-  }, [yoyData]);
+    return raw.map((d, i) => ({
+      label: `${monthLabel} ${d.year}`,
+      year: d.year,
+      savings: d.savings,
+      expenses: d.expenses,
+      savingsDelta: i === 0 ? null : d.savings - raw[i - 1].savings,
+      expensesDelta: i === 0 ? null : d.expenses - raw[i - 1].expenses,
+    }));
+  }, [multiYearData, selectedMonth, monthLabel]);
 
   const isLoading = multiYearData.some((d) => d.loading);
 
   if (isLoading) {
     return (
-      <div className="h-[200px] md:h-[260px] flex items-center justify-center">
+      <div className="h-[260px] flex items-center justify-center">
         <span className="text-xs text-theme-muted">Loading…</span>
       </div>
     );
   }
 
-  if (yoyData.length < 2) {
+  if (points.length < 2) {
     return (
-      <div className="h-[200px] md:h-[260px] flex items-center justify-center">
+      <div className="h-[260px] flex items-center justify-center">
         <span className="text-xs text-theme-muted">
           Need data from at least 2 years to compare
         </span>
@@ -317,82 +171,93 @@ export default function YearOverYearChart({
     );
   }
 
-  const hasData = deltaData.some(
-    (d) => d.expensesDelta !== 0 || d.incomeDelta !== 0,
-  );
-  if (!hasData) {
-    return (
-      <div className="h-[200px] md:h-[260px] flex items-center justify-center">
-        <span className="text-xs text-theme-muted">
-          No data for {monthLabel}
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart
-          data={deltaData}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke={colors.grid}
-            opacity={0.5}
-          />
-          <XAxis
-            dataKey="year"
-            tick={{ fill: colors.muted, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-          />
-          <YAxis
-            tick={{ fill: colors.muted, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-            tickFormatter={fmtCompact}
-          />
-          <Tooltip content={<CustomTooltip colors={colors} />} />
-          <Legend
-            wrapperStyle={{ fontSize: "12px", color: colors.text }}
-            formatter={(v: string) =>
-              v === "expensesDelta" ? "Expenses Δ" : "Income Δ"
-            }
-          />
-          <ReferenceLine y={0} stroke={colors.grid} />
-          <Line
-            type="monotone"
-            dataKey="expensesDelta"
-            name="expensesDelta"
-            stroke={colors.danger}
-            strokeWidth={2}
-            dot={{ r: 4, fill: colors.danger }}
-            activeDot={{ r: 6 }}
-          />
-          <Line
-            type="monotone"
-            dataKey="incomeDelta"
-            name="incomeDelta"
-            stroke={colors.success}
-            strokeWidth={2}
-            dot={{ r: 4, fill: colors.success }}
-            activeDot={{ r: 6 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart
+        data={points}
+        margin={{ top: 20, right: 10, left: 0, bottom: 0 }}
+        barCategoryGap="25%"
+        barGap={4}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} vertical={false} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {badgeComparisons.map((comp, i) => (
-          <ComparisonBadge
-            key={i}
-            currYear={comp.currYear}
-            prevYear={comp.prevYear}
-            curr={comp.curr}
-            prev={comp.prev}
-            colors={colors}
+        <XAxis
+          dataKey="label"
+          tick={{ fill: colors.muted, fontSize: 11 }}
+          axisLine={{ stroke: colors.grid }}
+          tickLine={false}
+        />
+
+        <YAxis
+          tick={{ fill: colors.muted, fontSize: 11 }}
+          axisLine={{ stroke: colors.grid }}
+          tickLine={false}
+          tickFormatter={fmtCompact}
+        />
+
+        <Tooltip content={<YoYTooltip colors={colors} />} cursor={{ fill: colors.grid, opacity: 0.15 }} />
+
+        <Legend
+          verticalAlign="top"
+          align="right"
+          wrapperStyle={{ fontSize: "11px", paddingBottom: "6px" }}
+          formatter={(value) => (value === "savings" ? "Savings" : "Expenses")}
+        />
+
+        {/* Savings bars */}
+        <Bar dataKey="savings" name="savings" maxBarSize={40} radius={[3, 3, 0, 0]}>
+          {points.map((pt, i) => (
+            <Cell key={i} fill={colors.success} fillOpacity={0.85} />
+          ))}
+          <LabelList
+            content={(props) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const { x, y, width, index } = props as any;
+              const pt = points[index as number];
+              if (!pt || pt.savingsDelta == null) return null;
+              const isPos = pt.savingsDelta >= 0;
+              return (
+                <text
+                  x={(x as number) + (width as number) / 2}
+                  y={(y as number) - 4}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill={isPos ? colors.success : colors.danger}
+                >
+                  {fmtDelta(pt.savingsDelta)}
+                </text>
+              );
+            }}
           />
-        ))}
-      </div>
-    </div>
+        </Bar>
+
+        {/* Expenses bars */}
+        <Bar dataKey="expenses" name="expenses" maxBarSize={40} radius={[3, 3, 0, 0]}>
+          {points.map((pt, i) => (
+            <Cell key={i} fill={colors.danger} fillOpacity={0.75} />
+          ))}
+          <LabelList
+            content={(props) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const { x, y, width, index } = props as any;
+              const pt = points[index as number];
+              if (!pt || pt.expensesDelta == null) return null;
+              const isIncrease = pt.expensesDelta > 0;
+              return (
+                <text
+                  x={(x as number) + (width as number) / 2}
+                  y={(y as number) - 4}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill={isIncrease ? colors.danger : colors.success}
+                >
+                  {fmtDelta(pt.expensesDelta)}
+                </text>
+              );
+            }}
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

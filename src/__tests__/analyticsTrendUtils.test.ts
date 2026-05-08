@@ -207,9 +207,9 @@ describe("buildYearTrendRows", () => {
     expect(rows[0].expenses).toBe(-200);
   });
 
-  it("cumulativeRemaining equals running sum of monthlyRemaining when no prior years", () => {
-    const monthlyRemaining: (number | null)[] = Array(12).fill(500);
-    const data = makeAnalyticsData({ year: 2025, monthlyRemaining });
+  it("cumulativeRemaining equals running sum of monthlyTotalSavings when no prior years", () => {
+    const monthlyTotalSavings: (number | null)[] = Array(12).fill(500);
+    const data = makeAnalyticsData({ year: 2025, monthlyTotalSavings });
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11);
     expect(rows[0].cumulativeRemaining).toBe(500);   // Jan only
     expect(rows[1].cumulativeRemaining).toBe(1000);  // Jan + Feb
@@ -217,15 +217,15 @@ describe("buildYearTrendRows", () => {
   });
 
   it("cumulativeRemaining adds prior years baseline", () => {
-    // Prior year had 12 months × $500 remaining = $6000 total
-    const priorMonthlyRemaining: (number | null)[] = Array(12).fill(500);
+    // Prior year had 12 months × $500 totalSavings = $6000 total
+    const priorMonthlyTotalSavings: (number | null)[] = Array(12).fill(500);
     const priorData = makeAnalyticsData({
       year: 2024,
-      monthlyRemaining: priorMonthlyRemaining,
+      monthlyTotalSavings: priorMonthlyTotalSavings,
     });
 
-    const monthlyRemaining: (number | null)[] = Array(12).fill(200);
-    const data = makeAnalyticsData({ year: 2025, monthlyRemaining });
+    const monthlyTotalSavings: (number | null)[] = Array(12).fill(200);
+    const data = makeAnalyticsData({ year: 2025, monthlyTotalSavings });
 
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11, [priorData]);
     // baseline = 6000, Jan 2025 adds 200 → 6200
@@ -234,34 +234,34 @@ describe("buildYearTrendRows", () => {
     expect(rows[1].cumulativeRemaining).toBe(6400);
   });
 
-  it("negative remaining months reduce cumulativeRemaining", () => {
-    const monthlyRemaining: (number | null)[] = [
+  it("negative totalSavings months reduce cumulativeRemaining", () => {
+    const monthlyTotalSavings: (number | null)[] = [
       1000, -300, 500, ...Array(9).fill(0),
     ];
-    const data = makeAnalyticsData({ year: 2025, monthlyRemaining });
+    const data = makeAnalyticsData({ year: 2025, monthlyTotalSavings });
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11);
     expect(rows[0].cumulativeRemaining).toBe(1000);
     expect(rows[1].cumulativeRemaining).toBe(700);  // 1000 - 300
     expect(rows[2].cumulativeRemaining).toBe(1200); // 700 + 500
   });
 
-  it("null monthlyRemaining values are treated as 0", () => {
-    const monthlyRemaining: (number | null)[] = [500, null, 300, ...Array(9).fill(0)];
-    const data = makeAnalyticsData({ year: 2025, monthlyRemaining });
+  it("null monthlyTotalSavings values are treated as 0", () => {
+    const monthlyTotalSavings: (number | null)[] = [500, null, 300, ...Array(9).fill(0)];
+    const data = makeAnalyticsData({ year: 2025, monthlyTotalSavings });
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11);
     expect(rows[0].cumulativeRemaining).toBe(500);
     expect(rows[1].cumulativeRemaining).toBe(500); // null treated as 0
     expect(rows[2].cumulativeRemaining).toBe(800);
   });
 
-  it("null values in prior years monthlyRemaining are treated as 0", () => {
+  it("null values in prior years monthlyTotalSavings are treated as 0", () => {
     const priorData = makeAnalyticsData({
       year: 2024,
-      monthlyRemaining: [1000, null, 500, ...Array(9).fill(0)],
+      monthlyTotalSavings: [1000, null, 500, ...Array(9).fill(0)],
     });
     const data = makeAnalyticsData({
       year: 2025,
-      monthlyRemaining: Array(12).fill(100),
+      monthlyTotalSavings: Array(12).fill(100),
     });
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11, [priorData]);
     // prior baseline = 1000 + 0 + 500 = 1500
@@ -271,15 +271,15 @@ describe("buildYearTrendRows", () => {
   it("accumulates baseline across multiple prior years", () => {
     const prior2023 = makeAnalyticsData({
       year: 2023,
-      monthlyRemaining: Array(12).fill(100), // 1200 total
+      monthlyTotalSavings: Array(12).fill(100), // 1200 total
     });
     const prior2024 = makeAnalyticsData({
       year: 2024,
-      monthlyRemaining: Array(12).fill(200), // 2400 total
+      monthlyTotalSavings: Array(12).fill(200), // 2400 total
     });
     const data = makeAnalyticsData({
       year: 2025,
-      monthlyRemaining: Array(12).fill(50),
+      monthlyTotalSavings: Array(12).fill(50),
     });
 
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11, [prior2023, prior2024]);
@@ -292,11 +292,11 @@ describe("buildYearTrendRows", () => {
     const loadingPrior = makeAnalyticsData({
       year: 2024,
       loading: true,
-      monthlyRemaining: Array(12).fill(0),
+      monthlyTotalSavings: Array(12).fill(0),
     });
     const data = makeAnalyticsData({
       year: 2025,
-      monthlyRemaining: Array(12).fill(300),
+      monthlyTotalSavings: Array(12).fill(300),
     });
 
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11, [loadingPrior]);
@@ -304,10 +304,10 @@ describe("buildYearTrendRows", () => {
   });
 
   it("cumulativeRemaining can go negative and recover", () => {
-    const monthlyRemaining: (number | null)[] = [
+    const monthlyTotalSavings: (number | null)[] = [
       1000, -500, -800, 200, 300, ...Array(7).fill(0),
     ];
-    const data = makeAnalyticsData({ year: 2025, monthlyRemaining });
+    const data = makeAnalyticsData({ year: 2025, monthlyTotalSavings });
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11);
 
     expect(rows[0].cumulativeRemaining).toBe(1000);
@@ -320,11 +320,11 @@ describe("buildYearTrendRows", () => {
   it("first month correctly adds to prior baseline", () => {
     const prior = makeAnalyticsData({
       year: 2024,
-      monthlyRemaining: Array(12).fill(1000), // 12000 total
+      monthlyTotalSavings: Array(12).fill(1000), // 12000 total
     });
     const data = makeAnalyticsData({
       year: 2025,
-      monthlyRemaining: [500, ...Array(11).fill(0)],
+      monthlyTotalSavings: [500, ...Array(11).fill(0)],
     });
 
     const rows = buildYearTrendRows(data, [], 2025, 2026, 11, [prior]);
@@ -335,7 +335,7 @@ describe("buildYearTrendRows", () => {
   it("empty priorYearsData array gives same result as undefined", () => {
     const data = makeAnalyticsData({
       year: 2025,
-      monthlyRemaining: Array(12).fill(100),
+      monthlyTotalSavings: Array(12).fill(100),
     });
 
     const rowsNoPrior = buildYearTrendRows(data, [], 2025, 2026, 11);

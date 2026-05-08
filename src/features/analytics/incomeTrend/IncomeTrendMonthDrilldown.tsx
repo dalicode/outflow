@@ -129,31 +129,34 @@ export default function IncomeTrendMonthDrilldown({
           )}
         </div>
       </div>
-      {/* YoY Chart */}
-      <div className="px-4 pt-4 pb-2 sm:px-5 border-t border-theme-border">
-        <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-          Year over Year
-        </h3>
-        <YearOverYearChart
-          multiYearData={multiYearData}
-          selectedMonth={monthIndex}
-          colors={colors}
-          monthLabel={drilldownData.monthLabel}
-        />
-      </div>
+      {/* YoY + Top Expenses — side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-px md:bg-theme-border border-t border-theme-border">
+        {/* Year over Year */}
+        <div className="px-4 py-4 sm:px-5 bg-theme-surface">
+          <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+            Year over Year
+          </h3>
+          <YearOverYearChart
+            multiYearData={multiYearData}
+            selectedMonth={monthIndex}
+            colors={colors}
+            monthLabel={drilldownData.monthLabel}
+          />
+        </div>
 
-      {/* Top Expenses */}
-      <div className="px-4 py-4 sm:px-5 border-t border-theme-border">
-        <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-          Top Expenses
-        </h3>
-        <IncomeTrendExpensePreview
-          expenses={drilldownData.expensePreview}
-          categories={categories}
-          payees={payees}
-          formatAmount={formatAmount}
-          formatDate={formatDate}
-        />
+        {/* Top Expenses */}
+        <div className="px-4 py-4 sm:px-5 bg-theme-surface border-t border-theme-border md:border-t-0">
+          <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+            Top Expenses
+          </h3>
+          <IncomeTrendExpensePreview
+            expenses={drilldownData.expensePreview}
+            categories={categories}
+            payees={payees}
+            formatAmount={formatAmount}
+            formatDate={formatDate}
+          />
+        </div>
       </div>
     </div>
   );

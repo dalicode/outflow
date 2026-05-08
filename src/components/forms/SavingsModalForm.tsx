@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useSettings } from "../../context/settingsContext";
 import MoneyInput from "../inputs/MoneyInput";
+import PercentInput from "../inputs/PercentInput";
 import Modal from "../ui/Modal";
 import ModalFooter from "../ui/ModalFooter";
 import { cn } from "../../utils/cn";
@@ -11,12 +12,9 @@ interface SavingsModalFormProps {
   onClose: () => void;
   title: string;
   size?: "sm" | "md";
-
   initialRate?: string;
   monthlyIncome?: number;
-
   onSave: (rate: number) => void;
-
   description?: string;
   error?: string;
 }
@@ -34,117 +32,49 @@ export default function SavingsModalForm({
 }: SavingsModalFormProps) {
   const { settings } = useSettings();
   const [amountDraft, setAmountDraft] = useState<string>("");
-  const [percentDraft, setPercentDraft] = useState<string>("");
-  const [percentCents, setPercentCents] = useState<number>(0);
+  const [percentRate, setPercentRate] = useState<number>(0); // 0–100
   const [error, setError] = useState("");
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol);
 
   const hasIncome = (monthlyIncome ?? 0) > 0;
 
-  // Reset form when modal opens with new initial values
+  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       const rate = Number(initialRate || 0);
-      const cents = Math.round(rate * 100);
-      const amount = hasIncome ? (rate / 100) * (monthlyIncome ?? 0) : 0;
-      setPercentCents(cents);
-      setPercentDraft((cents / 100).toFixed(2));
-      setAmountDraft(amount.toFixed(2));
+      setPercentRate(rate);
+      setAmountDraft(hasIncome ? ((rate / 100) * (monthlyIncome ?? 0)).toFixed(2) : "");
       setError("");
     }
   }, [isOpen, initialRate, monthlyIncome, hasIncome]);
 
-  const handleAmountChange = (value: string) => {
-    setAmountDraft(value);
-    const amt = parseFloat(value || "0");
-    if (!isNaN(amt) && hasIncome) {
-      setPercentDraft(((amt / (monthlyIncome ?? 1)) * 100).toFixed(2));
+  const handleAmountChange = (value: number) => {
+    setAmountDraft(value.toFixed(2));
+    if (hasIncome && (monthlyIncome ?? 0) > 0) {
+      setPercentRate(Math.min(100, (value / (monthlyIncome ?? 1)) * 100));
     }
   };
 
-  const handlePercentChange = (value: string) => {
-    const pct = parseFloat(value || "0");
-    if (!isNaN(pct)) {
-      const cents = Math.round(Math.min(pct, 100) * 100);
-      setPercentCents(cents);
-      setPercentDraft((cents / 100).toFixed(2));
-      if (hasIncome) {
-        setAmountDraft(((cents / 100 / 100) * (monthlyIncome ?? 0)).toFixed(2));
-      }
+  const handlePercentChange = (rate: number) => {
+    setPercentRate(rate);
+    if (hasIncome) {
+      setAmountDraft(((rate / 100) * (monthlyIncome ?? 0)).toFixed(2));
     }
-  };
-
-  const handlePercentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const isDigit = /^[0-9]$/.test(e.key);
-
-    if (isDigit) {
-      e.preventDefault();
-      const isSelected =
-        e.currentTarget.selectionStart === 0 &&
-        e.currentTarget.selectionEnd === e.currentTarget.value.length;
-      const base = isSelected ? 0 : percentCents;
-      const next = Math.min(base * 10 + Number(e.key), 10000);
-      setPercentCents(next);
-      const pct = next / 100;
-      setPercentDraft(pct.toFixed(2));
-      if (hasIncome) {
-        setAmountDraft(((pct / 100) * (monthlyIncome ?? 0)).toFixed(2));
-      }
-      return;
-    }
-
-    if (e.key === "Backspace") {
-      e.preventDefault();
-      const isSelected =
-        e.currentTarget.selectionStart === 0 &&
-        e.currentTarget.selectionEnd === e.currentTarget.value.length;
-      const next = isSelected ? 0 : Math.floor(percentCents / 10);
-      setPercentCents(next);
-      const pct = next / 100;
-      setPercentDraft(pct.toFixed(2));
-      if (hasIncome) {
-        setAmountDraft(((pct / 100) * (monthlyIncome ?? 0)).toFixed(2));
-      }
-      return;
-    }
-
-    if (e.key === "Delete") {
-      e.preventDefault();
-      setPercentCents(0);
-      setPercentDraft("0.00");
-      if (hasIncome) setAmountDraft("0.00");
-      return;
-    }
-
-    if (
-      e.key === "Tab" ||
-      e.key === "Enter" ||
-      e.key === "Escape" ||
-      e.key.startsWith("Arrow") ||
-      e.metaKey ||
-      e.ctrlKey
-    ) {
-      return;
-    }
-
-    e.preventDefault();
   };
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const pct = parseFloat(percentDraft);
-    if (isNaN(pct) || pct < 0 || pct > 100) {
+    if (percentRate < 0 || percentRate > 100) {
       setError("Enter a value between 0 and 100.");
       return;
     }
     setError("");
-    onSave(pct);
+    onSave(percentRate);
   };
 
   const displayError = externalError || error;
-  const focusMoneyInput = (
-    event: React.MouseEvent<HTMLDivElement>,
-  ) => {
+
+  const focusMoneyInput = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target instanceof HTMLInputElement) return;
     const input = event.currentTarget.querySelector("input");
     input?.focus();
@@ -186,7 +116,7 @@ export default function SavingsModalForm({
             >
               <MoneyInput
                 value={Number.parseFloat(amountDraft || "0")}
-                onChange={(value) => handleAmountChange(value.toFixed(2))}
+                onChange={handleAmountChange}
                 currency={moneyConfig.currency}
                 locale={moneyConfig.locale}
                 placeholder="e.g. 500"
@@ -196,25 +126,16 @@ export default function SavingsModalForm({
               />
             </div>
           )}
-          <div
+          <PercentInput
+            value={percentRate}
+            onChange={handlePercentChange}
+            autoFocus
+            size="md"
             className={cn(
-              "input-md flex items-center px-3 py-0 gap-2 w-full sm:w-36 focus-within:border-theme-primary focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]",
-              displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-danger)_18%,transparent)]",
+              "w-full sm:w-36",
+              displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))]",
             )}
-          >
-            <input
-              type="text"
-              inputMode="numeric"
-              value={percentDraft}
-              onKeyDown={handlePercentKeyDown}
-              onChange={() => {}}
-              onFocus={(e) => e.currentTarget.select()}
-              placeholder="0.00"
-              autoFocus
-              className="flex-1 min-w-0 text-right font-semibold tabular-nums text-theme-text outline-none bg-transparent text-sm"
-            />
-            <span className="text-sm text-theme-muted shrink-0 pointer-events-none">%</span>
-          </div>
+          />
         </div>
         {!hasIncome && (
           <p className="text-xs text-theme-muted">

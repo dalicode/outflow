@@ -248,7 +248,6 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
     (d.fixed as number) > 0 ||
     categoryKeys.some((k) => (d[k] as number) > 0),
   );
-  if (!hasData) return <EmptyState label="No spending data" />;
 
   // Map key → display name for tooltip
   const keyToName = useMemo(() => {
@@ -256,6 +255,8 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
     (data.variableRows ?? []).forEach((r) => { map[r.key] = r.name; });
     return map;
   }, [data.variableRows]);
+
+  if (!hasData) return <EmptyState label="No spending data" />;
 
   return (
     <ResponsiveContainer width="100%" height={280}>

@@ -64,9 +64,9 @@ describe('findGapToFill', () => {
     expect(findGapToFill([], 12)).toEqual({ startMonth: 1, endMonth: 12 })
   })
 
-  it('fills front gap first', () => {
+  it('fills gap after last range when there is a range starting mid-year', () => {
     const ranges = [makeRange('a', 4, 12)]
-    expect(findGapToFill(ranges, 12)).toEqual({ startMonth: 1, endMonth: 3 })
+    expect(findGapToFill(ranges, 12)).toBeNull() // already reaches maxMonth
   })
 
   it('fills gap between ranges', () => {
@@ -96,19 +96,19 @@ describe('findGapToFill', () => {
 })
 
 describe('removeRangeAndMerge', () => {
-  it('expands next range backward when deleting middle range', () => {
+  it('removes middle range leaving neighbors unchanged', () => {
     const ranges = [makeRange('a', 1, 3), makeRange('b', 4, 6), makeRange('c', 7, 12)]
     const result = removeRangeAndMerge(ranges, 'b')
     expect(result).toHaveLength(2)
-    expect(result[0]).toEqual(makeRange('a', 1, 3))
-    expect(result[1]).toEqual({ ...makeRange('c', 7, 12), startMonth: 4 })
+    expect(result.find(r => r.id === 'a')).toEqual(makeRange('a', 1, 3))
+    expect(result.find(r => r.id === 'c')).toEqual(makeRange('c', 7, 12))
   })
 
-  it('expands previous range forward when deleting last range', () => {
+  it('removes last range leaving previous unchanged', () => {
     const ranges = [makeRange('a', 1, 3), makeRange('b', 4, 12)]
     const result = removeRangeAndMerge(ranges, 'b')
     expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({ ...makeRange('a', 1, 3), endMonth: 12 })
+    expect(result[0]).toEqual(makeRange('a', 1, 3))
   })
 
   it('removes only range and returns empty array', () => {
@@ -125,19 +125,32 @@ describe('removeRangeAndMerge', () => {
 })
 
 describe('updateRangeEndAndCascade', () => {
-  it('adjusts later range start when endMonth shrinks', () => {
+  it('leaves next range start unchanged when endMonth shrinks (gap allowed)', () => {
     const ranges = [makeRange('a', 1, 6), makeRange('b', 7, 12)]
     const result = updateRangeEndAndCascade(ranges, 'a', 4)
-    expect(result[0]).toEqual({ ...makeRange('a', 1, 6), endMonth: 4 })
-    expect(result[1]).toEqual({ ...makeRange('b', 7, 12), startMonth: 5 })
+    const a = result.find(r => r.id === 'a')!
+    const b = result.find(r => r.id === 'b')!
+    expect(a.endMonth).toBe(4)
+    expect(b.startMonth).toBe(7) // unchanged — gap is fine
   })
 
-  it('removes squeezed range when cascade collapses it', () => {
+  it('pushes next range start forward when endMonth overlaps it', () => {
+    const ranges = [makeRange('a', 1, 6), makeRange('b', 7, 12)]
+    const result = updateRangeEndAndCascade(ranges, 'a', 9)
+    const a = result.find(r => r.id === 'a')!
+    const b = result.find(r => r.id === 'b')!
+    expect(a.endMonth).toBe(9)
+    expect(b.startMonth).toBe(10)
+  })
+
+  it('removes squeezed range when overlap collapses it', () => {
     const ranges = [makeRange('a', 1, 6), makeRange('b', 7, 8), makeRange('c', 9, 12)]
-    const result = updateRangeEndAndCascade(ranges, 'a', 8)
+    const result = updateRangeEndAndCascade(ranges, 'a', 9)
     expect(result).toHaveLength(2)
-    expect(result[0]).toEqual({ ...makeRange('a', 1, 6), endMonth: 8 })
-    expect(result[1]).toEqual({ ...makeRange('c', 9, 12), startMonth: 9 })
+    const a = result.find(r => r.id === 'a')!
+    const c = result.find(r => r.id === 'c')!
+    expect(a.endMonth).toBe(9)
+    expect(c.startMonth).toBe(10)
   })
 
   it('returns unchanged when id not found', () => {
@@ -166,8 +179,9 @@ describe('checkRangeOverlaps', () => {
   })
 
   it('detects gap', () => {
+    // Gaps are now allowed — no error expected
     const ranges = [makeRange('a', 1, 3), makeRange('b', 5, 12)]
-    expect(checkRangeOverlaps(ranges, 'Savings')).toContain('Savings ranges must be contiguous with no gaps.')
+    expect(checkRangeOverlaps(ranges, 'Savings')).toEqual([])
   })
 
   it('detects inverted range', () => {
@@ -181,11 +195,11 @@ describe('isFullyCovered', () => {
     expect(isFullyCovered([], 12)).toBe(false)
   })
 
-  it('returns false when first range does not start at 1', () => {
-    expect(isFullyCovered([makeRange('a', 2, 12)], 12)).toBe(false)
+  it('returns true when first range does not start at 1 but is internally contiguous and reaches maxMonth', () => {
+    expect(isFullyCovered([makeRange('a', 2, 12)], 12)).toBe(true)
   })
 
-  it('returns false when there is a gap', () => {
+  it('returns false when there is a gap between ranges', () => {
     expect(isFullyCovered([makeRange('a', 1, 3), makeRange('b', 5, 12)], 12)).toBe(false)
   })
 

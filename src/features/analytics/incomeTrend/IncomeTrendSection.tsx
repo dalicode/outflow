@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { useSettings } from "../../../context/settingsContext";
 import IncomeTrendYearChart from "./IncomeTrendYearChart";
 import IncomeTrendMonthPreview from "./IncomeTrendMonthPreview";
@@ -6,7 +6,8 @@ import IncomeTrendMonthDrilldown from "./IncomeTrendMonthDrilldown";
 import IncomeTrendExpensePreview from "./IncomeTrendExpensePreview";
 import IncomeFlowBar from "../IncomeFlowBar";
 import AnalyticsCharts from "../AnalyticsCharts";
-import { buildYearTrendRows } from "../../../utils/analyticsTrendUtils";
+import { buildYearTrendRows, buildAllYearsTrendRows, buildRangeAnalyticsData } from "../../../utils/analyticsTrendUtils";
+import type { AllTimeRow } from "../../../utils/analyticsTrendUtils";
 import { useThemeColors } from "../AnalyticsCharts";
 import type { AnalyticsData, Expense, Category, Payee } from "../../../types";
 
@@ -38,6 +39,9 @@ interface IncomeTrendSectionProps {
   monthCount: number;
   isCurrentYear: boolean;
   multiYearData: AnalyticsData[];
+  panToYear?: number | null;
+  panToYearVersion?: number; // increment to force re-pan even to the same year
+  onBrushWindowChange?: (window: AllTimeRow[]) => void;
 }
 
 export default function IncomeTrendSection({
@@ -65,6 +69,9 @@ export default function IncomeTrendSection({
   monthCount,
   isCurrentYear,
   multiYearData,
+  panToYear,
+  panToYearVersion,
+  onBrushWindowChange,
 }: IncomeTrendSectionProps) {
   const { formatAmount, formatDate } = useSettings();
   const colors = useThemeColors();
@@ -100,15 +107,113 @@ export default function IncomeTrendSection({
     );
   }, [priorYearsData, year, isCurrentYear, currentMonth, expenses]);
 
-  const ytdSaved = useMemo(
-    () => trendRows.reduce((sum, r) => sum + r.saved, 0),
-    [trendRows],
-  );
+  // All-time rows for the brush mini-timeline
+  const allTimeRows = useMemo(() => {
+    const allYears = [
+      ...multiYearData.map((d) => ({ year: d.year, data: d })),
+      { year, data },
+    ]
+      .sort((a, b) => a.year - b.year)
+      // deduplicate — keep the last entry for each year (current year's `data` wins)
+      .filter((entry, idx, arr) => idx === arr.findLastIndex((e) => e.year === entry.year));
+    return buildAllYearsTrendRows(allYears, currentYear, currentMonth);
+  }, [multiYearData, year, data, currentYear, currentMonth]);
 
-  const priorYtdSaved = useMemo(
-    () => priorYearRows?.reduce((sum, r) => sum + r.saved, 0) ?? null,
-    [priorYearRows],
-  );
+  // Brush window state — null means "use the selected year" (default)
+  const [brushWindow, setBrushWindow] = useState<AllTimeRow[] | null>(null);
+
+  // Reset brush when year changes
+  const prevYear = useRef(year);
+  if (prevYear.current !== year) {
+    prevYear.current = year;
+    setBrushWindow(null);
+  }
+
+  // Pan/reset brush to a specific year when requested from outside.
+  // panToYearVersion increments on every click so the same year can be re-selected.
+  const prevPanVersion = useRef(panToYearVersion);
+  if (prevPanVersion.current !== panToYearVersion && panToYear != null) {
+    prevPanVersion.current = panToYearVersion;
+    const yearSlice = allTimeRows.filter((r) => r.year === panToYear);
+    if (yearSlice.length > 0) {
+      setBrushWindow(yearSlice);
+      onBrushWindowChange?.(yearSlice);
+    }
+  }
+
+  const handleBrushChange = useCallback((window: AllTimeRow[]) => {
+    // If the window exactly matches the selected year, treat as default (no filter)
+    const isDefaultWindow =
+      window.length > 0 &&
+      window.every((r) => r.year === year) &&
+      window.length === trendRows.length;
+    const next = isDefaultWindow ? null : window;
+    setBrushWindow(next);
+    onBrushWindowChange?.(next ?? []);
+  }, [year, trendRows.length, onBrushWindowChange]);
+
+  // Build the all-years lookup for range data computation
+  const allYearsLookup = useMemo(() => {
+    const allYears = [
+      ...multiYearData.map((d) => ({ year: d.year, data: d })),
+      { year, data },
+    ].filter((entry, idx, arr) => idx === arr.findLastIndex((e) => e.year === entry.year));
+    return allYears;
+  }, [multiYearData, year, data]);
+
+  // Compute range-filtered AnalyticsData when brush is active
+  const rangeData = useMemo(() => {
+    if (!brushWindow || brushWindow.length === 0) return data;
+    return buildRangeAnalyticsData(brushWindow, allYearsLookup);
+  }, [brushWindow, data, allYearsLookup]);
+
+  // Range-filtered expenses
+  const rangeExpenses = useMemo(() => {
+    if (!brushWindow || brushWindow.length === 0) return expenses;
+    const keys = new Set(brushWindow.map((r) => r.monthKey));
+    return expenses.filter((e) => e.date && keys.has(e.date.slice(0, 7)));
+  }, [brushWindow, expenses]);
+
+  // Range-filtered monthly arrays (for IncomeFlowBar)
+  const rangeMonthlyIncome = rangeData.monthlyIncome;
+  const rangeMonthlyFixed = rangeData.monthlyFixedTotals;
+  const rangeMonthlyVariable = rangeData.monthlyVariableTotals;
+  const rangeMonthlyRemaining = rangeData.monthlyRemaining;
+  const rangeMonthlySavings = rangeData.monthlySavings;
+  const rangeMonthCount = brushWindow ? brushWindow.length : monthCount;
+  const rangeIsCurrentYear = !brushWindow && isCurrentYear;
+
+  // Range label for the header
+  const rangeLabel = useMemo(() => {
+    if (!brushWindow || brushWindow.length === 0) return null;
+    const first = brushWindow[0];
+    const last = brushWindow[brushWindow.length - 1];
+    if (first.monthKey === last.monthKey) return first.label;
+    return `${first.label} – ${last.label}`;
+  }, [brushWindow]);
+
+  const ytdSaved = useMemo(() => {
+    if (brushWindow && brushWindow.length > 0) {
+      // Sum saved from rangeData (already covers the brush window)
+      return (rangeData.monthlyTotalSavings as (number | null)[])
+        .reduce<number>((s, v) => s + (v ?? 0), 0);
+    }
+    return trendRows.reduce((sum, r) => sum + r.saved, 0);
+  }, [brushWindow, rangeData, trendRows]);
+
+  const priorYtdSaved = useMemo(() => {
+    if (brushWindow && brushWindow.length > 0) {
+      // For each month in the brush window, look up the same month one year prior
+      // from allTimeRows
+      return brushWindow.reduce<number | null>((sum, row) => {
+        const priorKey = `${row.year - 1}-${String(row.monthIndex + 1).padStart(2, "0")}`;
+        const priorRow = allTimeRows.find((r) => r.monthKey === priorKey);
+        if (priorRow == null) return null; // prior year data missing — can't compare
+        return (sum ?? 0) + priorRow.saved;
+      }, 0);
+    }
+    return priorYearRows?.reduce((sum, r) => sum + r.saved, 0) ?? null;
+  }, [brushWindow, allTimeRows, priorYearRows]);
 
   const ytdDelta = priorYtdSaved != null ? ytdSaved - priorYtdSaved : null;
   const ytdDeltaPct =
@@ -117,33 +222,39 @@ export default function IncomeTrendSection({
       : null;
 
   const yearTopExpenses = useMemo(() => {
-    return expenses
-      .filter((e) => e.date?.startsWith(`${year}-`))
+    return rangeExpenses
       .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
       .slice(0, 20);
-  }, [expenses, year]);
+  }, [rangeExpenses]);
 
   // Spending spikes: months above average + the category that drove the biggest jump
   const spendingSpikes = useMemo(() => {
-    const monthTotals = trendRows.map((r) => r.expenses);
-    if (monthTotals.length < 2) return [];
-    const avg = monthTotals.reduce((s, v) => s + v, 0) / monthTotals.length;
+    const activeRows = brushWindow
+      ? brushWindow.map((r, i) => ({
+          monthLabel: r.label,
+          monthIndex: i,
+          expenses: rangeData.monthlyTotals[i] ?? 0,
+        }))
+      : trendRows.map((r) => ({
+          monthLabel: r.monthLabel,
+          monthIndex: r.monthIndex,
+          expenses: r.expenses,
+        }));
+    if (activeRows.length < 2) return [];
+    const avg = activeRows.reduce((s, r) => s + r.expenses, 0) / activeRows.length;
     if (avg === 0) return [];
 
-    return trendRows
-      .filter((r) => r.expenses > avg * 1.1) // at least 10% above average
+    return activeRows
+      .filter((r) => r.expenses > avg * 1.1)
       .map((r) => {
-        const m = r.monthIndex;
-        // Find the category with the biggest MoM jump this month
-        const topCat = (data.variableRows ?? [])
+        const topCat = (rangeData.variableRows ?? [])
           .map((row) => {
-            const thisMonth = row.amounts[m] ?? 0;
-            const prevMonth = m > 0 ? (row.amounts[m - 1] ?? 0) : 0;
+            const thisMonth = row.amounts[r.monthIndex] ?? 0;
+            const prevMonth = r.monthIndex > 0 ? (row.amounts[r.monthIndex - 1] ?? 0) : 0;
             return { name: row.name, amount: thisMonth, delta: thisMonth - prevMonth };
           })
           .filter((c) => c.amount > 0)
           .sort((a, b) => b.delta - a.delta)[0] ?? null;
-
         return {
           monthLabel: r.monthLabel,
           expenses: r.expenses,
@@ -153,7 +264,7 @@ export default function IncomeTrendSection({
       })
       .sort((a, b) => b.aboveAvgPct - a.aboveAvgPct)
       .slice(0, 5);
-  }, [trendRows, data.variableRows]);
+  }, [brushWindow, trendRows, rangeData]);
 
   const prevCumulativeRemaining =
     trendMonth !== null && trendMonth > 0
@@ -204,12 +315,15 @@ export default function IncomeTrendSection({
             </h2>
             <p className="text-xs text-theme-muted mt-0.5">
               Monthly savings vs last year · cumulative surplus or deficit over time
+              {rangeLabel && (
+                <span className="ml-2 font-medium text-theme-primary">· {rangeLabel}</span>
+              )}
             </p>
 
             {/* YTD savings delta stat */}
             <div className="flex items-baseline gap-3 mt-3 flex-wrap">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xs text-theme-muted">YTD Saved</span>
+                <span className="text-xs text-theme-muted">{brushWindow ? "Range Saved" : "YTD Saved"}</span>
                 <span
                   className="text-base font-bold tabular-nums"
                   style={{ color: ytdSaved >= 0 ? colors.success : colors.danger }}
@@ -226,7 +340,9 @@ export default function IncomeTrendSection({
                     {ytdDelta >= 0 ? "↑" : "↓"} {formatAmount(Math.abs(ytdDelta))}
                   </span>
                   <span className="text-xs text-theme-muted">
-                    vs {year - 1}
+                    vs {brushWindow && brushWindow.length > 0
+                      ? `${brushWindow[0].label.replace(/\d+$/, String(brushWindow[0].year - 1).slice(2))} – ${brushWindow[brushWindow.length - 1].label.replace(/\d+$/, String(brushWindow[brushWindow.length - 1].year - 1).slice(2))}`
+                      : year - 1}
                   </span>
                   {ytdDeltaPct != null && (
                     <span
@@ -250,26 +366,11 @@ export default function IncomeTrendSection({
               onSelectMonth={(m) => onTrendStateChange({ trendMonth: m })}
               colors={colors}
               formatAmount={formatAmount}
-            />
-          </div>
-
-          <div className="px-4 pb-4 sm:px-5 border-t border-theme-border pt-4">
-            <IncomeFlowBar
-              yearIncome={yearTotalIncome}
-              yearFixed={yearFixedTotal}
-              yearVariable={yearVariableTotal}
-              yearSavings={yearSavings}
-              yearRemaining={yearRemaining}
-              monthlyIncome={monthlyIncome}
-              monthlyFixed={monthlyFixed}
-              monthlyVariable={monthlyVariable}
-              monthlySavings={monthlySavings}
-              monthlyRemaining={monthlyRemaining}
-              selectedMonth={trendMonth}
-              monthCount={monthCount}
-              isCurrentYear={isCurrentYear}
-              year={year}
-              formatAmount={formatAmount}
+              allTimeRows={allTimeRows}
+              selectedYear={year}
+              onBrushChange={handleBrushChange}
+              externalBrushWindow={brushWindow}
+              externalBrushVersion={panToYearVersion}
             />
           </div>
 
@@ -292,15 +393,35 @@ export default function IncomeTrendSection({
             />
           )}
 
+          <div className="px-4 pb-4 sm:px-5 border-t border-theme-border pt-4">
+            <IncomeFlowBar
+              yearIncome={rangeData.yearTotalIncome}
+              yearFixed={rangeData.yearFixedTotal}
+              yearVariable={rangeData.yearVariableTotal}
+              yearSavings={rangeData.yearSavings}
+              yearRemaining={rangeData.yearRemaining}
+              monthlyIncome={rangeMonthlyIncome}
+              monthlyFixed={rangeMonthlyFixed}
+              monthlyVariable={rangeMonthlyVariable}
+              monthlySavings={rangeMonthlySavings}
+              monthlyRemaining={rangeMonthlyRemaining}
+              selectedMonth={brushWindow ? null : trendMonth}
+              monthCount={rangeMonthCount}
+              isCurrentYear={rangeIsCurrentYear}
+              year={year}
+              formatAmount={formatAmount}
+            />
+          </div>
+
           {/* Year charts — always visible */}
           <div className="border-t border-theme-border">
             <AnalyticsCharts
-              data={data}
+              data={rangeData}
               multiYearData={multiYearData}
               year={year}
               currentYear={currentYear}
-              currentMonth={currentMonth}
-              selectedMonth={null}
+              currentMonth={brushWindow ? rangeMonthCount - 1 : currentMonth}
+              selectedMonth={brushWindow ? null : trendMonth}
             />
           </div>
 

@@ -173,19 +173,19 @@ export function buildYearTrendRows(
 
   const priorYearsBaseline = (priorYearsData ?? []).reduce((sum, d) => {
     if (d.loading) return sum;
-    return sum + d.monthlyRemaining.reduce<number>((s, v) => s + (v ?? 0), 0);
+    return sum + d.monthlyTotalSavings.reduce<number>((s, v) => s + (v ?? 0), 0);
   }, 0);
 
   let withinYearRunning = 0;
 
   for (let m = 0; m < monthCount; m++) {
-    const remaining = data.monthlyRemaining[m] ?? 0;
-    withinYearRunning += remaining;
+    const saved = data.monthlyTotalSavings[m] ?? 0;
+    withinYearRunning += saved;
 
     const monthKey = formatMonthKey(year, m);
     const income = data.monthlyIncome[m] ?? 0;
     const expensesTotal = data.monthlyTotals[m] ?? 0;
-    const saved = data.monthlyTotalSavings[m] ?? 0;
+    // saved already declared above for the running total
     // Prefer pre-computed savingsPct from AnalyticsData; fall back to computing it
     const rawPct = data.monthlySavingsPct[m];
     const savingsRate =
@@ -363,5 +363,265 @@ export function buildMonthDrilldownData(
     categoryBreakdown: buildCategoryBreakdown(data, monthIndex),
     payeeBreakdown: buildPayeeBreakdown(data, monthIndex),
     expensePreview,
+  };
+}
+
+/**
+ * Flattens all years of AnalyticsData into a single chronological array
+ * for use as the full-history dataset in the brush mini-timeline.
+ *
+ * Each entry has a "MMM YY" label (e.g. "Jan 24") and the cumulative
+ * remaining at that point in time. Prior-year saved is attached per point
+ * so the comparison lines work across any brushed window.
+ */
+export interface AllTimeRow {
+  /** "MMM YY" display label, e.g. "Jan 24" */
+  label: string;
+  /** "YYYY-MM" key for identifying the month */
+  monthKey: string;
+  /** 0-indexed month within its year */
+  monthIndex: number;
+  year: number;
+  cumulativeRemaining: number;
+  saved: number;
+  /** saved amount for the same month in the prior year, or null */
+  priorSaved: number | null;
+  /** saved - priorSaved, or null */
+  savedDelta: number | null;
+  income: number;
+  expenses: number;
+  savingsRate: number | null;
+  hasData: boolean;
+}
+
+export function buildAllYearsTrendRows(
+  allYearsData: Array<{ year: number; data: AnalyticsData }>,
+  currentYear: number,
+  currentMonth: number,
+): AllTimeRow[] {
+  const rows: AllTimeRow[] = [];
+  let runningCumulative = 0;
+
+  // Sort years ascending
+  const sorted = [...allYearsData].sort((a, b) => a.year - b.year);
+
+  // Build a lookup: year → monthIndex → saved, for prior-year attachment
+  const savedByYearMonth = new Map<string, number>();
+
+  for (const { year, data } of sorted) {
+    if (data.loading) continue;
+    const monthCount = getVisibleMonthCount(year, currentYear, currentMonth);
+    for (let m = 0; m < monthCount; m++) {
+      const saved = data.monthlyTotalSavings[m] ?? 0;
+      savedByYearMonth.set(`${year}-${m}`, saved);
+    }
+  }
+
+  for (const { year, data } of sorted) {
+    if (data.loading) continue;
+    const monthCount = getVisibleMonthCount(year, currentYear, currentMonth);
+    for (let m = 0; m < monthCount; m++) {
+      const saved = data.monthlyTotalSavings[m] ?? 0;
+      runningCumulative += saved;
+      const monthKey = formatMonthKey(year, m);
+      const income = data.monthlyIncome[m] ?? 0;
+      // saved already declared above for the running total
+      const rawPct = data.monthlySavingsPct[m];
+      const savingsRate =
+        income === 0
+          ? null
+          : rawPct != null
+            ? rawPct
+            : getSavingsRate(income, saved);
+      const shortYear = String(year).slice(2);
+
+      const priorSaved = savedByYearMonth.get(`${year - 1}-${m}`) ?? null;
+      const savedDelta = priorSaved != null ? saved - priorSaved : null;
+
+      rows.push({
+        label: `${MONTH_LABELS[m]} ${shortYear}`,
+        monthKey,
+        monthIndex: m,
+        year,
+        cumulativeRemaining: runningCumulative,
+        saved,
+        priorSaved,
+        savedDelta,
+        income,
+        expenses: data.monthlyTotals[m] ?? 0,
+        savingsRate,
+        hasData: data.monthlyHasData[m] ?? false,
+      });
+    }
+  }
+
+  return rows;
+}
+
+/**
+ * Builds a synthetic AnalyticsData from a slice of AllTimeRows (the brush window).
+ * The result has monthly arrays re-indexed 0..N-1 for the visible months,
+ * with year totals re-aggregated across the range.
+ *
+ * variableRows and payeeRows are merged across years — same category/payee key
+ * gets its amounts concatenated in chronological order.
+ */
+export function buildRangeAnalyticsData(
+  window: AllTimeRow[],
+  allYearsData: Array<{ year: number; data: AnalyticsData }>,
+): AnalyticsData {
+  if (window.length === 0) {
+    return {
+      loading: false,
+      year: 0,
+      monthlyIncome: [],
+      variableRows: [],
+      payeeRows: [],
+      grid: {},
+      fixedRows: [],
+      monthlyFixedTotals: [],
+      monthlyVariableTotals: [],
+      monthlyTotals: [],
+      monthlySavings: [],
+      monthlyRemaining: [],
+      monthlyTotalSavings: [],
+      monthlySavingsRates: [],
+      monthlySavingsPct: [],
+      monthlyHasData: [],
+      yearVariableTotal: 0,
+      yearFixedTotal: 0,
+      yearTotal: 0,
+      yearSavings: 0,
+      yearRemaining: 0,
+      yearTotalIncome: 0,
+      avgSavingsPct: 0,
+      maxPerMonth: [],
+    };
+  }
+
+  // Build lookup: year → AnalyticsData
+  const dataByYear = new Map(allYearsData.map((d) => [d.year, d.data]));
+
+  const n = window.length;
+  const monthlyIncome: number[] = new Array(n).fill(0);
+  const monthlyFixedTotals: number[] = new Array(n).fill(0);
+  const monthlyVariableTotals: number[] = new Array(n).fill(0);
+  const monthlyTotals: number[] = new Array(n).fill(0);
+  const monthlySavings: (number | null)[] = new Array(n).fill(null);
+  const monthlyRemaining: (number | null)[] = new Array(n).fill(null);
+  const monthlyTotalSavings: (number | null)[] = new Array(n).fill(null);
+  const monthlySavingsRates: number[] = new Array(n).fill(0);
+  const monthlySavingsPct: (number | null)[] = new Array(n).fill(null);
+  const monthlyHasData: boolean[] = new Array(n).fill(false);
+  const maxPerMonth: number[] = new Array(n).fill(0);
+
+  // Per-category and per-payee amounts across the window
+  const varMap = new Map<string, { name: string; amounts: number[] }>();
+  const payeeMap = new Map<string, { name: string; amounts: number[] }>();
+  const fixedMap = new Map<string, { id: string; name: string; amounts: number[]; isArchived: boolean }>();
+
+  for (let i = 0; i < n; i++) {
+    const row = window[i];
+    const yearData = dataByYear.get(row.year);
+    if (!yearData) continue;
+    const m = row.monthIndex;
+
+    monthlyIncome[i] = yearData.monthlyIncome[m] ?? 0;
+    monthlyFixedTotals[i] = yearData.monthlyFixedTotals[m] ?? 0;
+    monthlyVariableTotals[i] = yearData.monthlyVariableTotals[m] ?? 0;
+    monthlyTotals[i] = yearData.monthlyTotals[m] ?? 0;
+    monthlySavings[i] = yearData.monthlySavings[m] ?? null;
+    monthlyRemaining[i] = yearData.monthlyRemaining[m] ?? null;
+    monthlyTotalSavings[i] = yearData.monthlyTotalSavings[m] ?? null;
+    monthlySavingsRates[i] = yearData.monthlySavingsRates[m] ?? 0;
+    monthlySavingsPct[i] = yearData.monthlySavingsPct[m] ?? null;
+    monthlyHasData[i] = yearData.monthlyHasData[m] ?? false;
+    maxPerMonth[i] = yearData.maxPerMonth[m] ?? 0;
+
+    // Variable rows
+    for (const vr of yearData.variableRows) {
+      if (!varMap.has(vr.key)) {
+        varMap.set(vr.key, { name: vr.name, amounts: new Array(n).fill(0) });
+      }
+      varMap.get(vr.key)!.amounts[i] = vr.amounts[m] ?? 0;
+    }
+
+    // Payee rows
+    for (const pr of yearData.payeeRows) {
+      if (!payeeMap.has(pr.key)) {
+        payeeMap.set(pr.key, { name: pr.name, amounts: new Array(n).fill(0) });
+      }
+      payeeMap.get(pr.key)!.amounts[i] = pr.amounts[m] ?? 0;
+    }
+
+    // Fixed rows
+    for (const fr of yearData.fixedRows) {
+      if (!fixedMap.has(fr.id)) {
+        fixedMap.set(fr.id, {
+          id: fr.id,
+          name: fr.name,
+          amounts: new Array(n).fill(0),
+          isArchived: fr.isArchived,
+        });
+      }
+      fixedMap.get(fr.id)!.amounts[i] = fr.amounts[m] ?? 0;
+    }
+  }
+
+  const variableRows = Array.from(varMap.entries()).map(([key, v]) => ({
+    key,
+    name: v.name,
+    amounts: v.amounts,
+    yearTotal: v.amounts.reduce((s, a) => s + a, 0),
+  }));
+
+  const payeeRows = Array.from(payeeMap.entries()).map(([key, v]) => ({
+    key,
+    name: v.name,
+    amounts: v.amounts,
+    yearTotal: v.amounts.reduce((s, a) => s + a, 0),
+  }));
+
+  const fixedRows = Array.from(fixedMap.values()).map((fr) => ({
+    ...fr,
+    yearTotal: fr.amounts.reduce((s, a) => s + a, 0),
+  }));
+
+  const yearTotalIncome = monthlyIncome.reduce((s, v) => s + v, 0);
+  const yearFixedTotal = monthlyFixedTotals.reduce((s, v) => s + v, 0);
+  const yearVariableTotal = monthlyVariableTotals.reduce((s, v) => s + v, 0);
+  const yearTotal = monthlyTotals.reduce((s, v) => s + v, 0);
+  const yearSavings = (monthlySavings as number[]).reduce((s, v) => s + (v ?? 0), 0);
+  const yearRemaining = (monthlyRemaining as number[]).reduce((s, v) => s + (v ?? 0), 0);
+  const validPcts = (monthlySavingsPct as (number | null)[]).filter((v): v is number => v != null);
+  const avgSavingsPct = validPcts.length > 0
+    ? validPcts.reduce((s, v) => s + v, 0) / validPcts.length
+    : 0;
+
+  return {
+    loading: false,
+    year: window[window.length - 1].year,
+    monthlyIncome,
+    variableRows,
+    payeeRows,
+    grid: {},
+    fixedRows,
+    monthlyFixedTotals,
+    monthlyVariableTotals,
+    monthlyTotals,
+    monthlySavings,
+    monthlyRemaining,
+    monthlyTotalSavings,
+    monthlySavingsRates,
+    monthlySavingsPct,
+    monthlyHasData,
+    yearVariableTotal,
+    yearFixedTotal,
+    yearTotal,
+    yearSavings,
+    yearRemaining,
+    yearTotalIncome,
+    avgSavingsPct,
+    maxPerMonth,
   };
 }

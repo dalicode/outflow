@@ -302,7 +302,9 @@ export default function BudgetFlowBar({
         <span className={cn(spentPct > 100 && "text-theme-danger font-medium")}>
           {spentPct.toFixed(0)}% allocated
         </span>
-        <span>100%</span>
+        <span className={cn(isOverBudget && "text-theme-danger font-medium")}>
+          {isOverBudget ? `${spentPct.toFixed(0)}%` : "100%"}
+        </span>
       </div>
 
       {/* Portal tooltip — follows mouse, top-right of cursor */}

@@ -286,8 +286,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  padding: 0.25rem 0.375rem;
+  min-width: 48px;
+  padding: 0.25rem 0.5rem;
   border-radius: var(--radius-small);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -297,6 +297,8 @@
   cursor: pointer;
   scroll-snap-align: center;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
   transition:
     transform 0.15s ease,
     background-color 0.15s ease,

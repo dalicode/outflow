@@ -3,27 +3,36 @@ import Strip from "../../components/ui/Strip";
 import { useHaptics } from "../../hooks/useHaptics";
 
 interface YearStripProps {
+  /** The year the strip is currently positioned at (for chevron step back/forward) */
   year: number;
   currentYear: number;
   maxVisible: number;
+  /** Only these years are shown as pills */
+  availableYears: number[];
   onYearChange: (year: number) => void;
+  /** Set of years currently visible in the brush window */
+  activeYears?: Set<number>;
 }
 
 export default function YearStrip({
   year,
   currentYear,
   maxVisible,
+  availableYears,
   onYearChange,
+  activeYears,
 }: YearStripProps) {
   const haptics = useHaptics();
-  const canGoForward = year < currentYear;
-  const visibleCount = Math.min(maxVisible, 5);
-  const rangeStart = Math.min(year, currentYear) - 50;
 
-  const years = [];
-  for (let y = rangeStart; y <= currentYear; y++) {
-    years.push(y);
-  }
+  const sorted = [...availableYears].sort((a, b) => a - b);
+  const minYear = sorted[0] ?? currentYear;
+  const maxYear = sorted[sorted.length - 1] ?? currentYear;
+
+  const canGoBack = year > minYear;
+  const canGoForward = year < maxYear;
+
+  const visibleCount = Math.min(maxVisible, sorted.length);
+  const multipleActive = activeYears && activeYears.size > 1;
 
   return (
     <Strip
@@ -31,40 +40,45 @@ export default function YearStrip({
       scrollClass="year-strip-scroll"
       scrollSelector="[data-selected='true']"
       selectedKey={year}
-      smoothScrollThreshold={0}
+      smoothScrollThreshold={200}
       scrollMode="nearest"
-      onJumpBack={() => onYearChange(year - visibleCount)}
-      onStepBack={() => onYearChange(year - 1)}
-      onStepForward={() => canGoForward && onYearChange(year + 1)}
-      onJumpForward={() => year !== currentYear && onYearChange(currentYear)}
+      itemWidth={48}
+      onStepBack={() => {
+        if (!canGoBack) return;
+        const idx = sorted.indexOf(year);
+        const prev = sorted[idx - 1];
+        if (prev != null) onYearChange(prev);
+      }}
+      onStepForward={() => {
+        if (!canGoForward) return;
+        const idx = sorted.indexOf(year);
+        const next = sorted[idx + 1];
+        if (next != null) onYearChange(next);
+      }}
+      disableStepBack={!canGoBack}
       disableStepForward={!canGoForward}
-      disableJumpForward={year === currentYear}
       jumpBackLabel="Back"
       stepBackLabel="Previous year"
       stepForwardLabel="Next year"
       jumpForwardLabel="Current year"
+      spanSelector={multipleActive ? ".year-pill-selected" : undefined}
+      spanDeps={[activeYears]}
     >
-      {years.map((y) => {
-        const isSelected = y === year;
-        const isFuture = y > currentYear;
+      {sorted.map((y) => {
+        const isActive = activeYears ? activeYears.has(y) : y === year;
         const isCurrent = y === currentYear;
         return (
-            <button
-              key={y}
-              onClick={() => {
-                if (isFuture) return;
-                haptics.selection();
-                onYearChange(y);
-              }}
-              disabled={isFuture}
-              className={cn(
+          <button
+            key={y}
+            onClick={() => { haptics.selection(); onYearChange(y); }}
+            className={cn(
               "year-pill motion-safe:active:scale-[0.98]",
-              isSelected && "year-pill-selected",
-              !isSelected && isCurrent && "year-pill-current",
-              )}
-            data-selected={isSelected || undefined}
+              isActive && "year-pill-selected",
+              !isActive && isCurrent && "year-pill-current",
+            )}
+            data-selected={isActive || undefined}
             aria-label={String(y)}
-            aria-current={isSelected ? "date" : undefined}
+            aria-current={isActive ? "date" : undefined}
           >
             {y}
           </button>

@@ -95,7 +95,8 @@ export function getMaxMonthForYear(year: number): number {
 
 /**
  * Find the first available gap in a sorted list of ranges, prioritizing
- * front gaps (near January). Returns null when the year is fully covered.
+ * gaps after the last range. Returns null when the year is fully covered
+ * up to maxMonth (from the first range's startMonth).
  */
 export function findGapToFill(
   ranges: RangeItem[],
@@ -103,14 +104,12 @@ export function findGapToFill(
 ): { startMonth: number; endMonth: number } | null {
   const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth);
 
+  // No ranges yet — default to a single-month placeholder at month 1
   if (sorted.length === 0) {
     return { startMonth: 1, endMonth: maxMonth };
   }
 
-  if (sorted[0].startMonth > 1) {
-    return { startMonth: 1, endMonth: sorted[0].startMonth - 1 };
-  }
-
+  // Gap between existing ranges
   for (let i = 0; i < sorted.length - 1; i++) {
     if (sorted[i].endMonth + 1 < sorted[i + 1].startMonth) {
       return {
@@ -120,6 +119,7 @@ export function findGapToFill(
     }
   }
 
+  // Gap after the last range
   if (sorted[sorted.length - 1].endMonth < maxMonth) {
     return {
       startMonth: sorted[sorted.length - 1].endMonth + 1,
@@ -131,31 +131,16 @@ export function findGapToFill(
 }
 
 /**
- * Remove a range by id and merge its span into the neighbor:
- * - If a next range exists, expand it backward.
- * - Otherwise expand the previous range forward.
+ * Remove a range by id. Adjacent ranges are left as-is (gaps are allowed).
  */
 export function removeRangeAndMerge(ranges: RangeItem[], id: string): RangeItem[] {
-  const result = [...ranges];
-  const idx = result.findIndex((r) => r.id === id);
-  if (idx === -1) return result;
-
-  const deleted = result[idx];
-  result.splice(idx, 1);
-
-  if (idx < result.length) {
-    result[idx] = { ...result[idx], startMonth: deleted.startMonth };
-  } else if (idx > 0) {
-    result[idx - 1] = { ...result[idx - 1], endMonth: deleted.endMonth };
-  }
-
-  return result;
+  return ranges.filter((r) => r.id !== id);
 }
 
 /**
- * Update a range's endMonth and cascade the change to all subsequent ranges
- * so the partition stays contiguous. Ranges squeezed to zero or negative
- * width are auto-removed.
+ * Update a range's endMonth. If the new endMonth overlaps the next range,
+ * the next range's startMonth is pushed forward. Ranges squeezed to zero
+ * width are removed.
  */
 export function updateRangeEndAndCascade(
   ranges: RangeItem[],
@@ -168,20 +153,24 @@ export function updateRangeEndAndCascade(
 
   result[idx] = { ...result[idx], endMonth: newEndMonth };
 
-  for (let i = idx + 1; i < result.length; i++) {
-    const newStart = result[i - 1].endMonth + 1;
-    result[i] = { ...result[i], startMonth: newStart };
-    if (result[i].startMonth > result[i].endMonth) {
-      result.splice(i, 1);
-      i--;
+  // Push subsequent ranges forward only if they now overlap
+  const sorted = [...result].sort((a, b) => a.startMonth - b.startMonth);
+  const sortedIdx = sorted.findIndex((r) => r.id === id);
+  for (let i = sortedIdx + 1; i < sorted.length; i++) {
+    if (sorted[i].startMonth <= sorted[i - 1].endMonth) {
+      const newStart = sorted[i - 1].endMonth + 1;
+      sorted[i] = { ...sorted[i], startMonth: newStart };
+      if (sorted[i].startMonth > sorted[i].endMonth) {
+        sorted.splice(i, 1);
+        i--;
+      }
     }
   }
-
-  return result;
+  return sorted;
 }
 
 /**
- * Validate that ranges form a contiguous, non-overlapping partition.
+ * Validate that ranges don't overlap. Gaps between ranges are allowed.
  */
 export function checkRangeOverlaps(ranges: RangeItem[], label: string): string[] {
   const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth);
@@ -197,28 +186,25 @@ export function checkRangeOverlaps(ranges: RangeItem[], label: string): string[]
     if (sorted[i].startMonth <= sorted[i - 1].endMonth) {
       errs.push(`${label} ranges must not overlap.`);
     }
-    if (sorted[i].startMonth !== sorted[i - 1].endMonth + 1) {
-      errs.push(`${label} ranges must be contiguous with no gaps.`);
-    }
   }
 
   return errs;
 }
 
 /**
- * Determine whether the given ranges fully cover Jan–maxMonth with no gaps.
+ * Determine whether the given ranges are internally contiguous with no gaps,
+ * and the last range reaches maxMonth. The first range may start at any month.
  */
 export function isFullyCovered(ranges: RangeItem[], maxMonth: number): boolean {
   if (ranges.length === 0) return false;
 
   const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth);
-  if (sorted[0].startMonth !== 1) return false;
 
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i].startMonth !== sorted[i - 1].endMonth + 1) return false;
   }
 
-  return sorted[sorted.length - 1].endMonth === maxMonth;
+  return sorted[sorted.length - 1].endMonth >= maxMonth;
 }
 
 /**

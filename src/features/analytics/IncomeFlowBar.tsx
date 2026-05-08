@@ -78,7 +78,7 @@ export default function IncomeFlowBar({
       ? null
       : isCurrentYear
         ? `${monthCount} month${monthCount === 1 ? "" : "s"}`
-        : "12 months";
+        : `${monthCount} month${monthCount === 1 ? "" : "s"}`;
 
   const segments = [
     { key: "savings",  label: "Savings",  value: cappedSavings, widthPct: barPct(cappedSavings, income), color: colors.text },

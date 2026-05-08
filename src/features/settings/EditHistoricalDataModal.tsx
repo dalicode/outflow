@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
 import MoneyInput from "../../components/inputs/MoneyInput";
+import PercentInput from "../../components/inputs/PercentInput";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
 import {
@@ -144,42 +145,6 @@ function HistoricalYearTabs({
   );
 }
 
-function YearTabBar({
-  years,
-  activeYear,
-  dirtyYears,
-  onSelect,
-}: YearTabBarProps) {
-  return (
-    <div className="border-b border-theme-border">
-      <div className="flex items-end gap-0 px-1">
-        {years.map((y) => {
-          const isActive = y === activeYear;
-          const isDirty = dirtyYears.has(y);
-          return (
-            <button
-              key={y}
-              onClick={() => onSelect(y)}
-              className={`relative px-4 py-2 text-sm font-medium rounded-t-theme-medium border-x border-t transition-colors focus:outline-none ${
-                isActive
-                  ? "bg-theme-surface text-theme-primary border-t-2 border-t-theme-primary border-theme-border border-b border-b-theme-surface shadow-sm"
-                  : "bg-theme-background text-theme-muted border-transparent hover:text-theme-text hover:bg-theme-background-muted"
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                {y}
-                {isDirty && !isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-theme-primary inline-block" />
-                )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 interface MonthSelectProps {
   value: number;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
@@ -219,6 +184,8 @@ interface MultiRangeListProps {
   onUpdate: (id: string, patch: Partial<RangeItem>) => void;
   quickAddValue?: string;
   onQuickAdd?: (value: string) => void;
+  /** Id of the range that was just added — its input will be auto-focused */
+  focusedRangeId?: string | null;
 }
 
 function MultiRangeList({
@@ -230,11 +197,12 @@ function MultiRangeList({
   onUpdate,
   quickAddValue,
   onQuickAdd,
+  focusedRangeId,
 }: MultiRangeListProps) {
   const isIncome = type === "income";
   const label = isIncome ? "Monthly Income" : "Auto Savings %";
   const placeholder = isIncome ? "e.g. 5000" : "e.g. 20";
-  const inputWidth = isIncome ? "w-36" : "w-28";
+  const inputWidth = "w-36";
   const moneyConfig = resolveMoneyLocaleConfig("$");
 
   const maxMonth = getMaxMonthForYear(year);
@@ -254,8 +222,11 @@ function MultiRangeList({
       )}
       <div className="space-y-2">
         {sortedRanges.map((range, idx) => {
+          const prevRange = sortedRanges[idx - 1];
           const nextRange = sortedRanges[idx + 1];
+          const startMonthMin = prevRange ? prevRange.endMonth + 1 : 1;
           const endMonthMax = nextRange ? nextRange.startMonth - 1 : maxMonth;
+          const shouldFocus = range.id === focusedRangeId;
           return (
             <div key={range.id} className="flex items-center gap-2 flex-wrap">
               {isIncome ? (
@@ -268,26 +239,27 @@ function MultiRangeList({
                   locale={moneyConfig.locale}
                   placeholder={placeholder}
                   size="sm"
+                  autoFocus={shouldFocus}
                   className={inputWidth}
                 />
               ) : (
-                <input
-                  type="number"
-                  value={range.amount}
-                  onChange={(e) =>
-                    onUpdate(range.id, { amount: e.target.value })
-                  }
-                  placeholder={placeholder}
-                  step="0.1"
-                  className={`${ghostInputCls} ${inputWidth}`}
+                <PercentInput
+                  value={Number.parseFloat(String(range.amount || "0"))}
+                  onChange={(val) => onUpdate(range.id, { amount: val.toFixed(2) })}
+                  autoFocus={shouldFocus}
+                  className={inputWidth}
                 />
               )}
-              {/* Start month is read-only — controlled by cascade logic */}
-              <span
-                className={`${ghostSelectCls} w-18 inline-block text-center select-none`}
-              >
-                {MONTHS[range.startMonth - 1]}
-              </span>
+              {/* Start month — editable, constrained to after previous range */}
+              <MonthSelect
+                value={range.startMonth}
+                onChange={(e) =>
+                  onUpdate(range.id, { startMonth: parseInt(e.target.value, 10) })
+                }
+                minMonth={startMonthMin}
+                maxMonth={range.endMonth}
+                cls={`${ghostSelectCls} w-18`}
+              />
               <span className="text-theme-muted text-xs">→</span>
               <MonthSelect
                 value={Math.min(range.endMonth, maxMonth)}
@@ -677,6 +649,40 @@ export default function EditHistoricalDataModal({
   const [saving, setSaving] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
   const [currentFixedDefs, setCurrentFixedDefs] = useState<FixedExpense[]>([]);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  // Track the id of the most recently added range so its input gets focused
+  const [focusedIncomeRangeId, setFocusedIncomeRangeId] = useState<string | null>(null);
+  const [focusedSavingsRangeId, setFocusedSavingsRangeId] = useState<string | null>(null);
+
+  // ── Draft persistence ──────────────────────────────────────────────────────
+  // Key includes sorted years so drafts from different year sets don't collide.
+  const draftKey = `outflow:editHistoricalDraft:${years.slice().sort().join(",")}`;
+
+  // Persist draft to localStorage whenever configs/mode change (debounced 500ms)
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (dirtyYears.size === 0) return; // nothing to persist yet
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          yearConfigs,
+          dirtyYears: [...dirtyYears],
+          saveMode,
+        }));
+      } catch {
+        // localStorage may be full or unavailable — silently ignore
+      }
+    }, 500);
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [yearConfigs, dirtyYears, saveMode, draftKey]);
+
+  const clearDraft = () => {
+    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+  };
 
   // Load existing data when modal opens
   useEffect(() => {
@@ -751,12 +757,39 @@ export default function EditHistoricalDataModal({
         }
 
         if (!cancelled) {
-          setYearConfigs(configs);
+          // Check for a persisted draft and restore it if present
+          let restoredFromDraft = false;
+          try {
+            const raw = localStorage.getItem(draftKey);
+            if (raw) {
+              const draft = JSON.parse(raw) as {
+                yearConfigs: Record<number, YearConfig>;
+                dirtyYears: number[];
+                saveMode: "merge" | "replace";
+              };
+              // Merge draft on top of DB-loaded configs (draft wins for dirty years)
+              const merged = { ...configs };
+              for (const [yearStr, cfg] of Object.entries(draft.yearConfigs)) {
+                const y = Number(yearStr);
+                if (years.includes(y)) merged[y] = cfg;
+              }
+              setYearConfigs(merged);
+              setDirtyYears(new Set(draft.dirtyYears));
+              setSaveMode(draft.saveMode ?? "merge");
+              restoredFromDraft = true;            }
+          } catch {
+            // Corrupt draft — ignore and use DB data
+          }
+
+          if (!restoredFromDraft) {
+            setYearConfigs(configs);
+            setDirtyYears(new Set());
+            setSaveMode("merge");
+          }
+          setRestoredFromDraft(restoredFromDraft);
           setActiveYear(years[0]);
-          setDirtyYears(new Set());
           setErrors({});
           setResultMsg("");
-          setSaveMode("merge");
           setCurrentFixedDefs(fixedDefs as FixedExpense[]);
         }
       } catch (err) {
@@ -770,7 +803,7 @@ export default function EditHistoricalDataModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, years]);
+  }, [isOpen, years, reloadKey]);
 
   const updateYearConfig = (year: number, patch: Partial<YearConfig>) => {
     setYearConfigs((prev) => ({
@@ -789,13 +822,16 @@ export default function EditHistoricalDataModal({
     const ranges = [...(yearConfigs[year]?.incomeRanges || [])];
     const gap = findGapToFill(ranges, getMaxMonthForYear(year));
     if (!gap) return;
+    const id = nextId();
+    setFocusedIncomeRangeId(id);
     updateYearConfig(year, {
-      incomeRanges: [...ranges, { id: nextId(), amount: "", ...gap }],
+      incomeRanges: [...ranges, { id, amount: "", ...gap }],
     });
   };
 
   const removeIncomeRange = (year: number, id: string) => {
     const ranges = yearConfigs[year]?.incomeRanges || [];
+    setFocusedIncomeRangeId(null);
     updateYearConfig(year, {
       incomeRanges: removeRangeAndMerge(ranges, id),
     });
@@ -822,13 +858,16 @@ export default function EditHistoricalDataModal({
     const ranges = [...(yearConfigs[year]?.savingsRanges || [])];
     const gap = findGapToFill(ranges, getMaxMonthForYear(year));
     if (!gap) return;
+    const id = nextId();
+    setFocusedSavingsRangeId(id);
     updateYearConfig(year, {
-      savingsRanges: [...ranges, { id: nextId(), amount: "", ...gap }],
+      savingsRanges: [...ranges, { id, amount: "", ...gap }],
     });
   };
 
   const removeSavingsRange = (year: number, id: string) => {
     const ranges = yearConfigs[year]?.savingsRanges || [];
+    setFocusedSavingsRangeId(null);
     updateYearConfig(year, {
       savingsRanges: removeRangeAndMerge(ranges, id),
     });
@@ -857,8 +896,10 @@ export default function EditHistoricalDataModal({
     const ranges = [...(yearConfigs[year]?.incomeRanges || [])];
     const gap = findGapToFill(ranges, getMaxMonthForYear(year));
     if (!gap) return;
+    const id = nextId();
+    setFocusedIncomeRangeId(id);
     updateYearConfig(year, {
-      incomeRanges: [...ranges, { id: nextId(), amount: value, ...gap }],
+      incomeRanges: [...ranges, { id, amount: value, ...gap }],
     });
   };
 
@@ -866,8 +907,10 @@ export default function EditHistoricalDataModal({
     const ranges = [...(yearConfigs[year]?.savingsRanges || [])];
     const gap = findGapToFill(ranges, getMaxMonthForYear(year));
     if (!gap) return;
+    const id = nextId();
+    setFocusedSavingsRangeId(id);
     updateYearConfig(year, {
-      savingsRanges: [...ranges, { id: nextId(), amount: value, ...gap }],
+      savingsRanges: [...ranges, { id, amount: value, ...gap }],
     });
   };
 
@@ -1129,6 +1172,7 @@ export default function EditHistoricalDataModal({
       }
 
       onComplete?.();
+      clearDraft();
       setYearConfigs({});
       setActiveYear(years.length > 0 ? years[0] : null);
       setDirtyYears(new Set());
@@ -1152,6 +1196,12 @@ export default function EditHistoricalDataModal({
     setErrors({});
     setResultMsg("");
     onClose();
+  };
+
+  const discardDraft = () => {
+    clearDraft();
+    setRestoredFromDraft(false);
+    setReloadKey((k) => k + 1); // re-triggers the load effect to reload from DB
   };
 
   const activeConfig: YearConfig = yearConfigs[activeYear ?? 0] || {
@@ -1198,6 +1248,21 @@ export default function EditHistoricalDataModal({
         </div>
       ) : (
         <>
+          {/* Draft restored banner */}
+          {restoredFromDraft && (
+            <div className="flex items-center justify-between gap-3 rounded-theme-medium border border-theme-primary bg-[color:color-mix(in_srgb,var(--theme-primary)_8%,transparent)] px-3 py-2 text-xs mb-2">
+              <span className="text-theme-primary font-medium">
+                Unsaved changes restored from your last session.
+              </span>
+              <button
+                onClick={discardDraft}
+                className="text-theme-muted hover:text-theme-danger transition-colors shrink-0"
+              >
+                Discard
+              </button>
+            </div>
+          )}
+
           {/* Year tabs — attached to the card below */}
           {years.length > 0 && (
             <HistoricalYearTabs
@@ -1224,6 +1289,7 @@ export default function EditHistoricalDataModal({
                   }
                   quickAddValue={defaultIncome}
                   onQuickAdd={(value) => quickAddIncomeRange(activeYear, value)}
+                  focusedRangeId={focusedIncomeRangeId}
                 />
 
                 {/* Savings ranges */}
@@ -1238,6 +1304,7 @@ export default function EditHistoricalDataModal({
                   }
                   quickAddValue={defaultSavingsRate}
                   onQuickAdd={(value) => quickAddSavingsRange(activeYear, value)}
+                  focusedRangeId={focusedSavingsRangeId}
                 />
 
                 {/* Fixed expenses */}
