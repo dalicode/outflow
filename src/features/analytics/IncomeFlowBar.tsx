@@ -254,11 +254,9 @@ export default function IncomeFlowBar({
 
               {isOverBudget && overflowAmt > 0 && (
                 <div
-                  className="h-full rounded-r-full transition-all duration-500 cursor-pointer ml-px"
+                  className="bar-overbudget h-full rounded-r-full transition-all duration-500 cursor-pointer ml-px"
                   style={{
                     width: `${pct(overflowAmt, income)}%`,
-                    backgroundColor: colors.danger,
-                    opacity: 0.65,
                   }}
                   onMouseEnter={(e) => {
                     const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
@@ -336,7 +334,7 @@ export default function IncomeFlowBar({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-              {income > 0 ? `${Math.abs(pct(remaining, income)).toFixed(0)}%` : "—"}
+              {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : "—"}
             </span>
             <span
               className="text-sm font-semibold tabular-nums w-24 text-right"

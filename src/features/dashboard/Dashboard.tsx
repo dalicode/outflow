@@ -174,10 +174,10 @@ export default function Dashboard({
       scrollable={false}
     >
       {/* ── Fixed header ── */}
-      <div className="w-full max-w-7xl mx-auto">
+      <div className="w-full max-w-4xl mx-auto">
         <div
           className={cn(
-            "mx-auto px-4 py-6 space-y-6",
+            "mx-auto px-4 pt-6 pb-3 space-y-6",
             dash.monthSpan === 12 ? "max-w-none" : "max-w-7xl",
           )}
         >
@@ -192,24 +192,25 @@ export default function Dashboard({
             onSpanChange={dash.setMonthSpan}
             onToggleGrandTotal={() => dash.setShowGrandTotal((p) => !p)}
           />
-          <DashboardMonthStrip
-            selectedYear={dash.selectedYear}
-            selectedMonth={dash.selectedMonth}
-            monthSpan={dash.monthSpan}
-            stripMaxVisible={dash.stripMaxVisible}
-            monthStrip={dash.monthStrip}
-            yearFirstIndices={dash.yearFirstIndices}
-            monthKeys={dash.monthKeys}
-            onSelectMonth={dash.navigateToMonth}
-            onJumpBack={dash.jumpBackMonths}
-            onStepBack={dash.goToPreviousMonth}
-            onStepForward={dash.goToNextMonth}
-            onJumpForward={dash.jumpToCurrentMonth}
-            disableJumpForward={dash.isAtCurrentMonth}
-          />
         </div>
       </div>
-
+      <div className="pb-3">
+        <DashboardMonthStrip
+          selectedYear={dash.selectedYear}
+          selectedMonth={dash.selectedMonth}
+          monthSpan={dash.monthSpan}
+          stripMaxVisible={dash.stripMaxVisible}
+          monthStrip={dash.monthStrip}
+          yearFirstIndices={dash.yearFirstIndices}
+          monthKeys={dash.monthKeys}
+          onSelectMonth={dash.navigateToMonth}
+          onJumpBack={dash.jumpBackMonths}
+          onStepBack={dash.goToPreviousMonth}
+          onStepForward={dash.goToNextMonth}
+          onJumpForward={dash.jumpToCurrentMonth}
+          disableJumpForward={dash.isAtCurrentMonth}
+        />
+      </div>
       {/* ── Tabs ── */}
       <DashboardViewTabs
         viewMode={dash.viewMode}

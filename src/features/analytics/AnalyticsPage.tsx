@@ -56,41 +56,43 @@ export default function AnalyticsPage({
         Analytics
       </h1>
 
-      {/* Year strip */}
-      <YearStrip
-        year={year}
-        currentYear={currentYear}
-        maxVisible={maxVisible}
-        onYearChange={handleYearChange}
-      />
+      <div className="space-y-6 max-w-6xl mx-auto">
+        {/* Year strip */}
+        <YearStrip
+          year={year}
+          currentYear={currentYear}
+          maxVisible={maxVisible}
+          onYearChange={handleYearChange}
+        />
 
-      <IncomeTrendSection
-        key={`income-trend-${year}`}
-        data={data}
-        expenses={expenses}
-        categories={categories}
-        payees={payees}
-        year={year}
-        currentYear={currentYear}
-        currentMonth={currentMonth}
-        priorYearsData={priorYearsData}
-        multiYearData={multiYearData}
-        trendMonth={trendMonth}
-        trendDrilldown={trendDrilldown}
-        onTrendStateChange={(patch) => onSessionStateChange?.({ ...patch })}
-        yearTotalIncome={data.yearTotalIncome}
-        yearFixedTotal={data.yearFixedTotal}
-        yearVariableTotal={data.yearVariableTotal}
-        yearSavings={data.yearSavings}
-        yearRemaining={data.yearRemaining}
-        monthlyIncome={data.monthlyIncome}
-        monthlyFixed={data.monthlyFixedTotals}
-        monthlyVariable={data.monthlyVariableTotals}
-        monthlySavings={data.monthlySavings}
-        monthlyRemaining={data.monthlyRemaining}
-        monthCount={monthCount}
-        isCurrentYear={isCurrentYear}
-      />
+        <IncomeTrendSection
+          key={`income-trend-${year}`}
+          data={data}
+          expenses={expenses}
+          categories={categories}
+          payees={payees}
+          year={year}
+          currentYear={currentYear}
+          currentMonth={currentMonth}
+          priorYearsData={priorYearsData}
+          multiYearData={multiYearData}
+          trendMonth={trendMonth}
+          trendDrilldown={trendDrilldown}
+          onTrendStateChange={(patch) => onSessionStateChange?.({ ...patch })}
+          yearTotalIncome={data.yearTotalIncome}
+          yearFixedTotal={data.yearFixedTotal}
+          yearVariableTotal={data.yearVariableTotal}
+          yearSavings={data.yearSavings}
+          yearRemaining={data.yearRemaining}
+          monthlyIncome={data.monthlyIncome}
+          monthlyFixed={data.monthlyFixedTotals}
+          monthlyVariable={data.monthlyVariableTotals}
+          monthlySavings={data.monthlySavings}
+          monthlyRemaining={data.monthlyRemaining}
+          monthCount={monthCount}
+          isCurrentYear={isCurrentYear}
+        />
+      </div>
     </main>
   );
 }

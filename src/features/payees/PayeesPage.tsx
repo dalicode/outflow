@@ -100,13 +100,13 @@ export default function PayeesPage() {
   return (
     <>
       <div
-        className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6"
+        className="w-full max-w-4xl mx-auto px-4 py-6 space-y-6"
         data-testid="payees-page"
       >
         <h1 className="text-xl font-bold text-theme-text">Payees</h1>
 
         {/* Search + Add */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col md:max-w-3xl mx-auto sm:flex-row gap-3">
           <input
             type="text"
             value={search}

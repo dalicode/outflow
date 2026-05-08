@@ -32,7 +32,7 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
 
   return (
     <main
-      className="max-w-7xl w-full mx-auto px-4 py-6 space-y-6"
+      className="max-w-4xl w-full mx-auto px-4 py-6 space-y-6"
       data-testid="summary-page"
     >
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">

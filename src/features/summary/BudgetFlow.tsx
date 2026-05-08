@@ -203,7 +203,7 @@ export default function BudgetFlow({
                 />
               ) : null,
             )}
-            {/* Remaining portion */}
+            {/* Remaining / overbudget portion */}
             {!isOverBudget && remaining > 0 && (
               <div
                 className="h-full transition-all duration-500"
@@ -233,6 +233,29 @@ export default function BudgetFlow({
                           top: -10,
                         }
                       : prev,
+                  );
+                }}
+              />
+            )}
+            {isOverBudget && (
+              <div
+                className="bar-overbudget h-full transition-all duration-500 flex-1"
+                onMouseEnter={(e) => {
+                  const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (!parentRect) return;
+                  setHoveredSegment({
+                    label: "Over Budget",
+                    value: Math.abs(remaining),
+                    pct: Math.abs(pct(remaining, income)),
+                    left: e.clientX - parentRect.left,
+                    top: -10,
+                  });
+                }}
+                onMouseMove={(e) => {
+                  const parentRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (!parentRect) return;
+                  setHoveredSegment((prev) =>
+                    prev ? { ...prev, left: e.clientX - parentRect.left, top: -10 } : prev,
                   );
                 }}
               />
@@ -292,7 +315,7 @@ export default function BudgetFlow({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-              {income > 0 ? `${Math.abs(pct(remaining, income)).toFixed(0)}%` : "—"}
+              {income > 0 ? `${pct(remaining, income).toFixed(0)}%` : "—"}
             </span>
             <span className={cn(
               "text-sm font-semibold tabular-nums w-24 text-right",

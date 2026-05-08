@@ -236,12 +236,12 @@ export default function SettingsPage({
   }, [editHistoricalDataYears, expenses]);
 
   return (
-    <main className="w-full mx-auto max-w-7xl px-4 py-6 space-y-6">
+    <main className="w-full mx-auto max-w-4xl px-4 py-6 space-y-6">
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">
         Settings
       </h1>
 
-      <div className="mx-auto md:max-w-3xl flex flex-col">
+      <div className="mx-auto md:max-w-3xl flex flex-col space-y-6">
         {/* ── APPEARANCE ── */}
         <Card title="Appearance">
           <ThemeSelector

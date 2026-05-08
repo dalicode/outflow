@@ -20,10 +20,18 @@ export function useDashboardMonthNav(
 ) {
   const now = new Date();
 
-  const [selectedYear, setSelectedYear] = useState(initialYear ?? now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth ?? now.getMonth());
-  const [monthSpan, setMonthSpanState] = useState<MonthSpan>(initialMonthSpan ?? 1);
-  const [showGrandTotal, setShowGrandTotalState] = useState(initialShowGrandTotal ?? false);
+  const [selectedYear, setSelectedYear] = useState(
+    initialYear ?? now.getFullYear(),
+  );
+  const [selectedMonth, setSelectedMonth] = useState(
+    initialMonth ?? now.getMonth(),
+  );
+  const [monthSpan, setMonthSpanState] = useState<MonthSpan>(
+    initialMonthSpan ?? 1,
+  );
+  const [showGrandTotal, setShowGrandTotalState] = useState(
+    initialShowGrandTotal ?? false,
+  );
 
   const viewportWidth = useViewportWidth();
   const maxVisible = useMaxVisible(viewportWidth);
@@ -46,12 +54,15 @@ export function useDashboardMonthNav(
     }
   }, [monthSpan, maxAvailableSpan, isSpanSelectorVisible]);
 
-  const navigateToMonth = useCallback((year: number, month: number) => {
-    setSelectedYear(year);
-    setSelectedMonth(month);
-    onYearChange?.(year);
-    onMonthChange?.(month);
-  }, [onYearChange, onMonthChange]);
+  const navigateToMonth = useCallback(
+    (year: number, month: number) => {
+      setSelectedYear(year);
+      setSelectedMonth(month);
+      onYearChange?.(year);
+      onMonthChange?.(month);
+    },
+    [onYearChange, onMonthChange],
+  );
 
   const goToPreviousMonth = useCallback(() => {
     if (selectedMonth === 0) {
@@ -80,18 +91,24 @@ export function useDashboardMonthNav(
     navigateToMonth(today.getFullYear(), today.getMonth());
   }, [navigateToMonth]);
 
-  const setMonthSpan = useCallback((span: MonthSpan) => {
-    setMonthSpanState(span);
-    onMonthSpanChange?.(span);
-  }, [onMonthSpanChange]);
+  const setMonthSpan = useCallback(
+    (span: MonthSpan) => {
+      setMonthSpanState(span);
+      onMonthSpanChange?.(span);
+    },
+    [onMonthSpanChange],
+  );
 
-  const setShowGrandTotal = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
-    setShowGrandTotalState((prev) => {
-      const next = typeof v === "function" ? v(prev) : v;
-      onShowGrandTotalChange?.(next);
-      return next;
-    });
-  }, [onShowGrandTotalChange]);
+  const setShowGrandTotal = useCallback(
+    (v: boolean | ((prev: boolean) => boolean)) => {
+      setShowGrandTotalState((prev) => {
+        const next = typeof v === "function" ? v(prev) : v;
+        onShowGrandTotalChange?.(next);
+        return next;
+      });
+    },
+    [onShowGrandTotalChange],
+  );
 
   const isAtCurrentMonth =
     selectedYear === now.getFullYear() && selectedMonth === now.getMonth();

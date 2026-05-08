@@ -151,9 +151,7 @@ export default function DashboardMonthStrip({
             className="month-strip-item"
             data-selected={isSelected || undefined}
           >
-            <span
-              className={cn("year-label", !isFirstOfYear && "invisible")}
-            >
+            <span className={cn("year-label", !isFirstOfYear && "invisible")}>
               {year}
             </span>
             <button
@@ -169,9 +167,7 @@ export default function DashboardMonthStrip({
               aria-label={`${monthName} ${year}`}
               aria-current={isSelected ? "date" : undefined}
             >
-              <span
-                className={cn(!isSelected && isInSpan && "opacity-70")}
-              >
+              <span className={cn(!isSelected && isInSpan && "opacity-70")}>
                 {monthName}
               </span>
             </button>
