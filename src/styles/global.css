@@ -46,7 +46,7 @@ body {
   border-radius: var(--radius-small);
 }
 .scrollbar-themed::-webkit-scrollbar-thumb:hover {
-  background: var(--theme-muted);
+  background: var(--theme-border);
 }
 
 /* Selection theming */

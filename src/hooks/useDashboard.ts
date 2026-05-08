@@ -71,6 +71,7 @@ export function useDashboard(
     selection.selectedIds,
     sessionState?.viewMode,
     (v) => onSessionStateChange?.({ viewMode: v }),
+    monthNav.monthSpan,
   );
   const modals = useIncomeSavingsModals(
     data.monthSummaries,
@@ -120,6 +121,7 @@ export function useDashboard(
   const drilldownExpenses = useMemo(() => {
     if (!view.drilldownCategory) return [];
     const mk = data.monthKeys[view.drilldownCategoryMonthIndex];
+    if (!mk) return [];
     return filters.filteredExpenses
       .filter((e) => {
         const matchesMonth = e.date.startsWith(mk.key);
@@ -139,6 +141,7 @@ export function useDashboard(
   const drilldownPayeeExpenses = useMemo(() => {
     if (!view.drilldownPayee) return [];
     const mk = data.monthKeys[view.drilldownPayeeMonthIndex];
+    if (!mk) return [];
     return filters.filteredExpenses
       .filter((e) => {
         const matchesMonth = e.date.startsWith(mk.key);

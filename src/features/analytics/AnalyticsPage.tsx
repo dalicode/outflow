@@ -36,13 +36,21 @@ export default function AnalyticsPage({
     multiYearData,
     trendMonth,
     trendDrilldown,
-  } = useAnalytics({ expenses, categories, sessionState, onSessionStateChange });
+  } = useAnalytics({
+    expenses,
+    categories,
+    sessionState,
+    onSessionStateChange,
+  });
   const priorYearsData = multiYearData.filter((d) => d.year < year);
   const isCurrentYear = year === currentYear;
   const monthCount = isCurrentYear ? currentMonth + 1 : 12;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="analytics-page">
+    <main
+      className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6"
+      data-testid="analytics-page"
+    >
       {/* Header */}
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">
         Analytics
@@ -69,9 +77,7 @@ export default function AnalyticsPage({
         multiYearData={multiYearData}
         trendMonth={trendMonth}
         trendDrilldown={trendDrilldown}
-        onTrendStateChange={(patch) =>
-          onSessionStateChange?.({ ...patch })
-        }
+        onTrendStateChange={(patch) => onSessionStateChange?.({ ...patch })}
         yearTotalIncome={data.yearTotalIncome}
         yearFixedTotal={data.yearFixedTotal}
         yearVariableTotal={data.yearVariableTotal}

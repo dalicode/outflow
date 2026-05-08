@@ -41,9 +41,13 @@ export default function PayeeViewTable({
   );
 
   const now = new Date();
-  const isFutureMonth = (mk: MonthKey) =>
-    mk.year > now.getFullYear() ||
-    (mk.year === now.getFullYear() && mk.month > now.getMonth());
+  const isFutureMonth = (mk: MonthKey | undefined) => {
+    if (!mk) return false;
+    return (
+      mk.year > now.getFullYear() ||
+      (mk.year === now.getFullYear() && mk.month > now.getMonth())
+    );
+  };
 
   const colCount = monthSpan > 1 ? 2 + monthSpan + (showGrandTotal ? 1 : 0) : 3;
 
@@ -95,7 +99,7 @@ export default function PayeeViewTable({
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full table-fixed text-sm border-separate border-spacing-0">
+      <table className="w-full table-auto text-sm border-separate border-spacing-0">
         <thead className="sticky top-0 z-10">
           <tr>
             <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-left min-w-[8rem]">
@@ -103,14 +107,14 @@ export default function PayeeViewTable({
             </th>
             {monthSpan > 1 ? (
               <>
-                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                   Count
                 </th>
                 {reversedMonthKeys.map((mk, displayIdx) => (
                   <th
                     key={mk.key}
                     className={cn(
-                      "table-header-cell text-right tabular-nums w-24",
+                      "table-header-cell text-right tabular-nums",
                       displayIdx === 0 && "border-l border-theme-border",
                     )}
                   >
@@ -118,17 +122,17 @@ export default function PayeeViewTable({
                   </th>
                 ))}
                 {showGrandTotal && (
-                  <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                  <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                     Total
                   </th>
                 )}
               </>
             ) : (
               <>
-                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                   Count
                 </th>
-                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums w-24">
+                <th className="table-header-cell px-1.5 sm:px-2 md:px-3 text-right tabular-nums">
                   Amount
                 </th>
               </>

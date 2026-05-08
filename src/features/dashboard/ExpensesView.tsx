@@ -20,22 +20,28 @@ interface ExpensesViewProps {
   refreshPayees?: () => Promise<void>;
 }
 
-const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, ExpensesViewProps>(function ExpensesView({
-  expenses,
-  categories,
-  payees,
-  selectedIds,
-  onToggleSelect,
-  onToggleSelectAll,
-  onBulkDelete,
-  onUpdate,
-  onDelete,
-  isMobile,
-  mobileEditTrigger,
-  viewAnimation,
-  refreshCategories,
-  refreshPayees,
-}, ref) {
+const ExpensesView = forwardRef<
+  React.ComponentRef<typeof ExpenseTable>,
+  ExpensesViewProps
+>(function ExpensesView(
+  {
+    expenses,
+    categories,
+    payees,
+    selectedIds,
+    onToggleSelect,
+    onToggleSelectAll,
+    onBulkDelete,
+    onUpdate,
+    onDelete,
+    isMobile,
+    mobileEditTrigger,
+    viewAnimation,
+    refreshCategories,
+    refreshPayees,
+  },
+  ref,
+) {
   return (
     <div
       className={cn(

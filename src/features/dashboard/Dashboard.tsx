@@ -94,8 +94,8 @@ export default function Dashboard({
         VIEW_CYCLE[(VIEW_CYCLE.indexOf(dash.viewMode) + 1) % VIEW_CYCLE.length],
       );
     });
-  // Re-register whenever viewMode changes so the closure captures the latest value
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-register whenever viewMode changes so the closure captures the latest value
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dash.viewMode, registerCycleView]);
   const payeeMap = useMemo(
     () => Object.fromEntries(payees.map((p) => [p.id, p])),
@@ -174,7 +174,7 @@ export default function Dashboard({
       scrollable={false}
     >
       {/* ── Fixed header ── */}
-      <div className="shrink-0">
+      <div className="w-full max-w-7xl mx-auto">
         <div
           className={cn(
             "mx-auto px-4 py-6 space-y-6",
@@ -232,23 +232,30 @@ export default function Dashboard({
         <div
           className={cn(
             "mx-auto px-4 pb-24",
-            dash.monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+            dash.monthSpan === 12 ? "max-w-[120rem]" : "max-w-7xl",
           )}
         >
-        <div
-          className={cn(
-            "w-full mx-auto",
-            dash.monthSpan <= 3 && "md:max-w-3xl",
-            dash.monthSpan === 6 && "md:max-w-6xl",
-            dash.monthSpan === 12 && "md:max-w-none",
-          )}
-        >
-          {onAddExpense && (
-            <CheckInReminderCard expenses={expenses} onAddExpense={onAddExpense} />
-          )}
-          <section
-            ref={dash.swipeAreaRef}
-            onTouchStart={dash.handleTouchStart}
+          <div
+            className={cn(
+              "w-full mx-auto",
+              dash.viewMode === DASHBOARD_VIEWS.EXPENSES
+                ? "md:max-w-3xl"
+                : dash.monthSpan <= 3
+                  ? "md:max-w-3xl"
+                  : dash.monthSpan === 6
+                    ? "md:max-w-6xl"
+                    : "md:max-w-[120rem]",
+            )}
+          >
+            {onAddExpense && (
+              <CheckInReminderCard
+                expenses={expenses}
+                onAddExpense={onAddExpense}
+              />
+            )}
+            <section
+              ref={dash.swipeAreaRef}
+              onTouchStart={dash.handleTouchStart}
               onTouchEnd={dash.handleTouchEnd}
               className="relative rounded-theme-medium bg-theme-surface shadow-sm p-4 md:p-5"
             >
@@ -312,28 +319,30 @@ export default function Dashboard({
                     getNumberColorClass={getNumberColorClass}
                   />
 
-                  {dash.drilldownCategory && drilldownExpenses.length > 0 && (
-                    <CategoryDrilldown
-                      ref={dash.drilldownRef}
-                      category={dash.drilldownCategory}
-                      monthName={
-                        dash.monthKeys[dash.drilldownCategoryMonthIndex].name
-                      }
-                      year={
-                        dash.monthKeys[dash.drilldownCategoryMonthIndex].year
-                      }
-                      expenses={drilldownExpenses}
-                      formatDate={formatDate}
-                      formatAmount={formatAmount}
-                      resolveName={dash.getExpenseCategoryName}
-                      resolvePayeeName={(exp) => {
-                        const p = payeeMap[exp.payeeId as number];
-                        return p ? normalizeName(p.name) : "";
-                      }}
-                      onClose={dash.closeDrilldown}
-                      isMobile={isMobile}
-                    />
-                  )}
+                  {dash.drilldownCategory &&
+                    drilldownExpenses.length > 0 &&
+                    dash.monthKeys[dash.drilldownCategoryMonthIndex] && (
+                      <CategoryDrilldown
+                        ref={dash.drilldownRef}
+                        category={dash.drilldownCategory}
+                        monthName={
+                          dash.monthKeys[dash.drilldownCategoryMonthIndex].name
+                        }
+                        year={
+                          dash.monthKeys[dash.drilldownCategoryMonthIndex].year
+                        }
+                        expenses={drilldownExpenses}
+                        formatDate={formatDate}
+                        formatAmount={formatAmount}
+                        resolveName={dash.getExpenseCategoryName}
+                        resolvePayeeName={(exp) => {
+                          const p = payeeMap[exp.payeeId as number];
+                          return p ? normalizeName(p.name) : "";
+                        }}
+                        onClose={dash.closeDrilldown}
+                        isMobile={isMobile}
+                      />
+                    )}
                 </div>
               ) : dash.viewMode === DASHBOARD_VIEWS.PAYEES ? (
                 <div
@@ -357,28 +366,30 @@ export default function Dashboard({
                     getNumberColorClass={getNumberColorClass}
                   />
 
-                  {dash.drilldownPayee && dash.drilldownPayeeExpenses.length > 0 && (
-                    <PayeeDrilldown
-                      ref={dash.drilldownRef}
-                      payee={dash.drilldownPayee}
-                      monthName={
-                        dash.monthKeys[dash.drilldownPayeeMonthIndex].name
-                      }
-                      year={
-                        dash.monthKeys[dash.drilldownPayeeMonthIndex].year
-                      }
-                      expenses={dash.drilldownPayeeExpenses}
-                      formatDate={formatDate}
-                      formatAmount={formatAmount}
-                      resolveName={dash.getExpenseCategoryName}
-                      resolvePayeeName={(exp) => {
-                        const p = payeeMap[exp.payeeId as number];
-                        return p ? normalizeName(p.name) : "";
-                      }}
-                      onClose={dash.closePayeeDrilldown}
-                      isMobile={isMobile}
-                    />
-                  )}
+                  {dash.drilldownPayee &&
+                    dash.drilldownPayeeExpenses.length > 0 &&
+                    dash.monthKeys[dash.drilldownPayeeMonthIndex] && (
+                      <PayeeDrilldown
+                        ref={dash.drilldownRef}
+                        payee={dash.drilldownPayee}
+                        monthName={
+                          dash.monthKeys[dash.drilldownPayeeMonthIndex].name
+                        }
+                        year={
+                          dash.monthKeys[dash.drilldownPayeeMonthIndex].year
+                        }
+                        expenses={dash.drilldownPayeeExpenses}
+                        formatDate={formatDate}
+                        formatAmount={formatAmount}
+                        resolveName={dash.getExpenseCategoryName}
+                        resolvePayeeName={(exp) => {
+                          const p = payeeMap[exp.payeeId as number];
+                          return p ? normalizeName(p.name) : "";
+                        }}
+                        onClose={dash.closePayeeDrilldown}
+                        isMobile={isMobile}
+                      />
+                    )}
                 </div>
               ) : (
                 <ExpensesView
@@ -389,7 +400,9 @@ export default function Dashboard({
                   selectedIds={dash.selectedIds}
                   onToggleSelect={dash.toggleExpenseSelection}
                   onToggleSelectAll={dash.toggleSelectAll}
-                  onBulkDelete={() => onBulkDelete(Array.from(dash.selectedIds))}
+                  onBulkDelete={() =>
+                    onBulkDelete(Array.from(dash.selectedIds))
+                  }
                   onUpdate={onUpdate}
                   onDelete={onDelete}
                   isMobile={isMobile}

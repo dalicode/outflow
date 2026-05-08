@@ -84,7 +84,9 @@ export default function PayeesPage() {
   };
 
   const openMerge = async (payee: Payee) => {
-    const count = await StorageService.getExpenseCountForPayee(payee.id as number);
+    const count = await StorageService.getExpenseCountForPayee(
+      payee.id as number,
+    );
     setMergeExpenseCount(count);
     setMergeSource(payee);
   };
@@ -97,7 +99,10 @@ export default function PayeesPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="payees-page">
+      <div
+        className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6"
+        data-testid="payees-page"
+      >
         <h1 className="text-xl font-bold text-theme-text">Payees</h1>
 
         {/* Search + Add */}
@@ -160,7 +165,10 @@ export default function PayeesPage() {
                   >
                     Save
                   </button>
-                  <button onClick={cancelEdit} className="text-xs text-theme-muted">
+                  <button
+                    onClick={cancelEdit}
+                    className="text-xs text-theme-muted"
+                  >
                     Cancel
                   </button>
                 </div>
@@ -199,7 +207,9 @@ export default function PayeesPage() {
           ))}
           {filteredPayees.length === 0 && (
             <p className="text-sm text-theme-muted text-center py-8">
-              {search.trim() ? "No payees match your search." : "No payees yet."}
+              {search.trim()
+                ? "No payees match your search."
+                : "No payees yet."}
             </p>
           )}
         </div>

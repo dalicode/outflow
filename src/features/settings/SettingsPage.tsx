@@ -103,6 +103,7 @@ export default function SettingsPage({
     ScheduleMaterializationNotice[]
   >([]);
   const [exportRange, setExportRange] = useState({ from: "", to: "" });
+  const [showCsvModal, setShowCsvModal] = useState(false);
   const [csvCategories, setCsvCategories] = useState<Category[]>([]);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -214,6 +215,12 @@ export default function SettingsPage({
       expenseToRow(e, catMap, payeeMap, formatDate),
     );
     downloadCSV(csvRows, `expenses-${getLocalToday()}.csv`);
+    setShowCsvModal(false);
+  };
+
+  const handleCloseCsvModal = () => {
+    setShowCsvModal(false);
+    setExportRange({ from: "", to: "" });
   };
 
   const availableYears = useMemo(() => {
@@ -229,15 +236,12 @@ export default function SettingsPage({
   }, [editHistoricalDataYears, expenses]);
 
   return (
-    <main
-      className="max-w-7xl mx-auto px-4 py-6 space-y-6"
-      data-testid="settings-page"
-    >
+    <main className="w-full mx-auto max-w-7xl px-4 py-6 space-y-6">
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">
         Settings
       </h1>
 
-      <div className="w-full mx-auto md:max-w-3xl space-y-6">
+      <div className="mx-auto md:max-w-3xl flex flex-col">
         {/* ── APPEARANCE ── */}
         <Card title="Appearance">
           <ThemeSelector
@@ -510,38 +514,40 @@ export default function SettingsPage({
         {/* ── IMPORT / EXPORT ── */}
         <Card title="Import / Export">
           <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
+            Privacy
+          </p>
+          <div className="space-y-1.5 text-xs text-theme-muted">
+            <p>
+              Your data stays on this device unless you enable sync. Outflow
+              works offline after your first visit.
+            </p>
+            <p>
+              Clearing browser data may remove local history unless you export a
+              backup.
+            </p>
+            {settings.lastBackupAt ? (
+              <p className="pt-2">
+                Last backup: {new Date(settings.lastBackupAt).toLocaleString()}
+              </p>
+            ) : (
+              <p className="pt-2">No backup created yet.</p>
+            )}
+          </div>
+          <div className="border-t border-theme-border mt-4 mb-3" />
+          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
             Export CSV
           </p>
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                From
-                <DatePicker
-                  value={exportRange.from}
-                  onChange={(iso) =>
-                    setExportRange((r) => ({ ...r, from: iso }))
-                  }
-                  variant="inline"
-                  inputStyle="default"
-                  placeholder="From"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                To
-                <DatePicker
-                  value={exportRange.to}
-                  onChange={(iso) => setExportRange((r) => ({ ...r, to: iso }))}
-                  variant="inline"
-                  inputStyle="default"
-                  placeholder="To"
-                />
-              </label>
-            </div>
-            <div className="pt-3 flex justify-end">
-              <button onClick={handleCsvExport} className="settings-action-btn">
-                Export CSV
-              </button>
-            </div>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs text-theme-muted">
+              Export your expenses as a CSV file. Compatible with any
+              spreadsheet app (Excel, Google Sheets) or budgeting tool.
+            </p>
+            <button
+              onClick={() => setShowCsvModal(true)}
+              className="settings-action-btn shrink-0"
+            >
+              Export
+            </button>
           </div>
 
           <div className="border-t border-theme-border mt-4 mb-3" />
@@ -588,7 +594,7 @@ export default function SettingsPage({
                 data-testid="btn-export-backup"
                 className="settings-action-btn shrink-0 ml-4"
               >
-                Export Backup
+                Export
               </button>
             </div>
             <div className="flex items-center justify-between py-1">
@@ -613,30 +619,10 @@ export default function SettingsPage({
                   className="settings-action-btn"
                   data-testid="btn-import-backup"
                 >
-                  Import Backup
+                  Choose File
                 </span>
               </label>
             </div>
-          </div>
-
-          <div className="border-t border-theme-border mt-4 mb-3" />
-          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
-            Privacy
-          </p>
-          <div className="space-y-1.5 text-xs text-theme-muted">
-            <p>Your data stays on this device unless you enable sync.</p>
-            <p>Outflow works offline after your first visit.</p>
-            <p>
-              Clearing browser data may remove local history unless you export a
-              backup.
-            </p>
-            {settings.lastBackupAt ? (
-              <p>
-                Last backup: {new Date(settings.lastBackupAt).toLocaleString()}
-              </p>
-            ) : (
-              <p>No backup created yet.</p>
-            )}
           </div>
         </Card>
 
@@ -644,7 +630,9 @@ export default function SettingsPage({
         <Card title="Advanced" className="border border-theme-danger-subtle">
           <div className="flex items-center justify-between py-2">
             <div>
-              <p className="text-sm text-theme-text">Clear All Data</p>
+              <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
+                Clear All Data
+              </p>
               <p className="text-xs text-theme-muted">
                 Permanently delete all expenses, categories, and settings.
               </p>
@@ -658,242 +646,295 @@ export default function SettingsPage({
             </button>
           </div>
         </Card>
-      </div>
 
-      {/* ── MODALS ── */}
+        {/* ── MODALS ── */}
 
-      <ImportReviewModal
-        open={Boolean(csvImport.pendingImport)}
-        isLoading={Boolean(csvImport.pendingImport?.isLoading)}
-        summary={csvImport.pendingImport?.summary ?? null}
-        reviewRows={csvImport.pendingImport?.reviewRows ?? []}
-        activePayees={csvImport.pendingImport?.activePayees ?? []}
-        onBack={csvImport.handleCancelReview}
-        onSkipReview={csvImport.handleSkipReview}
-        onImport={csvImport.handleFinalizeImport}
-      />
+        <ImportReviewModal
+          open={Boolean(csvImport.pendingImport)}
+          isLoading={Boolean(csvImport.pendingImport?.isLoading)}
+          summary={csvImport.pendingImport?.summary ?? null}
+          reviewRows={csvImport.pendingImport?.reviewRows ?? []}
+          activePayees={csvImport.pendingImport?.activePayees ?? []}
+          onBack={csvImport.handleCancelReview}
+          onSkipReview={csvImport.handleSkipReview}
+          onImport={csvImport.handleFinalizeImport}
+        />
 
-      <Modal
-        isOpen={backup.showPasswordModal}
-        onClose={backup.closePasswordModal}
-        title={
-          backup.passwordModalMode === "export"
-            ? "Encrypt Backup"
-            : "Decrypt Backup"
-        }
-        size="md"
-        footer={
-          <ModalFooter>
-            <button
-              onClick={backup.closePasswordModal}
-              className="btn-cancel-sm flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={backup.handlePasswordSubmit}
-              className="btn-modal-primary flex-1"
-            >
-              {backup.passwordModalMode === "export"
-                ? "Encrypt & Export"
-                : "Decrypt & Import"}
-            </button>
-          </ModalFooter>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-xs text-theme-muted">
-            {backup.passwordModalMode === "export"
-              ? "Enter a password to encrypt this backup."
-              : "Enter the password to decrypt and restore this backup."}
-          </p>
-          <label className="flex flex-col gap-1 text-xs text-theme-muted">
-            Password
-            <input
-              type="password"
-              value={backup.backupPassword}
-              onChange={(e) => backup.setBackupPassword(e.target.value)}
-              placeholder="Enter password"
-              className="input-theme px-3 py-2 text-sm"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") backup.handlePasswordSubmit();
-              }}
-            />
-          </label>
-          {backup.passwordModalMode === "export" && user?.id && (
-            <label className="flex items-center gap-2 text-xs text-theme-text cursor-pointer">
-              <input
-                type="checkbox"
-                checked={backup.rememberBackupPassword}
-                onChange={(e) =>
-                  backup.setRememberBackupPassword(e.target.checked)
-                }
-                className="rounded-theme-small"
-              />
-              Remember for future backups
-            </label>
-          )}
-          {backup.passwordError && (
-            <p className="text-xs text-theme-danger">{backup.passwordError}</p>
-          )}
-        </div>
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={backup.showDbVersionModal}
-        onClose={backup.closeDbVersionModal}
-        title="Backup Version Mismatch"
-        description={
+        <Modal
+          isOpen={backup.showPasswordModal}
+          onClose={backup.closePasswordModal}
+          title={
+            backup.passwordModalMode === "export"
+              ? "Encrypt Backup"
+              : "Decrypt Backup"
+          }
+          size="md"
+          footer={
+            <ModalFooter>
+              <button
+                onClick={backup.closePasswordModal}
+                className="btn-cancel-sm flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={backup.handlePasswordSubmit}
+                className="btn-modal-primary flex-1"
+              >
+                {backup.passwordModalMode === "export"
+                  ? "Encrypt & Export"
+                  : "Decrypt & Import"}
+              </button>
+            </ModalFooter>
+          }
+        >
           <div className="space-y-3">
-            <p className="text-xs text-theme-danger">
-              This backup was made with a newer app version. Some data may not
-              import correctly.
+            <p className="text-xs text-theme-muted">
+              {backup.passwordModalMode === "export"
+                ? "Enter a password to encrypt this backup."
+                : "Enter the password to decrypt and restore this backup."}
             </p>
-            {backup.pendingImportMeta && (
-              <div className="text-xs text-theme-muted space-y-1">
-                <p>
-                  <span className="font-medium">Exported:</span>{" "}
-                  {backup.pendingImportMeta.exportedAt
-                    ? new Date(
-                        backup.pendingImportMeta.exportedAt as string,
-                      ).toLocaleString()
-                    : "Unknown"}
-                </p>
-                <p>
-                  <span className="font-medium">Backup DB version:</span>{" "}
-                  {String(backup.pendingImportMeta.dbVersion ?? "?")}
-                </p>
-                <p>
-                  <span className="font-medium">Current DB version:</span>{" "}
-                  {StorageService.dbVersion()}
-                </p>
-              </div>
+            <label className="flex flex-col gap-1 text-xs text-theme-muted">
+              Password
+              <input
+                type="password"
+                value={backup.backupPassword}
+                onChange={(e) => backup.setBackupPassword(e.target.value)}
+                placeholder="Enter password"
+                className="input-theme px-3 py-2 text-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") backup.handlePasswordSubmit();
+                }}
+              />
+            </label>
+            {backup.passwordModalMode === "export" && user?.id && (
+              <label className="flex items-center gap-2 text-xs text-theme-text cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={backup.rememberBackupPassword}
+                  onChange={(e) =>
+                    backup.setRememberBackupPassword(e.target.checked)
+                  }
+                  className="rounded-theme-small"
+                />
+                Remember for future backups
+              </label>
+            )}
+            {backup.passwordError && (
+              <p className="text-xs text-theme-danger">
+                {backup.passwordError}
+              </p>
             )}
           </div>
-        }
-        confirmLabel="Proceed Anyway"
-        confirmVariant="destructive"
-        onConfirm={backup.handleDbVersionProceed}
-      />
+        </Modal>
 
-      <Modal
-        isOpen={isClearModalOpen}
-        onClose={() => {
-          setIsClearModalOpen(false);
-          setDeleteConfirm("");
-        }}
-        title="Clear All Data"
-        size="sm"
-        footer={
-          <ModalFooter>
-            <button
-              onClick={() => {
-                setIsClearModalOpen(false);
-                setDeleteConfirm("");
-              }}
-              className="btn-cancel-sm flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={async () => {
-                if (deleteConfirm !== "DELETE") return;
-                await handleClearAll();
-                setIsClearModalOpen(false);
-                setDeleteConfirm("");
-                triggerClearReload();
-              }}
-              disabled={deleteConfirm !== "DELETE"}
-              className="btn-modal-destructive flex-1 disabled:opacity-40"
-            >
-              Clear Everything
-            </button>
-          </ModalFooter>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-xs text-theme-muted">
-            This will permanently delete everything. This cannot be undone.
-          </p>
-          <label className="flex flex-col gap-1 text-xs text-theme-muted">
-            Type <span className="font-mono text-theme-danger">DELETE</span> to
-            confirm
-            <input
-              value={deleteConfirm}
-              onChange={(e) => setDeleteConfirm(e.target.value)}
-              placeholder="DELETE"
-              className="input-theme px-3 py-2 text-sm"
-              autoFocus
-            />
-          </label>
-        </div>
-      </Modal>
+        <ConfirmDialog
+          isOpen={backup.showDbVersionModal}
+          onClose={backup.closeDbVersionModal}
+          title="Backup Version Mismatch"
+          description={
+            <div className="space-y-3">
+              <p className="text-xs text-theme-danger">
+                This backup was made with a newer app version. Some data may not
+                import correctly.
+              </p>
+              {backup.pendingImportMeta && (
+                <div className="text-xs text-theme-muted space-y-1">
+                  <p>
+                    <span className="font-medium">Exported:</span>{" "}
+                    {backup.pendingImportMeta.exportedAt
+                      ? new Date(
+                          backup.pendingImportMeta.exportedAt as string,
+                        ).toLocaleString()
+                      : "Unknown"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Backup DB version:</span>{" "}
+                    {String(backup.pendingImportMeta.dbVersion ?? "?")}
+                  </p>
+                  <p>
+                    <span className="font-medium">Current DB version:</span>{" "}
+                    {StorageService.dbVersion()}
+                  </p>
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel="Proceed Anyway"
+          confirmVariant="destructive"
+          onConfirm={backup.handleDbVersionProceed}
+        />
 
-      <LoadingOverlay
-        isOpen={backup.isReloading || isClearReloading}
-        message="Processing…"
-        subMessage="Refreshing app…"
-      />
-
-      <EditHistoricalDataModal
-        isOpen={isHistoricalDataModalOpen}
-        onClose={() => setIsHistoricalDataModalOpen(false)}
-        years={availableYears}
-        expenses={expenses}
-        defaultIncome={monthlyIncome}
-        defaultSavingsRate={savingsRate}
-        onComplete={() => {
-          setEditHistoricalDataYears([]);
-          setShowHistoricalCompletionPrompt(false);
-          onRefreshAll?.();
-          triggerSync?.();
-        }}
-      />
-
-      <Modal
-        isOpen={
-          showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0
-        }
-        onClose={dismissHistoricalCompletionPrompt}
-        title="Complete Imported Months"
-        size="md"
-        footer={
-          <div className="flex w-full flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={dismissHistoricalCompletionPrompt}
-              className="btn-cancel-sm flex-1"
-            >
-              Later
-            </button>
-            <button
-              type="button"
-              onClick={reviewHistoricalData}
-              className="btn-modal-primary flex-1"
-            >
-              Review Historical Data
-            </button>
+        <Modal
+          isOpen={isClearModalOpen}
+          onClose={() => {
+            setIsClearModalOpen(false);
+            setDeleteConfirm("");
+          }}
+          title="Clear All Data"
+          size="sm"
+          footer={
+            <ModalFooter>
+              <button
+                onClick={() => {
+                  setIsClearModalOpen(false);
+                  setDeleteConfirm("");
+                }}
+                className="btn-cancel-sm flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (deleteConfirm !== "DELETE") return;
+                  await handleClearAll();
+                  setIsClearModalOpen(false);
+                  setDeleteConfirm("");
+                  triggerClearReload();
+                }}
+                disabled={deleteConfirm !== "DELETE"}
+                className="btn-modal-destructive flex-1 disabled:opacity-40"
+              >
+                Clear Everything
+              </button>
+            </ModalFooter>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-xs text-theme-muted">
+              This will permanently delete everything. This cannot be undone.
+            </p>
+            <label className="flex flex-col gap-1 text-xs text-theme-muted">
+              Type <span className="font-mono text-theme-danger">DELETE</span>{" "}
+              to confirm
+              <input
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder="DELETE"
+                className="input-theme px-3 py-2 text-sm"
+                autoFocus
+              />
+            </label>
           </div>
-        }
-      >
-        <p className="text-sm text-theme-muted">
-          Your transactions were imported successfully. Add income, fixed
-          expenses, and savings rate for{" "}
-          {editHistoricalDataYears.join(", ") + " "} to make summaries and
-          analytics accurate.
-        </p>
-      </Modal>
+        </Modal>
 
-      <ScheduleModal
-        isOpen={isScheduleModalOpen}
-        onClose={handleScheduleModalClose}
-        editSchedule={scheduleToEdit}
-        onComplete={() => {
-          loadSchedules();
-          onRefreshAll?.();
-        }}
-      />
+        <LoadingOverlay
+          isOpen={backup.isReloading || isClearReloading}
+          message="Processing…"
+          subMessage="Refreshing app…"
+        />
+
+        {/* ── CSV Export Modal ── */}
+        <Modal
+          isOpen={showCsvModal}
+          onClose={handleCloseCsvModal}
+          title="Export CSV"
+          size="sm"
+          footer={
+            <ModalFooter>
+              <button
+                onClick={handleCloseCsvModal}
+                className="btn-cancel-sm flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCsvExport}
+                className="btn-modal-primary flex-1"
+              >
+                Download
+              </button>
+            </ModalFooter>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-xs text-theme-muted">
+              Select a date range to filter the export. Leave blank to include
+              all expenses.
+            </p>
+            <label className="flex flex-col gap-1 text-xs text-theme-muted">
+              From
+              <DatePicker
+                value={exportRange.from}
+                onChange={(iso) => setExportRange((r) => ({ ...r, from: iso }))}
+                variant="inline"
+                inputStyle="default"
+                placeholder="From"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-theme-muted">
+              To
+              <DatePicker
+                value={exportRange.to}
+                onChange={(iso) => setExportRange((r) => ({ ...r, to: iso }))}
+                variant="inline"
+                inputStyle="default"
+                placeholder="To"
+              />
+            </label>
+          </div>
+        </Modal>
+
+        <EditHistoricalDataModal
+          isOpen={isHistoricalDataModalOpen}
+          onClose={() => setIsHistoricalDataModalOpen(false)}
+          years={availableYears}
+          expenses={expenses}
+          defaultIncome={monthlyIncome}
+          defaultSavingsRate={savingsRate}
+          onComplete={() => {
+            setEditHistoricalDataYears([]);
+            setShowHistoricalCompletionPrompt(false);
+            onRefreshAll?.();
+            triggerSync?.();
+          }}
+        />
+
+        <Modal
+          isOpen={
+            showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0
+          }
+          onClose={dismissHistoricalCompletionPrompt}
+          title="Complete Imported Months"
+          size="md"
+          footer={
+            <div className="flex w-full flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={dismissHistoricalCompletionPrompt}
+                className="btn-cancel-sm flex-1"
+              >
+                Later
+              </button>
+              <button
+                type="button"
+                onClick={reviewHistoricalData}
+                className="btn-modal-primary flex-1"
+              >
+                Review Historical Data
+              </button>
+            </div>
+          }
+        >
+          <p className="text-sm text-theme-muted">
+            Your transactions were imported successfully. Add income, fixed
+            expenses, and savings rate for{" "}
+            {editHistoricalDataYears.join(", ") + " "} to make summaries and
+            analytics accurate.
+          </p>
+        </Modal>
+
+        <ScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={handleScheduleModalClose}
+          editSchedule={scheduleToEdit}
+          onComplete={() => {
+            loadSchedules();
+            onRefreshAll?.();
+          }}
+        />
+      </div>
     </main>
   );
 }

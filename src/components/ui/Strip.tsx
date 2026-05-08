@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, type ReactNode } from "react";
+import { useRef, useLayoutEffect, type ReactNode, type RefObject } from "react";
 import { cn } from "../../utils/cn";
 import { useHaptics } from "../../hooks/useHaptics";
 
@@ -24,6 +24,8 @@ interface StripProps {
   afterScroll?: ReactNode;
   smoothScrollThreshold?: number;
   scrollMode?: "center" | "nearest";
+  scrollRef?: RefObject<HTMLDivElement>;
+  spanHighlight?: { left: number; top: number; width: number; height: number } | null;
   children: ReactNode;
 }
 
@@ -121,9 +123,12 @@ export default function Strip({
   afterScroll,
   smoothScrollThreshold = 240,
   scrollMode = "center",
+  scrollRef: externalScrollRef,
+  spanHighlight,
   children,
 }: StripProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const internalRef = useRef<HTMLDivElement>(null);
+  const containerRef = externalScrollRef ?? internalRef;
   const hasCenteredRef = useRef(false);
   const haptics = useHaptics();
 
@@ -237,10 +242,26 @@ export default function Strip({
       )}
       {beforeScroll}
       <div
-        className={scrollClass}
+        className={cn(scrollClass, "relative")}
         ref={containerRef}
-        style={{ maxWidth: `${maxVisible * 44}px` }}
+        style={{ maxWidth: `${maxVisible * 36}px` }}
       >
+        {spanHighlight && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: spanHighlight.left,
+              top: spanHighlight.top,
+              width: spanHighlight.width,
+              height: spanHighlight.height,
+              backgroundColor: "var(--theme-primary)",
+              borderRadius: "var(--radius-small)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+        )}
         {children}
       </div>
       {afterScroll}

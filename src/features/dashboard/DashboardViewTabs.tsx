@@ -26,16 +26,23 @@ export default function DashboardViewTabs({
   return (
     <div
       className={cn(
-        "shrink-0 mx-auto px-4 w-full",
-        monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+        "shrink-0 mx-auto px-4 w-full z-10",
+        viewMode !== DASHBOARD_VIEWS.EXPENSES && monthSpan === 12
+          ? "max-w-[120rem]"
+          : "max-w-7xl",
       )}
     >
       <div
         className={cn(
           "w-full mx-auto",
-          monthSpan <= 3 && "md:max-w-3xl",
-          monthSpan === 6 && "md:max-w-6xl",
-          monthSpan === 12 && "md:max-w-none",
+          (monthSpan <= 3 || viewMode === DASHBOARD_VIEWS.EXPENSES) &&
+            "md:max-w-3xl",
+          viewMode !== DASHBOARD_VIEWS.EXPENSES &&
+            monthSpan === 6 &&
+            "md:max-w-6xl",
+          viewMode !== DASHBOARD_VIEWS.EXPENSES &&
+            monthSpan === 12 &&
+            "md:max-w-none",
         )}
       >
         <div className="flex items-end justify-between px-6">

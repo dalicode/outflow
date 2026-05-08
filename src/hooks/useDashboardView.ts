@@ -9,6 +9,7 @@ export function useDashboardView(
   selectedIds?: Set<number>,
   initialViewMode?: DashboardView,
   onViewModeChange?: (v: DashboardView) => void,
+  monthSpan?: number,
 ) {
   const { settings } = useSettings();
   const hapticsEnabled = settings.hapticsEnabled;
@@ -34,6 +35,15 @@ export function useDashboardView(
   const [drilldownPayee, setDrilldownPayee] = useState<string | null>(null);
   const [drilldownPayeeMonthIndex, setDrilldownPayeeMonthIndex] =
     useState<number>(0);
+
+  // Reset drilldowns when monthSpan changes — indices may be out-of-bounds
+  // on the newly-sized monthKeys array (e.g. switching 12M → 6M).
+  useEffect(() => {
+    setDrilldownCategory(null);
+    setDrilldownCategoryMonthIndex(0);
+    setDrilldownPayee(null);
+    setDrilldownPayeeMonthIndex(0);
+  }, [monthSpan]);
 
   useEffect(() => {
     if (!viewAnimation) return;

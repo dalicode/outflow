@@ -158,7 +158,6 @@ export function getExpenseColumns({
       meta: {
         className: "text-center w-10",
         cellClassName: "text-center",
-        width: "2.5rem",
       },
     },
     {
@@ -199,7 +198,6 @@ export function getExpenseColumns({
       meta: {
         className: "text-left",
         cellClassName: "text-theme-text whitespace-nowrap overflow-hidden",
-        width: "6.5rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "date") ? "cell-editing" : "",
       },
@@ -276,7 +274,6 @@ export function getExpenseColumns({
       meta: {
         className: "text-left hidden sm:table-cell",
         cellClassName: "whitespace-nowrap overflow-hidden",
-        width: "9rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "payeeId")
             ? "cell-editing"
@@ -357,7 +354,6 @@ export function getExpenseColumns({
       meta: {
         className: "text-left",
         cellClassName: "whitespace-nowrap overflow-hidden",
-        width: "9rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "categoryId")
             ? "cell-editing"
@@ -438,7 +434,6 @@ export function getExpenseColumns({
       meta: {
         className: "text-right tabular-nums",
         cellClassName: "text-right tabular-nums font-semibold whitespace-nowrap",
-        width: "6.5rem",
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, "amount")
             ? "cell-editing"

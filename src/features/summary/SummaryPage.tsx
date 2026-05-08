@@ -31,11 +31,14 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
   const incomeIsSet = parseFloat(String(incomeRaw || 0)) > 0;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6 space-y-6" data-testid="summary-page">
+    <main
+      className="max-w-7xl w-full mx-auto px-4 py-6 space-y-6"
+      data-testid="summary-page"
+    >
       <h1 className="text-2xl font-bold text-theme-text tracking-tight">
         Budget
       </h1>
-      <div className="w-full mx-auto md:max-w-3xl space-y-4">
+      <div className="space-y-4 md:max-w-3xl mx-auto">
         {!incomeIsSet && (
           <div className="rounded-theme-large border border-dashed border-theme-border bg-theme-surface p-5 text-center space-y-1">
             <p className="text-sm font-medium text-theme-text">
@@ -80,10 +83,7 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
         )}
 
         {financialSummary && (
-          <BudgetPaceSection
-            expenses={expenses}
-            summary={financialSummary}
-          />
+          <BudgetPaceSection expenses={expenses} summary={financialSummary} />
         )}
 
         {variableBreakdown.length > 0 && (

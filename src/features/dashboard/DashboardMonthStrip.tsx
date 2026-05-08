@@ -1,3 +1,4 @@
+import { useRef, useLayoutEffect, useState } from "react";
 import { cn } from "../../utils/cn";
 import Strip from "../../components/ui/Strip";
 import { getLocalMonthKey } from "../../utils/historicalDataHelpers";
@@ -26,6 +27,13 @@ interface DashboardMonthStripProps {
   disableJumpForward: boolean;
 }
 
+interface SpanRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 export default function DashboardMonthStrip({
   selectedYear,
   selectedMonth,
@@ -42,6 +50,55 @@ export default function DashboardMonthStrip({
   disableJumpForward,
 }: DashboardMonthStripProps) {
   const haptics = useHaptics();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [spanRect, setSpanRect] = useState<SpanRect | null>(null);
+
+  // Measure the bounding box covering all selected pills after layout changes
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    if (!container || monthSpan <= 1) {
+      setSpanRect(null);
+      return;
+    }
+
+    const pills = Array.from(
+      container.querySelectorAll<HTMLElement>(".month-pill-selected"),
+    );
+    if (pills.length < 2) {
+      setSpanRect(null);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const rects = pills.map((p) => p.getBoundingClientRect());
+
+    const left =
+      Math.min(...rects.map((r) => r.left)) -
+      containerRect.left +
+      container.scrollLeft;
+    const right =
+      Math.max(...rects.map((r) => r.right)) -
+      containerRect.left +
+      container.scrollLeft;
+    const top = Math.min(...rects.map((r) => r.top)) - containerRect.top;
+    const bottom = Math.max(...rects.map((r) => r.bottom)) - containerRect.top;
+
+    const next = { left, top, width: right - left, height: bottom - top };
+
+    setSpanRect((prev) => {
+      if (
+        prev &&
+        prev.left === next.left &&
+        prev.top === next.top &&
+        prev.width === next.width &&
+        prev.height === next.height
+      ) {
+        return prev; // no change — skip re-render
+      }
+      return next;
+    });
+  }, [selectedYear, selectedMonth, monthSpan, monthKeys]);
+
   return (
     <Strip
       maxVisible={stripMaxVisible}
@@ -58,6 +115,17 @@ export default function DashboardMonthStrip({
       stepBackLabel="Previous month"
       stepForwardLabel="Next month"
       jumpForwardLabel="Current month"
+      scrollRef={scrollRef}
+      spanHighlight={
+        spanRect
+          ? {
+              left: spanRect.left,
+              top: spanRect.top,
+              width: spanRect.width,
+              height: spanRect.height,
+            }
+          : null
+      }
     >
       {monthStrip.map(({ year, month }, index) => {
         const isSelected = year === selectedYear && month === selectedMonth;
