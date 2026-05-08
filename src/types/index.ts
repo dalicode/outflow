@@ -355,3 +355,11 @@ export interface SettingsContextValue {
   loaded: boolean
   availableThemes: Record<string, ThemeConfig>
 }
+
+// ── Shared prop types ────────────────────────────────────────────────────────
+
+/** Common formatting callbacks passed through component trees. */
+export interface FormattingProps {
+  formatAmount: (n: number) => string;
+  formatDate: (iso: string) => string;
+}

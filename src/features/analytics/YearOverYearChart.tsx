@@ -56,7 +56,7 @@ const YoYTooltip = ({ active, payload, colors }: TooltipProps) => {
       <div className="flex items-center justify-between gap-4 mb-1">
         <div className="flex items-center gap-1.5">
           <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colors.success }} />
-          <span style={{ color: colors.muted }}>Savings</span>
+          <span style={{ color: colors.muted }}>Total Saved</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="font-medium tabular-nums" style={{ color: colors.success }}>
@@ -79,7 +79,7 @@ const YoYTooltip = ({ active, payload, colors }: TooltipProps) => {
           <span style={{ color: colors.muted }}>Expenses</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="font-medium tabular-nums" style={{ color: colors.danger }}>
+          <span className="font-medium tabular-nums" style={{ color: pt.expenses < 0 ? colors.success : colors.danger }}>
             {fmtFull(pt.expenses)}
           </span>
           {pt.expensesDelta != null && (
@@ -116,7 +116,7 @@ export default function YearOverYearChart({
       .filter((d) => !d.loading)
       .map((d) => ({
         year: d.year,
-        savings: d.monthlySavings[selectedMonth] ?? 0,
+        savings: d.monthlyTotalSavings[selectedMonth] ?? 0,
         expenses: d.monthlyTotals[selectedMonth] ?? 0,
       }))
       .filter((d) => d.savings !== 0 || d.expenses !== 0)
@@ -182,7 +182,7 @@ export default function YearOverYearChart({
           verticalAlign="top"
           align="right"
           wrapperStyle={{ fontSize: "11px", paddingBottom: "6px" }}
-          formatter={(value) => (value === "savings" ? "Savings" : "Expenses")}
+          formatter={(value) => (value === "savings" ? "Total Saved" : "Expenses")}
         />
 
         {/* Savings bars */}

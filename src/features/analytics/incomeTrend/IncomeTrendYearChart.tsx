@@ -14,9 +14,15 @@ import {
   Brush,
   Customized,
 } from "recharts";
-import type { YearTrendRow, AllTimeRow } from "../../../utils/analyticsTrendUtils";
+import type {
+  YearTrendRow,
+  AllTimeRow,
+} from "../../../utils/analyticsTrendUtils";
 import type { ThemeColors } from "../AnalyticsCharts";
-import { monotoneTangents, monotonePath, coloredMonotoneSegments } from "../../../utils/chartMath";
+import BrushOverview from "./BrushOverview";
+import ColoredCumulativeLine, {
+  ColoredCumulativeLineProps,
+} from "./ColoredCumulativeLine";
 
 interface IncomeTrendYearChartProps {
   rows: YearTrendRow[];
@@ -73,19 +79,22 @@ const IncomeTrendTooltip = ({
   const priorSavedValue: number | undefined = priorSavedEntry?.value;
   const deltaValue: number | null = deltaEntry?.value ?? null;
 
-  const row = thisYearEntry?.payload as {
-    income?: number;
-    expenses?: number;
-    saved?: number;
-    savingsRate?: number | null;
-    priorSavedAmt?: number;
-  } | undefined;
+  const row = thisYearEntry?.payload as
+    | {
+        income?: number;
+        expenses?: number;
+        saved?: number;
+        savingsRate?: number | null;
+        priorSavedAmt?: number;
+      }
+    | undefined;
 
   const savedDelta =
-    deltaValue != null ? deltaValue
-    : monthlySavedValue != null && priorSavedValue != null
-      ? monthlySavedValue - priorSavedValue
-      : null;
+    deltaValue != null
+      ? deltaValue
+      : monthlySavedValue != null && priorSavedValue != null
+        ? monthlySavedValue - priorSavedValue
+        : null;
 
   return (
     <div
@@ -114,7 +123,9 @@ const IncomeTrendTooltip = ({
           </div>
           <span
             className="font-medium tabular-nums"
-            style={{ color: cumulativeValue < 0 ? colors.danger : colors.success }}
+            style={{
+              color: cumulativeValue < 0 ? colors.danger : colors.success,
+            }}
           >
             {formatAmount(cumulativeValue)}
           </span>
@@ -138,7 +149,9 @@ const IncomeTrendTooltip = ({
               </div>
               <span
                 className="font-medium tabular-nums"
-                style={{ color: monthlySavedValue < 0 ? colors.danger : colors.success }}
+                style={{
+                  color: monthlySavedValue < 0 ? colors.danger : colors.success,
+                }}
               >
                 {formatAmount(monthlySavedValue)}
               </span>
@@ -155,7 +168,9 @@ const IncomeTrendTooltip = ({
               </div>
               <span
                 className="font-medium tabular-nums"
-                style={{ color: priorSavedValue < 0 ? colors.danger : colors.success }}
+                style={{
+                  color: priorSavedValue < 0 ? colors.danger : colors.success,
+                }}
               >
                 {formatAmount(priorSavedValue)}
               </span>
@@ -166,9 +181,12 @@ const IncomeTrendTooltip = ({
               <span style={{ color: colors.muted }}>vs last year</span>
               <span
                 className="font-semibold tabular-nums"
-                style={{ color: savedDelta >= 0 ? colors.success : colors.danger }}
+                style={{
+                  color: savedDelta >= 0 ? colors.success : colors.danger,
+                }}
               >
-                {savedDelta >= 0 ? "+" : "−"}{formatAmount(Math.abs(savedDelta))}
+                {savedDelta >= 0 ? "+" : "−"}
+                {formatAmount(Math.abs(savedDelta))}
               </span>
             </div>
           )}
@@ -184,7 +202,10 @@ const IncomeTrendTooltip = ({
           {row.income != null && row.income > 0 && (
             <div className="flex justify-between gap-4">
               <span style={{ color: colors.muted }}>Income</span>
-              <span className="tabular-nums font-medium" style={{ color: colors.text }}>
+              <span
+                className="tabular-nums font-medium"
+                style={{ color: colors.text }}
+              >
                 {formatAmount(row.income)}
               </span>
             </div>
@@ -192,7 +213,10 @@ const IncomeTrendTooltip = ({
           {row.savingsRate != null && (
             <div className="flex justify-between gap-4">
               <span style={{ color: colors.muted }}>Savings rate</span>
-              <span className="tabular-nums font-medium" style={{ color: colors.text }}>
+              <span
+                className="tabular-nums font-medium"
+                style={{ color: colors.text }}
+              >
                 {row.savingsRate.toFixed(1)}%
               </span>
             </div>
@@ -202,244 +226,6 @@ const IncomeTrendTooltip = ({
     </div>
   );
 };
-
-// ---------------------------------------------------------------------------
-// BrushOverview — draws the full all-time sparkline as a raw SVG path so the
-// Recharts Brush component cannot clip it, then overlays the Brush on top for
-// its drag handles.
-// ---------------------------------------------------------------------------
-
-interface BrushOverviewProps {
-  allTimeRows: AllTimeRow[];
-  brushIndices: { start: number; end: number } | null;
-  defaultBrushIndices: { start: number; end: number } | null;
-  colors: ThemeColors;
-  onBrushChange: (next: { start: number; end: number }) => void;
-}
-
-function BrushOverview({
-  allTimeRows,
-  brushIndices,
-  defaultBrushIndices,
-  colors,
-  onBrushChange,
-}: BrushOverviewProps) {
-  // We need the rendered width to compute the SVG path. Use a ResizeObserver
-  // via a ref so the path stays accurate on resize.
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      setWidth(entries[0]?.contentRect.width ?? 0);
-    });
-    ro.observe(el);
-    setWidth(el.getBoundingClientRect().width);
-    return () => ro.disconnect();
-  }, []);
-
-  // Non-passive wheel listener for panning
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const total = allTimeRows.length;
-      const current = brushIndices ?? defaultBrushIndices ?? { start: 0, end: total - 1 };
-      const windowSize = current.end - current.start + 1;
-      const step = Math.max(1, Math.round(windowSize * 0.15));
-      const raw = e.deltaX !== 0 ? e.deltaX : e.deltaY;
-      const delta = raw > 0 ? step : -step;
-      const newStart = Math.max(0, Math.min(total - windowSize, current.start + delta));
-      const newEnd = newStart + windowSize - 1;
-      onBrushChange({ start: newStart, end: newEnd });
-    };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, [allTimeRows, brushIndices, defaultBrushIndices, onBrushChange]);
-
-  // Recharts Brush uses margin { left: 0, right: 10 } by default in our chart.
-  // Match those margins so the sparkline aligns with the brush handles.
-  const marginLeft = 0;
-  const marginRight = 10;
-  const chartWidth = width - marginLeft - marginRight;
-  const height = 20; // drawing area height (brush container is 50px total)
-
-  // Compute a single smooth monotone path with a hard-snap green/red gradient.
-  const sparkPath = useMemo(() => {
-    if (chartWidth <= 0 || allTimeRows.length < 2) return { path: "", stops: [] as { offset: string; color: string }[] };
-    const values = allTimeRows.map((r) => r.cumulativeRemaining);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
-    const xStep = chartWidth / (allTimeRows.length - 1);
-    const pts = values.map((v, i) => ({
-      x: marginLeft + i * xStep,
-      y: 2 + height - ((v - min) / range) * height,
-    }));
-
-    // Build gradient stops with hard color snaps at each segment boundary.
-    // Two stops at the same offset = instant color change, no blending.
-    const totalWidth = pts[pts.length - 1].x - pts[0].x || 1;
-    const stops: { offset: string; color: string }[] = [];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const color = values[i + 1] >= values[i] ? colors.success : colors.danger;
-      const pct = (((pts[i].x - pts[0].x) / totalWidth) * 100).toFixed(2) + "%";
-      if (i > 0) stops.push({ offset: pct, color: stops[stops.length - 1].color });
-      stops.push({ offset: pct, color });
-    }
-    if (stops.length > 0) stops.push({ offset: "100%", color: stops[stops.length - 1].color });
-
-    return { path: monotonePath(pts), stops };
-  }, [allTimeRows, chartWidth, marginLeft, height, colors.success, colors.danger]);
-
-  return (
-    <div className="mt-2" ref={containerRef} data-brush-overview style={{ touchAction: "none" }}>
-      {/* Full-dataset sparkline — smooth path with hard-snap green/red gradient */}
-      {width > 0 && sparkPath.path && (
-        <svg
-          width={width}
-          height={height + 4}
-          style={{ display: "block", pointerEvents: "none" }}
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="spark-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              {sparkPath.stops.map((s, i) => (
-                <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={0.85} />
-              ))}
-            </linearGradient>
-          </defs>
-          <path
-            d={sparkPath.path}
-            fill="none"
-            stroke="url(#spark-grad)"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-      {/* Brush handles — rendered in a chart with no series so it can't clip anything */}
-      <ResponsiveContainer width="100%" height={30}>
-        <ComposedChart
-          data={allTimeRows}
-          margin={{ top: 0, right: marginRight, left: marginLeft, bottom: 0 }}
-        >
-          <Brush
-            dataKey="label"
-            height={30}
-            stroke={colors.grid}
-            fill={colors.background}
-            travellerWidth={6}
-            startIndex={brushIndices?.start ?? 0}
-            endIndex={brushIndices?.end ?? allTimeRows.length - 1}
-            onChange={(range) => {
-              if (
-                range &&
-                typeof range.startIndex === "number" &&
-                typeof range.endIndex === "number"
-              ) {
-                onBrushChange({ start: range.startIndex, end: range.endIndex });
-              }
-            }}
-            style={{ fontSize: "10px" }}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// ColoredCumulativeLine — rendered via <Customized>. Reads pixel coordinates
-// from formattedGraphicalItems (the already-laid-out Line points) so we never
-// have to call the axis scale directly.
-// ---------------------------------------------------------------------------
-
-interface ColoredCumulativeLineProps {
-  // Injected by Recharts <Customized>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  formattedGraphicalItems?: Array<{ item: { props: { dataKey: string } }; props: { points: Array<{ x: number; y: number; value: number; payload: { hasData: boolean; monthIndex: number } }> } }>;
-  chartData: Array<{ thisYear: number; hasData: boolean; monthIndex: number }>;
-  colors: ThemeColors;
-  selectedMonth: number | null;
-  onSelectMonth: (i: number | null) => void;
-}
-
-function ColoredCumulativeLine({
-  formattedGraphicalItems,
-  chartData,
-  colors,
-  selectedMonth,
-  onSelectMonth,
-}: ColoredCumulativeLineProps) {
-  // Find the laid-out points for the "thisYear" line
-  const lineItem = formattedGraphicalItems?.find(
-    (item) => item.item.props.dataKey === "thisYear",
-  );
-  const points = lineItem?.props.points;
-
-  if (!points || points.length < 2) return null;
-
-  const values = points.map((p) => p.value);
-  const pts = points.map((p) => ({ x: p.x, y: p.y }));
-  const segments = coloredMonotoneSegments(pts, values, colors.success, colors.danger);
-
-  return (
-    <g>
-      {segments.map((seg, i) => (
-        <path
-          key={i}
-          d={seg.d}
-          fill="none"
-          stroke={seg.color}
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ))}
-      {points.map((p, i) => {
-        const isSelected = p.payload.monthIndex === selectedMonth;
-        if (!p.payload.hasData) {
-          return (
-            <circle
-              key={`dot-${i}`}
-              cx={p.x}
-              cy={p.y}
-              r={3}
-              fill={colors.background}
-              stroke={colors.muted}
-              strokeWidth={1.5}
-              opacity={0.4}
-            />
-          );
-        }
-        const rising = values[i] >= (values[i - 1] ?? values[i]);
-        return (
-          <circle
-            key={`dot-${i}`}
-            cx={p.x}
-            cy={p.y}
-            r={isSelected ? 6 : 3}
-            fill={rising ? colors.success : colors.danger}
-            stroke={colors.background}
-            strokeWidth={isSelected ? 2 : 0}
-            style={{ cursor: "pointer" }}
-            onClick={() =>
-              onSelectMonth(
-                selectedMonth === p.payload.monthIndex ? null : p.payload.monthIndex,
-              )
-            }
-          />
-        );
-      })}
-    </g>
-  );
-}
 
 export default function IncomeTrendYearChart({
   rows,
@@ -464,9 +250,10 @@ export default function IncomeTrendYearChart({
     return { start, end };
   }, [allTimeRows, selectedYear]);
 
-  const [brushIndices, setBrushIndices] = useState<{ start: number; end: number } | null>(
-    defaultBrushIndices,
-  );
+  const [brushIndices, setBrushIndices] = useState<{
+    start: number;
+    end: number;
+  } | null>(defaultBrushIndices);
 
   // Reset brush when year changes
   const prevSelectedYear = useMemo(() => selectedYear, [selectedYear]);
@@ -476,10 +263,15 @@ export default function IncomeTrendYearChart({
 
   // Sync brush when external window is set (e.g. year strip pan)
   const prevExternalVersion = useRef(externalBrushVersion);
-  if (prevExternalVersion.current !== externalBrushVersion && externalBrushWindow != null && allTimeRows) {
+  if (
+    prevExternalVersion.current !== externalBrushVersion &&
+    externalBrushWindow != null &&
+    allTimeRows
+  ) {
     prevExternalVersion.current = externalBrushVersion;
     const firstKey = externalBrushWindow[0]?.monthKey;
-    const lastKey = externalBrushWindow[externalBrushWindow.length - 1]?.monthKey;
+    const lastKey =
+      externalBrushWindow[externalBrushWindow.length - 1]?.monthKey;
     const start = allTimeRows.findIndex((r) => r.monthKey === firstKey);
     const end = allTimeRows.findLastIndex((r) => r.monthKey === lastKey);
     if (start !== -1 && end !== -1) {
@@ -499,7 +291,7 @@ export default function IncomeTrendYearChart({
   const visibleAllTimeRows = useMemo(() => {
     if (!allTimeRows || !brushIndices || !isBrushCustom) return null;
     return allTimeRows.slice(brushIndices.start, brushIndices.end + 1);
-  }, [allTimeRows, brushIndices, isBrushCustom]);  // Merge this year and prior year data by month index
+  }, [allTimeRows, brushIndices, isBrushCustom]); // Merge this year and prior year data by month index
   // When brush is active, use the all-time rows for the visible window
   const chartData = useMemo(() => {
     if (visibleAllTimeRows && visibleAllTimeRows.length > 0) {
@@ -558,7 +350,8 @@ export default function IncomeTrendYearChart({
       e.preventDefault();
       if (!allTimeRows || allTimeRows.length < 2) return;
       const total = allTimeRows.length;
-      const current = brushIndices ?? defaultBrushIndices ?? { start: 0, end: total - 1 };
+      const current = brushIndices ??
+        defaultBrushIndices ?? { start: 0, end: total - 1 };
       const windowSize = current.end - current.start + 1;
       const center = (current.start + current.end) / 2;
       const step = Math.max(1, Math.round(windowSize * 0.1));
@@ -632,14 +425,11 @@ export default function IncomeTrendYearChart({
     [selectedMonth, lineColor, colors.background],
   );
 
-  const yAxisFormatter = useCallback(
-    (v: number) => {
-      if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-      if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}k`;
-      return `${v}`;
-    },
-    [],
-  );
+  const yAxisFormatter = useCallback((v: number) => {
+    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}k`;
+    return `${v}`;
+  }, []);
 
   if (rows.length === 0) {
     return (
@@ -680,10 +470,12 @@ export default function IncomeTrendYearChart({
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart
           data={chartData}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
           onClick={handleChartClick}
           style={{ cursor: "pointer" }}
-        >          <CartesianGrid
+        >
+          {" "}
+          <CartesianGrid
             strokeDasharray="3 3"
             stroke={colors.grid}
             opacity={0.5}
@@ -712,10 +504,7 @@ export default function IncomeTrendYearChart({
           />
           <Tooltip
             content={
-              <IncomeTrendTooltip
-                colors={colors}
-                formatAmount={formatAmount}
-              />
+              <IncomeTrendTooltip colors={colors} formatAmount={formatAmount} />
             }
           />
           <ReferenceLine
@@ -741,12 +530,12 @@ export default function IncomeTrendYearChart({
             formatter={(value) => {
               if (value === "thisYear") return "Cumulative";
               if (value === "monthlySaved") return "Saved (this year)";
-              if (value === "priorSaved") return `Saved (${priorYear ?? "prior year"})`;
+              if (value === "priorSaved")
+                return `Saved (${priorYear ?? "prior year"})`;
               if (value === "savedDelta") return "Delta";
               return value;
             }}
           />
-
           {/* Delta bars — rendered first so lines sit on top */}
           {hasPriorData && (
             <Bar
@@ -771,7 +560,6 @@ export default function IncomeTrendYearChart({
               ))}
             </Bar>
           )}
-
           {/* Cumulative cash flow — drawn as colored SVG via Customized */}
           <Line
             yAxisId="left"

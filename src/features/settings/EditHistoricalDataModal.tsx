@@ -177,6 +177,7 @@ interface MultiRangeListProps {
   onQuickAdd?: (value: string) => void;
   /** Id of the range that was just added — its input will be auto-focused */
   focusedRangeId?: string | null;
+  formatAmount: (n: number) => string;
 }
 
 function MultiRangeList({
@@ -189,6 +190,7 @@ function MultiRangeList({
   quickAddValue,
   onQuickAdd,
   focusedRangeId,
+  formatAmount,
 }: MultiRangeListProps) {
   const isIncome = type === "income";
   const label = isIncome ? "Monthly Income" : "Auto Savings %";
@@ -423,9 +425,10 @@ function FixedExpenseList({
 interface PreviewTableProps {
   yearConfig: YearConfig;
   variableTotals: number[];
+  formatAmount: (n: number) => string;
 }
 
-function PreviewTable({ yearConfig, variableTotals }: PreviewTableProps) {
+function PreviewTable({ yearConfig, variableTotals, formatAmount }: PreviewTableProps) {
   const timeline = useMemo(() => {
     const incomeMap = flattenRangesToMonthMap(yearConfig.incomeRanges);
     const savingsMap = flattenRangesToMonthMap(yearConfig.savingsRanges);
@@ -1282,6 +1285,7 @@ export default function EditHistoricalDataModal({
                   quickAddValue={defaultIncome}
                   onQuickAdd={(value) => quickAddIncomeRange(activeYear, value)}
                   focusedRangeId={focusedIncomeRangeId}
+                  formatAmount={formatAmount}
                 />
 
                 {/* Savings ranges */}
@@ -1297,6 +1301,7 @@ export default function EditHistoricalDataModal({
                   quickAddValue={defaultSavingsRate}
                   onQuickAdd={(value) => quickAddSavingsRange(activeYear, value)}
                   focusedRangeId={focusedSavingsRangeId}
+                  formatAmount={formatAmount}
                 />
 
                 {/* Fixed expenses */}
@@ -1316,6 +1321,7 @@ export default function EditHistoricalDataModal({
                 <PreviewTable
                   yearConfig={activeConfig}
                   variableTotals={getYearlyVariableTotals(activeYear, expenses)}
+                  formatAmount={formatAmount}
                 />
               </>
             )}

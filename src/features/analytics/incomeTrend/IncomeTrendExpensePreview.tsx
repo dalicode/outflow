@@ -1,15 +1,13 @@
 import { useMemo, useState } from "react";
 import { cn } from "../../../utils/cn";
-import type { Expense, Category, Payee } from "../../../types";
+import type { Expense, Category, Payee, FormattingProps } from "../../../types";
 
 const COLLAPSED_COUNT = 5;
 
-interface IncomeTrendExpensePreviewProps {
+interface IncomeTrendExpensePreviewProps extends FormattingProps {
   expenses: Expense[];
   categories: Category[];
   payees: Payee[];
-  formatAmount: (n: number) => string;
-  formatDate: (iso: string) => string;
 }
 
 export default function IncomeTrendExpensePreview({

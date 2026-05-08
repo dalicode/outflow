@@ -22,6 +22,10 @@ import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
 import { getCategoryColor } from "../summary/summaryColorUtils";
 import YearOverYearChart from "./YearOverYearChart";
+import ChartCard from "./ChartCard";
+import ViewToggle from "./ViewToggle";
+import MetricCard from "./MetricCard";
+import ChartTooltip from "./ChartTooltip";
 import EmptyState from "../../components/ui/EmptyState";
 import { fmtCompact, fmtFull, fmtPct } from "../../utils/analyticsFormatting";
 import type { AnalyticsData } from "../../types";
@@ -102,109 +106,6 @@ interface TooltipPayloadItem {
   color: string;
 }
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-  label?: string;
-  colors: ThemeColors;
-  formatter?: (value: number, name: string) => [string, string] | string;
-}
-
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-  formatter,
-  colors,
-}: CustomTooltipProps) => {
-  if (!active || !payload || payload.length === 0) return null;
-
-  return (
-    <div
-      className="rounded-theme-medium border shadow-lg px-3 py-2 text-xs"
-      style={{
-        backgroundColor: colors.background,
-        borderColor: colors.grid,
-        color: colors.text,
-      }}
-    >
-      {label && (
-        <div className="font-semibold mb-1" style={{ color: colors.text }}>
-          {label}
-        </div>
-      )}
-      {payload.map((entry, i) => {
-        const value = formatter
-          ? formatter(entry.value, entry.name)
-          : entry.value;
-        const displayValue = Array.isArray(value) ? value[0] : value;
-        const displayName = Array.isArray(value) ? value[1] : entry.name;
-        return (
-          <div key={i} className="flex items-center gap-2">
-            <span
-              className="inline-block w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="flex-1" style={{ color: colors.muted }}>
-              {displayName}
-            </span>
-            <span className="font-medium" style={{ color: colors.text }}>
-              {displayValue}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ── Metric Card ──────────────────────────────────────────────────────────────
-
-interface MetricCardProps {
-  label: string;
-  value: string;
-  subValue?: string;
-  accentColor?: string;
-  colors: ThemeColors;
-}
-
-const MetricCard = ({
-  label,
-  value,
-  subValue,
-  accentColor,
-  colors,
-}: MetricCardProps) => {
-  return (
-    <div
-      className="rounded-theme-large border p-4 text-center bg-theme-background border-theme-border"
-    >
-      <div className="text-xs font-medium mb-1 text-theme-muted">
-        {label}
-      </div>
-      <div
-        className="text-xl font-bold"
-        style={{ color: accentColor || colors.text }}
-      >
-        {value}
-      </div>
-      {subValue && (
-        <div className="text-[0.6875rem] mt-0.5 text-theme-muted">
-          {subValue}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ── 1. Monthly Spending Trend ────────────────────────────────────────────────
-
-interface ChartProps {
-  data: AnalyticsData;
-  colors: ThemeColors;
-  monthCount: number;
-}
-
 // ── 1. Monthly Stacked Bar + Income Line ─────────────────────────────────────
 
 const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
@@ -267,7 +168,7 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
         />
         <Tooltip
           content={
-            <CustomTooltip
+            <ChartTooltip
               colors={colors}
               formatter={(v: number, name: string) => {
                 if (name === "fixed") return [fmtCompact(v), "Fixed"];
@@ -934,7 +835,7 @@ export const CategoryBreakdownChart = ({
         </Pie>
         <Tooltip
           content={
-            <CustomTooltip
+            <ChartTooltip
               colors={colors}
               formatter={(v: number, name: string) => [fmtCompact(v), name]}
             />
@@ -999,7 +900,7 @@ export const PayeeBreakdownChart = ({
         </Pie>
         <Tooltip
           content={
-            <CustomTooltip
+            <ChartTooltip
               colors={colors}
               formatter={(v: number, name: string) => [fmtCompact(v), name]}
             />
@@ -1047,7 +948,7 @@ export const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
         />
         <Tooltip
           content={
-            <CustomTooltip
+            <ChartTooltip
               colors={colors}
               formatter={(v: number) => [fmtPct(v), "Savings Rate"]}
             />
@@ -1107,7 +1008,7 @@ export const MonthlyTotalSavingsChart = ({
         />
         <Tooltip
           content={
-            <CustomTooltip
+            <ChartTooltip
               colors={colors}
               formatter={(v: number) => [fmtCompact(v), "Total Savings"]}
             />
@@ -1411,77 +1312,6 @@ export const RankedPayeeViz = ({
 // ── Empty State ──────────────────────────────────────────────────────────────
 
 
-
-// ── Chart Card Wrapper ───────────────────────────────────────────────────────
-
-const ChartCard = ({
-  title,
-  headerAction,
-  children,
-}: {
-  title: string;
-  headerAction?: React.ReactNode;
-  children: React.ReactNode;
-}) => {
-  return (
-    <div className="rounded-theme-large bg-theme-surface shadow-sm p-4">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
-        {headerAction}
-      </div>
-      {children}
-    </div>
-  );
-};
-
-export const ViewToggle = ({
-  isViz,
-  onToggle,
-}: {
-  isViz: boolean;
-  onToggle: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onToggle}
-    className="flex items-center gap-1 rounded-theme-small border border-theme-border px-2 py-1 text-[0.6875rem] font-medium text-theme-muted hover:text-theme-text hover:border-theme-text transition-colors"
-    aria-label={isViz ? "Switch to table view" : "Switch to chart view"}
-  >
-    {isViz ? (
-      <>
-        <svg
-          className="w-3 h-3"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <rect x="1" y="1" width="14" height="14" rx="1" />
-          <line x1="1" y1="5" x2="15" y2="5" />
-          <line x1="1" y1="9" x2="15" y2="9" />
-          <line x1="1" y1="13" x2="15" y2="13" />
-          <line x1="5" y1="1" x2="5" y2="15" />
-        </svg>
-        Table
-      </>
-    ) : (
-      <>
-        <svg
-          className="w-3 h-3"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <rect x="1" y="6" width="3" height="9" />
-          <rect x="6" y="3" width="3" height="12" />
-          <rect x="11" y="1" width="3" height="14" />
-        </svg>
-        Chart
-      </>
-    )}
-  </button>
-);
 
 // ── Year View Layout ─────────────────────────────────────────────────────────
 

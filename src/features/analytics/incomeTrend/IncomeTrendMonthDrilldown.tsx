@@ -9,12 +9,12 @@ import {
   RankedPayeeViz,
   RankedCategoryTable,
   RankedPayeeTable,
-  ViewToggle,
 } from "../AnalyticsCharts";
-import type { AnalyticsData, Expense, Category, Payee } from "../../../types";
+import ViewToggle from "../ViewToggle";
+import type { AnalyticsData, Expense, Category, Payee, FormattingProps } from "../../../types";
 import type { ThemeColors } from "../AnalyticsCharts";
 
-interface IncomeTrendMonthDrilldownProps {
+interface IncomeTrendMonthDrilldownProps extends FormattingProps {
   data: AnalyticsData;
   expenses: Expense[];
   categories: Category[];
@@ -23,8 +23,6 @@ interface IncomeTrendMonthDrilldownProps {
   monthIndex: number;
   cumulativeRemaining: number;
   colors: ThemeColors;
-  formatAmount: (n: number) => string;
-  formatDate: (iso: string) => string;
   onBack: () => void;
   multiYearData: AnalyticsData[];
 }

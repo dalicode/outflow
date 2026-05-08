@@ -140,7 +140,7 @@ export default function PayeesPage() {
         {error && <p className="text-xs text-theme-danger">{error}</p>}
 
         {/* List */}
-        <div className="space-y-1">
+        <div className="space-y-1 md:max-w-3xl mx-auto">
           {filteredPayees.map((payee) => (
             <div
               key={payee.id}
