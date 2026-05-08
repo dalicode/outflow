@@ -331,6 +331,27 @@ function BrushOverview({
     return () => ro.disconnect();
   }, []);
 
+  // Non-passive wheel listener for panning
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const total = allTimeRows.length;
+      const current = brushIndices ?? defaultBrushIndices ?? { start: 0, end: total - 1 };
+      const windowSize = current.end - current.start + 1;
+      const step = Math.max(1, Math.round(windowSize * 0.15));
+      const raw = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      const delta = raw > 0 ? step : -step;
+      const newStart = Math.max(0, Math.min(total - windowSize, current.start + delta));
+      const newEnd = newStart + windowSize - 1;
+      onBrushChange({ start: newStart, end: newEnd });
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [allTimeRows, brushIndices, defaultBrushIndices, onBrushChange]);
+
   // Recharts Brush uses margin { left: 0, right: 10 } by default in our chart.
   // Match those margins so the sparkline aligns with the brush handles.
   const marginLeft = 0;
@@ -367,7 +388,7 @@ function BrushOverview({
   }, [allTimeRows, chartWidth, marginLeft, height, colors.success, colors.danger]);
 
   return (
-    <div className="mt-2" ref={containerRef}>
+    <div className="mt-2" ref={containerRef} data-brush-overview style={{ touchAction: "none" }}>
       {/* Full-dataset sparkline — smooth path with hard-snap green/red gradient */}
       {width > 0 && sparkPath.path && (
         <svg
@@ -614,6 +635,37 @@ export default function IncomeTrendYearChart({
     });
   }, [visibleAllTimeRows, rows, priorRows, selectedYear]);
 
+  // ── Non-passive wheel listeners ───────────────────────────────────────────
+  // React's synthetic onWheel is passive by default — preventDefault() is
+  // ignored. We attach native listeners with { passive: false } instead.
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = chartWrapperRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      // Don't zoom if the event came from the brush preview (it handles its own pan)
+      if ((e.target as HTMLElement)?.closest?.("[data-brush-overview]")) return;
+      e.preventDefault();
+      if (!allTimeRows || allTimeRows.length < 2) return;
+      const total = allTimeRows.length;
+      const current = brushIndices ?? defaultBrushIndices ?? { start: 0, end: total - 1 };
+      const windowSize = current.end - current.start + 1;
+      const center = (current.start + current.end) / 2;
+      const step = Math.max(1, Math.round(windowSize * 0.1));
+      const delta = e.deltaY > 0 ? step : -step;
+      const newSize = Math.min(total, Math.max(1, windowSize + delta));
+      const newStart = Math.max(0, Math.round(center - newSize / 2));
+      const newEnd = Math.min(total - 1, newStart + newSize - 1);
+      const adjustedStart = Math.max(0, newEnd - newSize + 1);
+      const next = { start: adjustedStart, end: newEnd };
+      setBrushIndices(next);
+      onBrushChange?.(allTimeRows.slice(next.start, next.end + 1));
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [allTimeRows, brushIndices, defaultBrushIndices, onBrushChange]);
+
   const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
   const lineColor =
     lastRow && lastRow.cumulativeRemaining < 0 ? colors.danger : colors.success;
@@ -711,7 +763,11 @@ export default function IncomeTrendYearChart({
   }
 
   return (
-    <div aria-label="Cash flow chart showing cumulative surplus or deficit by month">
+    <div
+      ref={chartWrapperRef}
+      aria-label="Cash flow chart showing cumulative surplus or deficit by month"
+      style={{ touchAction: "none" }}
+    >
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart
           data={chartData}
