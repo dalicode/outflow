@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
+import Spinner from "../ui/Spinner";
 import {
   getFilteredOptions,
   hasExactMatch,
@@ -506,7 +507,7 @@ export default function CreatableCombobox({
         >
           {isCreating ? (
             <span className="flex items-center gap-2 text-theme-text">
-              <span className="w-3.5 h-3.5 border-2 border-theme-primary border-t-transparent rounded-full animate-spin" />
+              <Spinner size="xs" />
               Adding...
             </span>
           ) : (

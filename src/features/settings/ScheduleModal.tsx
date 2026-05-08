@@ -6,6 +6,7 @@ import DatePicker from "../../components/inputs/DatePicker";
 import MobileEntityPicker from "../../components/inputs/MobileEntityPicker";
 import { StorageService } from "../../services/storageService";
 import { cn } from "../../utils/cn";
+import Spinner from "../../components/ui/Spinner";
 import { toISODate, parseISODate } from "../../utils/historicalDataHelpers";
 import { normalizeName } from "../../utils/normalizeName";
 import {
@@ -297,7 +298,7 @@ function DesktopDropdown({
                 >
                   {isCreating ? (
                     <span className="flex items-center gap-2 text-theme-text">
-                      <span className="h-4 w-4 rounded-full border-2 border-theme-primary border-t-transparent animate-spin" />
+                      <Spinner size="sm" />
                       Adding...
                     </span>
                   ) : (

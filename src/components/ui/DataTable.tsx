@@ -5,6 +5,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { cn } from "../../utils/cn";
+import EmptyState from "./EmptyState";
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends unknown, TValue> {
@@ -50,9 +51,7 @@ export default function DataTable<T>({
 
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-theme-muted text-center py-8">
-        {emptyMessage}
-      </p>
+      <EmptyState message={emptyMessage} />
     );
   }
 

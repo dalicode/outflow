@@ -6,6 +6,7 @@ import { StorageService } from "../../services/storageService";
 import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
 import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
 import type { Payee } from "../../types";
+import EmptyState from "../../components/ui/EmptyState";
 
 export default function PayeesPage() {
   const { payees, refresh } = usePayees();
@@ -206,11 +207,13 @@ export default function PayeesPage() {
             </div>
           ))}
           {filteredPayees.length === 0 && (
-            <p className="text-sm text-theme-muted text-center py-8">
-              {search.trim()
-                ? "No payees match your search."
-                : "No payees yet."}
-            </p>
+            <EmptyState
+              message={
+                search.trim()
+                  ? "No payees match your search."
+                  : "No payees yet."
+              }
+            />
           )}
         </div>
       </div>

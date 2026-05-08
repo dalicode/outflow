@@ -1,4 +1,6 @@
 import { cn } from "../../utils/cn";
+import { createPortal } from "react-dom";
+import Spinner from "./Spinner";
 
 interface LoadingOverlayProps {
   isOpen: boolean;
@@ -15,7 +17,7 @@ export default function LoadingOverlay({
 }: LoadingOverlayProps) {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className={cn(
         "fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3",
@@ -23,13 +25,12 @@ export default function LoadingOverlay({
         "bg-theme-background-solid backdrop-blur-sm",
       )}
     >
-      {showSpinner && (
-        <div className="w-8 h-8 border-2 border-theme-primary border-t-transparent rounded-full animate-spin" />
-      )}
+      {showSpinner && <Spinner />}
       <p className="text-theme-text font-medium">{message}</p>
       {subMessage && (
         <p className="text-theme-muted text-sm">{subMessage}</p>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

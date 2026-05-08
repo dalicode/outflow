@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useSettings } from "../../context/settingsContext";
+import EmptyState from "../../components/ui/EmptyState";
 import { cn } from "../../utils/cn";
 
 interface BreakdownItem {
@@ -100,9 +101,7 @@ export default function BreakdownPie({
 
   if (positiveData.length === 0) {
     return (
-      <p className="text-sm text-theme-muted text-center py-6">
-        No data to display.
-      </p>
+      <EmptyState message="No data to display." padding="py-6" />
     );
   }
 

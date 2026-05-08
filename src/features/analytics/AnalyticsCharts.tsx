@@ -22,6 +22,8 @@ import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
 import { getCategoryColor } from "../summary/summaryColorUtils";
 import YearOverYearChart from "./YearOverYearChart";
+import EmptyState from "../../components/ui/EmptyState";
+import { fmtCompact, fmtFull, fmtPct } from "../../utils/analyticsFormatting";
 import type { AnalyticsData } from "../../types";
 
 const MONTHS = [
@@ -38,22 +40,6 @@ const MONTHS = [
   "Nov",
   "Dec",
 ];
-
-function fmtCompact(n: number | null | undefined): string {
-  if (n == null || isNaN(n)) return "$0";
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-  return `$${Math.round(n)}`;
-}
-
-function fmtFull(n: number | null | undefined): string {
-  if (n == null || isNaN(n)) return "$0.00";
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function fmtPct(n: number | null | undefined): string {
-  if (n == null || isNaN(n)) return "0%";
-  return `${n.toFixed(1)}%`;
-}
 
 export interface ThemeColors {
   primary: string;
@@ -256,7 +242,7 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
     return map;
   }, [data.variableRows]);
 
-  if (!hasData) return <EmptyState label="No spending data" />;
+  if (!hasData) return <EmptyState chartHeight message="No spending data" />;
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -411,7 +397,7 @@ const MonthlyComparisonTable = ({
     [data, monthCount],
   );
 
-  if (rows.length === 0) return <EmptyState label="No month data" />;
+  if (rows.length === 0) return <EmptyState chartHeight message="No month data" />;
 
   return (
     <div className="overflow-x-auto">
@@ -501,8 +487,8 @@ export const RankedCategoryTable = ({
       .slice(0, 8);
   }, [data.variableRows, data.monthlyVariableTotals, focusMonth]);
 
-  if (focusMonth == null) return <EmptyState label="No category data" />;
-  if (rows.length === 0) return <EmptyState label="No category data" />;
+  if (focusMonth == null) return <EmptyState chartHeight message="No category data" />;
+  if (rows.length === 0) return <EmptyState chartHeight message="No category data" />;
 
   return (
     <div className="overflow-x-auto">
@@ -583,8 +569,8 @@ export const RankedPayeeTable = ({
       .slice(0, 8);
   }, [data.payeeRows, focusMonth]);
 
-  if (focusMonth == null) return <EmptyState label="No payee data" />;
-  if (rows.length === 0) return <EmptyState label="No payee data" />;
+  if (focusMonth == null) return <EmptyState chartHeight message="No payee data" />;
+  if (rows.length === 0) return <EmptyState chartHeight message="No payee data" />;
 
   return (
     <div className="overflow-x-auto">
@@ -715,7 +701,7 @@ const SavingsHealthTable = ({
     };
   });
 
-  if (rows.length === 0) return <EmptyState label="No budget health data" />;
+  if (rows.length === 0) return <EmptyState chartHeight message="No budget health data" />;
 
   return (
     <div className="overflow-x-auto">
@@ -804,8 +790,8 @@ const FixedStabilityTable = ({
       .slice(0, 8);
   }, [data.fixedRows, focusMonth]);
 
-  if (focusMonth == null) return <EmptyState label="No fixed expense data" />;
-  if (rows.length === 0) return <EmptyState label="No fixed expense data" />;
+  if (focusMonth == null) return <EmptyState chartHeight message="No fixed expense data" />;
+  if (rows.length === 0) return <EmptyState chartHeight message="No fixed expense data" />;
 
   return (
     <div className="overflow-x-auto">
@@ -918,7 +904,7 @@ export const CategoryBreakdownChart = ({
     selectedMonth === null
       ? "No category data"
       : `No data for ${MONTHS[selectedMonth]}`;
-  if (pieData.length === 0) return <EmptyState label={emptyLabel} />;
+  if (pieData.length === 0) return <EmptyState chartHeight message={emptyLabel} />;
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -992,7 +978,7 @@ export const PayeeBreakdownChart = ({
     selectedMonth === null
       ? "No payee data"
       : `No payee data for ${MONTHS[selectedMonth]}`;
-  if (pieData.length === 0) return <EmptyState label={emptyLabel} />;
+  if (pieData.length === 0) return <EmptyState chartHeight message={emptyLabel} />;
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -1035,7 +1021,7 @@ export const SavingsRateChart = ({ data, colors, monthCount }: ChartProps) => {
   }, [data, monthCount]);
 
   const hasData = chartData.some((d) => d.rate !== 0 && d.rate != null);
-  if (!hasData) return <EmptyState label="No savings data" />;
+  if (!hasData) return <EmptyState chartHeight message="No savings data" />;
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -1095,7 +1081,7 @@ export const MonthlyTotalSavingsChart = ({
   }, [data, monthCount]);
 
   const hasData = chartData.some((d) => d.savings !== 0 && d.savings != null);
-  if (!hasData) return <EmptyState label="No savings data" />;
+  if (!hasData) return <EmptyState chartHeight message="No savings data" />;
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -1253,7 +1239,7 @@ export const RankedCategoryViz = ({
       .slice(0, 8);
   }, [data.variableRows, data.monthlyVariableTotals, focusMonth]);
 
-  if (rows.length === 0) return <EmptyState label="No category data" />;
+  if (rows.length === 0) return <EmptyState chartHeight message="No category data" />;
 
   const maxAmount = rows[0]?.focus ?? 0;
 
@@ -1369,7 +1355,7 @@ export const RankedPayeeViz = ({
       .slice(0, 8);
   }, [data.payeeRows, focusMonth]);
 
-  if (rows.length === 0) return <EmptyState label="No payee data" />;
+  if (rows.length === 0) return <EmptyState chartHeight message="No payee data" />;
 
   const maxAmount = rows[0]?.focus ?? 0;
 
@@ -1424,13 +1410,7 @@ export const RankedPayeeViz = ({
 
 // ── Empty State ──────────────────────────────────────────────────────────────
 
-const EmptyState = ({ label }: { label: string }) => {
-  return (
-    <div className="h-[200px] md:h-[260px] flex items-center justify-center">
-      <span className="text-xs text-theme-muted">{label}</span>
-    </div>
-  );
-};
+
 
 // ── Chart Card Wrapper ───────────────────────────────────────────────────────
 

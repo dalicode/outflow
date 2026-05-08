@@ -7,6 +7,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useSettings } from "../../context/settingsContext";
+import EmptyState from "../../components/ui/EmptyState";
 
 interface ChartComponentProps {
   totalFixed: number;
@@ -44,9 +45,7 @@ export default function ChartComponent({
 
   if (data.length === 0) {
     return (
-      <p className="text-sm text-theme-muted text-center py-6">
-        No data to display yet.
-      </p>
+      <EmptyState message="No data to display yet." padding="py-6" />
     );
   }
 

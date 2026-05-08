@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
+import Spinner from "../../components/ui/Spinner";
 import CreatableCombobox from "../../components/inputs/CreatableCombobox";
 import MobileEntityPicker from "../../components/inputs/MobileEntityPicker";
 import Card from "../../components/ui/Card";
@@ -441,7 +442,7 @@ export default function ImportReviewModal({
 
         {isLoading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[color-mix(in_srgb,var(--theme-surface)_90%,transparent)] px-6 text-center backdrop-blur-sm">
-            <div className="h-8 w-8 rounded-full border-2 border-theme-primary border-t-transparent animate-spin" />
+            <Spinner />
             <p className="text-sm font-semibold text-theme-text">
               {loadingMessage}
             </p>

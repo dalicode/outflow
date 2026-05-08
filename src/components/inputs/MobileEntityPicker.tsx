@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { cn } from "../../utils/cn";
+import Spinner from "../ui/Spinner";
 import Modal from "../ui/Modal";
 import { CheckIcon } from "../ui/IconButton";
 import {
@@ -269,7 +270,7 @@ export default function MobileEntityPicker({
             >
               {isCreating ? (
                 <span className="flex items-center gap-2 text-theme-text">
-                  <span className="w-4 h-4 border-2 border-theme-primary border-t-transparent rounded-full animate-spin" />
+                  <Spinner size="sm" />
                   Adding…
                 </span>
               ) : (

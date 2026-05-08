@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { cn } from "../../utils/cn";
 import { normalizeName } from "../../utils/normalizeName";
+import EmptyState from "../../components/ui/EmptyState";
 import type { Expense } from "../../types";
 import ExpenseTableMobile from "./ExpenseTableMobile";
 
@@ -91,9 +92,7 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
           </div>
         )}
         {expenses.length === 0 && (
-          <p className="text-sm text-theme-muted text-center py-8">
-            No expenses
-          </p>
+          <EmptyState message="No expenses" />
         )}
       </div>
     );

@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { cn } from "../../utils/cn";
+import EmptyState from "../../components/ui/EmptyState";
 import type { Expense } from "../../types";
 import ExpenseTableMobile from "./ExpenseTableMobile";
 
@@ -88,9 +89,7 @@ const PayeeDrilldown = forwardRef<HTMLDivElement, PayeeDrilldownProps>(
           </table>
         )}
         {expenses.length === 0 && (
-          <p className="text-sm text-theme-muted text-center py-8">
-            No expenses
-          </p>
+          <EmptyState message="No expenses" />
         )}
       </div>
     );
