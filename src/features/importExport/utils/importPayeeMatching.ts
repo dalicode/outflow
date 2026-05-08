@@ -1,10 +1,10 @@
-import type { Payee } from "../types";
+import type { Payee } from "../../../types";
 import {
   CONFIDENCE,
   getPayeeSearchTerms,
   normalizePayeeText,
   scorePayeeMatch,
-} from "./payeeMatching";
+} from "../../../utils/payeeMatching";
 
 export type ImportPayeeConfidence = "confident" | "needs_review" | "no_match";
 

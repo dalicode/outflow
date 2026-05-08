@@ -3,7 +3,7 @@ import type { Payee } from "../types";
 import {
   findBestImportPayeeMatch,
   getImportPayeeMatchSummary,
-} from "../utils/importPayeeMatching";
+} from "../features/importExport/utils/importPayeeMatching";
 
 describe("importPayeeMatching", () => {
   const payees: Payee[] = [

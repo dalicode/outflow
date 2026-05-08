@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
-import { expenseToRow, downloadCSV } from "../../utils/csvHelpers";
+import { expenseToRow, downloadCSV } from "./utils/csvHelpers";
 import { usePayees } from "../../hooks/useLocalData";
 import { StorageService } from "../../services/storageService";
 import DatePicker from "../../components/inputs/DatePicker";

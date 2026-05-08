@@ -11,7 +11,7 @@ import type { Payee } from "../../types";
 import type {
   ImportPayeeMatchSummary,
   ImportPayeeReviewRow,
-} from "../../utils/importPayeeMatching";
+} from "./utils/importPayeeMatching";
 import type { ComboboxOption } from "../../components/inputs/comboboxUtils";
 
 export interface ImportReviewSelection {

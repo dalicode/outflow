@@ -1,17 +1,17 @@
 import { useRef, useState, useCallback } from "react";
-import { StorageService } from "../../services/storageService";
+import { StorageService } from "../../../services/storageService";
 import {
   encryptBackup,
   decryptBackup,
   isEncryptedEnvelope,
-} from "../../utils/backupCrypto";
+} from "../../../utils/backupCrypto";
 import {
   syncBackupPasswordToProfile,
   fetchBackupPasswordFromProfile,
-} from "../../services/syncService";
-import { APP_VERSION } from "../../utils/appVersion";
-import { getLocalToday } from "../../utils/historicalDataHelpers";
-import { useSettings } from "../../context/settingsContext";
+} from "../../../services/syncService";
+import { APP_VERSION } from "../../../utils/appVersion";
+import { getLocalToday } from "../../../utils/historicalDataHelpers";
+import { useSettings } from "../../../context/settingsContext";
 import type { User } from "@supabase/supabase-js";
 
 interface UseBackupParams {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSettings } from "../../context/settingsContext";
-import IncomeModalForm from "../../components/forms/IncomeModalForm";
+import IncomeModalForm from "../dashboard/components/IncomeModalForm";
 
 const MULTIPLIERS: Record<string, number> = {
   monthly: 1,

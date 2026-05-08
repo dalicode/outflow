@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSettings } from "../../context/settingsContext";
-import SavingsModalForm from "../../components/forms/SavingsModalForm";
+import SavingsModalForm from "../dashboard/components/SavingsModalForm";
 
 interface SavingsFormProps {
   savingsRate: number | string | null | undefined;

@@ -1,17 +1,27 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState } from "react";
 import { StorageService } from "../../services/storageService";
 import {
   parseCSV,
   parseDateInput,
   getCsvField,
-} from "../../utils/csvHelpers";
-import { getImportPayeeMatchSummary, findBestImportPayeeMatch } from "../../utils/importPayeeMatching";
-import type { ImportReviewSelection } from "./ImportReviewModal";
+} from "./utils/csvHelpers";
+import { getImportPayeeMatchSummary, findBestImportPayeeMatch } from "./utils/importPayeeMatching";
+import Card from "../../components/ui/Card";
+import ImportReviewModal, {
+  type ImportReviewSelection,
+} from "./ImportReviewModal";
 import type { Payee } from "../../types";
 import type {
   ImportPayeeMatchSummary,
   ImportPayeeReviewRow,
-} from "../../utils/importPayeeMatching";
+} from "./utils/importPayeeMatching";
+
+interface CsvImportCardProps {
+  onImportComplete: (importedYears: number[]) => void;
+  onStatusChange: (status: string) => void;
+  onErrorsChange: (errors: string[]) => void;
+  variant?: "default" | "flat";
+}
 
 interface ValidImportRow {
   rowId: string;
@@ -32,20 +42,14 @@ interface PendingImport {
   isLoading?: boolean;
 }
 
-interface UseCsvImportParams {
-  onImportComplete: (years: number[]) => void;
-  onStatusChange: (s: string) => void;
-  onErrorsChange: (errors: string[]) => void;
-}
-
-export function useCsvImport({
+export default function CsvImportCard({
   onImportComplete,
   onStatusChange,
   onErrorsChange,
-}: UseCsvImportParams) {
+  variant = "default",
+}: CsvImportCardProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
-  const [replaceMode, setReplaceMode] = useState(false);
 
   const yieldToBrowser = () =>
     new Promise<void>((resolve) => {
@@ -56,11 +60,11 @@ export function useCsvImport({
       setTimeout(resolve, 0);
     });
 
-  const clearFileInput = useCallback(() => {
+  const clearFileInput = () => {
     if (fileRef.current) fileRef.current.value = "";
-  }, []);
+  };
 
-  const finalizeImport = useCallback(async (
+  const finalizeImport = async (
     rows: ValidImportRow[],
     selectedOverrides: ImportReviewSelection[] = [],
     mode: boolean,
@@ -71,9 +75,13 @@ export function useCsvImport({
 
     const existing = await StorageService.getAll();
     const existingKeys = new Set(
-      (existing as Array<{ date: string; amount: number; description?: string }>).map(
-        (e) => `${e.date}|${e.amount}|${e.description}`,
-      ),
+      (
+        existing as Array<{
+          date: string;
+          amount: number;
+          description?: string;
+        }>
+      ).map((e) => `${e.date}|${e.amount}|${e.description}`),
     );
 
     const toAdd = mode
@@ -87,7 +95,7 @@ export function useCsvImport({
     if (categoryNames.length > 0) {
       const existingCategories = await StorageService.getCategories();
       const existingByName = new Map(
-        existingCategories.map((c) => [c.name.toLowerCase(), c]),
+        existingCategories.map((category) => [category.name.toLowerCase(), category]),
       );
       for (const name of categoryNames) {
         const existingCategory = existingByName.get(name.toLowerCase());
@@ -100,7 +108,7 @@ export function useCsvImport({
           } catch {
             const refreshed = await StorageService.getCategories();
             const found = refreshed.find(
-              (c) => c.name.toLowerCase() === name.toLowerCase(),
+              (category) => category.name.toLowerCase() === name.toLowerCase(),
             );
             if (found) categoryMap[name] = found.id!;
           }
@@ -114,8 +122,11 @@ export function useCsvImport({
     for (const row of toAdd) {
       const override = selectionMap.get(row.rowId);
       const payeeId = override?.payeeId ?? row.payeeId ?? undefined;
-      if (payeeId != null) matchedPayees++;
-      else blankPayees++;
+      if (payeeId != null) {
+        matchedPayees++;
+      } else {
+        blankPayees++;
+      }
 
       if (override?.saveAlias && payeeId != null && row.description.trim()) {
         await StorageService.addPayeeAlias(payeeId, row.description);
@@ -140,9 +151,9 @@ export function useCsvImport({
     );
     setPendingImport(null);
     clearFileInput();
-  }, [onImportComplete, onStatusChange, clearFileInput]);
+  };
 
-  const handleImportInternal = useCallback(async (
+  const handleImport = async (
     e: React.ChangeEvent<HTMLInputElement>,
     nextReplaceMode: boolean,
   ) => {
@@ -189,11 +200,26 @@ export function useCsvImport({
         const amount = parseFloat(rawAmount ?? "");
         const iso = parseDateInput(rawDate ?? "");
 
-        if (!rawDate) { errors.push(`Row ${i + 2}: missing date/timestamp column`); return; }
-        if (!iso) { errors.push(`Row ${i + 2}: unrecognised date format "${rawDate}"`); return; }
-        if (!rawAmount) { errors.push(`Row ${i + 2}: missing amount column`); return; }
-        if (isNaN(amount)) { errors.push(`Row ${i + 2}: amount "${rawAmount}" is not a number`); return; }
-        if (amount === 0) { errors.push(`Row ${i + 2}: amount cannot be zero`); return; }
+        if (!rawDate) {
+          errors.push(`Row ${i + 2}: missing date/timestamp column`);
+          return;
+        }
+        if (!iso) {
+          errors.push(`Row ${i + 2}: unrecognised date format "${rawDate}"`);
+          return;
+        }
+        if (!rawAmount) {
+          errors.push(`Row ${i + 2}: missing amount column`);
+          return;
+        }
+        if (isNaN(amount)) {
+          errors.push(`Row ${i + 2}: amount "${rawAmount}" is not a number`);
+          return;
+        }
+        if (amount === 0) {
+          errors.push(`Row ${i + 2}: amount cannot be zero`);
+          return;
+        }
         valid.push({
           rowId: `row-${i + 2}`,
           date: iso,
@@ -206,7 +232,9 @@ export function useCsvImport({
 
       onErrorsChange(errors);
       if (errors.length) {
-        onStatusChange(`${errors.length} row(s) skipped: ${errors.slice(0, 3).join("; ")}`);
+        onStatusChange(
+          `${errors.length} row(s) skipped: ${errors.slice(0, 3).join("; ")}`,
+        );
       }
 
       if (valid.length === 0) {
@@ -216,28 +244,38 @@ export function useCsvImport({
         return;
       }
 
+      // Keep the existing direct path when the CSV explicitly provides payees.
       const hasExplicitPayee = valid.some((row) => row.explicitPayee);
       if (hasExplicitPayee) {
         setPendingImport(null);
         const rows = [...valid];
         const existing = await StorageService.getAll();
         const existingKeys = new Set(
-          (existing as Array<{ date: string; amount: number; description?: string }>).map(
-            (entry) => `${entry.date}|${entry.amount}|${entry.description}`,
-          ),
+          (
+            existing as Array<{
+              date: string;
+              amount: number;
+              description?: string;
+            }>
+          ).map((entry) => `${entry.date}|${entry.amount}|${entry.description}`),
         );
 
         const toAdd = nextReplaceMode
           ? rows
           : rows.filter(
-              (row) => !existingKeys.has(`${row.date}|${row.amount}|${row.description}`),
+              (row) =>
+                !existingKeys.has(`${row.date}|${row.amount}|${row.description}`),
             );
 
-        const payeeNames = [...new Set(toAdd.map((row) => row.explicitPayee).filter(Boolean))];
+        const payeeNames = [
+          ...new Set(toAdd.map((row) => row.explicitPayee).filter(Boolean)),
+        ];
         const payeeMap: Record<string, number> = {};
         if (payeeNames.length > 0) {
           const existingPayees = await StorageService.getPayees();
-          const existingByName = new Map(existingPayees.map((p) => [p.name.toLowerCase(), p]));
+          const existingByName = new Map(
+            existingPayees.map((p) => [p.name.toLowerCase(), p]),
+          );
           for (const name of payeeNames) {
             const existingPayee = existingByName.get(name!.toLowerCase());
             if (existingPayee && !existingPayee.isArchived) {
@@ -248,18 +286,24 @@ export function useCsvImport({
                 payeeMap[name!] = newId;
               } catch {
                 const refreshed = await StorageService.getPayees();
-                const found = refreshed.find((p) => p.name.toLowerCase() === name!.toLowerCase());
+                const found = refreshed.find(
+                  (payee) => payee.name.toLowerCase() === name!.toLowerCase(),
+                );
                 if (found) payeeMap[name!] = found.id!;
               }
             }
           }
         }
 
-        const categoryNames = [...new Set(toAdd.map((row) => row.category).filter(Boolean))];
+        const categoryNames = [
+          ...new Set(toAdd.map((row) => row.category).filter(Boolean)),
+        ];
         const categoryMap: Record<string, number> = {};
         if (categoryNames.length > 0) {
           const existingCategories = await StorageService.getCategories();
-          const existingByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c]));
+          const existingByName = new Map(
+            existingCategories.map((c) => [c.name.toLowerCase(), c]),
+          );
           for (const name of categoryNames) {
             const existingCategory = existingByName.get(name.toLowerCase());
             if (existingCategory && !existingCategory.isArchived) {
@@ -270,7 +314,9 @@ export function useCsvImport({
                 categoryMap[name] = newId;
               } catch {
                 const refreshed = await StorageService.getCategories();
-                const found = refreshed.find((c) => c.name.toLowerCase() === name.toLowerCase());
+                const found = refreshed.find(
+                  (category) => category.name.toLowerCase() === name.toLowerCase(),
+                );
                 if (found) categoryMap[name] = found.id!;
               }
             }
@@ -287,7 +333,9 @@ export function useCsvImport({
           });
         }
 
-        const importedYears = [...new Set(toAdd.map((row) => parseInt(row.date.slice(0, 4), 10)))].sort((a, b) => a - b);
+        const importedYears = [
+          ...new Set(toAdd.map((row) => parseInt(row.date.slice(0, 4), 10))),
+        ].sort((a, b) => a - b);
         onImportComplete(importedYears);
         onStatusChange(
           `Imported ${toAdd.length} row(s)${toAdd.length !== rows.length ? `, skipped ${rows.length - toAdd.length} duplicate(s)` : ""}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ""}`,
@@ -297,14 +345,22 @@ export function useCsvImport({
       }
 
       const activePayees = await StorageService.getActivePayees();
-      const payeeMatches: Array<ImportPayeeReviewRow | null> = valid.map((row) => {
-        const match = findBestImportPayeeMatch(row.description, activePayees, row.rowId);
-        return match ? { ...match, date: row.date, amount: row.amount } : null;
-      });
+      const payeeMatches: Array<ImportPayeeReviewRow | null> = valid.map(
+        (row) => {
+          const match = findBestImportPayeeMatch(
+            row.description,
+            activePayees,
+            row.rowId,
+          );
+          return match
+            ? { ...match, date: row.date, amount: row.amount }
+            : null;
+        },
+      );
       const summary = {
         ...getImportPayeeMatchSummary(
-          valid.map((row) => ({ rowId: row.rowId, description: row.description })),
-          activePayees,
+        valid.map((row) => ({ rowId: row.rowId, description: row.description })),
+        activePayees,
         ),
         rowsFound: parsed.length,
         validRows: valid.length,
@@ -313,7 +369,11 @@ export function useCsvImport({
 
       const rowsWithMatches = valid.map((row, index) => {
         const match = payeeMatches[index];
-        return { ...row, payeeId: match?.confidence === "confident" ? match.suggestedPayeeId : undefined };
+        return {
+          ...row,
+          payeeId:
+            match?.confidence === "confident" ? match.suggestedPayeeId : undefined,
+        };
       });
 
       const reviewRows: ImportPayeeReviewRow[] = [];
@@ -340,31 +400,82 @@ export function useCsvImport({
       onStatusChange(`Import failed: ${(err as Error).message}`);
     }
     clearFileInput();
-  }, [onStatusChange, onErrorsChange, onImportComplete, clearFileInput]);
-
-  const handleFinalizeImport = useCallback((selections: ImportReviewSelection[]) => {
-    if (!pendingImport) return;
-    void finalizeImport(pendingImport.rows, selections, pendingImport.replaceMode);
-  }, [pendingImport, finalizeImport]);
-
-  const handleSkipReview = useCallback(() => {
-    if (!pendingImport) return;
-    void finalizeImport(pendingImport.rows, [], pendingImport.replaceMode);
-  }, [pendingImport, finalizeImport]);
-
-  const handleCancelReview = useCallback(() => {
-    setPendingImport(null);
-    clearFileInput();
-  }, [clearFileInput]);
-
-  return {
-    fileRef,
-    pendingImport,
-    replaceMode,
-    setReplaceMode,
-    handleImport: (e: React.ChangeEvent<HTMLInputElement>) => handleImportInternal(e, replaceMode),
-    handleFinalizeImport,
-    handleSkipReview,
-    handleCancelReview,
   };
+
+  return (
+    <Card title="Import CSV" className="flex-1" variant={variant}>
+      <p className="text-xs text-theme-muted mb-2">
+        Import expenses from a CSV file. We’ll review uncertain payee matches
+        before anything is saved.
+      </p>
+      <CsvImportForm fileRef={fileRef} onImport={handleImport} />
+
+      <ImportReviewModal
+        open={Boolean(pendingImport)}
+        isLoading={Boolean(pendingImport?.isLoading)}
+        loadingMessage="Preparing import review…"
+        loadingDescription="We’re scanning descriptions, suggesting payees, and getting your review list ready."
+        summary={pendingImport?.summary ?? null}
+        reviewRows={pendingImport?.reviewRows ?? []}
+        activePayees={pendingImport?.activePayees ?? []}
+        onBack={() => {
+          setPendingImport(null);
+          clearFileInput();
+        }}
+        onSkipReview={() => {
+          if (!pendingImport) return;
+          void finalizeImport(
+            pendingImport.rows,
+            [],
+            pendingImport.replaceMode,
+          );
+        }}
+        onImport={(selections) => {
+          if (!pendingImport) return;
+          void finalizeImport(
+            pendingImport.rows,
+            selections,
+            pendingImport.replaceMode,
+          );
+        }}
+      />
+    </Card>
+  );
+}
+
+function CsvImportForm({
+  fileRef,
+  onImport,
+}: {
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  onImport: (
+    e: React.ChangeEvent<HTMLInputElement>,
+    replaceMode: boolean,
+  ) => void;
+}) {
+  const [replaceMode, setReplaceMode] = useState(false);
+
+  return (
+    <>
+      <label className="flex items-center gap-1.5 text-xs text-theme-text mb-1.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={replaceMode}
+          onChange={(e) => setReplaceMode(e.target.checked)}
+          className="rounded-theme-small"
+        />
+        Replace mode
+      </label>
+      <label className="relative inline-flex cursor-pointer shrink-0">
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv"
+          onChange={(e) => onImport(e, replaceMode)}
+          className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+        />
+        <span className="settings-action-btn shrink-0">Choose File</span>
+      </label>
+    </>
+  );
 }

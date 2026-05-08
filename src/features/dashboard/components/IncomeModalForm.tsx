@@ -1,10 +1,10 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { useSettings } from "../../context/settingsContext";
-import MoneyInput from "../inputs/MoneyInput";
-import Modal from "../ui/Modal";
-import ModalFooter from "../ui/ModalFooter";
-import { cn } from "../../utils/cn";
-import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
+import { useSettings } from "../../../context/settingsContext";
+import MoneyInput from "../../../components/inputs/MoneyInput";
+import Modal from "../../../components/ui/Modal";
+import ModalFooter from "../../../components/ui/ModalFooter";
+import { cn } from "../../../utils/cn";
+import { resolveMoneyLocaleConfig } from "../../../utils/moneyInput";
 
 const FREQUENCIES = ["monthly", "biweekly", "weekly"] as const;
 const MULTIPLIERS: Record<string, number> = {
