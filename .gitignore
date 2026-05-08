@@ -2,6 +2,8 @@ node_modules/
 agents/
 dist/
 .vscode/
+.kiro/
+.opencode/
 
 # Dependencies
 node_modules/
@@ -20,6 +22,7 @@ Thumbs.db
 
 # Test coverage
 coverage/
+test-results/
 
 # IDE
 .idea/
