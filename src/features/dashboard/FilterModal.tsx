@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
+import { useViewportWidth } from "../../hooks/useViewportWidth";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
 import DatePicker from "../../components/inputs/DatePicker";
 import { getFilteredOptions } from "../../components/inputs/comboboxUtils";
 import { normalizeName } from "../../utils/normalizeName";
+import { toggleInSet } from "../../utils/setUtils";
 import type { Category, Payee } from "../../types";
 
 interface FilterDraft {
@@ -37,33 +39,7 @@ const EMPTY_DRAFT: FilterDraft = {
   filterAmount: "",
 };
 
-function useIsMobileViewport(): boolean {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth < 640 : false,
-  );
 
-  useEffect(() => {
-    const update = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return isMobile;
-}
-
-function toggleInSet(set: Set<string>, value: string): Set<string> {
-  const next = new Set(set);
-  if (next.has(value)) {
-    next.delete(value);
-  } else {
-    next.add(value);
-  }
-  return next;
-}
 
 function MultiSelectDropdown({
   label,
@@ -84,7 +60,7 @@ function MultiSelectDropdown({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const isMobile = useIsMobileViewport();
+  const isMobile = useViewportWidth() < 640;
   const [panelStyle, setPanelStyle] = useState<{
     top: number;
     left: number;

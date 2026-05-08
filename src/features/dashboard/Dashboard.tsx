@@ -23,9 +23,8 @@ import ExpensesView from "./ExpensesView";
 import type { ExpenseTableHandle } from "./ExpenseTable";
 import FilterModal from "./FilterModal";
 import CategoryViewTable from "./CategoryViewTable";
-import CategoryDrilldown from "./CategoryDrilldown";
+import ExpenseDrilldown from "./ExpenseDrilldown";
 import PayeeViewTable from "./PayeeViewTable";
-import PayeeDrilldown from "./PayeeDrilldown";
 import CheckInReminderCard from "./CheckInReminderCard";
 import { DASHBOARD_VIEWS } from "./constants";
 import type { DashboardView } from "./constants";
@@ -194,7 +193,7 @@ export default function Dashboard({
           />
         </div>
       </div>
-      <div className="pb-3">
+      <div className="pb-6">
         <DashboardMonthStrip
           selectedYear={dash.selectedYear}
           selectedMonth={dash.selectedMonth}
@@ -323,15 +322,9 @@ export default function Dashboard({
                   {dash.drilldownCategory &&
                     drilldownExpenses.length > 0 &&
                     dash.monthKeys[dash.drilldownCategoryMonthIndex] && (
-                      <CategoryDrilldown
+                      <ExpenseDrilldown
                         ref={dash.drilldownRef}
-                        category={dash.drilldownCategory}
-                        monthName={
-                          dash.monthKeys[dash.drilldownCategoryMonthIndex].name
-                        }
-                        year={
-                          dash.monthKeys[dash.drilldownCategoryMonthIndex].year
-                        }
+                        title={`${dash.drilldownCategory} — ${dash.monthKeys[dash.drilldownCategoryMonthIndex].name} ${dash.monthKeys[dash.drilldownCategoryMonthIndex].year}`}
                         expenses={drilldownExpenses}
                         formatDate={formatDate}
                         formatAmount={formatAmount}
@@ -342,6 +335,7 @@ export default function Dashboard({
                         }}
                         onClose={dash.closeDrilldown}
                         isMobile={isMobile}
+                        secondColumn="payee"
                       />
                     )}
                 </div>
@@ -370,15 +364,9 @@ export default function Dashboard({
                   {dash.drilldownPayee &&
                     dash.drilldownPayeeExpenses.length > 0 &&
                     dash.monthKeys[dash.drilldownPayeeMonthIndex] && (
-                      <PayeeDrilldown
+                      <ExpenseDrilldown
                         ref={dash.drilldownRef}
-                        payee={dash.drilldownPayee}
-                        monthName={
-                          dash.monthKeys[dash.drilldownPayeeMonthIndex].name
-                        }
-                        year={
-                          dash.monthKeys[dash.drilldownPayeeMonthIndex].year
-                        }
+                        title={`${dash.drilldownPayee} — ${dash.monthKeys[dash.drilldownPayeeMonthIndex].name} ${dash.monthKeys[dash.drilldownPayeeMonthIndex].year}`}
                         expenses={dash.drilldownPayeeExpenses}
                         formatDate={formatDate}
                         formatAmount={formatAmount}
@@ -389,6 +377,7 @@ export default function Dashboard({
                         }}
                         onClose={dash.closePayeeDrilldown}
                         isMobile={isMobile}
+                        secondColumn="category"
                       />
                     )}
                 </div>

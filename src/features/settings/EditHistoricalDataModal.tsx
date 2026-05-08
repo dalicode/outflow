@@ -4,6 +4,7 @@ import ModalFooter from "../../components/ui/ModalFooter";
 import MoneyInput from "../../components/inputs/MoneyInput";
 import PercentInput from "../../components/inputs/PercentInput";
 import { StorageService } from "../../services/storageService";
+import { useSettings } from "../../context/settingsContext";
 import { cn } from "../../utils/cn";
 import {
   getMaxMonthForYear,
@@ -38,16 +39,6 @@ const MONTHS = [
 
 let _idCounter = 0;
 const nextId = () => `tmp-${++_idCounter}`;
-
-function formatAmount(
-  amount: string | number,
-  symbol = "$",
-  decimals = 2,
-): string {
-  const n = typeof amount === "number" ? amount : parseFloat(amount);
-  if (isNaN(n)) return "—";
-  return `${symbol}${n.toFixed(decimals)}`;
-}
 
 interface FixedItem {
   id: string;
@@ -626,6 +617,7 @@ export default function EditHistoricalDataModal({
   defaultIncome = "",
   defaultSavingsRate = "",
 }: EditHistoricalDataModalProps) {
+  const { formatAmount } = useSettings();
   // Filter out current year if it has 0 editable months (e.g., January)
   const years = useMemo(
     () =>

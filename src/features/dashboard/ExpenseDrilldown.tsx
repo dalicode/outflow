@@ -1,14 +1,11 @@
 import { forwardRef } from "react";
 import { cn } from "../../utils/cn";
-import { normalizeName } from "../../utils/normalizeName";
 import EmptyState from "../../components/ui/EmptyState";
 import type { Expense } from "../../types";
 import ExpenseTableMobile from "./ExpenseTableMobile";
 
-interface CategoryDrilldownProps {
-  category: string;
-  monthName: string;
-  year: number;
+interface ExpenseDrilldownProps {
+  title: string;
   expenses: Expense[];
   formatDate: (iso: string) => string;
   formatAmount: (n: number) => string;
@@ -16,19 +13,28 @@ interface CategoryDrilldownProps {
   resolvePayeeName?: (exp: Expense) => string;
   onClose: () => void;
   isMobile?: boolean;
+  secondColumn: "payee" | "category";
 }
 
-const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
+const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
   (
-    { category, monthName, year, expenses, formatDate, formatAmount, resolveName, resolvePayeeName, onClose, isMobile },
+    {
+      title,
+      expenses,
+      formatDate,
+      formatAmount,
+      resolveName,
+      resolvePayeeName,
+      onClose,
+      isMobile,
+      secondColumn,
+    },
     ref,
   ) => {
     return (
       <div ref={ref} className="space-y-2 border-t border-theme-border pt-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-theme-text">
-            {category} — {monthName} {year}
-          </h3>
+          <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
           <button
             onClick={onClose}
             className="text-xs font-medium text-theme-muted hover:text-theme-text transition-colors"
@@ -43,7 +49,7 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
             formatAmount={formatAmount}
             resolveName={resolveName}
             resolvePayeeName={resolvePayeeName}
-            hideCategory={true}
+            hideCategory={secondColumn === "payee"}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -51,11 +57,11 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
               <thead>
                 <tr>
                   <th className="table-header-cell text-left">Date</th>
-                  <th className="table-header-cell text-left">Payee</th>
-                  <th className="table-header-cell text-left">Description</th>
-                  <th className="table-header-cell text-right tabular-nums">
-                    Amount
+                  <th className="table-header-cell text-left">
+                    {secondColumn === "payee" ? "Payee" : "Category"}
                   </th>
+                  <th className="table-header-cell text-left">Description</th>
+                  <th className="table-header-cell text-right tabular-nums">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -70,9 +76,11 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
                       <td className="px-3 py-1 text-theme-text whitespace-nowrap">
                         {formatDate(exp.date)}
                       </td>
-                    <td className="px-3 py-1 text-theme-text whitespace-nowrap">
-                      {resolvePayeeName?.(exp) || "—"}
-                    </td>
+                      <td className="px-3 py-1 text-theme-text whitespace-nowrap">
+                        {secondColumn === "payee"
+                          ? (resolvePayeeName?.(exp) || "—")
+                          : resolveName(exp)}
+                      </td>
                       <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
                         {exp.description || "—"}
                       </td>
@@ -91,12 +99,10 @@ const CategoryDrilldown = forwardRef<HTMLDivElement, CategoryDrilldownProps>(
             </table>
           </div>
         )}
-        {expenses.length === 0 && (
-          <EmptyState message="No expenses" />
-        )}
+        {expenses.length === 0 && <EmptyState message="No expenses" />}
       </div>
     );
   },
 );
 
-export default CategoryDrilldown;
+export default ExpenseDrilldown;
