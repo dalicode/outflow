@@ -222,20 +222,40 @@ interface ChartProps {
 // ── 1. Monthly Stacked Bar + Income Line ─────────────────────────────────────
 
 const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
+  // Build per-category variable rows for stacking
+  const categoryKeys = useMemo(
+    () => (data.variableRows ?? []).map((r) => r.key),
+    [data.variableRows],
+  );
+
   const chartData = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => {
       const fixed = data.monthlyFixedTotals[i] || 0;
-      const variable = data.monthlyVariableTotals[i] || 0;
       const income = data.monthlyIncome[i] || 0;
       const prevTotal = i > 0 ? (data.monthlyTotals[i - 1] || 0) : null;
       const total = data.monthlyTotals[i] || 0;
       const momDelta = prevTotal !== null ? total - prevTotal : null;
-      return { month: m, fixed, variable, income, momDelta };
+      const entry: Record<string, number | null> = { fixed, income, momDelta };
+      // Add per-category amounts
+      (data.variableRows ?? []).forEach((row) => {
+        entry[row.key] = row.amounts[i] || 0;
+      });
+      return { month: m, ...entry };
     });
   }, [data, monthCount]);
 
-  const hasData = chartData.some((d) => d.fixed > 0 || d.variable > 0);
+  const hasData = chartData.some((d) =>
+    (d.fixed as number) > 0 ||
+    categoryKeys.some((k) => (d[k] as number) > 0),
+  );
   if (!hasData) return <EmptyState label="No spending data" />;
+
+  // Map key → display name for tooltip
+  const keyToName = useMemo(() => {
+    const map: Record<string, string> = {};
+    (data.variableRows ?? []).forEach((r) => { map[r.key] = r.name; });
+    return map;
+  }, [data.variableRows]);
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -264,9 +284,8 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
               colors={colors}
               formatter={(v: number, name: string) => {
                 if (name === "fixed") return [fmtCompact(v), "Fixed"];
-                if (name === "variable") return [fmtCompact(v), "Variable"];
                 if (name === "income") return [fmtCompact(v), "Income"];
-                return [fmtCompact(v), name];
+                return [fmtCompact(v), keyToName[name] ?? name];
               }}
             />
           }
@@ -275,11 +294,11 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
           wrapperStyle={{ fontSize: "12px", color: colors.text }}
           formatter={(v: string) => {
             if (v === "fixed") return "Fixed";
-            if (v === "variable") return "Variable";
             if (v === "income") return "Income";
-            return v;
+            return keyToName[v] ?? v;
           }}
         />
+        {/* Fixed expenses — bottom of stack */}
         <Bar
           dataKey="fixed"
           stackId="spend"
@@ -287,35 +306,46 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
           maxBarSize={32}
           radius={[0, 0, 0, 0]}
         />
-        <Bar
-          dataKey="variable"
-          stackId="spend"
-          fill={colors.danger}
-          maxBarSize={32}
-          radius={[3, 3, 0, 0]}
-        >
-          <LabelList
-            dataKey="momDelta"
-            position="top"
-            content={(props) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const { x, y, width, value } = props as any;
-              if (value == null || value === 0) return null;
-              const isPositive = value > 0;
-              return (
-                <text
-                  x={(x as number) + (width as number) / 2}
-                  y={(y as number) - 4}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fill={isPositive ? colors.danger : colors.success}
-                >
-                  {isPositive ? "+" : "−"}{fmtCompact(Math.abs(value))}
-                </text>
-              );
-            }}
-          />
-        </Bar>
+        {/* Per-category variable bars — stacked above fixed */}
+        {categoryKeys.map((key, idx) => {
+          const isLast = idx === categoryKeys.length - 1;
+          const catName = keyToName[key] ?? key;
+          return (
+            <Bar
+              key={key}
+              dataKey={key}
+              name={key}
+              stackId="spend"
+              fill={getCategoryColor(catName)}
+              maxBarSize={32}
+              radius={isLast ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+            >
+              {isLast && (
+                <LabelList
+                  dataKey="momDelta"
+                  position="top"
+                  content={(props) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const { x, y, width, value } = props as any;
+                    if (value == null || value === 0) return null;
+                    const isPositive = value > 0;
+                    return (
+                      <text
+                        x={(x as number) + (width as number) / 2}
+                        y={(y as number) - 4}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fill={isPositive ? colors.danger : colors.success}
+                      >
+                        {isPositive ? "+" : "−"}{fmtCompact(Math.abs(value))}
+                      </text>
+                    );
+                  }}
+                />
+              )}
+            </Bar>
+          );
+        })}
         <Line
           type="monotone"
           dataKey="income"
