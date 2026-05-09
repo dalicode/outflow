@@ -34,7 +34,7 @@ export default function AnalyticsPage({
     currentMonth,
     data,
     multiYearData,
-    trendMonth,
+    trendKey,
     trendDrilldown,
   } = useAnalytics({
     expenses,
@@ -108,7 +108,7 @@ export default function AnalyticsPage({
           currentMonth={currentMonth}
           priorYearsData={priorYearsData}
           multiYearData={multiYearData}
-          trendMonth={trendMonth}
+          trendKey={trendKey}
           trendDrilldown={trendDrilldown}
           onTrendStateChange={(patch) => onSessionStateChange?.({ ...patch })}
           yearTotalIncome={data.yearTotalIncome}

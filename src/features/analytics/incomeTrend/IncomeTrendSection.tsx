@@ -20,10 +20,10 @@ interface IncomeTrendSectionProps {
   currentYear: number;
   currentMonth: number;
   priorYearsData: AnalyticsData[];
-  trendMonth: number | null;
+  trendKey: string | null;
   trendDrilldown: boolean;
   onTrendStateChange: (patch: {
-    trendMonth?: number | null;
+    trendKey?: string | null;
     trendDrilldown?: boolean;
   }) => void;
   yearTotalIncome: number;
@@ -53,7 +53,7 @@ export default function IncomeTrendSection({
   currentYear,
   currentMonth,
   priorYearsData,
-  trendMonth,
+  trendKey,
   trendDrilldown,
   onTrendStateChange,
   yearTotalIncome,
@@ -150,7 +150,11 @@ export default function IncomeTrendSection({
     const next = isDefaultWindow ? null : window;
     setBrushWindow(next);
     onBrushWindowChange?.(next ?? []);
-  }, [year, trendRows.length, onBrushWindowChange]);
+    // Clear month selection when brush spans multiple years — month index is ambiguous
+    if (next !== null && next.some((r) => r.year !== next[0].year)) {
+      onTrendStateChange({ trendKey: null, trendDrilldown: false });
+    }
+  }, [year, trendRows.length, onBrushWindowChange, onTrendStateChange]);
 
   // Build the all-years lookup for range data computation
   const allYearsLookup = useMemo(() => {
@@ -266,18 +270,47 @@ export default function IncomeTrendSection({
       .slice(0, 5);
   }, [brushWindow, trendRows, rangeData]);
 
-  const prevCumulativeRemaining =
-    trendMonth !== null && trendMonth > 0
-      ? (trendRows[trendMonth - 1]?.cumulativeRemaining ?? null)
-      : null;
+  // When brush is active on a single year, the active rows are the brush window
+  // rows (re-indexed 0..n-1). Otherwise use the current year's trendRows.
+  const activeTrendRows = useMemo(() => {
+    if (!brushWindow || brushWindow.length === 0) return trendRows;
+    const spansMultiple = brushWindow.some((r) => r.year !== brushWindow[0].year);
+    if (spansMultiple) return trendRows;
+    return brushWindow.map((r, i) => ({
+      monthIndex: i,
+      monthKey: r.monthKey,
+      monthLabel: r.label,
+      income: r.income,
+      expenses: r.expenses,
+      saved: r.saved,
+      savingsRate: r.savingsRate,
+      expenseCount: 0,
+      hasData: r.hasData,
+      cumulativeRemaining: r.cumulativeRemaining,
+    }));
+  }, [brushWindow, trendRows]);
+
+  const selectedTrendYear = trendKey ? parseInt(trendKey.split("-")[0], 10) : null;
+  const selectedTrendMonthIndex = trendKey ? parseInt(trendKey.split("-")[1], 10) - 1 : null;
+
+  const selectedTrendRow = useMemo(() => {
+    if (!trendKey) return null;
+    // Brush mode — look up from all-time data
+    if (brushWindow) {
+      const row = allTimeRows?.find((r) => r.monthKey === trendKey);
+      if (row) return row;
+    }
+    // Single-year mode — look up from trend rows
+    return activeTrendRows.find((r) => r.monthKey === trendKey) ?? null;
+  }, [trendKey, brushWindow, allTimeRows, activeTrendRows]);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (trendMonth !== null && !trendDrilldown && previewRef.current) {
+    if (trendKey !== null && !trendDrilldown && previewRef.current) {
       previewRef.current.focus();
     }
-  }, [trendMonth, trendDrilldown]);
+  }, [trendKey, trendDrilldown]);
 
   return (
     <section
@@ -289,15 +322,15 @@ export default function IncomeTrendSection({
         <div className="px-4 py-8 sm:px-5 flex items-center justify-center">
           <span className="text-xs text-theme-muted">Loading…</span>
         </div>
-      ) : trendDrilldown && trendMonth !== null && trendRows[trendMonth] ? (
+      ) : trendDrilldown && selectedTrendRow && selectedTrendYear != null && selectedTrendMonthIndex != null ? (
         <IncomeTrendMonthDrilldown
-          data={data}
-          expenses={expenses}
+          data={rangeData}
+          expenses={rangeExpenses}
           categories={categories}
           payees={payees}
-          year={year}
-          monthIndex={trendMonth}
-          cumulativeRemaining={trendRows[trendMonth].cumulativeRemaining}
+          year={selectedTrendYear}
+          monthIndex={selectedTrendMonthIndex}
+          cumulativeRemaining={selectedTrendRow.cumulativeRemaining}
           colors={colors}
           formatAmount={formatAmount}
           formatDate={formatDate}
@@ -362,8 +395,10 @@ export default function IncomeTrendSection({
               rows={trendRows}
               priorRows={priorYearRows}
               priorYear={year - 1}
-              selectedMonth={trendMonth}
-              onSelectMonth={(m) => onTrendStateChange({ trendMonth: m })}
+              selectedMonth={trendKey}
+              onSelectMonth={(key) => {
+                onTrendStateChange({ trendKey: key });
+              }}
               colors={colors}
               formatAmount={formatAmount}
               allTimeRows={allTimeRows}
@@ -375,20 +410,20 @@ export default function IncomeTrendSection({
           </div>
 
           {/* Month preview — only when a dot is selected */}
-          {trendMonth !== null && trendRows[trendMonth] && (
+          {selectedTrendRow && (
             <IncomeTrendMonthPreview
               ref={previewRef}
-              row={trendRows[trendMonth]}
+              row={selectedTrendRow}
               prevCumulativeRemaining={
-                trendMonth > 0
-                  ? (trendRows[trendMonth - 1]?.cumulativeRemaining ?? null)
+                selectedTrendMonthIndex != null && selectedTrendMonthIndex > 0
+                  ? (activeTrendRows.find((r) => r.monthIndex === selectedTrendMonthIndex - 1 && r.monthKey?.startsWith(String(selectedTrendYear)))?.cumulativeRemaining ?? null)
                   : null
               }
               colors={colors}
               formatAmount={formatAmount}
               onViewMonth={() => onTrendStateChange({ trendDrilldown: true })}
               onDismiss={() =>
-                onTrendStateChange({ trendMonth: null, trendDrilldown: false })
+                onTrendStateChange({ trendKey: null, trendDrilldown: false })
               }
             />
           )}
@@ -405,23 +440,8 @@ export default function IncomeTrendSection({
               monthlyVariable={rangeMonthlyVariable}
               monthlySavings={rangeMonthlySavings}
               monthlyRemaining={rangeMonthlyRemaining}
-              selectedMonth={brushWindow ? null : trendMonth}
-              monthCount={rangeMonthCount}
-              isCurrentYear={rangeIsCurrentYear}
-              year={year}
+              selectedMonth={brushWindow ? null : selectedTrendMonthIndex}
               formatAmount={formatAmount}
-            />
-          </div>
-
-          {/* Year charts — always visible */}
-          <div className="border-t border-theme-border">
-            <AnalyticsCharts
-              data={rangeData}
-              multiYearData={multiYearData}
-              year={year}
-              currentYear={currentYear}
-              currentMonth={brushWindow ? rangeMonthCount - 1 : currentMonth}
-              selectedMonth={brushWindow ? null : trendMonth}
             />
           </div>
 

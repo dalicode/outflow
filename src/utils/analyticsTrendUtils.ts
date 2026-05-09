@@ -377,6 +377,8 @@ export function buildMonthDrilldownData(
 export interface AllTimeRow {
   /** "MMM YY" display label, e.g. "Jan 24" */
   label: string;
+  /** Short month name, e.g. "Jan" */
+  monthLabel: string;
   /** "YYYY-MM" key for identifying the month */
   monthKey: string;
   /** 0-indexed month within its year */
@@ -440,6 +442,7 @@ export function buildAllYearsTrendRows(
 
       rows.push({
         label: `${MONTH_LABELS[m]} ${shortYear}`,
+        monthLabel: MONTH_LABELS[m],
         monthKey,
         monthIndex: m,
         year,

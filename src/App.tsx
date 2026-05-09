@@ -237,16 +237,16 @@ function AppShell() {
       const params = new URLSearchParams(window.location.search);
       const year = parseYearParam(params.get("year"), now.getFullYear());
       const trendMonthParsed = parseTrendMonthParam(params.get("trendMonth"));
-      const trendMonth =
+      const trendKey =
         trendMonthParsed && trendMonthParsed.year === year
-          ? trendMonthParsed.monthIndex
+          ? params.get("trendMonth")
           : null;
       const trendDrilldown =
-        trendMonth !== null &&
+        trendKey !== null &&
         parseTrendDrilldownParam(params.get("trendDrilldown"));
       return {
         year,
-        trendMonth,
+        trendKey,
         trendDrilldown,
       };
     });
@@ -271,15 +271,14 @@ function AppShell() {
           params.delete("year");
         }
 
-        if (next.trendMonth !== null) {
-          const monthNum = String(next.trendMonth + 1).padStart(2, "0");
-          params.set("trendMonth", `${next.year}-${monthNum}`);
+        if (next.trendKey !== null) {
+          params.set("trendMonth", next.trendKey);
         } else {
           params.delete("trendMonth");
           params.delete("trendDrilldown");
         }
 
-        if (next.trendDrilldown && next.trendMonth !== null) {
+        if (next.trendDrilldown && next.trendKey !== null) {
           params.set("trendDrilldown", "1");
         } else {
           params.delete("trendDrilldown");

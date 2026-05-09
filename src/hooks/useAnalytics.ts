@@ -18,7 +18,7 @@ import type {
 
 export interface AnalyticsSessionState {
   year: number;
-  trendMonth: number | null;
+  trendKey: string | null;
   trendDrilldown: boolean;
 }
 
@@ -180,7 +180,7 @@ export function useAnalytics({
     (newYear: number | ((prev: number) => number)) => {
       setYearState((prev) => {
         const next = typeof newYear === "function" ? newYear(prev) : newYear;
-        onSessionStateChange?.({ year: next, trendMonth: null, trendDrilldown: false });
+        onSessionStateChange?.({ year: next, trendKey: null, trendDrilldown: false });
         return next;
       });
     },
@@ -190,7 +190,7 @@ export function useAnalytics({
   const handleYearChange = useCallback(
     (newYear: number) => {
       setYear(newYear);
-      onSessionStateChange?.({ year: newYear, trendMonth: null, trendDrilldown: false });
+      onSessionStateChange?.({ year: newYear, trendKey: null, trendDrilldown: false });
     },
     [setYear, onSessionStateChange],
   );
@@ -273,7 +273,7 @@ export function useAnalytics({
     lastMonth,
     data,
     multiYearData,
-    trendMonth: sessionState?.trendMonth ?? null,
+    trendKey: sessionState?.trendKey ?? null,
     trendDrilldown: sessionState?.trendDrilldown ?? false,
   };
 }

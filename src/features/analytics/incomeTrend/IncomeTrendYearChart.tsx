@@ -28,8 +28,8 @@ interface IncomeTrendYearChartProps {
   rows: YearTrendRow[];
   priorRows?: YearTrendRow[] | null;
   priorYear?: number;
-  selectedMonth: number | null;
-  onSelectMonth: (monthIndex: number | null) => void;
+  selectedMonth: string | null;
+  onSelectMonth: (trendKey: string | null) => void;
   colors: ThemeColors;
   formatAmount: (n: number) => string;
   /** Full all-time dataset for the brush mini-timeline */
@@ -303,6 +303,7 @@ export default function IncomeTrendYearChart({
         priorSaved: row.priorSaved,
         savedDelta: row.savedDelta,
         monthIndex: row.monthIndex,
+        monthKey: row.monthKey,
         year: row.year,
         hasData: row.hasData,
         income: row.income,
@@ -325,6 +326,7 @@ export default function IncomeTrendYearChart({
         priorSaved: prior?.saved ?? null,
         savedDelta: prior?.saved != null ? row.saved - prior.saved : null,
         monthIndex: row.monthIndex,
+        monthKey: row.monthKey,
         year: selectedYear,
         hasData: row.hasData,
         income: row.income,
@@ -378,11 +380,11 @@ export default function IncomeTrendYearChart({
 
   const handleChartClick = useCallback(
     (chartState: {
-      activePayload?: Array<{ payload: { monthIndex: number } }>;
+      activePayload?: Array<{ payload: { monthKey: string } }>;
     }) => {
       if (!chartState?.activePayload?.length) return;
-      const clickedIndex = chartState.activePayload[0].payload.monthIndex;
-      onSelectMonth(selectedMonth === clickedIndex ? null : clickedIndex);
+      const clickedKey = chartState.activePayload[0].payload.monthKey;
+      onSelectMonth(clickedKey === selectedMonth ? null : clickedKey);
     },
     [selectedMonth, onSelectMonth],
   );
@@ -391,7 +393,7 @@ export default function IncomeTrendYearChart({
   const renderDot = useCallback(
     (props: any) => {
       const { cx, cy, payload } = props;
-      const isSelected = payload.monthIndex === selectedMonth;
+      const isSelected = payload.monthKey === selectedMonth;
       const hasData = payload.hasData;
 
       if (!hasData) {
@@ -630,8 +632,8 @@ export default function IncomeTrendYearChart({
       )}
 
       <div className="sr-only" aria-live="polite">
-        {selectedMonth !== null && rows[selectedMonth]
-          ? `Selected: ${rows[selectedMonth].monthLabel}, cumulative cash flow: ${formatAmount(rows[selectedMonth].cumulativeRemaining)}`
+        {selectedMonth !== null && chartData.find((d) => d.monthKey === selectedMonth)
+          ? `Selected: ${chartData.find((d) => d.monthKey === selectedMonth)?.month}, cumulative cash flow: ${formatAmount(chartData.find((d) => d.monthKey === selectedMonth)?.thisYear ?? 0)}`
           : "No month selected"}
       </div>
 
@@ -644,14 +646,14 @@ export default function IncomeTrendYearChart({
         value={selectedMonth ?? ""}
         onChange={(e) => {
           const val = e.target.value;
-          onSelectMonth(val === "" ? null : parseInt(val, 10));
+          onSelectMonth(val === "" ? null : val);
         }}
         aria-label="Select month to preview"
       >
         <option value="">No month selected</option>
-        {rows.map((row) => (
-          <option key={row.monthIndex} value={row.monthIndex}>
-            {row.monthLabel} — {formatAmount(row.cumulativeRemaining)} cash flow
+        {chartData.map((row) => (
+          <option key={row.monthKey} value={row.monthKey}>
+            {row.month} — {formatAmount(row.thisYear)} cash flow
           </option>
         ))}
       </select>
