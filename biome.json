@@ -9,7 +9,8 @@
       "recommended": true,
       "correctness": {
         "useExhaustiveDependencies": "warn",
-        "useHookAtTopLevel": "off"
+        "useHookAtTopLevel": "off",
+        "noInvalidUseBeforeDeclaration": "off"
       },
       "a11y": {
         "noSvgWithoutTitle": "off",
@@ -26,7 +27,8 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noArrayIndexKey": "warn"
+        "noArrayIndexKey": "warn",
+        "noUnknownAtRules": "off"
       },
       "complexity": {
         "noUselessConstructor": "off"

@@ -1,7 +1,12 @@
 import type { Schedule, ScheduleMaterializationNotice } from '../../types'
 import { buildScheduleMaterializationNotice } from '../../utils/scheduleNotificationUtils'
 import db from '../db/schema'
-import { enqueue, compareScheduleDates, isBeforeOrEqualMonth, resolveScheduleValueForMonth } from './common'
+import {
+  enqueue,
+  compareScheduleDates,
+  isBeforeOrEqualMonth,
+  resolveScheduleValueForMonth,
+} from './common'
 
 export async function getSchedules(): Promise<Schedule[]> {
   return db.schedules.toArray()
@@ -11,7 +16,9 @@ export async function getActiveSchedules(): Promise<Schedule[]> {
   return db.schedules.where('isActive').equals(1).toArray()
 }
 
-export async function addSchedule(schedule: Omit<Schedule, 'id' | 'isActive' | 'createdAt'>): Promise<number> {
+export async function addSchedule(
+  schedule: Omit<Schedule, 'id' | 'isActive' | 'createdAt'>,
+): Promise<number> {
   const id = await db.schedules.add({
     ...schedule,
     isActive: 1,

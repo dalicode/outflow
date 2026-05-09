@@ -10,6 +10,7 @@ import { StorageService } from '../../services/storageService'
 import type { Payee } from '../../types'
 import { cn } from '../../utils/cn'
 import type { ImportPayeeMatchSummary, ImportPayeeReviewRow } from './utils/importPayeeMatching'
+import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
 
 export interface ImportReviewSelection {
   rowId: string
@@ -28,43 +29,6 @@ interface ImportReviewModalProps {
   onBack: () => void
   onSkipReview: () => void
   onImport: (selections: ImportReviewSelection[]) => Promise<void> | void
-}
-
-function SingleSelectTrigger({
-  value,
-  placeholder,
-  isOpen,
-  onClick,
-}: {
-  value?: string
-  placeholder: string
-  isOpen: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-left text-sm transition-colors"
-    >
-      <span className={cn('min-w-0 truncate', value ? 'text-theme-text' : 'text-theme-muted')}>
-        {value || placeholder}
-      </span>
-      <svg
-        className={cn(
-          'h-4 w-4 shrink-0 text-theme-muted transition-transform',
-          isOpen && 'rotate-180',
-        )}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-      </svg>
-    </button>
-  )
 }
 
 export default function ImportReviewModal({

@@ -1,5 +1,5 @@
 import { useSettings } from '../../context/settingsContext'
-import { getCategoryColor } from './summaryColorUtils'
+import { getCategoryColor } from '../../utils/summaryColorUtils'
 
 interface BreakdownItem {
   name: string

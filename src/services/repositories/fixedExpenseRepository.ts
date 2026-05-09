@@ -33,7 +33,10 @@ export async function addArchivedFixedExpense(item: Omit<FixedExpense, 'id'>): P
   return id
 }
 
-export async function updateFixedExpense(id: number, changes: Partial<FixedExpense>): Promise<void> {
+export async function updateFixedExpense(
+  id: number,
+  changes: Partial<FixedExpense>,
+): Promise<void> {
   await db.fixedExpenses.update(id, {
     ...changes,
     updatedAt: new Date().toISOString(),

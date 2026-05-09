@@ -6,7 +6,7 @@ import BudgetFlowBar, {
 import { useSettings } from '../../context/settingsContext'
 import type { MonthlySummary } from '../../types'
 import { cn } from '../../utils/cn'
-import { getCategoryColor } from './summaryColorUtils'
+import { getCategoryColor } from '../../utils/summaryColorUtils'
 
 interface BudgetFlowProps {
   summary: MonthlySummary

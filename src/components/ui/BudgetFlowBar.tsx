@@ -13,7 +13,7 @@
 
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { GREEN_TO_RED_SCALE } from '../../features/summary/summaryColorUtils'
+import { GREEN_TO_RED_SCALE } from '../../utils/summaryColorUtils'
 import { cn } from '../../utils/cn'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

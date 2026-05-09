@@ -49,7 +49,10 @@ export async function deleteCategory(id: number): Promise<void> {
   await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
 }
 
-export async function mergeCategory(sourceCategoryId: number, targetCategoryId: number): Promise<void> {
+export async function mergeCategory(
+  sourceCategoryId: number,
+  targetCategoryId: number,
+): Promise<void> {
   if (sourceCategoryId === targetCategoryId) {
     throw new Error('Cannot merge a category into itself.')
   }

@@ -104,12 +104,9 @@ export async function importAllData(
   if (payload.expenses) await db.expenses.bulkPut(payload.expenses as Expense[])
   if (payload.categories) await db.categories.bulkPut(payload.categories as Category[])
   if (payload.payees) await db.payees.bulkPut(payload.payees as Payee[])
-  if (payload.fixedExpenses)
-    await db.fixedExpenses.bulkPut(payload.fixedExpenses as FixedExpense[])
+  if (payload.fixedExpenses) await db.fixedExpenses.bulkPut(payload.fixedExpenses as FixedExpense[])
   if (payload.fixedExpenseSnapshots)
-    await db.fixedExpenseSnapshots.bulkPut(
-      payload.fixedExpenseSnapshots as FixedExpenseSnapshot[],
-    )
+    await db.fixedExpenseSnapshots.bulkPut(payload.fixedExpenseSnapshots as FixedExpenseSnapshot[])
   if (payload.incomeSnapshots)
     await db.incomeSnapshots.bulkPut(payload.incomeSnapshots as IncomeSnapshot[])
   if (payload.savingsSnapshots)
