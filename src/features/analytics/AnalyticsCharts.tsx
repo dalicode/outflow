@@ -184,8 +184,8 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
                 <LabelList
                   dataKey="momDelta"
                   position="top"
-                  content={(props) => {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    content={(props) => {
+                    // biome-ignore lint/suspicious/noExplicitAny: Recharts LabelList content prop type
                     const { x, y, width, value } = props as any
                     if (value == null || value === 0) return null
                     const isPositive = value > 0
@@ -533,9 +533,9 @@ export const CategoryBreakdownChart = ({
           outerRadius={90}
           paddingAngle={2}
         >
-          {pieData.map((entry, i) => (
+          {pieData.map((entry) => (
             <Cell
-              key={i}
+              key={entry.name}
               fill={
                 /saving/i.test(entry.name)
                   ? colors.success
@@ -602,8 +602,8 @@ export const PayeeBreakdownChart = ({
           outerRadius={90}
           paddingAngle={2}
         >
-          {pieData.map((entry, i) => (
-            <Cell key={i} fill={getCategoryColor(entry.name)} />
+          {pieData.map((entry) => (
+            <Cell key={entry.name} fill={getCategoryColor(entry.name)} />
           ))}
         </Pie>
         <Tooltip
@@ -701,8 +701,8 @@ export const MonthlyTotalSavingsChart = ({ data, colors, monthCount }: ChartProp
           }
         />
         <Bar dataKey="savings" radius={[3, 3, 0, 0]} maxBarSize={32}>
-          {chartData.map((entry, i) => (
-            <Cell key={i} fill={entry.savings >= 0 ? colors.success : colors.danger} />
+          {chartData.map((entry) => (
+            <Cell key={entry.month} fill={entry.savings >= 0 ? colors.success : colors.danger} />
           ))}
         </Bar>
       </BarChart>

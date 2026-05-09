@@ -43,7 +43,7 @@ interface TooltipPayloadItem {
   value: number
   name: string
   color: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: Recharts tooltip payload type
   payload: any
 }
 
@@ -493,9 +493,9 @@ export default function IncomeTrendYearChart({
                   opacity={0.35}
                   radius={[2, 2, 0, 0]}
                 >
-                  {chartData.map((entry, index) => (
+                  {chartData.map((entry) => (
                     <Cell
-                      key={`delta-${index}`}
+                      key={`delta-${entry.monthKey}`}
                       fill={
                         entry.savedDelta == null
                           ? 'transparent'

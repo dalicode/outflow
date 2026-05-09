@@ -1236,8 +1236,8 @@ export default function EditHistoricalDataModal({
               .map(([year, errs]) => (
                 <div key={year} className="space-y-0.5">
                   <p className="text-theme-danger text-xs font-semibold">{year}:</p>
-                  {errs.map((err, i) => (
-                    <p key={i} className="text-theme-danger text-xs">
+                  {errs.map((err) => (
+                    <p key={err} className="text-theme-danger text-xs">
                       {err}
                     </p>
                   ))}

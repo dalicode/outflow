@@ -26,8 +26,8 @@ export default function ImportLogPanel({ importStatus, importErrors }: ImportLog
             View all {importErrors.length} error(s)
           </summary>
           <ul className="mt-1.5 max-h-32 overflow-y-auto scrollbar-themed space-y-0.5 text-xs text-theme-danger font-mono">
-            {importErrors.map((err, i) => (
-              <li key={i} className="break-all">
+            {importErrors.map((err) => (
+              <li key={err} className="break-all">
                 {err}
               </li>
             ))}

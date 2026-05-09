@@ -148,7 +148,7 @@ export default function MultiMonthViewTable({
                       const dataIdx = monthKeys.length - 1 - displayIdx
                       return (
                         <td
-                          key={displayIdx}
+                          key={monthKeys[dataIdx].key}
                           className={cn(
                             'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums',
                             displayIdx === 0 && 'border-l border-theme-border',
@@ -229,9 +229,11 @@ export default function MultiMonthViewTable({
                         <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right text-theme-muted tabular-nums">
                           —
                         </td>
-                        {[...fe.monthlyAmounts].reverse().map((amount, displayIdx) => (
+                        {[...fe.monthlyAmounts].reverse().map((amount, displayIdx) => {
+                          const dataIdx = monthKeys.length - 1 - displayIdx
+                          return (
                           <td
-                            key={displayIdx}
+                            key={monthKeys[dataIdx].key}
                             className={cn(
                               'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text',
                               displayIdx === 0 && 'border-l border-theme-border',
@@ -239,7 +241,8 @@ export default function MultiMonthViewTable({
                           >
                             {amount !== null ? formatAmount(amount) : '—'}
                           </td>
-                        ))}
+                          )
+                        })}
                         {showGrandTotal && (
                           <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
                             {formatAmount(fixedGrandTotal ?? 0)}
@@ -287,7 +290,7 @@ export default function MultiMonthViewTable({
                       const dataIdx = monthSummaries.length - 1 - displayIdx
                       return (
                         <td
-                          key={displayIdx}
+                          key={monthKeys[dataIdx].key}
                           className={cn(
                             'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums',
                             displayIdx === 0 && 'border-l border-theme-border',
@@ -357,7 +360,7 @@ export default function MultiMonthViewTable({
                       const dataIdx = monthSummaries.length - 1 - displayIdx
                       return (
                         <td
-                          key={displayIdx}
+                          key={monthKeys[dataIdx].key}
                           className={cn(
                             'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums',
                             displayIdx === 0 && 'border-l border-theme-border',
@@ -425,9 +428,10 @@ export default function MultiMonthViewTable({
                     </td>
                     {[...monthSummaries].reverse().map((summary, displayIdx) => {
                       const totalExpenses = summary.fixedExpensesTotal + summary.variableExpenses
+                      const dataIdx = monthSummaries.length - 1 - displayIdx
                       return (
                         <td
-                          key={displayIdx}
+                          key={monthKeys[dataIdx].key}
                           className={cn(
                             'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold',
                             totalExpenses < 0 ? 'text-theme-success' : 'text-theme-danger',
@@ -496,7 +500,7 @@ export default function MultiMonthViewTable({
                       const cls = remainingClasses[dataIdx]
                       return (
                         <td
-                          key={displayIdx}
+                          key={monthKeys[dataIdx].key}
                           className={cn(
                             'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold',
                             cls,
@@ -550,7 +554,7 @@ export default function MultiMonthViewTable({
                       const { totalSavings, color } = totalSavingsData[dataIdx]
                       return (
                         <td
-                          key={displayIdx}
+                          key={monthKeys[dataIdx].key}
                           className={cn(
                             'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold',
                             displayIdx === 0 && 'border-l border-theme-border',

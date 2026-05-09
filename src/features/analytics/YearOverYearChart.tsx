@@ -195,12 +195,12 @@ export default function YearOverYearChart({
 
         {/* Savings bars */}
         <Bar dataKey="savings" name="savings" maxBarSize={40} radius={[3, 3, 0, 0]}>
-          {points.map((_pt, i) => (
-            <Cell key={i} fill={colors.success} fillOpacity={0.85} />
+          {points.map((_pt) => (
+            <Cell key={`savings-${_pt.label}`} fill={colors.success} fillOpacity={0.85} />
           ))}
           <LabelList
             content={(props) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              // biome-ignore lint/suspicious/noExplicitAny: Recharts LabelList content prop type
               const { x, y, width, index } = props as any
               const pt = points[index as number]
               if (!pt || pt.savingsDelta == null) return null
@@ -222,12 +222,12 @@ export default function YearOverYearChart({
 
         {/* Expenses bars */}
         <Bar dataKey="expenses" name="expenses" maxBarSize={40} radius={[3, 3, 0, 0]}>
-          {points.map((_pt, i) => (
-            <Cell key={i} fill={colors.danger} fillOpacity={0.75} />
+          {points.map((_pt) => (
+            <Cell key={`expenses-${_pt.label}`} fill={colors.danger} fillOpacity={0.75} />
           ))}
           <LabelList
             content={(props) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              // biome-ignore lint/suspicious/noExplicitAny: Recharts LabelList content prop type
               const { x, y, width, index } = props as any
               const pt = points[index as number]
               if (!pt || pt.expensesDelta == null) return null

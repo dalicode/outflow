@@ -14,13 +14,13 @@ export async function addCategory(name: string): Promise<number> {
   const existing = await db.categories.where('name').equalsIgnoreCase(trimmed).first()
   if (existing) {
     if (existing.isArchived) {
-      await db.categories.update(existing.id!, {
+      await db.categories.update(existing.id as number, {
         name: normalized,
         isArchived: false,
       })
-      const row = await db.categories.get(existing.id!)
+      const row = await db.categories.get(existing.id as number)
       await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
-      return existing.id!
+      return existing.id as number
     }
     throw new Error('A category with that name already exists')
   }

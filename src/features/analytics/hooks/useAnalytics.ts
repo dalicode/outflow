@@ -105,7 +105,8 @@ function buildAnalyticsDataForYear(
     if (monthIdx < 0 || monthIdx > 11) continue
     const name = exp.payeeId != null ? (payeeById.get(exp.payeeId) ?? 'Unknown') : 'No Payee'
     if (!monthlyAmountsByPayee.has(name)) monthlyAmountsByPayee.set(name, Array(12).fill(0))
-    monthlyAmountsByPayee.get(name)![monthIdx] += exp.amount
+    const amounts = monthlyAmountsByPayee.get(name)
+    if (amounts) amounts[monthIdx] += exp.amount
   }
   const payeeRows = Array.from(monthlyAmountsByPayee.entries())
     .map(([name, amounts]) => ({

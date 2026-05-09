@@ -389,11 +389,11 @@ export default function BackupSection({
                   <span className="font-medium">Current DB version:</span>{' '}
                   {StorageService.dbVersion()}
                 </p>
-                {pendingImportMeta && (pendingImportMeta as any).recordCounts && (
+                {pendingImportMeta && (pendingImportMeta.recordCounts as Record<string, number> | undefined) && (
                   <p>
                     <span className="font-medium">Records:</span>{' '}
                     {Object.entries(
-                      (pendingImportMeta as any).recordCounts as Record<string, number>,
+                      pendingImportMeta.recordCounts as Record<string, number>,
                     )
                       .map(([k, v]) => `${k}: ${v}`)
                       .join(', ')}

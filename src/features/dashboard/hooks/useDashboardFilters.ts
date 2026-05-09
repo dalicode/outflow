@@ -102,12 +102,17 @@ export function useDashboardFilters(
     [categories],
   )
 
-  const getExpenseCategoryName = (exp: Expense) =>
-    categoryById[exp.categoryId as number]?.name ?? 'Uncategorized'
+  const getExpenseCategoryName = useCallback(
+    (exp: Expense) => categoryById[exp.categoryId as number]?.name ?? 'Uncategorized',
+    [categoryById],
+  )
 
   const payeeById = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])
 
-  const getExpensePayeeName = (exp: Expense) => payeeById[exp.payeeId as number]?.name ?? '—'
+  const getExpensePayeeName = useCallback(
+    (exp: Expense) => payeeById[exp.payeeId as number]?.name ?? '—',
+    [payeeById],
+  )
 
   const expensesInSelectedSpan = useMemo(() => {
     const keys = new Set(monthKeys.map((m) => m.key))

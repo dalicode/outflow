@@ -87,7 +87,7 @@ export default function CsvImportCard({
       for (const name of categoryNames) {
         const existingCategory = existingByName.get(name.toLowerCase())
         if (existingCategory && !existingCategory.isArchived) {
-          categoryMap[name] = existingCategory.id!
+          categoryMap[name] = existingCategory.id as number
         } else {
           try {
             const newId = await StorageService.addCategory(name)
@@ -97,7 +97,7 @@ export default function CsvImportCard({
             const found = refreshed.find(
               (category) => category.name.toLowerCase() === name.toLowerCase(),
             )
-            if (found) categoryMap[name] = found.id!
+            if (found) categoryMap[name] = found.id as number
           }
         }
       }
@@ -256,17 +256,17 @@ export default function CsvImportCard({
           for (const name of payeeNames) {
             const existingPayee = existingByName.get(name.toLowerCase())
             if (existingPayee && !existingPayee.isArchived) {
-              payeeMap[name!] = existingPayee.id!
+              payeeMap[name] = existingPayee.id as number
             } else {
               try {
-                const newId = await StorageService.addPayee(name!)
-                payeeMap[name!] = newId
+                const newId = await StorageService.addPayee(name)
+                payeeMap[name] = newId
               } catch {
                 const refreshed = await StorageService.getPayees()
                 const found = refreshed.find(
                   (payee) => payee.name.toLowerCase() === name?.toLowerCase(),
                 )
-                if (found) payeeMap[name!] = found.id!
+                if (found) payeeMap[name] = found.id as number
               }
             }
           }
@@ -280,7 +280,7 @@ export default function CsvImportCard({
           for (const name of categoryNames) {
             const existingCategory = existingByName.get(name.toLowerCase())
             if (existingCategory && !existingCategory.isArchived) {
-              categoryMap[name] = existingCategory.id!
+              categoryMap[name] = existingCategory.id as number
             } else {
               try {
                 const newId = await StorageService.addCategory(name)
@@ -290,7 +290,7 @@ export default function CsvImportCard({
                 const found = refreshed.find(
                   (category) => category.name.toLowerCase() === name.toLowerCase(),
                 )
-                if (found) categoryMap[name] = found.id!
+                if (found) categoryMap[name] = found.id as number
               }
             }
           }

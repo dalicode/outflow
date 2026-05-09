@@ -595,9 +595,9 @@ export default function BudgetPaceSection({
                   />
                 )}
                 <Bar dataKey="actual" name="Daily spend" radius={[4, 4, 0, 0]}>
-                  {dailySeries.map((entry, index) => (
+                  {dailySeries.map((entry) => (
                     <Cell
-                      key={`cell-${index}`}
+                      key={`cell-${entry.day}`}
                       fill={
                         entry.isFutureDay
                           ? 'transparent'

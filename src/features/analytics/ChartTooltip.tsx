@@ -33,12 +33,12 @@ export default function ChartTooltip({
           {label}
         </div>
       )}
-      {payload.map((entry, i) => {
+      {payload.map((entry) => {
         const value = formatter ? formatter(entry.value, entry.name) : entry.value
         const displayValue = Array.isArray(value) ? value[0] : value
         const displayName = Array.isArray(value) ? value[1] : entry.name
         return (
-          <div key={i} className="flex items-center gap-2">
+          <div key={entry.name} className="flex items-center gap-2">
             <span
               className="inline-block w-2 h-2 rounded-full shrink-0"
               style={{ backgroundColor: entry.color }}

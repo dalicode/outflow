@@ -36,7 +36,7 @@ interface StripProps {
    * Extra dependencies that should trigger a re-measurement of the span rect.
    * Pass any values that change when the set of selected pills changes.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: extra deps that trigger re-measurement
   spanDeps?: any[]
   /** Width per item in px, used to compute maxWidth of the scroll container. Default 36. */
   itemWidth?: number

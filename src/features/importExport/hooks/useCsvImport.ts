@@ -40,14 +40,17 @@ export function useCsvImport({
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
   const [replaceMode, setReplaceMode] = useState(false)
 
-  const yieldToBrowser = () =>
-    new Promise<void>((resolve) => {
-      if (typeof window !== 'undefined' && window.requestAnimationFrame) {
-        window.requestAnimationFrame(() => resolve())
-        return
-      }
-      setTimeout(resolve, 0)
-    })
+  const yieldToBrowser = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+          window.requestAnimationFrame(() => resolve())
+          return
+        }
+        setTimeout(resolve, 0)
+      }),
+    [],
+  )
 
   const clearFileInput = useCallback(() => {
     if (fileRef.current) fileRef.current.value = ''
@@ -82,7 +85,7 @@ export function useCsvImport({
         for (const name of categoryNames) {
           const existingCategory = existingByName.get(name.toLowerCase())
           if (existingCategory && !existingCategory.isArchived) {
-            categoryMap[name] = existingCategory.id!
+            categoryMap[name] = existingCategory.id as number
           } else {
             try {
               const newId = await StorageService.addCategory(name)
@@ -90,7 +93,7 @@ export function useCsvImport({
             } catch {
               const refreshed = await StorageService.getCategories()
               const found = refreshed.find((c) => c.name.toLowerCase() === name.toLowerCase())
-              if (found) categoryMap[name] = found.id!
+              if (found) categoryMap[name] = found.id as number
             }
           }
         }
@@ -246,15 +249,15 @@ export function useCsvImport({
             for (const name of payeeNames) {
               const existingPayee = existingByName.get(name.toLowerCase())
               if (existingPayee && !existingPayee.isArchived) {
-                payeeMap[name!] = existingPayee.id!
-              } else {
-                try {
-                  const newId = await StorageService.addPayee(name!)
-                  payeeMap[name!] = newId
-                } catch {
-                  const refreshed = await StorageService.getPayees()
-                  const found = refreshed.find((p) => p.name.toLowerCase() === name?.toLowerCase())
-                  if (found) payeeMap[name!] = found.id!
+              payeeMap[name] = existingPayee.id as number
+            } else {
+              try {
+                const newId = await StorageService.addPayee(name)
+                payeeMap[name] = newId
+              } catch {
+                const refreshed = await StorageService.getPayees()
+                const found = refreshed.find((p) => p.name.toLowerCase() === name?.toLowerCase())
+                if (found) payeeMap[name] = found.id as number
                 }
               }
             }
@@ -268,7 +271,7 @@ export function useCsvImport({
             for (const name of categoryNames) {
               const existingCategory = existingByName.get(name.toLowerCase())
               if (existingCategory && !existingCategory.isArchived) {
-                categoryMap[name] = existingCategory.id!
+                categoryMap[name] = existingCategory.id as number
               } else {
                 try {
                   const newId = await StorageService.addCategory(name)
@@ -276,7 +279,7 @@ export function useCsvImport({
                 } catch {
                   const refreshed = await StorageService.getCategories()
                   const found = refreshed.find((c) => c.name.toLowerCase() === name.toLowerCase())
-                  if (found) categoryMap[name] = found.id!
+                  if (found) categoryMap[name] = found.id as number
                 }
               }
             }

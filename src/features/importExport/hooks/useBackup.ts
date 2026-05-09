@@ -41,7 +41,7 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
     }, 1500)
   }, [])
 
-  const doExport = async (password: string) => {
+  const doExport = useCallback(async (password: string) => {
     try {
       onStatus('Exporting encrypted backup…')
       const data = await StorageService.exportAllData()
@@ -79,7 +79,7 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
       console.error('Export failed:', err)
       onStatus(`Export failed: ${(err as Error).message}`)
     }
-  }
+  }, [user, onStatus, save])
 
   const handleBackupExport = useCallback(async () => {
     if (user?.id) {

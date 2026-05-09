@@ -40,9 +40,9 @@ export default function ColoredCumulativeLine({
 
   return (
     <g>
-      {segments.map((seg, i) => (
+      {segments.map((seg) => (
         <path
-          key={i}
+          key={seg.d}
           d={seg.d}
           fill="none"
           stroke={seg.color}
@@ -56,7 +56,7 @@ export default function ColoredCumulativeLine({
         if (!p.payload.hasData) {
           return (
             <circle
-              key={`dot-${i}`}
+              key={`dot-missing-${p.payload.monthIndex}`}
               cx={p.x}
               cy={p.y}
               r={3}
@@ -70,7 +70,7 @@ export default function ColoredCumulativeLine({
         const rising = values[i] >= (values[i - 1] ?? values[i])
         return (
           <circle
-            key={`dot-${i}`}
+            key={`dot-${p.payload.monthIndex}`}
             cx={p.x}
             cy={p.y}
             r={isSelected ? 6 : 3}

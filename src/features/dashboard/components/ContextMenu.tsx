@@ -19,9 +19,9 @@ interface ContextMenuProps {
 export default function ContextMenu({ x, y, items, onClose, menuRef }: ContextMenuProps) {
   return createPortal(
     <div ref={menuRef} className="context-menu" style={{ left: x, top: y }} role="menu">
-      {items.map((item, i) => (
+      {items.map((item) => (
         <button
-          key={i}
+          key={item.label}
           role="menuitem"
           disabled={item.disabled}
           onClick={() => {

@@ -248,7 +248,8 @@ export function buildDailySpendingRows(
   const rows: DailySpendingRow[] = []
 
   for (const date of sortedDates) {
-    const { dailySpent, expenseCount } = byDate.get(date)!
+    const entry = byDate.get(date) as { dailySpent: number; expenseCount: number }
+    const { dailySpent, expenseCount } = entry
     cumulative += dailySpent
     // Parse day from "YYYY-MM-DD" → last two chars
     const day = parseInt(date.slice(8, 10), 10)

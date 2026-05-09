@@ -18,13 +18,13 @@ export async function addPayee(name: string): Promise<number> {
   const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
   if (existing) {
     if (existing.isArchived) {
-      await db.payees.update(existing.id!, {
+      await db.payees.update(existing.id as number, {
         name: normalized,
         isArchived: false,
       })
-      const row = await db.payees.get(existing.id!)
+      const row = await db.payees.get(existing.id as number)
       await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
-      return existing.id!
+      return existing.id as number
     }
     throw new Error('A payee with that name already exists')
   }

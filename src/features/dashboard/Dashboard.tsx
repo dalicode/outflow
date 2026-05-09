@@ -81,23 +81,18 @@ export default function Dashboard({
   const isMobile = dash.viewportWidth < 640
 
   // Register the view-cycle callback for the Navbar dashboard icon
-  const VIEW_CYCLE: DashboardView[] = [
-    DASHBOARD_VIEWS.CATEGORIES,
-    DASHBOARD_VIEWS.PAYEES,
-    DASHBOARD_VIEWS.EXPENSES,
-  ]
+  const VIEW_CYCLE: DashboardView[] = useMemo(
+    () => [DASHBOARD_VIEWS.CATEGORIES, DASHBOARD_VIEWS.PAYEES, DASHBOARD_VIEWS.EXPENSES],
+    [],
+  )
   useEffect(() => {
     registerCycleView?.(() => {
       dash.setView(VIEW_CYCLE[(VIEW_CYCLE.indexOf(dash.viewMode) + 1) % VIEW_CYCLE.length])
     })
-    // Re-register whenever viewMode changes so the closure captures the latest value
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dash.viewMode,
     registerCycleView,
     dash.setView,
-    VIEW_CYCLE.length,
-    VIEW_CYCLE.indexOf,
     VIEW_CYCLE,
   ])
   const payeeMap = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])

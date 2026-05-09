@@ -71,7 +71,10 @@ export function useExpenseCellEditing({
   editingCellRef.current = editingCell
   expensesRef.current = expenses
 
-  const pendingNameKey = (expenseId: number, field: EditableField) => `${expenseId}:${field}`
+  const pendingNameKey = useCallback(
+    (expenseId: number, field: EditableField) => `${expenseId}:${field}`,
+    [],
+  )
 
   const setPendingName = useCallback(
     (expenseId: number, field: EditableField, name: string) => {

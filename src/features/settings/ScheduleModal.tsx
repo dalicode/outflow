@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import DatePicker from '../../components/inputs/DatePicker'
@@ -87,6 +87,18 @@ export default function ScheduleModal({
   const selectedCategoryName = categoryOptions.find((o) => o.id === Number(categoryId))?.label
   const selectedPayeeName = payeeOptions.find((o) => o.id === Number(payeeId))?.label
 
+  const reset = useCallback(() => {
+    setType('income')
+    setTargetId('')
+    setEffectiveDate(currentMonthStr)
+    setNewValue('')
+    setNote('')
+    setCategoryId('')
+    setPayeeId('')
+    setDescription('')
+    setErrors([])
+  }, [currentMonthStr])
+
   useEffect(() => {
     if (!isOpen) return
     const load = async () => {
@@ -113,19 +125,7 @@ export default function ScheduleModal({
     } else {
       reset()
     }
-  }, [editSchedule, isOpen])
-
-  const reset = () => {
-    setType('income')
-    setTargetId('')
-    setEffectiveDate(currentMonthStr)
-    setNewValue('')
-    setNote('')
-    setCategoryId('')
-    setPayeeId('')
-    setDescription('')
-    setErrors([])
-  }
+  }, [editSchedule, reset])
 
   const validate = (): boolean => {
     const errs: string[] = []
@@ -135,7 +135,7 @@ export default function ScheduleModal({
     }
 
     const val = parseFloat(newValue)
-    if (isNaN(val)) errs.push('Value must be a number.')
+    if (Number.isNaN(val)) errs.push('Value must be a number.')
     else if (type === 'income' && val <= 0) errs.push('Income must be greater than 0.')
     else if (type === 'savingsRate' && (val < 0 || val > 100))
       errs.push('Savings rate must be between 0 and 100.')
@@ -179,7 +179,7 @@ export default function ScheduleModal({
     if (!validate()) return
     setSaving(true)
     try {
-      const parsed = parseISODate(effectiveDate)!
+      const parsed = parseISODate(effectiveDate) as { year: number; month: number; day: number }
       const payload: Omit<Schedule, 'id' | 'isActive' | 'createdAt'> =
         type === 'expense'
           ? {
@@ -488,8 +488,8 @@ export default function ScheduleModal({
         {/* Errors */}
         {errors.length > 0 && (
           <div className="space-y-1">
-            {errors.map((err, i) => (
-              <p key={i} className="text-theme-danger text-xs">
+            {errors.map((err) => (
+              <p key={err} className="text-theme-danger text-xs">
                 {err}
               </p>
             ))}

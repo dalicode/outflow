@@ -106,8 +106,8 @@ export default function BreakdownPie({
             cy="50%"
             outerRadius={80}
           >
-            {positiveData.map((_, i) => (
-              <Cell key={i} fill={baseColors[i % baseColors.length]} />
+            {positiveData.map((entry, i) => (
+              <Cell key={entry.name} fill={baseColors[i % baseColors.length]} />
             ))}
           </Pie>
           <Tooltip formatter={(v: number) => currency(v)} />
