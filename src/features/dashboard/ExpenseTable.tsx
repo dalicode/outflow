@@ -8,7 +8,6 @@ import { useContextMenu } from './hooks/useContextMenu'
 import type { Category, Expense, Payee } from '../../types'
 import { cn } from '../../utils/cn'
 import { copyExpensesToClipboard } from '../../utils/copyExpenses'
-import { normalizeName } from '../../utils/normalizeName'
 import ExpenseForm from '../expenses/ExpenseForm'
 import BulkEditExpensesModal from './BulkEditExpensesModal'
 import ExpenseTableMobile from './ExpenseTableMobile'
@@ -84,8 +83,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const resolveName = useCallback(
     (exp: Expense) => {
       const cat = catMap[exp.categoryId as number]
-      if (cat)
-        return cat.isArchived ? `${normalizeName(cat.name)} (deleted)` : normalizeName(cat.name)
+      if (cat) return cat.isArchived ? `${cat.name} (deleted)` : cat.name
       return 'Uncategorized'
     },
     [catMap],
@@ -292,7 +290,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           resolveName={resolveName}
           resolvePayeeName={(exp) => {
             const p = payeeMap[exp.payeeId as number]
-            return p ? normalizeName(p.name) : ''
+            return p ? p.name : ''
           }}
         />
       ) : (

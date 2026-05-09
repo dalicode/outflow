@@ -1,5 +1,4 @@
 import type { Category, CategoryMergeHistory } from '../../types'
-import { normalizeName } from '../../utils/normalizeName'
 import db from '../db/schema'
 import { enqueue } from './common'
 
@@ -10,12 +9,11 @@ export async function getCategories(): Promise<Category[]> {
 export async function addCategory(name: string): Promise<number> {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Category name is required')
-  const normalized = normalizeName(trimmed)
   const existing = await db.categories.where('name').equalsIgnoreCase(trimmed).first()
   if (existing) {
     if (existing.isArchived) {
       await db.categories.update(existing.id as number, {
-        name: normalized,
+        name: trimmed,
         isArchived: false,
       })
       const row = await db.categories.get(existing.id as number)
@@ -25,7 +23,7 @@ export async function addCategory(name: string): Promise<number> {
     throw new Error('A category with that name already exists')
   }
   const id = await db.categories.add({
-    name: normalized,
+    name: trimmed,
     createdAt: new Date().toISOString(),
     isArchived: false,
   } as Category)
@@ -36,7 +34,7 @@ export async function addCategory(name: string): Promise<number> {
 
 export async function updateCategory(id: number, changes: Partial<Category>): Promise<void> {
   if (changes.name) {
-    changes.name = normalizeName(changes.name.trim())
+    changes.name = changes.name.trim()
   }
   await db.categories.update(id, changes)
   const row = await db.categories.get(id)

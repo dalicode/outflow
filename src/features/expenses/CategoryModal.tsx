@@ -4,7 +4,6 @@ import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { StorageService } from '../../services/storageService'
-import { normalizeName } from '../../utils/normalizeName'
 import type { Category } from '../../types'
 import AddEntityButton from './AddEntityButton'
 
@@ -35,7 +34,7 @@ export default function CategoryModal({
 
   const active = categories.filter((c) => !c.isArchived)
   const filteredCategories = active.filter((category) =>
-    normalizeName(category.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    category.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   )
 
   const addCat = async (e: FormEvent<HTMLFormElement>) => {
@@ -181,7 +180,7 @@ export default function CategoryModal({
                   ) : (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
-                        {normalizeName(cat.name)}
+                        {cat.name}
                       </span>
                       <div className="flex gap-3 text-sm sm:gap-4">
                         <button

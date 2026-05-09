@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { cn } from '../../utils/cn'
-import { normalizeName } from '../../utils/normalizeName'
 import Modal from './Modal'
 import ModalFooter from './ModalFooter'
 
@@ -89,9 +88,8 @@ export default function EntityMergeDialog({
       <div className="space-y-4">
         {/* Description */}
         <p className="text-sm text-theme-muted">
-          You're about to merge{' '}
-          <span className="font-medium text-theme-text">{normalizeName(sourceName)}</span> into
-          another {label}.{' '}
+          You're about to merge <span className="font-medium text-theme-text">{sourceName}</span>{' '}
+          into another {label}.{' '}
           {affectedExpenseCount > 0 ? (
             <>
               <span className="font-medium text-theme-text">{affectedExpenseCount}</span>{' '}
@@ -117,7 +115,7 @@ export default function EntityMergeDialog({
             <option value="">Select {label}…</option>
             {targetOptions.map((t) => (
               <option key={t.id} value={t.id}>
-                {normalizeName(t.name)}
+                {t.name}
               </option>
             ))}
           </select>

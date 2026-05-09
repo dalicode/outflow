@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import DatePicker from '../../components/inputs/DatePicker'
 import type { Category } from '../../types'
-import { normalizeName } from '../../utils/normalizeName'
 
 interface ExpenseTableFiltersProps {
   categories: Category[]
@@ -116,7 +115,7 @@ export default function ExpenseTableFilters({
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c.id} value={c.name}>
-              {normalizeName(c.name)}
+              {c.name}
             </option>
           ))}
         </select>

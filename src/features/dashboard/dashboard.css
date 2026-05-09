@@ -168,10 +168,6 @@
     color 0.15s ease,
     box-shadow 0.15s ease;
 }
-.month-pill:hover:not(.month-pill-selected) {
-  background-color: var(--theme-background);
-  transform: translateY(-1px);
-}
 .month-pill:active {
   transform: translateY(0) scale(0.98);
 }

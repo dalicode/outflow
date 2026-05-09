@@ -8,7 +8,6 @@ import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import { StorageService } from '../../services/storageService'
 import { cn } from '../../utils/cn'
 import { toISODate, parseISODate } from '../../utils/historicalDataHelpers'
-import { normalizeName } from '../../utils/normalizeName'
 
 import { usePayees } from '../../hooks/useLocalData'
 import type { Schedule, FixedExpense, Category } from '../../types'
@@ -71,7 +70,7 @@ export default function ScheduleModal({
     () =>
       activeCategories.map((c) => ({
         id: c.id as number,
-        label: normalizeName(c.name),
+        label: c.name,
       })),
     [activeCategories],
   )
@@ -79,7 +78,7 @@ export default function ScheduleModal({
     () =>
       activePayees.map((p) => ({
         id: p.id as number,
-        label: normalizeName(p.name),
+        label: p.name,
       })),
     [activePayees],
   )

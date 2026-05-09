@@ -13,7 +13,6 @@ import { usePayees } from '../../hooks/useLocalData'
 import { useScheduleList } from './hooks/useScheduleList'
 import { StorageService } from '../../services/storageService'
 import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
-import { cn } from '../../utils/cn'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { useBackup } from '../importExport/hooks/useBackup'
 import { useCsvImport } from '../importExport/hooks/useCsvImport'
@@ -24,16 +23,6 @@ import EditHistoricalDataModal from './EditHistoricalDataModal'
 import ScheduleList from './ScheduleList'
 import ScheduleModal from './ScheduleModal'
 import ThemeSelector from './ThemeSelector'
-
-const WEEKDAYS = [
-  { value: '0', label: 'Sun' },
-  { value: '1', label: 'Mon' },
-  { value: '2', label: 'Tue' },
-  { value: '3', label: 'Wed' },
-  { value: '4', label: 'Thu' },
-  { value: '5', label: 'Fri' },
-  { value: '6', label: 'Sat' },
-]
 
 interface RowProps {
   label: string
@@ -305,9 +294,11 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
 
         {/* ── PREFERENCES ── */}
         <Card title="Preferences">
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-theme-text">Haptics</p>
+              <p className="text-xs text-theme-muted uppercase tracking-wider mb-2 font-semibold">
+                Haptics
+              </p>
               <p className="text-xs text-theme-muted">Vibration feedback on mobile actions</p>
             </div>
             <button
@@ -320,82 +311,14 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
               <span className="settings-toggle-thumb" />
             </button>
           </div>
-
-          <div className="border-t border-theme-border mt-3 mb-3" />
-          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
-            Reminders
-          </p>
-
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm text-theme-text">Check-in reminders</p>
-              <p className="text-xs text-theme-muted">Optional nudges to log spending</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={Boolean(settings.enableCheckInReminders)}
-              onClick={() =>
-                void save({
-                  enableCheckInReminders: !settings.enableCheckInReminders,
-                }).catch(console.warn)
-              }
-              className="settings-toggle"
-            >
-              <span className="settings-toggle-thumb" />
-            </button>
-          </div>
-
-          {settings.enableCheckInReminders && (
-            <div className="mt-3 space-y-3">
-              <div className="flex items-center justify-between py-1">
-                <span className="text-sm text-theme-text">Reminder time</span>
-                <input
-                  type="time"
-                  value={settings.reminderTime ?? '20:00'}
-                  onChange={(e) => void save({ reminderTime: e.target.value }).catch(console.warn)}
-                  className="input-theme px-3 py-1.5 text-sm"
-                />
-              </div>
-              <div>
-                <p className="text-xs text-theme-muted mb-2">Days</p>
-                <div className="flex flex-wrap gap-2">
-                  {WEEKDAYS.map((day) => {
-                    const reminderDays = settings.reminderDays ?? WEEKDAYS.map((d) => d.value)
-                    const active = reminderDays.includes(day.value)
-                    return (
-                      <button
-                        key={day.value}
-                        type="button"
-                        onClick={() => {
-                          const next = active
-                            ? reminderDays.filter((v) => v !== day.value)
-                            : [...reminderDays, day.value]
-                          void save({ reminderDays: next }).catch(console.warn)
-                        }}
-                        className={cn(
-                          'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                          active
-                            ? 'border-theme-primary bg-theme-primary-subtle text-theme-primary'
-                            : 'border-theme-border bg-theme-surface text-theme-muted hover:text-theme-text',
-                        )}
-                      >
-                        {day.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </Card>
 
         {/* ── DATA ── */}
         <Card title="Data">
-          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
             Historical Data
           </p>
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between">
             <p className="text-xs text-theme-muted">
               Edit income, savings rate, and fixed expenses for past years.
             </p>
@@ -418,7 +341,7 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
             onEdit={handleEditSchedule}
             onDelete={deleteSchedule}
           />
-          <div className="flex items-center justify-between py-2 mt-1">
+          <div className="flex items-center justify-between">
             <p className="text-xs text-theme-muted">
               Plan future changes to income, savings, and expenses.
             </p>
@@ -500,7 +423,7 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
               Export
             </button>
           </div>
-          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-4 mb-2">
+          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-4">
             Import CSV
           </p>
           <div className="flex items-center justify-between py-1">
@@ -525,13 +448,12 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
             </label>
           </div>
           <ImportLogPanel importStatus={importStatus} importErrors={importErrors} />
-
           <div className="border-t border-theme-border mt-4 mb-3" />
-          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
-            Encrypted Backup
-          </p>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-1">
+          <div className="">
+            <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-4">
+              Export Backup
+            </p>
+            <div className="flex items-center justify-between">
               <p className="text-xs text-theme-muted">
                 Export complete dataset as password-encrypted .ofb file.
               </p>
@@ -543,6 +465,9 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
                 Export
               </button>
             </div>
+            <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-4">
+              Import Backup
+            </p>
             <div className="flex items-center justify-between py-1">
               <label className="flex items-center gap-2 text-sm text-theme-text cursor-pointer">
                 <input
@@ -571,7 +496,7 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
 
         {/* ── ADVANCED ── */}
         <Card title="Advanced" className="border border-theme-danger-subtle">
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
                 Clear All Data

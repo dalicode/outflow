@@ -125,13 +125,19 @@ export function useDashboardData(
         StorageService.getActiveSchedules(),
       ])
 
-      const [snaps, incSnaps, savSnaps] = await Promise.all([
-        StorageService.getSnapshotsForYear(currentYear),
+      const [incSnaps, savSnaps] = await Promise.all([
         StorageService.getIncomeSnapshotsForYear(currentYear),
         StorageService.getSavingsSnapshotsForYear(currentYear),
       ])
 
-      const monthSnapshots = snaps.filter((s) => s.month === currentMonth + 1)
+      const active = allFixed.filter((f) => f.isArchived !== true)
+      const monthSnapshots = active.map((f) => ({
+        fixedExpenseId: f.id as number,
+        year: currentYear,
+        month: currentMonth + 1,
+        amountSnapshot: f.amount,
+        nameSnapshot: f.name,
+      }))
 
       const data = {
         expenses,

@@ -6,7 +6,6 @@ import { useToasts } from '../../context/toastContext'
 import { usePayees } from '../../hooks/useLocalData'
 import { StorageService } from '../../services/storageService'
 import type { Payee } from '../../types'
-import { normalizeName } from '../../utils/normalizeName'
 
 export default function PayeesPage() {
   const { payees, refresh } = usePayees()
@@ -164,9 +163,7 @@ export default function PayeesPage() {
                 </div>
               ) : (
                 <>
-                  <span className="text-sm flex-1 text-theme-text">
-                    {normalizeName(payee.name)}
-                  </span>
+                  <span className="text-sm flex-1 text-theme-text">{payee.name}</span>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => startEdit(payee)}

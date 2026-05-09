@@ -12,7 +12,6 @@ import { getMostLikelyRelatedEntityId, getRecentEntityIds } from '../../utils/en
 import type { ComboboxOption } from '../../components/inputs/comboboxUtils'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
-import { normalizeName } from '../../utils/normalizeName'
 import type { MatchConfidence } from '../../utils/payeeMatching'
 import { findBestPayeeMatch, normalizePayeeText } from '../../utils/payeeMatching'
 import CategoryModal from './CategoryModal'
@@ -115,12 +114,12 @@ export default function ExpenseForm({
     () =>
       activeCategories.map((c) => ({
         id: c.id,
-        label: normalizeName(c.name),
+        label: c.name,
       })),
     [activeCategories],
   )
   const payeeOptions = useMemo<ComboboxOption[]>(
-    () => activePayees.map((p) => ({ id: p.id, label: normalizeName(p.name) })),
+    () => activePayees.map((p) => ({ id: p.id, label: p.name })),
     [activePayees],
   )
   const recentCategoryOptions = useMemo(() => {
@@ -457,9 +456,7 @@ export default function ExpenseForm({
             <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
               <span className="text-theme-muted">
                 Suggested payee:{' '}
-                <span className="font-medium text-theme-text">
-                  {normalizeName(payeeSuggestion.name)}
-                </span>
+                <span className="font-medium text-theme-text">{payeeSuggestion.name}</span>
               </span>
               <div className="flex items-center gap-2 shrink-0">
                 <button

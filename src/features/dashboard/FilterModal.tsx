@@ -7,7 +7,6 @@ import ModalFooter from '../../components/ui/ModalFooter'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Category, Payee } from '../../types'
 import { cn } from '../../utils/cn'
-import { normalizeName } from '../../utils/normalizeName'
 import { toggleInSet } from '../../utils/setUtils'
 
 interface FilterDraft {
@@ -123,14 +122,12 @@ function MultiSelectDropdown({
 
   const options = items.map((item) => ({
     id: item.id ?? item.name,
-    label: normalizeName(item.name),
+    label: item.name,
     name: item.name,
   }))
 
   const filteredOptions = getFilteredOptions(options, query)
-  const selectedNames = items
-    .filter((item) => selected.has(item.name))
-    .map((item) => normalizeName(item.name))
+  const selectedNames = items.filter((item) => selected.has(item.name)).map((item) => item.name)
 
   const summary =
     selectedNames.length === 0

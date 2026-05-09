@@ -1,4 +1,3 @@
-import { normalizeName } from '../../utils/normalizeName'
 import Modal from './Modal'
 import ModalFooter from './ModalFooter'
 
@@ -51,8 +50,8 @@ export default function DeleteEntityDialog({
     >
       <div className="space-y-3">
         <p className="text-sm text-theme-muted">
-          <span className="font-medium text-theme-text">{normalizeName(entityName)}</span>{' '}
-          Historical expenses will keep their original {label} — your past data stays accurate.
+          <span className="font-medium text-theme-text">{entityName}</span> Historical expenses will
+          keep their original {label} — your past data stays accurate.
         </p>
 
         {canMerge && (

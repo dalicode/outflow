@@ -4,7 +4,6 @@ import DatePicker from '../../components/inputs/DatePicker'
 import { StorageService } from '../../services/storageService'
 import type { Category, Expense, Payee } from '../../types'
 import { cn } from '../../utils/cn'
-import { normalizeName } from '../../utils/normalizeName'
 import InlineEditCell from './InlineEditCell'
 import InlineMoneyEditCell from './InlineMoneyEditCell'
 import type { CellEditingAPI } from './useExpenseCellEditing'
@@ -187,7 +186,7 @@ export function getExpenseColumns({
                 variant="inline"
                 options={activePayees.map((p) => ({
                   id: p.id as number,
-                  label: normalizeName(p.name),
+                  label: p.name,
                 }))}
                 placeholder="Select payee…"
                 createHint="Type a new payee name to add it."
@@ -227,7 +226,7 @@ export function getExpenseColumns({
             )}
           >
             {exp.payeeId && payeeMap[exp.payeeId as number]
-              ? normalizeName(payeeMap[exp.payeeId as number].name)
+              ? payeeMap[exp.payeeId as number].name
               : exp.payeeId
                 ? (editing.getPendingName(exp.id as number, 'payeeId') ?? '—')
                 : '—'}
@@ -254,7 +253,7 @@ export function getExpenseColumns({
                 variant="inline"
                 options={activeCategories.map((c) => ({
                   id: c.id as number,
-                  label: normalizeName(c.name),
+                  label: c.name,
                 }))}
                 placeholder="Select category…"
                 createHint="Type a new category name to add it."
@@ -295,8 +294,8 @@ export function getExpenseColumns({
           >
             {catMap[exp.categoryId as number]
               ? catMap[exp.categoryId as number].isArchived
-                ? `${normalizeName(catMap[exp.categoryId as number].name)} (deleted)`
-                : normalizeName(catMap[exp.categoryId as number].name)
+                ? `${catMap[exp.categoryId as number].name} (deleted)`
+                : catMap[exp.categoryId as number].name
               : (editing.getPendingName(exp.id as number, 'categoryId') ?? 'Uncategorized')}
           </span>
         )

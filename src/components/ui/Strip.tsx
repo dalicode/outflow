@@ -110,6 +110,7 @@ export default function Strip({
   maxVisible,
   scrollClass,
   scrollSelector,
+  selectedKey,
   align = 'center',
   onJumpBack,
   onStepBack,
@@ -177,7 +178,7 @@ export default function Strip({
       hasCenteredRef.current = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollSelector, containerRef.current, smoothScrollThreshold, scrollMode])
+  }, [scrollSelector, selectedKey, containerRef.current, smoothScrollThreshold, scrollMode])
 
   // ── Span highlight measurement ────────────────────────────────────────────
   // Measures all elements matching spanSelector and computes a single rect
@@ -224,7 +225,7 @@ export default function Strip({
     })
     // spanDeps is intentionally spread — callers control re-measurement
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spanSelector, containerRef.current])
+  }, [spanSelector, selectedKey, containerRef.current])
 
   const hasNav = onJumpBack || onStepBack || onStepForward || onJumpForward
 

@@ -1,5 +1,4 @@
 import type { Payee, PayeeMergeHistory } from '../../types'
-import { normalizeName } from '../../utils/normalizeName'
 import db from '../db/schema'
 import { enqueue } from './common'
 
@@ -14,12 +13,11 @@ export async function getActivePayees(): Promise<Payee[]> {
 export async function addPayee(name: string): Promise<number> {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Payee name is required')
-  const normalized = normalizeName(trimmed)
   const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
   if (existing) {
     if (existing.isArchived) {
       await db.payees.update(existing.id as number, {
-        name: normalized,
+        name: trimmed,
         isArchived: false,
       })
       const row = await db.payees.get(existing.id as number)
@@ -29,7 +27,7 @@ export async function addPayee(name: string): Promise<number> {
     throw new Error('A payee with that name already exists')
   }
   const id = await db.payees.add({
-    name: normalized,
+    name: trimmed,
     createdAt: new Date().toISOString(),
     isArchived: false,
   } as Payee)
@@ -41,11 +39,10 @@ export async function addPayee(name: string): Promise<number> {
 export async function updatePayee(id: number, name: string, aliases?: string[]): Promise<void> {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Payee name is required')
-  const normalized = normalizeName(trimmed)
   const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
   if (existing && existing.id !== id) throw new Error('A payee with that name already exists')
   const updates: Partial<Payee> = {
-    name: normalized,
+    name: trimmed,
     updatedAt: new Date().toISOString(),
   }
   if (aliases !== undefined) updates.aliases = aliases

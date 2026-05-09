@@ -81,7 +81,7 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
           <p className="text-xs uppercase tracking-wider mb-0.5 opacity-70">
             {isOverBudget ? 'Over budget' : 'Remaining'}
           </p>
-          <p className="text-2xl font-bold tabular-nums">{formatAmount(Math.abs(remaining))}</p>
+          <p className="text-2xl font-bold tabular-nums">{formatAmount(remaining)}</p>
         </div>
       </div>
 

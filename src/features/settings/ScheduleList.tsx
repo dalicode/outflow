@@ -1,6 +1,5 @@
 import type { Category, Schedule } from '../../types'
 import { cn } from '../../utils/cn'
-import { normalizeName } from '../../utils/normalizeName'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -18,7 +17,7 @@ export default function ScheduleList({
   onDelete,
 }: ScheduleListProps) {
   if (schedules.length === 0) {
-    return <p className="text-xs text-theme-muted italic mb-3">No scheduled changes yet.</p>
+    return <p className="text-xs text-theme-muted italic mb-2">No scheduled changes yet.</p>
   }
 
   const upcoming = schedules
@@ -30,7 +29,7 @@ export default function ScheduleList({
     .sort((a, b) => b.effectiveYear - a.effectiveYear || b.effectiveMonth - a.effectiveMonth)
 
   return (
-    <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto scrollbar-themed">
+    <div className="space-y-1.5 mb-2 max-h-48 overflow-y-auto scrollbar-themed">
       {upcoming.length > 0 && (
         <div className="space-y-1">
           <p className="text-[10px] font-semibold text-theme-muted uppercase tracking-wide">
@@ -110,9 +109,7 @@ function ScheduleItem({
         <span className="text-theme-muted ml-2">{dateLabel}</span>
         {schedule.categoryId && (
           <span className="text-theme-muted ml-1">
-            (
-            {normalizeName(categories.find((c) => c.id === schedule.categoryId)?.name ?? 'Unknown')}
-            )
+            ({categories.find((c) => c.id === schedule.categoryId)?.name ?? 'Unknown'})
           </span>
         )}
         {schedule.note && <span className="text-theme-muted ml-1">({schedule.note})</span>}

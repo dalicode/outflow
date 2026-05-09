@@ -5,7 +5,6 @@ import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { useToasts } from '../../context/toastContext'
 import { StorageService } from '../../services/storageService'
-import { normalizeName } from '../../utils/normalizeName'
 import type { Payee } from '../../types'
 import AddEntityButton from './AddEntityButton'
 
@@ -34,7 +33,7 @@ export default function PayeeModal({
 
   const active = payees.filter((p) => !p.isArchived)
   const filteredPayees = active.filter((payee) =>
-    normalizeName(payee.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    payee.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   )
 
   const addPayee = async (e: FormEvent<HTMLFormElement>) => {
@@ -191,7 +190,7 @@ export default function PayeeModal({
                   ) : (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
-                        {normalizeName(payee.name)}
+                        {payee.name}
                       </span>
                       <div className="flex gap-3 text-sm sm:gap-4">
                         <button

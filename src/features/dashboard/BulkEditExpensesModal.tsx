@@ -6,7 +6,6 @@ import ModalFooter from '../../components/ui/ModalFooter'
 import { StorageService } from '../../services/storageService'
 import type { Category, Expense, Payee } from '../../types'
 import { cn } from '../../utils/cn'
-import { normalizeName } from '../../utils/normalizeName'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
 
@@ -80,7 +79,7 @@ export default function BulkEditExpensesModal({
     () =>
       activePayees.map((payee) => ({
         id: payee.id as number,
-        label: normalizeName(payee.name),
+        label: payee.name,
       })),
     [activePayees],
   )
@@ -88,7 +87,7 @@ export default function BulkEditExpensesModal({
     () =>
       activeCategories.map((category) => ({
         id: category.id as number,
-        label: normalizeName(category.name),
+        label: category.name,
       })),
     [activeCategories],
   )

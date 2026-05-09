@@ -12,7 +12,6 @@ import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
 } from '../../utils/dashboardHelpers'
-import { normalizeName } from '../../utils/normalizeName'
 import CategoryViewTable from './CategoryViewTable'
 import CheckInReminderCard from './CheckInReminderCard'
 import IncomeModalForm from './components/IncomeModalForm'
@@ -312,7 +311,7 @@ export default function Dashboard({
                         resolveName={dash.getExpenseCategoryName}
                         resolvePayeeName={(exp) => {
                           const p = payeeMap[exp.payeeId as number]
-                          return p ? normalizeName(p.name) : ''
+                          return p ? p.name : ''
                         }}
                         onClose={dash.closeDrilldown}
                         isMobile={isMobile}
@@ -354,7 +353,7 @@ export default function Dashboard({
                         resolveName={dash.getExpenseCategoryName}
                         resolvePayeeName={(exp) => {
                           const p = payeeMap[exp.payeeId as number]
-                          return p ? normalizeName(p.name) : ''
+                          return p ? p.name : ''
                         }}
                         onClose={dash.closePayeeDrilldown}
                         isMobile={isMobile}

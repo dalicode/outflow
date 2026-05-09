@@ -173,7 +173,7 @@ export default function DesktopDropdown({
               width: panelStyle?.width ?? 0,
               zIndex: 9999,
             }}
-            className="rounded-theme-medium border border-theme-border bg-theme-surface shadow-lg"
+            className="rounded-theme-medium border border-theme-border bg-theme-surface text-theme-text shadow-lg"
           >
             <div className="border-b border-theme-border p-2">
               <input
