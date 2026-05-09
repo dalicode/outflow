@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 
-type CardVariant = "default" | "elevated" | "minimal";
+type CardVariant = "default" | "elevated" | "minimal" | "flat";
 
 const variantStyles: Record<CardVariant, string> = {
   default:
@@ -8,6 +8,7 @@ const variantStyles: Record<CardVariant, string> = {
   elevated:
     "bg-theme-surface rounded-theme-large shadow-md p-4 md:p-5 transition-shadow duration-200 hover:shadow-lg",
   minimal: "bg-theme-surface rounded-theme-large p-4 md:p-5",
+  flat: "bg-theme-surface rounded-theme-large border border-theme-border p-4 md:p-5",
 };
 
 interface CardProps {

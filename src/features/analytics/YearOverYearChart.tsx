@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import type { AnalyticsData } from "../../types";
 import type { ThemeColors } from "./AnalyticsCharts";
-import { fmtCompact, fmtFull, fmtPct, fmtDelta } from "../../utils/analyticsFormatting";
+import { fmtCompact, fmtFull, fmtDelta } from "../../utils/analyticsFormatting";
 
 
 
@@ -187,7 +187,7 @@ export default function YearOverYearChart({
 
         {/* Savings bars */}
         <Bar dataKey="savings" name="savings" maxBarSize={40} radius={[3, 3, 0, 0]}>
-          {points.map((pt, i) => (
+          {points.map((_pt, i) => (
             <Cell key={i} fill={colors.success} fillOpacity={0.85} />
           ))}
           <LabelList
@@ -214,7 +214,7 @@ export default function YearOverYearChart({
 
         {/* Expenses bars */}
         <Bar dataKey="expenses" name="expenses" maxBarSize={40} radius={[3, 3, 0, 0]}>
-          {points.map((pt, i) => (
+          {points.map((_pt, i) => (
             <Cell key={i} fill={colors.danger} fillOpacity={0.75} />
           ))}
           <LabelList

@@ -25,7 +25,6 @@ export function useIncomeSavingsModals(
   };
 
   const openSavingsModal = (monthIndex: number = 0) => {
-    const summary = monthSummaries[monthIndex];
     setModalTargetMonthIndex(monthIndex);
     setSavingsError("");
     setIsSavingsModalOpen(true);

@@ -5,6 +5,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { monotonePath } from "../../../utils/chartMath";
+import { useViewportWidth } from "../../../hooks/useViewportWidth";
 import type { AllTimeRow } from "../../../utils/analyticsTrendUtils";
 import type { ThemeColors } from "../AnalyticsCharts";
 
@@ -23,6 +24,7 @@ export default function BrushOverview({
   colors,
   onBrushChange,
 }: BrushOverviewProps) {
+  const isMobile = useViewportWidth() < 640;
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
 
@@ -86,7 +88,7 @@ export default function BrushOverview({
   }, [allTimeRows, chartWidth, marginLeft, height, colors.success, colors.danger]);
 
   return (
-    <div className="mt-2" ref={containerRef} data-brush-overview style={{ touchAction: "none" }}>
+    <div className="mt-2" ref={containerRef} data-brush-overview style={{ touchAction: isMobile ? "pan-y pinch-zoom" : "none" }}>
       {width > 0 && sparkPath.path && (
         <svg
           width={width}

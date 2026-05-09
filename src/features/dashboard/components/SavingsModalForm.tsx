@@ -130,7 +130,6 @@ export default function SavingsModalForm({
             value={percentRate}
             onChange={handlePercentChange}
             autoFocus
-            size="md"
             className={cn(
               "w-full sm:w-36",
               displayError && "border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))]",

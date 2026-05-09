@@ -204,7 +204,7 @@ describe('getMonthlyFinancialSummary', () => {
       effectiveYear: 2024,
       effectiveMonth: 1,
       newValue: 9999,
-      isActive: false,
+      isActive: 0,
     }
 
     const data: FinanceEngineData = {

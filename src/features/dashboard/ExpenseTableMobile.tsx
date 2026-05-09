@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
 import { cn } from "../../utils/cn";
-import { normalizeName } from "../../utils/normalizeName";
 import type { Expense } from "../../types";
 
 interface ExpenseTableMobileProps {

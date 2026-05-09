@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { cn } from "../../utils/cn";
 import { normalizeName } from "../../utils/normalizeName";
 import DatePicker from "../../components/inputs/DatePicker";
 import type { Category } from "../../types";

@@ -51,7 +51,7 @@ async function getPasswordKey(
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt,
+      salt: salt as BufferSource,
       iterations: ITERATIONS,
       hash: "SHA-256",
     },
@@ -65,7 +65,7 @@ async function getPasswordKey(
 async function compressBytes(data: Uint8Array): Promise<Uint8Array> {
   const stream = new CompressionStream("gzip")
   const writer = stream.writable.getWriter()
-  writer.write(data)
+  writer.write(data as BufferSource)
   writer.close()
   const chunks: Uint8Array[] = []
   const reader = stream.readable.getReader()
@@ -87,7 +87,7 @@ async function compressBytes(data: Uint8Array): Promise<Uint8Array> {
 async function decompressBytes(data: Uint8Array): Promise<Uint8Array> {
   const stream = new DecompressionStream("gzip")
   const writer = stream.writable.getWriter()
-  writer.write(data)
+  writer.write(data as BufferSource)
   writer.close()
   const chunks: Uint8Array[] = []
   const reader = stream.readable.getReader()
@@ -127,16 +127,16 @@ export async function encryptBackup(
   const key = await getPasswordKey(password, salt)
 
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
-    compressed,
+    compressed as BufferSource,
   )
 
   return {
     version: ENVELOPE_VERSION,
     format: FORMAT,
-    salt: bufToBase64(salt),
-    iv: bufToBase64(iv),
+    salt: bufToBase64(salt.buffer),
+    iv: bufToBase64(iv.buffer),
     ciphertext: bufToBase64(encrypted),
   }
 }

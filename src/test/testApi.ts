@@ -1,5 +1,5 @@
 import { StorageService } from "../services/storageService";
-import type { Expense, Category } from "../types";
+import type { Expense } from "../types";
 
 declare global {
   interface Window {

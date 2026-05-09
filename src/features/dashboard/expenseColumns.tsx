@@ -23,7 +23,6 @@ interface GetExpenseColumnsParams {
   payeeMap: Record<number, Payee>;
   refreshCategories?: () => Promise<void>;
   refreshPayees?: () => Promise<void>;
-  decimalPlaces: number;
 }
 
 export function editableCellActivate(
@@ -63,7 +62,6 @@ export function getExpenseColumns({
   payeeMap,
   refreshCategories,
   refreshPayees,
-  decimalPlaces,
 }: GetExpenseColumnsParams): ColumnDef<Expense>[] {
   return [
     {

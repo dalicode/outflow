@@ -15,7 +15,6 @@ interface LayoutPoint {
 
 export interface ColoredCumulativeLineProps {
   formattedGraphicalItems?: Array<{ item: { props: { dataKey: string } }; props: { points: LayoutPoint[] } }>;
-  chartData: Array<{ thisYear: number; hasData: boolean; monthIndex: number }>;
   colors: ThemeColors;
   selectedMonth: number | null;
   onSelectMonth: (i: number | null) => void;
@@ -23,7 +22,6 @@ export interface ColoredCumulativeLineProps {
 
 export default function ColoredCumulativeLine({
   formattedGraphicalItems,
-  chartData,
   colors,
   selectedMonth,
   onSelectMonth,

@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef, useEffect } from "react";
+import { useMemo, useCallback, useState, useRef } from "react";
 import {
   ComposedChart,
   Line,
@@ -11,18 +11,16 @@ import {
   ResponsiveContainer,
   Legend,
   Cell,
-  Brush,
   Customized,
 } from "recharts";
+import { useViewportWidth } from "../../../hooks/useViewportWidth";
 import type {
   YearTrendRow,
   AllTimeRow,
 } from "../../../utils/analyticsTrendUtils";
 import type { ThemeColors } from "../AnalyticsCharts";
 import BrushOverview from "./BrushOverview";
-import ColoredCumulativeLine, {
-  ColoredCumulativeLineProps,
-} from "./ColoredCumulativeLine";
+import ColoredCumulativeLine, { type ColoredCumulativeLineProps } from "./ColoredCumulativeLine";
 
 interface IncomeTrendYearChartProps {
   rows: YearTrendRow[];
@@ -241,6 +239,8 @@ export default function IncomeTrendYearChart({
   externalBrushWindow,
   externalBrushVersion,
 }: IncomeTrendYearChartProps) {
+  const isMobile = useViewportWidth() < 640;
+
   // Brush indices into allTimeRows — default to the selected year's window
   const defaultBrushIndices = useMemo(() => {
     if (!allTimeRows || allTimeRows.length === 0) return null;
@@ -338,45 +338,34 @@ export default function IncomeTrendYearChart({
     });
   }, [visibleAllTimeRows, rows, priorRows, selectedYear]);
 
-  // ── Non-passive wheel listeners ───────────────────────────────────────────
-  // React's synthetic onWheel is passive by default — preventDefault() is
-  // ignored. We attach native listeners with { passive: false } instead.
-  const chartWrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = chartWrapperRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      // Don't zoom if the event came from the brush preview (it handles its own pan)
-      if ((e.target as HTMLElement)?.closest?.("[data-brush-overview]")) return;
-      e.preventDefault();
-      if (!allTimeRows || allTimeRows.length < 2) return;
-      const total = allTimeRows.length;
-      const current = brushIndices ??
-        defaultBrushIndices ?? { start: 0, end: total - 1 };
-      const windowSize = current.end - current.start + 1;
-      const center = (current.start + current.end) / 2;
-      const step = Math.max(1, Math.round(windowSize * 0.1));
-      const delta = e.deltaY > 0 ? step : -step;
-      const newSize = Math.min(total, Math.max(1, windowSize + delta));
-      const newStart = Math.max(0, Math.round(center - newSize / 2));
-      const newEnd = Math.min(total - 1, newStart + newSize - 1);
-      const adjustedStart = Math.max(0, newEnd - newSize + 1);
-      const next = { start: adjustedStart, end: newEnd };
-      setBrushIndices(next);
-      onBrushChange?.(allTimeRows.slice(next.start, next.end + 1));
-    };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, [allTimeRows, brushIndices, defaultBrushIndices, onBrushChange]);
-
-  const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
-  const lineColor =
-    lastRow && lastRow.cumulativeRemaining < 0 ? colors.danger : colors.success;
-
   // Prior year line: muted color, always consistent
   const priorLineColor = colors.muted;
   const hasPriorData = priorRows != null && priorRows.length > 0;
+
+  const legendPayload = useMemo(() => {
+    const items: { value: string; id: string; type: "line"; color: string }[] = [];
+    items.push({ value: "Saved (this year)", id: "monthlySaved", type: "line", color: colors.primary });
+    if (hasPriorData) {
+      items.push({ value: `Saved (${priorYear ?? "prior year"})`, id: "priorSaved", type: "line", color: priorLineColor });
+    }
+    return items;
+  }, [hasPriorData, priorYear, colors.primary, priorLineColor]);
+
+  const dotSelectedMonth = useMemo(() => {
+    if (!selectedMonth) return null;
+    return parseInt(selectedMonth.split("-")[1], 10) - 1;
+  }, [selectedMonth]);
+
+  const handleDotSelect = useCallback((monthIndex: number | null) => {
+    if (monthIndex == null) {
+      onSelectMonth(null);
+      return;
+    }
+    const dotRow = chartData.find((d) => d.monthIndex === monthIndex);
+    if (dotRow?.monthKey) {
+      onSelectMonth(dotRow.monthKey);
+    }
+  }, [onSelectMonth, chartData]);
 
   const handleChartClick = useCallback(
     (chartState: {
@@ -389,49 +378,13 @@ export default function IncomeTrendYearChart({
     [selectedMonth, onSelectMonth],
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderDot = useCallback(
-    (props: any) => {
-      const { cx, cy, payload } = props;
-      const isSelected = payload.monthKey === selectedMonth;
-      const hasData = payload.hasData;
-
-      if (!hasData) {
-        return (
-          <circle
-            key={`dot-${payload.monthIndex}`}
-            cx={cx}
-            cy={cy}
-            r={3}
-            fill={colors.background}
-            stroke={lineColor}
-            strokeWidth={1.5}
-            opacity={0.4}
-          />
-        );
-      }
-
-      return (
-        <circle
-          key={`dot-${payload.monthIndex}`}
-          cx={cx}
-          cy={cy}
-          r={isSelected ? 6 : 3}
-          fill={lineColor}
-          stroke={colors.background}
-          strokeWidth={isSelected ? 2 : 0}
-          style={{ cursor: "pointer" }}
-        />
-      );
-    },
-    [selectedMonth, lineColor, colors.background],
-  );
-
   const yAxisFormatter = useCallback((v: number) => {
     if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
     if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}k`;
     return `${v}`;
   }, []);
+
+  const chartHeight = isMobile ? 120 : 260;
 
   if (rows.length === 0) {
     return (
@@ -444,7 +397,7 @@ export default function IncomeTrendYearChart({
   if (rows.length === 1) {
     const row = rows[0];
     return (
-      <div className="flex flex-col items-center justify-center h-[260px] gap-2">
+      <div className="flex flex-col items-center justify-center gap-2" style={{ height: chartHeight }}>
         <div
           className="text-2xl font-bold tabular-nums"
           style={{
@@ -465,102 +418,133 @@ export default function IncomeTrendYearChart({
 
   return (
     <div
-      ref={chartWrapperRef}
       aria-label="Cash flow chart showing cumulative surplus or deficit by month"
-      style={{ touchAction: "none" }}
+      style={{ touchAction: isMobile ? "pan-y pinch-zoom" : "none" }}
     >
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <ComposedChart
           data={chartData}
-          margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
+          margin={{ top: 10, right: isMobile ? 16 : 0, left: isMobile ? 16 : 0, bottom: 0 }}
           onClick={handleChartClick}
           style={{ cursor: "pointer" }}
         >
-          {" "}
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke={colors.grid}
-            opacity={0.5}
-          />
-          <XAxis
-            dataKey="month"
-            tick={{ fill: colors.muted, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-            padding={{ left: 0, right: 0 }}
-          />
-          {/* Left axis — cumulative cash flow */}
-          <YAxis
-            yAxisId="left"
-            orientation="left"
-            tick={{ fill: colors.muted, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-            tickFormatter={yAxisFormatter}
-          />
-          {/* Right axis — monthly saved + delta */}
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            tick={{ fill: colors.muted, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-            tickFormatter={yAxisFormatter}
-          />
-          <Tooltip
-            content={
-              <IncomeTrendTooltip colors={colors} formatAmount={formatAmount} />
-            }
-          />
-          <ReferenceLine
-            yAxisId="left"
-            y={0}
-            stroke={colors.grid}
-            strokeDasharray="4 2"
-            strokeWidth={1.5}
-          />
-          <ReferenceLine
-            yAxisId="right"
-            y={0}
-            stroke={colors.grid}
-            strokeDasharray="4 2"
-            strokeWidth={1}
-            opacity={0.4}
-          />
-          <Legend
-            verticalAlign="top"
-            align="right"
-            iconType="line"
-            wrapperStyle={{ fontSize: "11px", paddingBottom: "4px" }}
-            formatter={(value) => {
-              if (value === "thisYear") return "Cumulative";
-              if (value === "monthlySaved") return "Saved (this year)";
-              if (value === "priorSaved")
-                return `Saved (${priorYear ?? "prior year"})`;
-              if (value === "savedDelta") return "Delta";
-              return value;
-            }}
-          />
-          {/* Delta bars — rendered first so lines sit on top */}
-          {hasPriorData && (
-            <Bar
-              yAxisId="right"
-              dataKey="savedDelta"
-              name="savedDelta"
-              maxBarSize={20}
-              opacity={0.35}
-              radius={[2, 2, 0, 0]}
-            >
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`delta-${index}`}
-                  fill={
-                    entry.savedDelta == null
-                      ? "transparent"
-                      : entry.savedDelta >= 0
-                        ? colors.success
-                        : colors.danger
-                  }
+          {!isMobile && (
+            <>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={colors.grid}
+                opacity={0.5}
+              />
+              <XAxis
+                dataKey="month"
+                tick={{ fill: colors.muted, fontSize: 12 }}
+                axisLine={{ stroke: colors.grid }}
+                padding={{ left: 0, right: 0 }}
+              />
+              <YAxis
+                yAxisId="left"
+                orientation="left"
+                tick={{ fill: colors.muted, fontSize: 12 }}
+                axisLine={{ stroke: colors.grid }}
+                tickFormatter={yAxisFormatter}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fill: colors.muted, fontSize: 12 }}
+                axisLine={{ stroke: colors.grid }}
+                tickFormatter={yAxisFormatter}
+              />
+            </>
+          )}
+          {!isMobile && (
+            <Tooltip
+              content={
+                <IncomeTrendTooltip colors={colors} formatAmount={formatAmount} />
+              }
+            />
+          )}
+          {!isMobile && (
+            <>
+              <ReferenceLine
+                yAxisId="left"
+                y={0}
+                stroke={colors.grid}
+                strokeDasharray="4 2"
+                strokeWidth={1.5}
+              />
+              <ReferenceLine
+                yAxisId="right"
+                y={0}
+                stroke={colors.grid}
+                strokeDasharray="4 2"
+                strokeWidth={1}
+                opacity={0.4}
+              />
+              <Legend
+                verticalAlign="top"
+                align="right"
+                iconType="line"
+                wrapperStyle={{ fontSize: "11px", paddingBottom: "4px" }}
+                payload={legendPayload}
+              />
+            </>
+          )}
+          {!isMobile && (
+            <>
+              {/* Delta bars — rendered first so lines sit on top */}
+              {hasPriorData && (
+                <Bar
+                  yAxisId="right"
+                  dataKey="savedDelta"
+                  name="savedDelta"
+                  legendType="none"
+                  maxBarSize={20}
+                  opacity={0.35}
+                  radius={[2, 2, 0, 0]}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={`delta-${index}`}
+                      fill={
+                        entry.savedDelta == null
+                          ? "transparent"
+                          : entry.savedDelta >= 0
+                            ? colors.success
+                            : colors.danger
+                      }
+                    />
+                  ))}
+                </Bar>
+              )}
+              {/* Monthly saved this year — right axis, solid thinner */}
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="monthlySaved"
+                name="monthlySaved"
+                stroke={colors.primary}
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={false}
+              />
+              {/* Prior year monthly saved — right axis, dashed muted */}
+              {hasPriorData && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="priorSaved"
+                  name="priorSaved"
+                  stroke={priorLineColor}
+                  strokeWidth={1.5}
+                  strokeDasharray="5 3"
+                  dot={false}
+                  activeDot={false}
+                  connectNulls={false}
+                  opacity={0.6}
                 />
-              ))}
-            </Bar>
+              )}
+            </>
           )}
           {/* Cumulative cash flow — drawn as colored SVG via Customized */}
           <Line
@@ -572,51 +556,23 @@ export default function IncomeTrendYearChart({
             strokeWidth={0}
             dot={false}
             activeDot={false}
-            legendType="line"
+            legendType="none"
           />
           <Customized
             component={(props: object) => (
               <ColoredCumulativeLine
                 {...(props as ColoredCumulativeLineProps)}
-                chartData={chartData}
                 colors={colors}
-                selectedMonth={selectedMonth}
-                onSelectMonth={onSelectMonth}
+                selectedMonth={dotSelectedMonth}
+                onSelectMonth={handleDotSelect}
               />
             )}
           />
-          {/* Monthly saved this year — right axis, solid thinner */}
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="monthlySaved"
-            name="monthlySaved"
-            stroke={colors.primary}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={false}
-          />
-          {/* Prior year monthly saved — right axis, dashed muted */}
-          {hasPriorData && (
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="priorSaved"
-              name="priorSaved"
-              stroke={priorLineColor}
-              strokeWidth={1.5}
-              strokeDasharray="5 3"
-              dot={false}
-              activeDot={false}
-              connectNulls={false}
-              opacity={0.6}
-            />
-          )}
         </ComposedChart>
       </ResponsiveContainer>
 
       {/* Brush mini-timeline — full all-time history */}
-      {allTimeRows && allTimeRows.length > 1 && (
+      {!isMobile && allTimeRows && allTimeRows.length > 1 && (
         <BrushOverview
           allTimeRows={allTimeRows}
           brushIndices={brushIndices}

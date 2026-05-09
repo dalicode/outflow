@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useViewportWidth } from "../../../hooks/useViewportWidth";
 import type { DailySpendingRow } from "../../../utils/analyticsTrendUtils";
 import type { ThemeColors } from "../AnalyticsCharts";
 
@@ -76,6 +77,8 @@ export default function IncomeTrendDailyChart({
   formatAmount,
   monthLabel,
 }: IncomeTrendDailyChartProps) {
+  const isMobile = useViewportWidth() < 640;
+
   if (rows.length === 0) {
     return (
       <div className="h-[180px] flex items-center justify-center">
@@ -87,49 +90,53 @@ export default function IncomeTrendDailyChart({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
-      <BarChart
-        data={rows}
-        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-        barCategoryGap="20%"
-      >
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke={colors.grid}
-          opacity={0.5}
-          vertical={false}
-        />
-        <XAxis
-          dataKey="day"
-          tick={{ fill: colors.muted, fontSize: 11 }}
-          axisLine={{ stroke: colors.grid }}
-          tickLine={false}
-          interval="preserveStartEnd"
-        />
-        <YAxis
-          tick={{ fill: colors.muted, fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(v: number) =>
-            v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
-          }
-          width={40}
-        />
-        <Tooltip
-          content={
-            <DailyTooltip
-              colors={colors}
-              formatAmount={formatAmount}
+    <div style={{ touchAction: "pan-y pinch-zoom" }}>
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart
+          data={rows}
+          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+          barCategoryGap="20%"
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke={colors.grid}
+            opacity={0.5}
+            vertical={false}
+          />
+          <XAxis
+            dataKey="day"
+            tick={{ fill: colors.muted, fontSize: 11 }}
+            axisLine={{ stroke: colors.grid }}
+            tickLine={false}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            tick={{ fill: colors.muted, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v: number) =>
+              v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
+            }
+            width={40}
+          />
+          {!isMobile && (
+            <Tooltip
+              content={
+                <DailyTooltip
+                  colors={colors}
+                  formatAmount={formatAmount}
+                />
+              }
             />
-          }
-        />
-        <Bar
-          dataKey="dailySpent"
-          fill={colors.danger}
-          radius={[2, 2, 0, 0]}
-          maxBarSize={24}
-        />
-      </BarChart>
-    </ResponsiveContainer>
+          )}
+          <Bar
+            dataKey="dailySpent"
+            fill={colors.danger}
+            radius={[2, 2, 0, 0]}
+            maxBarSize={24}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

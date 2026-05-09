@@ -173,7 +173,6 @@ function AppShell() {
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses();
   const {
     categories,
-    setCategories,
     refresh: refreshCategories,
   } = useCategories();
   const { payees, refresh: refreshPayees } = usePayees();

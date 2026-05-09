@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
 import { SettingsProvider, useSettings } from '../context/settingsContext'
 import { AuthProvider, useAuth } from '../context/authContext'
 import type { ReactNode } from 'react'

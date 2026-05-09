@@ -5,8 +5,8 @@ import { triggerHaptic } from "../utils/haptics";
 import { useSettings } from "../context/settingsContext";
 
 export function useDashboardView(
-  onSelectionChange?: (active: boolean) => void,
-  selectedIds?: Set<number>,
+  _onSelectionChange?: (active: boolean) => void,
+  _selectedIds?: Set<number>,
   initialViewMode?: DashboardView,
   onViewModeChange?: (v: DashboardView) => void,
   monthSpan?: number,

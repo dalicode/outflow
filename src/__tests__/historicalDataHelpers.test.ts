@@ -23,7 +23,6 @@ const makeRange = (id: string, startMonth: number, endMonth: number): RangeItem 
 })
 
 describe('getMaxMonthForYear', () => {
-  const RealDate = Date
 
   function mockDate(year: number, month: number) {
     vi.useFakeTimers()

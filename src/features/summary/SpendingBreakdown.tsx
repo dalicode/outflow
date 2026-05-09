@@ -13,7 +13,7 @@ interface SpendingBreakdownProps {
 }
 
 export default function SpendingBreakdown({ items, total }: SpendingBreakdownProps) {
-  const { formatAmount, currentTheme } = useSettings();
+  const { formatAmount } = useSettings();
 
   if (items.length === 0) return null;
 
@@ -31,7 +31,7 @@ export default function SpendingBreakdown({ items, total }: SpendingBreakdownPro
 
       {/* Category rows */}
       <div className="space-y-3">
-        {items.map((item, i) => {
+        {items.map((item, _i) => {
           const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
           const color = getCategoryColor(item.name);
 

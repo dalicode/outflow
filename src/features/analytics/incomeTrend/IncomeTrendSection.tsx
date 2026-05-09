@@ -1,14 +1,25 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { useSettings } from "../../../context/settingsContext";
+import { useViewportWidth } from "../../../hooks/useViewportWidth";
 import IncomeTrendYearChart from "./IncomeTrendYearChart";
 import IncomeTrendMonthPreview from "./IncomeTrendMonthPreview";
 import IncomeTrendMonthDrilldown from "./IncomeTrendMonthDrilldown";
 import IncomeTrendExpensePreview from "./IncomeTrendExpensePreview";
 import IncomeFlowBar from "../IncomeFlowBar";
-import AnalyticsCharts from "../AnalyticsCharts";
-import { buildYearTrendRows, buildAllYearsTrendRows, buildRangeAnalyticsData } from "../../../utils/analyticsTrendUtils";
+import ViewToggle from "../ViewToggle";
+import {
+  RankedCategoryViz,
+  RankedPayeeViz,
+  RankedCategoryTable,
+  RankedPayeeTable,
+  useThemeColors,
+} from "../AnalyticsCharts";
+import {
+  buildYearTrendRows,
+  buildAllYearsTrendRows,
+  buildRangeAnalyticsData,
+} from "../../../utils/analyticsTrendUtils";
 import type { AllTimeRow } from "../../../utils/analyticsTrendUtils";
-import { useThemeColors } from "../AnalyticsCharts";
 import type { AnalyticsData, Expense, Category, Payee } from "../../../types";
 
 interface IncomeTrendSectionProps {
@@ -26,16 +37,6 @@ interface IncomeTrendSectionProps {
     trendKey?: string | null;
     trendDrilldown?: boolean;
   }) => void;
-  yearTotalIncome: number;
-  yearFixedTotal: number;
-  yearVariableTotal: number;
-  yearSavings: number;
-  yearRemaining: number;
-  monthlyIncome: number[];
-  monthlyFixed: number[];
-  monthlyVariable: number[];
-  monthlySavings: (number | null)[];
-  monthlyRemaining: (number | null)[];
   monthCount: number;
   isCurrentYear: boolean;
   multiYearData: AnalyticsData[];
@@ -56,16 +57,6 @@ export default function IncomeTrendSection({
   trendKey,
   trendDrilldown,
   onTrendStateChange,
-  yearTotalIncome,
-  yearFixedTotal,
-  yearVariableTotal,
-  yearSavings,
-  yearRemaining,
-  monthlyIncome,
-  monthlyFixed,
-  monthlyVariable,
-  monthlySavings,
-  monthlyRemaining,
   monthCount,
   isCurrentYear,
   multiYearData,
@@ -75,6 +66,7 @@ export default function IncomeTrendSection({
 }: IncomeTrendSectionProps) {
   const { formatAmount, formatDate } = useSettings();
   const colors = useThemeColors();
+  const isMobile = useViewportWidth() < 640;
 
   const trendRows = useMemo(
     () =>
@@ -115,7 +107,10 @@ export default function IncomeTrendSection({
     ]
       .sort((a, b) => a.year - b.year)
       // deduplicate — keep the last entry for each year (current year's `data` wins)
-      .filter((entry, idx, arr) => idx === arr.findLastIndex((e) => e.year === entry.year));
+      .filter(
+        (entry, idx, arr) =>
+          idx === arr.findLastIndex((e) => e.year === entry.year),
+      );
     return buildAllYearsTrendRows(allYears, currentYear, currentMonth);
   }, [multiYearData, year, data, currentYear, currentMonth]);
 
@@ -141,27 +136,33 @@ export default function IncomeTrendSection({
     }
   }
 
-  const handleBrushChange = useCallback((window: AllTimeRow[]) => {
-    // If the window exactly matches the selected year, treat as default (no filter)
-    const isDefaultWindow =
-      window.length > 0 &&
-      window.every((r) => r.year === year) &&
-      window.length === trendRows.length;
-    const next = isDefaultWindow ? null : window;
-    setBrushWindow(next);
-    onBrushWindowChange?.(next ?? []);
-    // Clear month selection when brush spans multiple years — month index is ambiguous
-    if (next !== null && next.some((r) => r.year !== next[0].year)) {
-      onTrendStateChange({ trendKey: null, trendDrilldown: false });
-    }
-  }, [year, trendRows.length, onBrushWindowChange, onTrendStateChange]);
+  const handleBrushChange = useCallback(
+    (window: AllTimeRow[]) => {
+      // If the window exactly matches the selected year, treat as default (no filter)
+      const isDefaultWindow =
+        window.length > 0 &&
+        window.every((r) => r.year === year) &&
+        window.length === trendRows.length;
+      const next = isDefaultWindow ? null : window;
+      setBrushWindow(next);
+      onBrushWindowChange?.(next ?? []);
+      // Clear month selection when brush spans multiple years — month index is ambiguous
+      if (next !== null && next.some((r) => r.year !== next[0].year)) {
+        onTrendStateChange({ trendKey: null, trendDrilldown: false });
+      }
+    },
+    [year, trendRows.length, onBrushWindowChange, onTrendStateChange],
+  );
 
   // Build the all-years lookup for range data computation
   const allYearsLookup = useMemo(() => {
     const allYears = [
       ...multiYearData.map((d) => ({ year: d.year, data: d })),
       { year, data },
-    ].filter((entry, idx, arr) => idx === arr.findLastIndex((e) => e.year === entry.year));
+    ].filter(
+      (entry, idx, arr) =>
+        idx === arr.findLastIndex((e) => e.year === entry.year),
+    );
     return allYears;
   }, [multiYearData, year, data]);
 
@@ -199,8 +200,9 @@ export default function IncomeTrendSection({
   const ytdSaved = useMemo(() => {
     if (brushWindow && brushWindow.length > 0) {
       // Sum saved from rangeData (already covers the brush window)
-      return (rangeData.monthlyTotalSavings as (number | null)[])
-        .reduce<number>((s, v) => s + (v ?? 0), 0);
+      return (
+        rangeData.monthlyTotalSavings as (number | null)[]
+      ).reduce<number>((s, v) => s + (v ?? 0), 0);
     }
     return trendRows.reduce((sum, r) => sum + r.saved, 0);
   }, [brushWindow, rangeData, trendRows]);
@@ -245,20 +247,27 @@ export default function IncomeTrendSection({
           expenses: r.expenses,
         }));
     if (activeRows.length < 2) return [];
-    const avg = activeRows.reduce((s, r) => s + r.expenses, 0) / activeRows.length;
+    const avg =
+      activeRows.reduce((s, r) => s + r.expenses, 0) / activeRows.length;
     if (avg === 0) return [];
 
     return activeRows
       .filter((r) => r.expenses > avg * 1.1)
       .map((r) => {
-        const topCat = (rangeData.variableRows ?? [])
-          .map((row) => {
-            const thisMonth = row.amounts[r.monthIndex] ?? 0;
-            const prevMonth = r.monthIndex > 0 ? (row.amounts[r.monthIndex - 1] ?? 0) : 0;
-            return { name: row.name, amount: thisMonth, delta: thisMonth - prevMonth };
-          })
-          .filter((c) => c.amount > 0)
-          .sort((a, b) => b.delta - a.delta)[0] ?? null;
+        const topCat =
+          (rangeData.variableRows ?? [])
+            .map((row) => {
+              const thisMonth = row.amounts[r.monthIndex] ?? 0;
+              const prevMonth =
+                r.monthIndex > 0 ? (row.amounts[r.monthIndex - 1] ?? 0) : 0;
+              return {
+                name: row.name,
+                amount: thisMonth,
+                delta: thisMonth - prevMonth,
+              };
+            })
+            .filter((c) => c.amount > 0)
+            .sort((a, b) => b.delta - a.delta)[0] ?? null;
         return {
           monthLabel: r.monthLabel,
           expenses: r.expenses,
@@ -274,7 +283,9 @@ export default function IncomeTrendSection({
   // rows (re-indexed 0..n-1). Otherwise use the current year's trendRows.
   const activeTrendRows = useMemo(() => {
     if (!brushWindow || brushWindow.length === 0) return trendRows;
-    const spansMultiple = brushWindow.some((r) => r.year !== brushWindow[0].year);
+    const spansMultiple = brushWindow.some(
+      (r) => r.year !== brushWindow[0].year,
+    );
     if (spansMultiple) return trendRows;
     return brushWindow.map((r, i) => ({
       monthIndex: i,
@@ -290,8 +301,12 @@ export default function IncomeTrendSection({
     }));
   }, [brushWindow, trendRows]);
 
-  const selectedTrendYear = trendKey ? parseInt(trendKey.split("-")[0], 10) : null;
-  const selectedTrendMonthIndex = trendKey ? parseInt(trendKey.split("-")[1], 10) - 1 : null;
+  const selectedTrendYear = trendKey
+    ? parseInt(trendKey.split("-")[0], 10)
+    : null;
+  const selectedTrendMonthIndex = trendKey
+    ? parseInt(trendKey.split("-")[1], 10) - 1
+    : null;
 
   const selectedTrendRow = useMemo(() => {
     if (!trendKey) return null;
@@ -305,6 +320,9 @@ export default function IncomeTrendSection({
   }, [trendKey, brushWindow, allTimeRows, activeTrendRows]);
 
   const previewRef = useRef<HTMLDivElement>(null);
+
+  const [catViz, setCatViz] = useState(true);
+  const [payeeViz, setPayeeViz] = useState(true);
 
   useEffect(() => {
     if (trendKey !== null && !trendDrilldown && previewRef.current) {
@@ -322,7 +340,10 @@ export default function IncomeTrendSection({
         <div className="px-4 py-8 sm:px-5 flex items-center justify-center">
           <span className="text-xs text-theme-muted">Loading…</span>
         </div>
-      ) : trendDrilldown && selectedTrendRow && selectedTrendYear != null && selectedTrendMonthIndex != null ? (
+      ) : trendDrilldown &&
+        selectedTrendRow &&
+        selectedTrendYear != null &&
+        selectedTrendMonthIndex != null ? (
         <IncomeTrendMonthDrilldown
           data={rangeData}
           expenses={rangeExpenses}
@@ -347,19 +368,25 @@ export default function IncomeTrendSection({
               Savings & Cash Flow
             </h2>
             <p className="text-xs text-theme-muted mt-0.5">
-              Monthly savings vs last year · cumulative surplus or deficit over time
+              {isMobile
+                ? "Cumulative savings"
+                : "Monthly savings vs last year · cumulative surplus or deficit"}
               {rangeLabel && (
-                <span className="ml-2 font-medium text-theme-primary">· {rangeLabel}</span>
+                <span className="ml-2 font-medium text-theme-primary">
+                  · {rangeLabel}
+                </span>
               )}
             </p>
 
             {/* YTD savings delta stat */}
             <div className="flex items-baseline gap-3 mt-3 flex-wrap">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xs text-theme-muted">{brushWindow ? "Range Saved" : "YTD Saved"}</span>
+                <span className="text-xs text-theme-muted">Savings:</span>
                 <span
                   className="text-base font-bold tabular-nums"
-                  style={{ color: ytdSaved >= 0 ? colors.success : colors.danger }}
+                  style={{
+                    color: ytdSaved >= 0 ? colors.success : colors.danger,
+                  }}
                 >
                   {formatAmount(ytdSaved)}
                 </span>
@@ -368,21 +395,28 @@ export default function IncomeTrendSection({
                 <div className="flex items-baseline gap-1">
                   <span
                     className="text-sm font-semibold tabular-nums"
-                    style={{ color: ytdDelta >= 0 ? colors.success : colors.danger }}
+                    style={{
+                      color: ytdDelta >= 0 ? colors.success : colors.danger,
+                    }}
                   >
-                    {ytdDelta >= 0 ? "↑" : "↓"} {formatAmount(Math.abs(ytdDelta))}
+                    {ytdDelta >= 0 ? "↑" : "↓"}{" "}
+                    {formatAmount(Math.abs(ytdDelta))}
                   </span>
                   <span className="text-xs text-theme-muted">
-                    vs {brushWindow && brushWindow.length > 0
+                    vs{" "}
+                    {brushWindow && brushWindow.length > 0
                       ? `${brushWindow[0].label.replace(/\d+$/, String(brushWindow[0].year - 1).slice(2))} – ${brushWindow[brushWindow.length - 1].label.replace(/\d+$/, String(brushWindow[brushWindow.length - 1].year - 1).slice(2))}`
                       : year - 1}
                   </span>
                   {ytdDeltaPct != null && (
                     <span
                       className="text-xs font-medium tabular-nums"
-                      style={{ color: ytdDelta >= 0 ? colors.success : colors.danger }}
+                      style={{
+                        color: ytdDelta >= 0 ? colors.success : colors.danger,
+                      }}
                     >
-                      ({ytdDelta >= 0 ? "+" : ""}{ytdDeltaPct.toFixed(1)}%)
+                      ({ytdDelta >= 0 ? "+" : ""}
+                      {ytdDeltaPct.toFixed(1)}%)
                     </span>
                   )}
                 </div>
@@ -416,7 +450,11 @@ export default function IncomeTrendSection({
               row={selectedTrendRow}
               prevCumulativeRemaining={
                 selectedTrendMonthIndex != null && selectedTrendMonthIndex > 0
-                  ? (activeTrendRows.find((r) => r.monthIndex === selectedTrendMonthIndex - 1 && r.monthKey?.startsWith(String(selectedTrendYear)))?.cumulativeRemaining ?? null)
+                  ? (activeTrendRows.find(
+                      (r) =>
+                        r.monthIndex === selectedTrendMonthIndex - 1 &&
+                        r.monthKey?.startsWith(String(selectedTrendYear)),
+                    )?.cumulativeRemaining ?? null)
                   : null
               }
               colors={colors}
@@ -441,26 +479,71 @@ export default function IncomeTrendSection({
               monthlySavings={rangeMonthlySavings}
               monthlyRemaining={rangeMonthlyRemaining}
               selectedMonth={brushWindow ? null : selectedTrendMonthIndex}
+              monthCount={rangeMonthCount}
+              isCurrentYear={rangeIsCurrentYear}
+              year={year}
               formatAmount={formatAmount}
             />
           </div>
 
+          {/* Category Movement + Payee Concentration */}
+          <div className="px-4 py-4 sm:px-5 border-t border-theme-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
+                    Category Movement
+                  </h3>
+                  <ViewToggle
+                    isViz={catViz}
+                    onToggle={() => setCatViz((v) => !v)}
+                  />
+                </div>
+                {catViz ? (
+                  <RankedCategoryViz
+                    data={rangeData}
+                    focusMonth={null}
+                    colors={colors}
+                    formatAmount={formatAmount}
+                  />
+                ) : (
+                  <RankedCategoryTable
+                    data={rangeData}
+                    focusMonth={null}
+                    focusLabel="Year total"
+                  />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
+                    Payee Concentration
+                  </h3>
+                  <ViewToggle
+                    isViz={payeeViz}
+                    onToggle={() => setPayeeViz((v) => !v)}
+                  />
+                </div>
+                {payeeViz ? (
+                  <RankedPayeeViz
+                    data={rangeData}
+                    focusMonth={null}
+                    colors={colors}
+                    formatAmount={formatAmount}
+                  />
+                ) : (
+                  <RankedPayeeTable
+                    data={rangeData}
+                    focusMonth={null}
+                    focusLabel="Year total"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Year top expenses + spending spikes — two column layout */}
           <div className="px-4 py-4 sm:px-5 border-t border-theme-border grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Top Expenses */}
-            <div>
-              <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
-                Top Expenses
-              </h3>
-              <IncomeTrendExpensePreview
-                expenses={yearTopExpenses}
-                categories={categories}
-                payees={payees}
-                formatAmount={formatAmount}
-                formatDate={formatDate}
-              />
-            </div>
-
             {/* Spending Spikes */}
             <div>
               <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
@@ -473,31 +556,56 @@ export default function IncomeTrendSection({
               ) : (
                 <ul className="divide-y divide-theme-border">
                   {spendingSpikes.map((spike) => (
-                    <li key={spike.monthLabel} className="flex items-center justify-between gap-3 py-2">
+                    <li
+                      key={spike.monthLabel}
+                      className="flex items-center justify-between gap-3 py-2"
+                    >
                       <div className="min-w-0 flex-1">
                         <div className="text-sm text-theme-text truncate">
                           {spike.monthLabel}
                           {spike.topCat && (
-                            <span className="text-theme-muted font-normal"> · ↑ {spike.topCat.name}</span>
+                            <span className="text-theme-muted font-normal">
+                              {" "}
+                              · ↑ {spike.topCat.name}
+                            </span>
                           )}
                         </div>
                         <div className="text-xs text-theme-muted truncate">
                           +{spike.aboveAvgPct.toFixed(0)}% above avg
                           {spike.topCat && spike.topCat.delta > 0 && (
-                            <span className="text-theme-danger"> · +{formatAmount(spike.topCat.delta)}</span>
+                            <span className="text-theme-danger">
+                              {" "}
+                              · +{formatAmount(spike.topCat.delta)}
+                            </span>
                           )}
-                          {spike.topCat && spike.topCat.delta === spike.topCat.amount && (
-                            <span> · new</span>
-                          )}
+                          {spike.topCat &&
+                            spike.topCat.delta === spike.topCat.amount && (
+                              <span> · new</span>
+                            )}
                         </div>
                       </div>
                       <span className="text-sm font-semibold tabular-nums shrink-0 text-theme-danger">
-                        {spike.topCat ? formatAmount(spike.topCat.amount) : formatAmount(spike.expenses)}
+                        {spike.topCat
+                          ? formatAmount(spike.topCat.amount)
+                          : formatAmount(spike.expenses)}
                       </span>
                     </li>
                   ))}
                 </ul>
               )}
+            </div>
+            {/* Top Expenses */}
+            <div>
+              <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-3">
+                Top Expenses
+              </h3>
+              <IncomeTrendExpensePreview
+                expenses={yearTopExpenses}
+                categories={categories}
+                payees={payees}
+                formatAmount={formatAmount}
+                formatDate={formatDate}
+              />
             </div>
           </div>
         </>

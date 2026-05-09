@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -24,7 +22,6 @@ import { getCategoryColor } from "../summary/summaryColorUtils";
 import YearOverYearChart from "./YearOverYearChart";
 import ChartCard from "./ChartCard";
 import ViewToggle from "./ViewToggle";
-import MetricCard from "./MetricCard";
 import ChartTooltip from "./ChartTooltip";
 import EmptyState from "../../components/ui/EmptyState";
 import { fmtCompact, fmtFull, fmtPct } from "../../utils/analyticsFormatting";
@@ -98,15 +95,13 @@ function sliceMonths(arr: (number | null)[], count: number): (number | null)[] {
   return arr.slice(0, count);
 }
 
-// ── Custom Tooltip ───────────────────────────────────────────────────────────
-
-interface TooltipPayloadItem {
-  value: number;
-  name: string;
-  color: string;
-}
-
 // ── 1. Monthly Stacked Bar + Income Line ─────────────────────────────────────
+
+interface ChartProps {
+  data: AnalyticsData;
+  colors: ThemeColors;
+  monthCount: number;
+}
 
 const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
   // Build per-category variable rows for stacking
@@ -115,7 +110,7 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
     [data.variableRows],
   );
 
-  const chartData = useMemo(() => {
+  const chartData: Array<Record<string, number | null | string>> = useMemo(() => {
     return MONTHS.slice(0, monthCount).map((m, i) => {
       const fixed = data.monthlyFixedTotals[i] || 0;
       const income = data.monthlyIncome[i] || 0;
@@ -249,15 +244,6 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
 };
 
 // ── Table helpers ────────────────────────────────────────────────────────────
-
-function getFocusMonthIndex(
-  monthCount: number,
-  selectedMonth: number | null,
-): number | null {
-  if (selectedMonth !== null) return selectedMonth;
-  if (monthCount <= 0) return null;
-  return monthCount - 1;
-}
 
 function fmtChange(value: number | null): string {
   if (value == null || isNaN(value)) return "—";
@@ -517,235 +503,9 @@ export const RankedPayeeTable = ({
   );
 };
 
-// ── 3b. Savings / budget health table ───────────────────────────────────────
 
-interface SavingsHealthTableProps {
-  data: AnalyticsData;
-  monthCount: number;
-  selectedMonth: number | null;
-}
 
-const SavingsHealthTable = ({
-  data,
-  monthCount,
-  selectedMonth,
-}: SavingsHealthTableProps) => {
-  if (selectedMonth !== null) {
-    const m = selectedMonth;
-    const income = data.monthlyIncome[m] || 0;
-    const spend = data.monthlyTotals[m] || 0;
-    const remaining = data.monthlyRemaining[m] ?? 0;
-    const savingsRate = data.monthlySavingsPct[m] ?? 0;
-    const budgetUsed = income > 0 ? (spend / income) * 100 : 0;
-    const pace =
-      remaining < 0
-        ? "Over budget"
-        : savingsRate >= 60
-          ? "Strong"
-          : savingsRate >= 40
-            ? "On track"
-            : "Watch";
 
-    const rows = [
-      ["Income", fmtFull(income)],
-      ["Spend", fmtFull(spend)],
-      ["Remaining", fmtFull(remaining)],
-      ["Savings rate", fmtPct(savingsRate)],
-      ["Budget used", fmtPct(budgetUsed)],
-      ["Pace", pace],
-    ];
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="analytics-breakdown-table">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody className="text-theme-text text-sm">
-            {rows.map(([label, value]) => (
-              <tr key={label}>
-                <td className="font-semibold text-theme-text">{label}</td>
-                <td className="tabular-nums">{value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  const rows = MONTHS.slice(0, monthCount).map((month, index) => {
-    const income = data.monthlyIncome[index] || 0;
-    const spend = data.monthlyTotals[index] || 0;
-    const remaining = data.monthlyRemaining[index] ?? 0;
-    const savingsRate = data.monthlySavingsPct[index] ?? 0;
-    const budgetUsed = income > 0 ? (spend / income) * 100 : 0;
-    const pace =
-      remaining < 0
-        ? "Over budget"
-        : budgetUsed <= 50
-          ? "Under pace"
-          : budgetUsed <= 75
-            ? "On track"
-            : "Ahead of pace";
-    return {
-      month,
-      income,
-      spend,
-      remaining,
-      savingsRate,
-      budgetUsed,
-      pace,
-    };
-  });
-
-  if (rows.length === 0) return <EmptyState chartHeight message="No budget health data" />;
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="analytics-breakdown-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Income</th>
-            <th>Spend</th>
-            <th>Remaining</th>
-            <th>Savings %</th>
-            <th>Budget used</th>
-            <th>Pace</th>
-          </tr>
-        </thead>
-        <tbody className="text-theme-text text-sm">
-          {rows.map((row) => (
-            <tr key={row.month}>
-              <td className="font-semibold text-theme-text">{row.month}</td>
-              <td className="tabular-nums">{fmtFull(row.income)}</td>
-              <td className="tabular-nums">{fmtFull(row.spend)}</td>
-              <td
-                className={cn(
-                  "tabular-nums",
-                  row.remaining < 0
-                    ? "text-theme-danger"
-                    : "text-theme-success",
-                )}
-              >
-                {fmtFull(row.remaining)}
-              </td>
-              <td className="tabular-nums">{fmtPct(row.savingsRate)}</td>
-              <td className="tabular-nums">{fmtPct(row.budgetUsed)}</td>
-              <td
-                className={cn(
-                  "tabular-nums",
-                  row.remaining < 0
-                    ? "text-theme-danger"
-                    : "text-theme-success",
-                )}
-              >
-                {row.pace}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
-// ── 4b. Fixed stability table ───────────────────────────────────────────────
-
-interface FixedStabilityTableProps {
-  data: AnalyticsData;
-  monthCount: number;
-  selectedMonth: number | null;
-}
-
-const FixedStabilityTable = ({
-  data,
-  monthCount,
-  selectedMonth,
-}: FixedStabilityTableProps) => {
-  const focusMonth = getFocusMonthIndex(monthCount, selectedMonth);
-
-  const rows = useMemo(() => {
-    if (focusMonth == null) return [];
-    return data.fixedRows
-      .map((row) => {
-        const focus = row.amounts[focusMonth] || 0;
-        const previous = focusMonth > 0 ? row.amounts[focusMonth - 1] || 0 : 0;
-        const activeMonths = row.amounts.filter((value) => value > 0).length;
-        return {
-          key: row.id,
-          name: row.name,
-          focus,
-          previous,
-          total: row.yearTotal,
-          activeMonths,
-          isArchived: row.isArchived,
-        };
-      })
-      .filter((row) => row.focus > 0 || row.total > 0)
-      .sort((a, b) => b.focus - a.focus || b.total - a.total)
-      .slice(0, 8);
-  }, [data.fixedRows, focusMonth]);
-
-  if (focusMonth == null) return <EmptyState chartHeight message="No fixed expense data" />;
-  if (rows.length === 0) return <EmptyState chartHeight message="No fixed expense data" />;
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="analytics-breakdown-table">
-        <thead>
-          <tr>
-            <th>Fixed item</th>
-            <th>Focus</th>
-            <th>Previous</th>
-            <th>Delta</th>
-            <th>Year total</th>
-            <th>Active months</th>
-          </tr>
-        </thead>
-        <tbody className="text-theme-text text-sm">
-          {rows.map((row) => {
-            const delta = row.focus - row.previous;
-            return (
-              <tr key={row.key}>
-                <td className="font-semibold text-theme-text">
-                  <div className="flex items-center gap-2">
-                    <span>{row.name}</span>
-                    {row.isArchived && (
-                      <span className="rounded-full border border-theme-border px-1.5 py-0.5 text-[0.625rem] text-theme-muted">
-                        Archived
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="tabular-nums">{fmtFull(row.focus)}</td>
-                <td className="tabular-nums">{fmtFull(row.previous)}</td>
-                <td
-                  className={cn(
-                    "tabular-nums",
-                    delta === 0
-                      ? "text-theme-muted"
-                      : delta > 0
-                        ? "text-theme-danger"
-                        : "text-theme-success",
-                  )}
-                >
-                  {fmtChange(delta)}
-                </td>
-                <td className="tabular-nums">{fmtFull(row.total)}</td>
-                <td className="tabular-nums">{row.activeMonths}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-};
 
 // ── 2. Category Breakdown ────────────────────────────────────────────────────
 
@@ -1027,60 +787,7 @@ export const MonthlyTotalSavingsChart = ({
   );
 };
 
-// ── Month View: Metric Cards ─────────────────────────────────────────────────
 
-interface MonthMetricCardsProps {
-  data: AnalyticsData;
-  selectedMonth: number;
-  colors: ThemeColors;
-}
-
-const MonthMetricCards = ({
-  data,
-  selectedMonth,
-  colors,
-}: MonthMetricCardsProps) => {
-  const m = selectedMonth;
-  const expenses = data.monthlyTotals[m] || 0;
-  const income = data.monthlyIncome[m] || 0;
-  const savingsRate = data.monthlySavingsPct[m] || 0;
-  const totalSavings = data.monthlyTotalSavings[m] || 0;
-  const remaining = data.monthlyRemaining[m] || 0;
-
-  const savingsLabel = totalSavings >= 0 ? "Total Savings" : "Net Loss";
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <MetricCard
-        label="Total Expenses"
-        value={fmtFull(expenses)}
-        accentColor={colors.danger}
-        colors={colors}
-      />
-      <MetricCard
-        label="Total Income"
-        value={fmtFull(income)}
-        accentColor={colors.success}
-        colors={colors}
-      />
-      <MetricCard
-        label="Savings Rate"
-        value={fmtPct(savingsRate)}
-        accentColor={colors.primary}
-        colors={colors}
-      />
-      <MetricCard
-        label={savingsLabel}
-        value={fmtFull(Math.abs(totalSavings))}
-        subValue={
-          remaining !== 0 ? `Remaining: ${fmtCompact(remaining)}` : undefined
-        }
-        accentColor={totalSavings >= 0 ? colors.success : colors.danger}
-        colors={colors}
-      />
-    </div>
-  );
-};
 
 // ── 5. Ranked Category Viz — bar list with delta ─────────────────────────────
 

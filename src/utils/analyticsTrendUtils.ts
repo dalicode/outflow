@@ -394,6 +394,7 @@ export interface AllTimeRow {
   expenses: number;
   savingsRate: number | null;
   hasData: boolean;
+  expenseCount: number;
 }
 
 export function buildAllYearsTrendRows(
@@ -454,6 +455,7 @@ export function buildAllYearsTrendRows(
         expenses: data.monthlyTotals[m] ?? 0,
         savingsRate,
         hasData: data.monthlyHasData[m] ?? false,
+        expenseCount: 0,
       });
     }
   }

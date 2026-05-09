@@ -142,18 +142,19 @@ export function useSummary({ expenses }: UseSummaryParams) {
       frequency,
       monthlyIncome: monthly,
     }: {
-      income: string;
+      income: number;
       frequency: string;
       monthlyIncome: number;
     }) => {
+      const incomeStr = String(income);
       const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       await Promise.all([
-        StorageService.setSetting("incomeAmount", income),
+        StorageService.setSetting("incomeAmount", incomeStr),
         StorageService.setSetting("incomeFrequency", frequency),
         StorageService.setSetting("monthlyIncome", monthly),
         StorageService.setSetting("monthlyIncomeUpdatedAt", yearMonth),
       ]);
-      setIncomeRaw(income);
+      setIncomeRaw(incomeStr);
       setIncomeFreq(frequency);
       setMonthlyIncome(monthly);
     },

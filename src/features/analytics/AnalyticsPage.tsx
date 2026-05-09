@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from "react";
-import { useSettings } from "../../context/settingsContext";
 import { useViewportWidth } from "../../hooks/useViewportWidth";
 import { useMaxVisible } from "../../hooks/useMaxVisible";
 import { useAnalytics } from "../../hooks/useAnalytics";
@@ -27,7 +26,6 @@ export default function AnalyticsPage({
 }: AnalyticsPageProps) {
   const viewportWidth = useViewportWidth();
   const maxVisible = useMaxVisible(viewportWidth);
-  const { formatAmount } = useSettings();
 
   const {
     currentYear,
@@ -111,16 +109,6 @@ export default function AnalyticsPage({
           trendKey={trendKey}
           trendDrilldown={trendDrilldown}
           onTrendStateChange={(patch) => onSessionStateChange?.({ ...patch })}
-          yearTotalIncome={data.yearTotalIncome}
-          yearFixedTotal={data.yearFixedTotal}
-          yearVariableTotal={data.yearVariableTotal}
-          yearSavings={data.yearSavings}
-          yearRemaining={data.yearRemaining}
-          monthlyIncome={data.monthlyIncome}
-          monthlyFixed={data.monthlyFixedTotals}
-          monthlyVariable={data.monthlyVariableTotals}
-          monthlySavings={data.monthlySavings}
-          monthlyRemaining={data.monthlyRemaining}
           monthCount={monthCount}
           isCurrentYear={isCurrentYear}
           panToYear={panToYear}

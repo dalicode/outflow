@@ -1109,7 +1109,7 @@ function resolveScheduleValueForMonth(
 
   if (applied.length > 0) {
     const base = applied[0].previousValue ?? fallbackValue;
-    return applied.reduce((value, schedule) => schedule.newValue, base);
+    return applied.reduce((_value, schedule) => schedule.newValue, base);
   }
 
   const nextSchedule = relevant.find((schedule) =>

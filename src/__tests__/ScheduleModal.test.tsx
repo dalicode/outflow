@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ScheduleModal from '../features/settings/ScheduleModal'
-import { StorageService } from '../services/storageService'
 
 vi.mock('../services/storageService', () => ({
   StorageService: {

@@ -47,7 +47,7 @@ export function useLongPress({ onLongPress, onClick }: UseLongPressOptions) {
   }, [clear]);
 
   const onTouchEnd = useCallback(
-    (e: React.TouchEvent, id: number) => {
+    (_e: React.TouchEvent, id: number) => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;

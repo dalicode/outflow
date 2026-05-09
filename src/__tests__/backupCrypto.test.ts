@@ -64,7 +64,6 @@ describe('backupCrypto', () => {
 
   it('compresses data smaller than raw JSON', async () => {
     const envelope = await encryptBackup(sampleData, 'pw')
-    const raw = JSON.stringify(sampleData)
     // Ciphertext should be base64 of encrypted compressed data; roughly comparable in size
     expect(envelope.ciphertext.length).toBeGreaterThan(0)
     expect(envelope.salt.length).toBeGreaterThan(0)

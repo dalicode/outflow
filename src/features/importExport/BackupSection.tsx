@@ -15,7 +15,6 @@ import {
   fetchBackupPasswordFromProfile,
 } from "../../services/syncService";
 import { APP_VERSION } from "../../utils/appVersion";
-import { cn } from "../../utils/cn";
 import { getLocalToday } from "../../utils/historicalDataHelpers";
 import { useSettings } from "../../context/settingsContext";
 import type { User } from "@supabase/supabase-js";
@@ -424,11 +423,11 @@ export default function BackupSection({
                   <span className="font-medium">Current DB version:</span>{" "}
                   {StorageService.dbVersion()}
                 </p>
-                {pendingImportMeta.recordCounts && (
+                {pendingImportMeta && (pendingImportMeta as any).recordCounts && (
                   <p>
                     <span className="font-medium">Records:</span>{" "}
                     {Object.entries(
-                      pendingImportMeta.recordCounts as Record<string, number>,
+                      (pendingImportMeta as any).recordCounts as Record<string, number>,
                     )
                       .map(([k, v]) => `${k}: ${v}`)
                       .join(", ")}

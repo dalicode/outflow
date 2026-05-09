@@ -6,7 +6,7 @@ import {
   getCsvField,
 } from "../utils/csvHelpers";
 import { getImportPayeeMatchSummary, findBestImportPayeeMatch } from "../utils/importPayeeMatching";
-import type { ImportReviewSelection } from "./ImportReviewModal";
+import type { ImportReviewSelection } from "../ImportReviewModal";
 import type { Payee } from "../../../types";
 import type {
   ImportPayeeMatchSummary,

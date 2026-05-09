@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { cn } from "../../utils/cn";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;

@@ -75,7 +75,6 @@ interface SettingsPageProps {
 
 export default function SettingsPage({
   expenses,
-  onImport,
   onRefreshAll,
   triggerSync,
 }: SettingsPageProps) {

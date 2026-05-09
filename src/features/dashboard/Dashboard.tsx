@@ -1,7 +1,6 @@
 import { useMemo, useCallback, useEffect, useRef } from "react";
 import { cn } from "../../utils/cn";
 import "./dashboard.css";
-import Modal from "../../components/ui/Modal";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
 import IncomeModalForm from "./components/IncomeModalForm";

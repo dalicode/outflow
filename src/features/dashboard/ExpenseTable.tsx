@@ -299,7 +299,6 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(
           payeeMap,
           refreshCategories,
           refreshPayees,
-          decimalPlaces: parseInt(settings.decimalPlaces, 10) || 2,
         }),
       [
         selectedIds,

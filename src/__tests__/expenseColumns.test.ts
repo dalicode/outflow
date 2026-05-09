@@ -25,11 +25,11 @@ function createExpense(): Expense {
   return {
     id: 1,
     date: "2026-05-05",
-    amount: 12.34,
-    description: "Test",
-    categoryId: null,
-    payeeId: null,
-  } as Expense;
+    amount: 1,
+    description: "test",
+    categoryId: 1,
+    payeeId: 1,
+  } as unknown as Expense;
 }
 
 describe("editableCellActivate", () => {

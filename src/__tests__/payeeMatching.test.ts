@@ -4,7 +4,6 @@ import {
   getPayeeSearchTerms,
   tokenOverlapScore,
   fuzzySimilarity,
-  scorePayeeMatch,
   findBestPayeeMatch,
 } from "../utils/payeeMatching";
 import type { Payee } from "../types";

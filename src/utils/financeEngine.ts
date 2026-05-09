@@ -79,11 +79,14 @@ function resolveMonthlyValues(
 ): number[] {
   const values: number[] = Array(12).fill(0);
 
+  const currentYear = now.currentYear ?? new Date().getFullYear();
+  const currentMonth = now.currentMonth ?? new Date().getMonth();
+
   for (let m = 0; m < 12; m++) {
     const month = m + 1;
     const isHistorical =
-      year < now.currentYear ||
-      (year === now.currentYear && m < now.currentMonth);
+      year < currentYear ||
+      (year === currentYear && m < currentMonth);
     const snap = snapshots?.find((s) => s.year === year && s.month === month);
 
     if (isHistorical || now.historicalOnly) {
@@ -174,8 +177,8 @@ function getFixedExpensesForMonth(
   }));
 
   // Apply active schedules for future months
-  const currentYear = now.currentYear;
-  const currentMonth = now.currentMonth + 1;
+  const currentYear = now.currentYear ?? new Date().getFullYear();
+  const currentMonth = (now.currentMonth ?? new Date().getMonth()) + 1;
   const isFutureOrCurrent =
     year > currentYear || (year === currentYear && targetMonth >= currentMonth);
 

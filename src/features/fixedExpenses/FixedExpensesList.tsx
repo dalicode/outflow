@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { cn } from "../../utils/cn";
 import { useSettings } from "../../context/settingsContext";
 import Modal from "../../components/ui/Modal";
 import ModalFooter from "../../components/ui/ModalFooter";
