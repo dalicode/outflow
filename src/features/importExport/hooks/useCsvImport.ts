@@ -68,9 +68,13 @@ export function useCsvImport({
 
       const existing = await StorageService.getAll()
       const existingKeys = new Set(
-        (existing as Array<{ date: string; amount: number; description?: string }>).map(
-          (e) => `${e.date}|${e.amount}|${e.description}`,
-        ),
+        (
+          existing as Array<{
+            date: string
+            amount: number
+            description?: string
+          }>
+        ).map((e) => `${e.date}|${e.amount}|${e.description}`),
       )
 
       const toAdd = mode
@@ -228,9 +232,13 @@ export function useCsvImport({
           const rows = [...valid]
           const existing = await StorageService.getAll()
           const existingKeys = new Set(
-            (existing as Array<{ date: string; amount: number; description?: string }>).map(
-              (entry) => `${entry.date}|${entry.amount}|${entry.description}`,
-            ),
+            (
+              existing as Array<{
+                date: string
+                amount: number
+                description?: string
+              }>
+            ).map((entry) => `${entry.date}|${entry.amount}|${entry.description}`),
           )
 
           const toAdd = nextReplaceMode
@@ -249,15 +257,15 @@ export function useCsvImport({
             for (const name of payeeNames) {
               const existingPayee = existingByName.get(name.toLowerCase())
               if (existingPayee && !existingPayee.isArchived) {
-              payeeMap[name] = existingPayee.id as number
-            } else {
-              try {
-                const newId = await StorageService.addPayee(name)
-                payeeMap[name] = newId
-              } catch {
-                const refreshed = await StorageService.getPayees()
-                const found = refreshed.find((p) => p.name.toLowerCase() === name?.toLowerCase())
-                if (found) payeeMap[name] = found.id as number
+                payeeMap[name] = existingPayee.id as number
+              } else {
+                try {
+                  const newId = await StorageService.addPayee(name)
+                  payeeMap[name] = newId
+                } catch {
+                  const refreshed = await StorageService.getPayees()
+                  const found = refreshed.find((p) => p.name.toLowerCase() === name?.toLowerCase())
+                  if (found) payeeMap[name] = found.id as number
                 }
               }
             }
@@ -313,7 +321,10 @@ export function useCsvImport({
         })
         const summary = {
           ...getImportPayeeMatchSummary(
-            valid.map((row) => ({ rowId: row.rowId, description: row.description })),
+            valid.map((row) => ({
+              rowId: row.rowId,
+              description: row.description,
+            })),
             activePayees,
           ),
           rowsFound: parsed.length,

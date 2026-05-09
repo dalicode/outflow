@@ -604,6 +604,7 @@ function AppShell() {
                       onScroll={handlePageScroll}
                       onRouteChange={resetScrollDirection}
                       onRefresh={handlePullRefresh}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
                       <AnalyticsPage
                         expenses={visibleExpenses}
@@ -622,6 +623,7 @@ function AppShell() {
                       onScroll={handlePageScroll}
                       onRouteChange={resetScrollDirection}
                       onRefresh={handlePullRefresh}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
                       <PayeesPage />
                     </ScrollablePage>
@@ -634,6 +636,7 @@ function AppShell() {
                       onScroll={handlePageScroll}
                       onRouteChange={resetScrollDirection}
                       onRefresh={handlePullRefresh}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
                       <SettingsPage
                         expenses={visibleExpenses}

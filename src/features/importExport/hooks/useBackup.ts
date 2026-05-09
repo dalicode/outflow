@@ -41,45 +41,48 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
     }, 1500)
   }, [])
 
-  const doExport = useCallback(async (password: string) => {
-    try {
-      onStatus('Exporting encrypted backup…')
-      const data = await StorageService.exportAllData()
-      const dbVersion = StorageService.dbVersion()
-      const recordCounts: Record<string, number> = {}
-      for (const [key, arr] of Object.entries(data)) {
-        recordCounts[key] = Array.isArray(arr) ? arr.length : 0
+  const doExport = useCallback(
+    async (password: string) => {
+      try {
+        onStatus('Exporting encrypted backup…')
+        const data = await StorageService.exportAllData()
+        const dbVersion = StorageService.dbVersion()
+        const recordCounts: Record<string, number> = {}
+        for (const [key, arr] of Object.entries(data)) {
+          recordCounts[key] = Array.isArray(arr) ? arr.length : 0
+        }
+        const payload = {
+          meta: {
+            exportedAt: new Date().toISOString(),
+            appVersion: APP_VERSION,
+            dbVersion,
+            format: 'outflow-backup',
+            recordCounts,
+            userEmail: user?.email ?? null,
+          },
+          data,
+        }
+        const envelope = await encryptBackup(payload, password)
+        const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `outflow-backup-${getLocalToday()}.ofb`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        void save({ lastBackupAt: new Date().toISOString() }).catch((error) =>
+          console.warn('Backup timestamp save failed:', error),
+        )
+        onStatus('Encrypted backup exported successfully.')
+      } catch (err) {
+        console.error('Export failed:', err)
+        onStatus(`Export failed: ${(err as Error).message}`)
       }
-      const payload = {
-        meta: {
-          exportedAt: new Date().toISOString(),
-          appVersion: APP_VERSION,
-          dbVersion,
-          format: 'outflow-backup',
-          recordCounts,
-          userEmail: user?.email ?? null,
-        },
-        data,
-      }
-      const envelope = await encryptBackup(payload, password)
-      const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `outflow-backup-${getLocalToday()}.ofb`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      void save({ lastBackupAt: new Date().toISOString() }).catch((error) =>
-        console.warn('Backup timestamp save failed:', error),
-      )
-      onStatus('Encrypted backup exported successfully.')
-    } catch (err) {
-      console.error('Export failed:', err)
-      onStatus(`Export failed: ${(err as Error).message}`)
-    }
-  }, [user, onStatus, save])
+    },
+    [user, onStatus, save],
+  )
 
   const handleBackupExport = useCallback(async () => {
     if (user?.id) {

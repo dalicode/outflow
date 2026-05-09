@@ -232,15 +232,15 @@ export default function MultiMonthViewTable({
                         {[...fe.monthlyAmounts].reverse().map((amount, displayIdx) => {
                           const dataIdx = monthKeys.length - 1 - displayIdx
                           return (
-                          <td
-                            key={monthKeys[dataIdx].key}
-                            className={cn(
-                              'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text',
-                              displayIdx === 0 && 'border-l border-theme-border',
-                            )}
-                          >
-                            {amount !== null ? formatAmount(amount) : '—'}
-                          </td>
+                            <td
+                              key={monthKeys[dataIdx].key}
+                              className={cn(
+                                'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text',
+                                displayIdx === 0 && 'border-l border-theme-border',
+                              )}
+                            >
+                              {amount !== null ? formatAmount(amount) : '—'}
+                            </td>
                           )
                         })}
                         {showGrandTotal && (

@@ -78,7 +78,7 @@ const IncomeTrendMonthPreview = forwardRef<HTMLDivElement, IncomeTrendMonthPrevi
             type="button"
             onClick={onDismiss}
             aria-label={`Dismiss ${row.monthLabel} preview`}
-            className="text-white bg-theme-primary hover:opacity-90 rounded-theme-medium transition-all px-3 py-1 text-xs font-medium"
+            className="rounded-theme-small border border-theme-border px-2 py-1 text-[0.6875rem] font-medium text-theme-muted hover:text-theme-text hover:border-theme-text transition-colors"
           >
             Close
           </button>

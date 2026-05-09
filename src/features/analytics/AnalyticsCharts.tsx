@@ -184,7 +184,7 @@ const MonthlyStackedChart = ({ data, colors, monthCount }: ChartProps) => {
                 <LabelList
                   dataKey="momDelta"
                   position="top"
-                    content={(props) => {
+                  content={(props) => {
                     // biome-ignore lint/suspicious/noExplicitAny: Recharts LabelList content prop type
                     const { x, y, width, value } = props as any
                     if (value == null || value === 0) return null

@@ -89,12 +89,7 @@ export default function Dashboard({
     registerCycleView?.(() => {
       dash.setView(VIEW_CYCLE[(VIEW_CYCLE.indexOf(dash.viewMode) + 1) % VIEW_CYCLE.length])
     })
-  }, [
-    dash.viewMode,
-    registerCycleView,
-    dash.setView,
-    VIEW_CYCLE,
-  ])
+  }, [dash.viewMode, registerCycleView, dash.setView, VIEW_CYCLE])
   const payeeMap = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])
 
   const multiCategoryRows = useMemo(

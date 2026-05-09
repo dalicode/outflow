@@ -500,9 +500,7 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
               Export
             </button>
           </div>
-
-          <div className="border-t border-theme-border mt-4 mb-3" />
-          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mt-4 mb-2">
             Import CSV
           </p>
           <div className="flex items-center justify-between py-1">
