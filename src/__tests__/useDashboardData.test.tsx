@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useDashboardData } from '../hooks/useDashboardData'
+import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
 import { StorageService } from '../services/storageService'
 import type { Expense } from '../types'
 

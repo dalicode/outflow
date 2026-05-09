@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSettings } from '../context/settingsContext'
-import type { DashboardView } from '../features/dashboard/constants'
-import { DASHBOARD_VIEWS } from '../features/dashboard/constants'
-import { triggerHaptic } from '../utils/haptics'
+import { useSettings } from '../../../context/settingsContext'
+import type { DashboardView } from '../constants'
+import { DASHBOARD_VIEWS } from '../constants'
+import { triggerHaptic } from '../../../utils/haptics'
 
 export function useDashboardView(
   _onSelectionChange?: (active: boolean) => void,

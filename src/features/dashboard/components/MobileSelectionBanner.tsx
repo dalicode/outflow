@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { cn } from '../../utils/cn'
+import { cn } from '../../../utils/cn'
 
 interface MobileSelectionBannerProps {
   count: number

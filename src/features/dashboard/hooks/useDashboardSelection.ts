@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Expense } from '../types'
+import type { Expense } from '../../../types'
 
 export function useDashboardSelection(
   filteredExpenses: Expense[],

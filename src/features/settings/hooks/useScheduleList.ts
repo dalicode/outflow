@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { StorageService } from '../services/storageService'
-import type { Schedule } from '../types'
+import { StorageService } from '../../../services/storageService'
+import type { Schedule } from '../../../types'
 
 export function useScheduleList() {
   const [schedules, setSchedules] = useState<Schedule[]>([])

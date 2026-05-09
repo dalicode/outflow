@@ -1,4 +1,4 @@
-import { useSummary } from '../../hooks/useSummary'
+import { useSummary } from './hooks/useSummary'
 import type { Expense } from '../../types'
 import FixedExpensesList from '../fixedExpenses/FixedExpensesList'
 import BudgetFlow from './BudgetFlow'

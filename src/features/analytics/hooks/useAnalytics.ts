@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { StorageService } from '../services/storageService'
+import { StorageService } from '../../../services/storageService'
 import type {
   AnalyticsData,
   Category,
@@ -10,8 +10,8 @@ import type {
   Payee,
   SavingsSnapshot,
   Schedule,
-} from '../types'
-import { getYearFinancialSummary, getYearVariableGrid } from '../utils/financeEngine'
+} from '../../../types'
+import { getYearFinancialSummary, getYearVariableGrid } from '../../../utils/financeEngine'
 
 export interface AnalyticsSessionState {
   year: number

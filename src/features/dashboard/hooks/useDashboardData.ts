@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { StorageService } from '../services/storageService'
-import type { Expense, MonthlySummary } from '../types'
-import { getMonthKeys } from '../utils/dashboardHelpers'
-import { getMonthlyFinancialSummary } from '../utils/financeEngine'
+import { StorageService } from '../../../services/storageService'
+import type { Expense, MonthlySummary } from '../../../types'
+import { getMonthKeys } from '../../../utils/dashboardHelpers'
+import { getMonthlyFinancialSummary } from '../../../utils/financeEngine'
 
 export function useDashboardData(
   expenses: Expense[],

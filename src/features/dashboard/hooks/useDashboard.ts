@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { DashboardView, MonthSpan } from '../features/dashboard/constants'
-import type { Category, Expense, Payee } from '../types'
+import type { DashboardView, MonthSpan } from '../constants'
+import type { Category, Expense, Payee } from '../../../types'
 import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
-} from '../utils/dashboardHelpers'
+} from '../../../utils/dashboardHelpers'
 import { useDashboardData } from './useDashboardData'
 import type { DashboardFiltersState } from './useDashboardFilters'
 import { useDashboardFilters } from './useDashboardFilters'

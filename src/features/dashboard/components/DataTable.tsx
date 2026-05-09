@@ -1,6 +1,6 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
-import { cn } from '../../utils/cn'
-import EmptyState from './EmptyState'
+import { cn } from '../../../utils/cn'
+import EmptyState from '../../../components/ui/EmptyState'
 
 declare module '@tanstack/react-table' {
   interface ColumnMeta<TData, TValue> {

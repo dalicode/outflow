@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { MonthSpan } from '../features/dashboard/constants'
-import { MONTH_SPANS, VIEWPORT_THRESHOLDS } from '../features/dashboard/constants'
-import { partsToMonthKey } from '../utils/urlParams'
-import { useMaxVisible } from './useMaxVisible'
-import { useViewportWidth } from './useViewportWidth'
+import type { MonthSpan } from '../constants'
+import { MONTH_SPANS, VIEWPORT_THRESHOLDS } from '../constants'
+import { partsToMonthKey } from '../../../utils/urlParams'
+import { useMaxVisible } from '../../../hooks/useMaxVisible'
+import { useViewportWidth } from '../../../hooks/useViewportWidth'
 
 export function useDashboardMonthNav(
   initialYear?: number,

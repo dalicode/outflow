@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { StorageService } from '../services/storageService'
-import type { MonthlySummary } from '../types'
+import { StorageService } from '../../../services/storageService'
+import type { MonthlySummary } from '../../../types'
 
 export function useIncomeSavingsModals(
   monthSummaries: MonthlySummary[],

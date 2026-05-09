@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { AnalyticsSessionState } from '../../hooks/useAnalytics'
-import { useAnalytics } from '../../hooks/useAnalytics'
+import type { AnalyticsSessionState } from './hooks/useAnalytics'
+import { useAnalytics } from './hooks/useAnalytics'
 import { useMaxVisible } from '../../hooks/useMaxVisible'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Category, Expense, Payee } from '../../types'

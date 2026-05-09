@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { StorageService } from '../services/storageService'
+import { StorageService } from '../../../services/storageService'
 import type {
   Category,
   Expense,
@@ -9,8 +9,8 @@ import type {
   MonthlySummary,
   SavingsSnapshot,
   Schedule,
-} from '../types'
-import { getMonthlyFinancialSummary } from '../utils/financeEngine'
+} from '../../../types'
+import { getMonthlyFinancialSummary } from '../../../utils/financeEngine'
 
 interface UseSummaryParams {
   expenses: Expense[]
