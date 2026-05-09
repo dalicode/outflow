@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { encryptBackup, decryptBackup, isEncryptedEnvelope } from '../utils/backupCrypto'
+import { describe, expect, it } from 'vitest'
+import { decryptBackup, encryptBackup, isEncryptedEnvelope } from '../utils/backupCrypto'
 
 describe('backupCrypto', () => {
   const sampleData = {
@@ -49,9 +49,7 @@ describe('backupCrypto', () => {
   it('throws on unsupported version', async () => {
     const envelope = await encryptBackup(sampleData, 'pw')
     const tampered = { ...envelope, version: 99 }
-    await expect(decryptBackup(tampered, 'pw')).rejects.toThrow(
-      'Unsupported backup version: 99',
-    )
+    await expect(decryptBackup(tampered, 'pw')).rejects.toThrow('Unsupported backup version: 99')
   })
 
   it('throws on unsupported format', async () => {

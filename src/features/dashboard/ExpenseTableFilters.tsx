@@ -1,20 +1,20 @@
-import { useState, useEffect, useRef } from "react";
-import { normalizeName } from "../../utils/normalizeName";
-import DatePicker from "../../components/inputs/DatePicker";
-import type { Category } from "../../types";
+import { useEffect, useRef, useState } from 'react'
+import DatePicker from '../../components/inputs/DatePicker'
+import type { Category } from '../../types'
+import { normalizeName } from '../../utils/normalizeName'
 
 interface ExpenseTableFiltersProps {
-  categories: Category[];
-  globalFilter: string;
-  onGlobalFilterChange: (val: string) => void;
+  categories: Category[]
+  globalFilter: string
+  onGlobalFilterChange: (val: string) => void
   columnFilters: {
-    dateFrom: string;
-    dateTo: string;
-    category: string;
-    description: string;
-    amount: string;
-  };
-  onColumnFilterChange: (field: string, val: string) => void;
+    dateFrom: string
+    dateTo: string
+    category: string
+    description: string
+    amount: string
+  }
+  onColumnFilterChange: (field: string, val: string) => void
 }
 
 export default function ExpenseTableFilters({
@@ -24,20 +24,20 @@ export default function ExpenseTableFilters({
   columnFilters,
   onColumnFilterChange,
 }: ExpenseTableFiltersProps) {
-  const [localGlobal, setLocalGlobal] = useState(globalFilter);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [localGlobal, setLocalGlobal] = useState(globalFilter)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setLocalGlobal(globalFilter);
-  }, [globalFilter]);
+    setLocalGlobal(globalFilter)
+  }, [globalFilter])
 
   const handleGlobalChange = (val: string) => {
-    setLocalGlobal(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setLocalGlobal(val)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      onGlobalFilterChange(val);
-    }, 150);
-  };
+      onGlobalFilterChange(val)
+    }, 150)
+  }
 
   const hasActiveFilters =
     globalFilter ||
@@ -45,7 +45,7 @@ export default function ExpenseTableFilters({
     columnFilters.dateTo ||
     columnFilters.category ||
     columnFilters.description ||
-    columnFilters.amount;
+    columnFilters.amount
 
   return (
     <div className="space-y-2">
@@ -61,11 +61,17 @@ export default function ExpenseTableFilters({
           />
           {localGlobal && (
             <button
-              onClick={() => handleGlobalChange("")}
+              onClick={() => handleGlobalChange('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-text"
               aria-label="Clear search"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <path d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -74,12 +80,12 @@ export default function ExpenseTableFilters({
         {hasActiveFilters && (
           <button
             onClick={() => {
-              handleGlobalChange("");
-              onColumnFilterChange("dateFrom", "");
-              onColumnFilterChange("dateTo", "");
-              onColumnFilterChange("category", "");
-              onColumnFilterChange("description", "");
-              onColumnFilterChange("amount", "");
+              handleGlobalChange('')
+              onColumnFilterChange('dateFrom', '')
+              onColumnFilterChange('dateTo', '')
+              onColumnFilterChange('category', '')
+              onColumnFilterChange('description', '')
+              onColumnFilterChange('amount', '')
             }}
             className="text-xs font-medium px-2.5 py-1.5 rounded-theme-medium bg-theme-background text-theme-muted hover:text-theme-text border border-theme-border transition-colors shrink-0"
           >
@@ -93,42 +99,42 @@ export default function ExpenseTableFilters({
         <div className="flex gap-1">
           <DatePicker
             value={columnFilters.dateFrom}
-            onChange={(iso) => onColumnFilterChange("dateFrom", iso)}
+            onChange={(iso) => onColumnFilterChange('dateFrom', iso)}
             placeholder="From"
           />
           <DatePicker
             value={columnFilters.dateTo}
-            onChange={(iso) => onColumnFilterChange("dateTo", iso)}
+            onChange={(iso) => onColumnFilterChange('dateTo', iso)}
             placeholder="To"
           />
         </div>
         <select
           value={columnFilters.category}
-          onChange={(e) => onColumnFilterChange("category", e.target.value)}
+          onChange={(e) => onColumnFilterChange('category', e.target.value)}
           className="input-theme px-2 py-1 text-xs"
         >
           <option value="">All categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>
-                {normalizeName(c.name)}
-              </option>
-            ))}
+          {categories.map((c) => (
+            <option key={c.id} value={c.name}>
+              {normalizeName(c.name)}
+            </option>
+          ))}
         </select>
         <input
           type="text"
           value={columnFilters.description}
-          onChange={(e) => onColumnFilterChange("description", e.target.value)}
+          onChange={(e) => onColumnFilterChange('description', e.target.value)}
           placeholder="Description"
           className="input-theme px-2 py-1 text-xs"
         />
         <input
           type="text"
           value={columnFilters.amount}
-          onChange={(e) => onColumnFilterChange("amount", e.target.value)}
+          onChange={(e) => onColumnFilterChange('amount', e.target.value)}
           placeholder="Amount"
           className="input-theme px-2 py-1 text-xs"
         />
       </div>
     </div>
-  );
+  )
 }

@@ -1,36 +1,33 @@
-import { useEffect, useMemo, useState } from "react";
-import Modal from "../../components/ui/Modal";
-import ModalFooter from "../../components/ui/ModalFooter";
-import Spinner from "../../components/ui/Spinner";
-import CreatableCombobox from "../../components/inputs/CreatableCombobox";
-import MobileEntityPicker from "../../components/inputs/MobileEntityPicker";
-import Card from "../../components/ui/Card";
-import { cn } from "../../utils/cn";
-import { StorageService } from "../../services/storageService";
-import type { Payee } from "../../types";
-import type {
-  ImportPayeeMatchSummary,
-  ImportPayeeReviewRow,
-} from "./utils/importPayeeMatching";
-import type { ComboboxOption } from "../../components/inputs/comboboxUtils";
+import { useEffect, useMemo, useState } from 'react'
+import CreatableCombobox from '../../components/inputs/CreatableCombobox'
+import type { ComboboxOption } from '../../components/inputs/comboboxUtils'
+import MobileEntityPicker from '../../components/inputs/MobileEntityPicker'
+import Card from '../../components/ui/Card'
+import Modal from '../../components/ui/Modal'
+import ModalFooter from '../../components/ui/ModalFooter'
+import Spinner from '../../components/ui/Spinner'
+import { StorageService } from '../../services/storageService'
+import type { Payee } from '../../types'
+import { cn } from '../../utils/cn'
+import type { ImportPayeeMatchSummary, ImportPayeeReviewRow } from './utils/importPayeeMatching'
 
 export interface ImportReviewSelection {
-  rowId: string;
-  payeeId: number | null | undefined;
-  saveAlias: boolean;
+  rowId: string
+  payeeId: number | null | undefined
+  saveAlias: boolean
 }
 
 interface ImportReviewModalProps {
-  open: boolean;
-  isLoading?: boolean;
-  loadingMessage?: string;
-  loadingDescription?: string;
-  summary: ImportPayeeMatchSummary | null;
-  reviewRows: ImportPayeeReviewRow[];
-  activePayees: Payee[];
-  onBack: () => void;
-  onSkipReview: () => void;
-  onImport: (selections: ImportReviewSelection[]) => Promise<void> | void;
+  open: boolean
+  isLoading?: boolean
+  loadingMessage?: string
+  loadingDescription?: string
+  summary: ImportPayeeMatchSummary | null
+  reviewRows: ImportPayeeReviewRow[]
+  activePayees: Payee[]
+  onBack: () => void
+  onSkipReview: () => void
+  onImport: (selections: ImportReviewSelection[]) => Promise<void> | void
 }
 
 function SingleSelectTrigger({
@@ -39,10 +36,10 @@ function SingleSelectTrigger({
   isOpen,
   onClick,
 }: {
-  value?: string;
-  placeholder: string;
-  isOpen: boolean;
-  onClick: () => void;
+  value?: string
+  placeholder: string
+  isOpen: boolean
+  onClick: () => void
 }) {
   return (
     <button
@@ -50,18 +47,13 @@ function SingleSelectTrigger({
       onClick={onClick}
       className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-left text-sm transition-colors"
     >
-      <span
-        className={cn(
-          "min-w-0 truncate",
-          value ? "text-theme-text" : "text-theme-muted",
-        )}
-      >
+      <span className={cn('min-w-0 truncate', value ? 'text-theme-text' : 'text-theme-muted')}>
         {value || placeholder}
       </span>
       <svg
         className={cn(
-          "h-4 w-4 shrink-0 text-theme-muted transition-transform",
-          isOpen && "rotate-180",
+          'h-4 w-4 shrink-0 text-theme-muted transition-transform',
+          isOpen && 'rotate-180',
         )}
         fill="none"
         stroke="currentColor"
@@ -72,14 +64,14 @@ function SingleSelectTrigger({
         <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
       </svg>
     </button>
-  );
+  )
 }
 
 export default function ImportReviewModal({
   open,
   isLoading = false,
-  loadingMessage = "Preparing import review…",
-  loadingDescription = "Matching payees and checking your rows.",
+  loadingMessage = 'Preparing import review…',
+  loadingDescription = 'Matching payees and checking your rows.',
   summary,
   reviewRows,
   activePayees,
@@ -87,14 +79,10 @@ export default function ImportReviewModal({
   onSkipReview,
   onImport,
 }: ImportReviewModalProps) {
-  const [selections, setSelections] = useState<
-    Record<string, ImportReviewSelection>
-  >({});
-  const [chooserRowId, setChooserRowId] = useState<string | null>(null);
-  const [mobilePickerRowId, setMobilePickerRowId] = useState<string | null>(
-    null,
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selections, setSelections] = useState<Record<string, ImportReviewSelection>>({})
+  const [chooserRowId, setChooserRowId] = useState<string | null>(null)
+  const [mobilePickerRowId, setMobilePickerRowId] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const payeeOptions = useMemo<ComboboxOption[]>(
     () =>
@@ -102,30 +90,24 @@ export default function ImportReviewModal({
         .filter((payee) => !payee.isArchived)
         .map((payee) => ({ id: payee.id as number, label: payee.name })),
     [activePayees],
-  );
+  )
 
   useEffect(() => {
-    if (!open) return;
-    const next: Record<string, ImportReviewSelection> = {};
+    if (!open) return
+    const next: Record<string, ImportReviewSelection> = {}
     for (const row of reviewRows) {
       next[row.rowId] = {
         rowId: row.rowId,
-        payeeId:
-          row.confidence === "confident"
-            ? (row.suggestedPayeeId ?? null)
-            : undefined,
+        payeeId: row.confidence === 'confident' ? (row.suggestedPayeeId ?? null) : undefined,
         saveAlias: false,
-      };
+      }
     }
-    setSelections(next);
-    setChooserRowId(null);
-    setMobilePickerRowId(null);
-  }, [open, reviewRows]);
+    setSelections(next)
+    setChooserRowId(null)
+    setMobilePickerRowId(null)
+  }, [open, reviewRows])
 
-  const setSelection = (
-    rowId: string,
-    patch: Partial<ImportReviewSelection>,
-  ) => {
+  const setSelection = (rowId: string, patch: Partial<ImportReviewSelection>) => {
     setSelections((current) => ({
       ...current,
       [rowId]: {
@@ -133,17 +115,17 @@ export default function ImportReviewModal({
         ...patch,
         rowId,
       },
-    }));
-  };
+    }))
+  }
 
   const handleImport = async () => {
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      await onImport(Object.values(selections));
+      await onImport(Object.values(selections))
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <Modal
@@ -178,28 +160,16 @@ export default function ImportReviewModal({
       <div className="relative flex min-h-0 flex-col">
         <div className="border-b border-theme-border bg-theme-surface px-4 py-4 md:px-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <Stat
-              label="Rows found"
-              value={summary?.rowsFound ?? reviewRows.length}
-            />
-            <Stat
-              label="Valid rows"
-              value={summary?.validRows ?? reviewRows.length}
-            />
-            <Stat
-              label="Likely payees"
-              value={summary?.likelyPayeesFound ?? 0}
-            />
+            <Stat label="Rows found" value={summary?.rowsFound ?? reviewRows.length} />
+            <Stat label="Valid rows" value={summary?.validRows ?? reviewRows.length} />
+            <Stat label="Likely payees" value={summary?.likelyPayeesFound ?? 0} />
             <Stat label="Need review" value={summary?.uncertainMatches ?? 0} />
             <Stat label="Skipped" value={summary?.skippedRows ?? 0} />
-            <Stat
-              label="Need attention"
-              value={summary?.unmatchedExpenses ?? 0}
-            />
+            <Stat label="Need attention" value={summary?.unmatchedExpenses ?? 0} />
           </div>
           <p className="mt-3 text-xs text-theme-muted">
-            Confident matches will be imported automatically. Uncertain matches
-            stay blank until you choose them here.
+            Confident matches will be imported automatically. Uncertain matches stay blank until you
+            choose them here.
           </p>
         </div>
 
@@ -210,23 +180,20 @@ export default function ImportReviewModal({
                 Review uncertain matches
               </div>
               {reviewRows.map((row) => {
-                const currentSelection = selections[row.rowId];
+                const currentSelection = selections[row.rowId]
                 const selectedPayee = payeeOptions.find(
                   (option) => option.id === currentSelection?.payeeId,
-                );
-                const isChooserOpen = chooserRowId === row.rowId;
-                const isMobilePickerOpen = mobilePickerRowId === row.rowId;
-                const selectedPayeeName = selectedPayee?.label;
+                )
+                const isChooserOpen = chooserRowId === row.rowId
+                const isMobilePickerOpen = mobilePickerRowId === row.rowId
+                const selectedPayeeName = selectedPayee?.label
                 const mobilePickerValue =
-                  currentSelection?.payeeId != null
-                    ? currentSelection.payeeId
-                    : undefined;
-                const isAcceptingSuggestion =
-                  currentSelection?.payeeId === row.suggestedPayeeId;
-                const isLeavingBlank = currentSelection?.payeeId === null;
+                  currentSelection?.payeeId != null ? currentSelection.payeeId : undefined
+                const isAcceptingSuggestion = currentSelection?.payeeId === row.suggestedPayeeId
+                const isLeavingBlank = currentSelection?.payeeId === null
                 const isChooseAnotherActive =
                   currentSelection?.payeeId != null &&
-                  currentSelection?.payeeId !== row.suggestedPayeeId;
+                  currentSelection?.payeeId !== row.suggestedPayeeId
                 return (
                   <Card
                     key={row.rowId}
@@ -237,29 +204,27 @@ export default function ImportReviewModal({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 space-y-1">
                           <p className="text-sm font-semibold text-theme-text truncate">
-                            {row.description || "Imported expense"}
+                            {row.description || 'Imported expense'}
                           </p>
                           <p className="text-xs text-theme-muted">
                             {row.date} · {row.amount.toFixed(2)}
                           </p>
                           <p className="text-[11px] text-theme-muted">
-                            Suggested:{" "}
+                            Suggested:{' '}
                             <span className="font-medium text-theme-text">
-                              {row.suggestedPayeeName ?? "No match"}
+                              {row.suggestedPayeeName ?? 'No match'}
                             </span>
                           </p>
                         </div>
                         <span
                           className={cn(
-                            "shrink-0 rounded-full border px-2 py-1 text-[11px] font-semibold",
-                            row.confidence === "confident"
-                              ? "border-[color:color-mix(in_srgb,var(--theme-success)_30%,transparent)] bg-theme-success-subtle text-theme-success"
-                              : "border-theme-border bg-theme-surface text-theme-muted",
+                            'shrink-0 rounded-full border px-2 py-1 text-[11px] font-semibold',
+                            row.confidence === 'confident'
+                              ? 'border-[color:color-mix(in_srgb,var(--theme-success)_30%,transparent)] bg-theme-success-subtle text-theme-success'
+                              : 'border-theme-border bg-theme-surface text-theme-muted',
                           )}
                         >
-                          {row.confidence === "confident"
-                            ? "Confident"
-                            : "Needs review"}
+                          {row.confidence === 'confident' ? 'Confident' : 'Needs review'}
                         </span>
                       </div>
 
@@ -271,13 +236,13 @@ export default function ImportReviewModal({
                               setSelection(row.rowId, {
                                 payeeId: row.suggestedPayeeId,
                                 saveAlias: false,
-                              });
-                              setChooserRowId(null);
+                              })
+                              setChooserRowId(null)
                             }}
                             className={cn(
-                              "btn-cancel-sm",
+                              'btn-cancel-sm',
                               isAcceptingSuggestion &&
-                                "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
+                                'border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none',
                             )}
                           >
                             Accept
@@ -287,9 +252,9 @@ export default function ImportReviewModal({
                           type="button"
                           onClick={() => setChooserRowId(row.rowId)}
                           className={cn(
-                            "btn-cancel-sm",
+                            'btn-cancel-sm',
                             isChooseAnotherActive &&
-                              "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
+                              'border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none',
                           )}
                         >
                           Choose another
@@ -300,13 +265,13 @@ export default function ImportReviewModal({
                             setSelection(row.rowId, {
                               payeeId: null,
                               saveAlias: false,
-                            });
-                            setChooserRowId(null);
+                            })
+                            setChooserRowId(null)
                           }}
                           className={cn(
-                            "btn-cancel-sm",
+                            'btn-cancel-sm',
                             isLeavingBlank &&
-                              "border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none",
+                              'border-transparent bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary)] focus:bg-[var(--theme-primary)] focus:text-white focus:border-transparent focus:outline-none',
                           )}
                         >
                           Leave blank
@@ -315,14 +280,11 @@ export default function ImportReviewModal({
 
                       {currentSelection?.payeeId != null && (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-theme-primary-subtle text-theme-primary text-xs font-medium px-2 py-1">
-                          {selectedPayeeName ??
-                            `Payee #${currentSelection.payeeId}`}
+                          {selectedPayeeName ?? `Payee #${currentSelection.payeeId}`}
                         </span>
                       )}
                       {currentSelection?.payeeId === null && (
-                        <span className="text-xs text-theme-muted italic">
-                          No payee selected
-                        </span>
+                        <span className="text-xs text-theme-muted italic">No payee selected</span>
                       )}
 
                       {isChooserOpen && (
@@ -330,11 +292,7 @@ export default function ImportReviewModal({
                           {/* Desktop */}
                           <div className="hidden sm:block">
                             <CreatableCombobox
-                              value={
-                                currentSelection?.payeeId ??
-                                row.suggestedPayeeId ??
-                                undefined
-                              }
+                              value={currentSelection?.payeeId ?? row.suggestedPayeeId ?? undefined}
                               options={payeeOptions}
                               placeholder="Choose payee"
                               emptyMessage="No payees found."
@@ -343,23 +301,19 @@ export default function ImportReviewModal({
                               openOnClick
                               onChange={(id) => {
                                 setSelection(row.rowId, {
-                                  payeeId:
-                                    typeof id === "number" ? id : undefined,
-                                  saveAlias:
-                                    currentSelection?.saveAlias ?? false,
-                                });
-                                setChooserRowId(null);
+                                  payeeId: typeof id === 'number' ? id : undefined,
+                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                })
+                                setChooserRowId(null)
                               }}
                               onCreate={async (name) => {
-                                const newId =
-                                  await StorageService.addPayee(name);
+                                const newId = await StorageService.addPayee(name)
                                 setSelection(row.rowId, {
                                   payeeId: newId,
-                                  saveAlias:
-                                    currentSelection?.saveAlias ?? false,
-                                });
-                                setChooserRowId(null);
-                                return newId;
+                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                })
+                                setChooserRowId(null)
+                                return newId
                               }}
                               onCancel={() => setChooserRowId(null)}
                             />
@@ -385,24 +339,21 @@ export default function ImportReviewModal({
                               clearLabel="No payee"
                               onChange={(id) => {
                                 setSelection(row.rowId, {
-                                  payeeId: typeof id === "number" ? id : null,
-                                  saveAlias:
-                                    currentSelection?.saveAlias ?? false,
-                                });
-                                setMobilePickerRowId(null);
-                                setChooserRowId(null);
+                                  payeeId: typeof id === 'number' ? id : null,
+                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                })
+                                setMobilePickerRowId(null)
+                                setChooserRowId(null)
                               }}
                               onCreate={async (name) => {
-                                const newId =
-                                  await StorageService.addPayee(name);
+                                const newId = await StorageService.addPayee(name)
                                 setSelection(row.rowId, {
                                   payeeId: newId,
-                                  saveAlias:
-                                    currentSelection?.saveAlias ?? false,
-                                });
-                                setMobilePickerRowId(null);
-                                setChooserRowId(null);
-                                return newId;
+                                  saveAlias: currentSelection?.saveAlias ?? false,
+                                })
+                                setMobilePickerRowId(null)
+                                setChooserRowId(null)
+                                return newId
                               }}
                               onClose={() => setMobilePickerRowId(null)}
                             />
@@ -419,18 +370,16 @@ export default function ImportReviewModal({
                               className="rounded-theme-small"
                               disabled={!selectedPayee}
                             />
-                            Save &ldquo;{row.description}&rdquo; as an alias for
-                            next time
+                            Save &ldquo;{row.description}&rdquo; as an alias for next time
                           </label>
                           <p className="text-[11px] text-theme-muted">
-                            Choosing a payee here does not change the original
-                            imported description.
+                            Choosing a payee here does not change the original imported description.
                           </p>
                         </div>
                       )}
                     </div>
                   </Card>
-                );
+                )
               })}
             </div>
           ) : (
@@ -443,17 +392,13 @@ export default function ImportReviewModal({
         {isLoading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[color-mix(in_srgb,var(--theme-surface)_90%,transparent)] px-6 text-center backdrop-blur-sm">
             <Spinner />
-            <p className="text-sm font-semibold text-theme-text">
-              {loadingMessage}
-            </p>
-            <p className="max-w-sm text-xs text-theme-muted">
-              {loadingDescription}
-            </p>
+            <p className="text-sm font-semibold text-theme-text">{loadingMessage}</p>
+            <p className="max-w-sm text-xs text-theme-muted">{loadingDescription}</p>
           </div>
         )}
       </div>
     </Modal>
-  );
+  )
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
@@ -462,9 +407,7 @@ function Stat({ label, value }: { label: string; value: number }) {
       <div className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
         {label}
       </div>
-      <div className="mt-1 text-sm font-semibold text-theme-text tabular-nums">
-        {value}
-      </div>
+      <div className="mt-1 text-sm font-semibold text-theme-text tabular-nums">{value}</div>
     </div>
-  );
+  )
 }

@@ -11,10 +11,10 @@
  * - Allocation rows with dot, label, %, amount
  */
 
-import { useState } from "react";
-import { createPortal } from "react-dom";
-import { cn } from "../../utils/cn";
-import { GREEN_TO_RED_SCALE } from "../../features/summary/summaryColorUtils";
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { GREEN_TO_RED_SCALE } from '../../features/summary/summaryColorUtils'
+import { cn } from '../../utils/cn'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,60 +24,60 @@ export function getRemainingBarColor(
   successColor: string,
   dangerColor: string,
 ): string {
-  if (remaining <= 0 || baselineRemaining <= 0) return dangerColor;
-  const remainingPct = (remaining / baselineRemaining) * 100;
+  if (remaining <= 0 || baselineRemaining <= 0) return dangerColor
+  const remainingPct = (remaining / baselineRemaining) * 100
   const scale = [
     successColor,
     ...GREEN_TO_RED_SCALE.slice(1, -1).map((item) => item.hex),
     dangerColor,
-  ];
-  if (remainingPct >= 50) return scale[0];
-  const ratioFromHalfToZero = (50 - remainingPct) / 50;
-  const scaledIndex = 1 + Math.floor(ratioFromHalfToZero * (scale.length - 1));
-  return scale[Math.min(scaledIndex, scale.length - 1)];
+  ]
+  if (remainingPct >= 50) return scale[0]
+  const ratioFromHalfToZero = (50 - remainingPct) / 50
+  const scaledIndex = 1 + Math.floor(ratioFromHalfToZero * (scale.length - 1))
+  return scale[Math.min(scaledIndex, scale.length - 1)]
 }
 
 export function barPct(value: number, total: number): number {
-  if (total <= 0) return 0;
-  return Math.min(100, Math.max(0, (value / total) * 100));
+  if (total <= 0) return 0
+  return Math.min(100, Math.max(0, (value / total) * 100))
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface BarSegment {
-  key: string;
-  label: string;
-  value: number;
+  key: string
+  label: string
+  value: number
   /** Width as % of income (already clamped 0–100) */
-  widthPct: number;
-  color?: string;
+  widthPct: number
+  color?: string
   /** Tailwind bg class (alternative to color) */
-  bgClass?: string;
+  bgClass?: string
 }
 
 interface TooltipState {
-  key: string;
-  label: string;
-  value: number;
-  displayPct: number;
+  key: string
+  label: string
+  value: number
+  displayPct: number
   /** clientX for portal positioning */
-  x: number;
+  x: number
   /** clientY for portal positioning */
-  y: number;
+  y: number
 }
 
 // ── Allocation row ────────────────────────────────────────────────────────────
 
 interface AllocationRowProps {
-  label: string;
-  value: number;
-  rowPct: number;
-  dotColor?: string;
-  dotClass?: string;
-  textColor?: string;
-  textClass?: string;
-  prefix?: string;
-  formatAmount: (n: number) => string;
+  label: string
+  value: number
+  rowPct: number
+  dotColor?: string
+  dotClass?: string
+  textColor?: string
+  textClass?: string
+  prefix?: string
+  formatAmount: (n: number) => string
 }
 
 export function AllocationRow({
@@ -88,52 +88,53 @@ export function AllocationRow({
   dotClass,
   textColor,
   textClass,
-  prefix = "",
+  prefix = '',
   formatAmount,
 }: AllocationRowProps) {
   return (
     <div className="flex items-center gap-2 py-1.5">
       <span
-        className={cn("inline-block w-2 h-2 rounded-full shrink-0", dotClass)}
+        className={cn('inline-block w-2 h-2 rounded-full shrink-0', dotClass)}
         style={dotColor ? { backgroundColor: dotColor } : undefined}
       />
       <span className="text-sm text-theme-text flex-1 min-w-0 truncate">{label}</span>
       <div className="flex items-center gap-3">
         <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-          {rowPct !== 0 ? `${rowPct.toFixed(0)}%` : "—"}
+          {rowPct !== 0 ? `${rowPct.toFixed(0)}%` : '—'}
         </span>
         <span
-          className={cn("text-sm font-semibold tabular-nums w-24 text-right", textClass)}
+          className={cn('text-sm font-semibold tabular-nums w-24 text-right', textClass)}
           style={textColor ? { color: textColor } : undefined}
         >
-          {prefix}{formatAmount(value)}
+          {prefix}
+          {formatAmount(value)}
         </span>
       </div>
     </div>
-  );
+  )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface BudgetFlowBarProps {
-  income: number;
+  income: number
   /** Pre-built bar segments (order = left to right) */
-  segments: BarSegment[];
-  remaining: number;
+  segments: BarSegment[]
+  remaining: number
   /** Color for the remaining segment */
-  remainingColor: string;
-  isOverBudget: boolean;
+  remainingColor: string
+  isOverBudget: boolean
   /** Amount by which spending exceeds income (> 0 when isOverBudget) */
-  overflowAmt: number;
+  overflowAmt: number
   /** Total allocated as % of income (may exceed 100) */
-  spentPct: number;
+  spentPct: number
   /** Show a dashed vertical line at the 100% mark when over budget */
-  showOverflowLine?: boolean;
+  showOverflowLine?: boolean
   /** Allow clicking segments to pin the tooltip */
-  allowPinTooltip?: boolean;
-  formatAmount: (n: number) => string;
+  allowPinTooltip?: boolean
+  formatAmount: (n: number) => string
   /** Slot rendered below the bar (allocation rows, divider, remaining row) */
-  children?: React.ReactNode;
+  children?: React.ReactNode
 }
 
 export default function BudgetFlowBar({
@@ -149,8 +150,8 @@ export default function BudgetFlowBar({
   formatAmount,
   children,
 }: BudgetFlowBarProps) {
-  const [hovered, setHovered] = useState<TooltipState | null>(null);
-  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<TooltipState | null>(null)
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null)
 
   const makeTooltip = (
     e: React.MouseEvent,
@@ -165,16 +166,16 @@ export default function BudgetFlowBar({
     displayPct,
     x: e.clientX,
     y: e.clientY,
-  });
+  })
 
   const updatePos = (e: React.MouseEvent) => {
-    setHovered((prev) => prev ? { ...prev, x: e.clientX, y: e.clientY } : prev);
-  };
+    setHovered((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : prev))
+  }
 
   const handleSegmentClick = (key: string) => {
-    if (!allowPinTooltip) return;
-    setPinnedKey((prev) => (prev === key ? null : key));
-  };
+    if (!allowPinTooltip) return
+    setPinnedKey((prev) => (prev === key ? null : key))
+  }
 
   // Pinned tooltip (analytics click-to-pin) — only shown when not hovering
   const pinnedTooltip: TooltipState | null =
@@ -182,16 +183,16 @@ export default function BudgetFlowBar({
       ? (() => {
           const seg =
             segments.find((s) => s.key === pinnedKey) ??
-            (isOverBudget && pinnedKey === "overflow"
+            (isOverBudget && pinnedKey === 'overflow'
               ? {
-                  key: "overflow",
-                  label: "Over Budget",
+                  key: 'overflow',
+                  label: 'Over Budget',
                   value: overflowAmt,
                   widthPct: barPct(overflowAmt, income),
                   color: undefined,
                 }
-              : null);
-          if (!seg) return null;
+              : null)
+          if (!seg) return null
           return {
             key: seg.key,
             label: seg.label,
@@ -199,18 +200,18 @@ export default function BudgetFlowBar({
             displayPct: barPct(seg.value, income),
             x: 0,
             y: 0,
-          };
+          }
         })()
-      : null;
+      : null
 
-  const activeTooltip = hovered ?? pinnedTooltip;
+  const activeTooltip = hovered ?? pinnedTooltip
 
   if (income <= 0) {
     return (
       <div className="h-8 flex items-center justify-center rounded-full bg-theme-background">
         <span className="text-xs text-theme-muted">No income data</span>
       </div>
-    );
+    )
   }
 
   return (
@@ -226,8 +227,8 @@ export default function BudgetFlowBar({
               <div
                 key={seg.key}
                 className={cn(
-                  "h-full transition-all duration-500",
-                  allowPinTooltip && "cursor-pointer",
+                  'h-full transition-all duration-500',
+                  allowPinTooltip && 'cursor-pointer',
                   seg.bgClass,
                 )}
                 style={{
@@ -235,7 +236,9 @@ export default function BudgetFlowBar({
                   backgroundColor: seg.color,
                 }}
                 onMouseEnter={(e) =>
-                  setHovered(makeTooltip(e, seg.key, seg.label, seg.value, barPct(seg.value, income)))
+                  setHovered(
+                    makeTooltip(e, seg.key, seg.label, seg.value, barPct(seg.value, income)),
+                  )
                 }
                 onMouseMove={updatePos}
                 onClick={() => handleSegmentClick(seg.key)}
@@ -252,7 +255,9 @@ export default function BudgetFlowBar({
                 backgroundColor: remainingColor,
               }}
               onMouseEnter={(e) =>
-                setHovered(makeTooltip(e, "remaining", "Remaining", remaining, barPct(remaining, income)))
+                setHovered(
+                  makeTooltip(e, 'remaining', 'Remaining', remaining, barPct(remaining, income)),
+                )
               }
               onMouseMove={updatePos}
             />
@@ -263,7 +268,15 @@ export default function BudgetFlowBar({
             <div
               className="bar-overbudget h-full transition-all duration-500 flex-1"
               onMouseEnter={(e) =>
-                setHovered(makeTooltip(e, "overflow", "Over Budget", Math.abs(remaining), Math.abs(barPct(remaining, income))))
+                setHovered(
+                  makeTooltip(
+                    e,
+                    'overflow',
+                    'Over Budget',
+                    Math.abs(remaining),
+                    Math.abs(barPct(remaining, income)),
+                  ),
+                )
               }
               onMouseMove={updatePos}
             />
@@ -276,10 +289,12 @@ export default function BudgetFlowBar({
             className="bar-overbudget h-full rounded-r-full transition-all duration-500 cursor-pointer ml-px"
             style={{ width: `${barPct(overflowAmt, income)}%` }}
             onMouseEnter={(e) =>
-              setHovered(makeTooltip(e, "overflow", "Over Budget", overflowAmt, barPct(overflowAmt, income)))
+              setHovered(
+                makeTooltip(e, 'overflow', 'Over Budget', overflowAmt, barPct(overflowAmt, income)),
+              )
             }
             onMouseMove={updatePos}
-            onClick={() => handleSegmentClick("overflow")}
+            onClick={() => handleSegmentClick('overflow')}
           />
         )}
 
@@ -289,7 +304,7 @@ export default function BudgetFlowBar({
             className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed pointer-events-none"
             style={{
               left: `${barPct(income, income + overflowAmt)}%`,
-              borderColor: "var(--theme-danger)",
+              borderColor: 'var(--theme-danger)',
               opacity: 0.7,
             }}
           />
@@ -299,11 +314,11 @@ export default function BudgetFlowBar({
       {/* % labels */}
       <div className="flex justify-between text-[0.6875rem] text-theme-muted tabular-nums">
         <span>0%</span>
-        <span className={cn(spentPct > 100 && "text-theme-danger font-medium")}>
+        <span className={cn(spentPct > 100 && 'text-theme-danger font-medium')}>
           {spentPct.toFixed(0)}% allocated
         </span>
-        <span className={cn(isOverBudget && "text-theme-danger font-medium")}>
-          {isOverBudget ? `${spentPct.toFixed(0)}%` : "100%"}
+        <span className={cn(isOverBudget && 'text-theme-danger font-medium')}>
+          {isOverBudget ? `${spentPct.toFixed(0)}%` : '100%'}
         </span>
       </div>
 
@@ -315,7 +330,7 @@ export default function BudgetFlowBar({
             style={{
               left: activeTooltip.x + 12,
               top: activeTooltip.y - 8,
-              transform: "translateY(-100%)",
+              transform: 'translateY(-100%)',
             }}
           >
             <div className="text-[0.6875rem] font-medium text-theme-text">
@@ -331,5 +346,5 @@ export default function BudgetFlowBar({
       {/* Allocation rows slot */}
       {children}
     </div>
-  );
+  )
 }

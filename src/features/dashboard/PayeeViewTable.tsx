@@ -1,23 +1,23 @@
-import MultiMonthViewTable from "./MultiMonthViewTable";
 import type {
+  MonthKey,
+  MonthlySummary,
   MultiMonthCategoryRow,
   MultiMonthFixedRow,
-  MonthlySummary,
-  MonthKey,
-} from "../../types";
+} from '../../types'
+import MultiMonthViewTable from './MultiMonthViewTable'
 
 interface PayeeViewTableProps {
-  multiPayeeRows: MultiMonthCategoryRow[];
-  multiFixedRows: MultiMonthFixedRow[];
-  monthSummaries: MonthlySummary[];
-  monthKeys: MonthKey[];
-  monthSpan: number;
-  showGrandTotal: boolean;
-  onPayeeClick: (name: string, monthIndex: number) => void;
-  onIncomeClick: (monthIndex: number) => void;
-  onSavingsClick: (monthIndex: number) => void;
-  formatAmount: (n: number) => string;
-  getNumberColorClass: (n: number) => string;
+  multiPayeeRows: MultiMonthCategoryRow[]
+  multiFixedRows: MultiMonthFixedRow[]
+  monthSummaries: MonthlySummary[]
+  monthKeys: MonthKey[]
+  monthSpan: number
+  showGrandTotal: boolean
+  onPayeeClick: (name: string, monthIndex: number) => void
+  onIncomeClick: (monthIndex: number) => void
+  onSavingsClick: (monthIndex: number) => void
+  formatAmount: (n: number) => string
+  getNumberColorClass: (n: number) => string
 }
 
 export default function PayeeViewTable({
@@ -49,5 +49,5 @@ export default function PayeeViewTable({
       getNumberColorClass={getNumberColorClass}
       emptyMessage="No payee data for this period."
     />
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import { StorageService } from "../services/storageService";
-import type { Expense } from "../types";
+import { StorageService } from '../services/storageService'
+import type { Expense } from '../types'
 
 declare global {
   interface Window {
-    outflowTestApi?: typeof testApi;
+    outflowTestApi?: typeof testApi
   }
 }
 
@@ -12,23 +12,21 @@ const testApi = {
 
   seedExpenses: async (
     entries: Array<{
-      date: string;
-      amount: number;
-      categoryId?: number;
-      payeeId?: number;
-      description?: string;
+      date: string
+      amount: number
+      categoryId?: number
+      payeeId?: number
+      description?: string
     }>,
   ) => {
     for (const e of entries) {
-      await StorageService.add(e as Omit<Expense, "id">);
+      await StorageService.add(e as Omit<Expense, 'id'>)
     }
   },
 
-  seedSettings: async (
-    settings: Record<string, unknown>,
-  ) => {
+  seedSettings: async (settings: Record<string, unknown>) => {
     for (const [key, value] of Object.entries(settings)) {
-      await StorageService.setSetting(key, value);
+      await StorageService.setSetting(key, value)
     }
   },
 
@@ -40,21 +38,17 @@ const testApi = {
   getAllFixedExpenseSnapshots: () => StorageService.getAllFixedExpenseSnapshots(),
   addCategory: (name: string) => StorageService.addCategory(name),
   addPayee: (name: string) => StorageService.addPayee(name),
-  addFixedExpense: (item: { name: string; amount: number }) =>
-    StorageService.addFixedExpense(item),
-  setSetting: (key: string, value: unknown) =>
-    StorageService.setSetting(key, value),
+  addFixedExpense: (item: { name: string; amount: number }) => StorageService.addFixedExpense(item),
+  setSetting: (key: string, value: unknown) => StorageService.setSetting(key, value),
   getSetting: (key: string) => StorageService.getSetting(key),
 
   exportAllData: () => StorageService.exportAllData(),
-  importAllData: (
-    data: Record<string, unknown>,
-    opts?: { replace?: boolean },
-  ) => StorageService.importAllData(data, opts),
-};
+  importAllData: (data: Record<string, unknown>, opts?: { replace?: boolean }) =>
+    StorageService.importAllData(data, opts),
+}
 
 export function installTestApi(): void {
-  if (typeof window !== "undefined") {
-    window.outflowTestApi = testApi;
+  if (typeof window !== 'undefined') {
+    window.outflowTestApi = testApi
   }
 }

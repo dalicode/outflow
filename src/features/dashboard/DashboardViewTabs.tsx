@@ -1,17 +1,17 @@
-import { cn } from "../../utils/cn";
-import { DASHBOARD_VIEWS } from "./constants";
-import type { DashboardView } from "./constants";
+import { cn } from '../../utils/cn'
+import type { DashboardView } from './constants'
+import { DASHBOARD_VIEWS } from './constants'
 
 interface DashboardViewTabsProps {
-  viewMode: DashboardView;
-  activeFilterCount: number;
-  hasCategoryFilter: boolean;
-  onSwitchToCategories: () => void;
-  onSwitchToPayees: () => void;
-  onSwitchToExpenses: () => void;
-  onOpenFilters: () => void;
-  onResetCategoryFilter: () => void;
-  monthSpan: number;
+  viewMode: DashboardView
+  activeFilterCount: number
+  hasCategoryFilter: boolean
+  onSwitchToCategories: () => void
+  onSwitchToPayees: () => void
+  onSwitchToExpenses: () => void
+  onOpenFilters: () => void
+  onResetCategoryFilter: () => void
+  monthSpan: number
 }
 
 export default function DashboardViewTabs({
@@ -26,23 +26,16 @@ export default function DashboardViewTabs({
   return (
     <div
       className={cn(
-        "shrink-0 mx-auto px-4 w-full z-10",
-        viewMode !== DASHBOARD_VIEWS.EXPENSES && monthSpan === 12
-          ? "max-w-[120rem]"
-          : "max-w-7xl",
+        'shrink-0 mx-auto px-4 w-full z-10',
+        viewMode !== DASHBOARD_VIEWS.EXPENSES && monthSpan === 12 ? 'max-w-[120rem]' : 'max-w-7xl',
       )}
     >
       <div
         className={cn(
-          "w-full mx-auto",
-          (monthSpan <= 3 || viewMode === DASHBOARD_VIEWS.EXPENSES) &&
-            "md:max-w-3xl",
-          viewMode !== DASHBOARD_VIEWS.EXPENSES &&
-            monthSpan === 6 &&
-            "md:max-w-6xl",
-          viewMode !== DASHBOARD_VIEWS.EXPENSES &&
-            monthSpan === 12 &&
-            "md:max-w-none",
+          'w-full mx-auto',
+          (monthSpan <= 3 || viewMode === DASHBOARD_VIEWS.EXPENSES) && 'md:max-w-3xl',
+          viewMode !== DASHBOARD_VIEWS.EXPENSES && monthSpan === 6 && 'md:max-w-6xl',
+          viewMode !== DASHBOARD_VIEWS.EXPENSES && monthSpan === 12 && 'md:max-w-none',
         )}
       >
         <div className="flex items-end justify-between px-6">
@@ -51,11 +44,11 @@ export default function DashboardViewTabs({
               onClick={onSwitchToCategories}
               data-testid="view-tab-categories"
               className={cn(
-                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
-                "motion-safe:active:scale-[0.98]",
+                'px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150',
+                'motion-safe:active:scale-[0.98]',
                 viewMode === DASHBOARD_VIEWS.CATEGORIES
-                  ? "bg-theme-surface text-theme-text"
-                  : "bg-theme-background text-theme-muted hover:text-theme-text",
+                  ? 'bg-theme-surface text-theme-text'
+                  : 'bg-theme-background text-theme-muted hover:text-theme-text',
               )}
             >
               Categories
@@ -64,11 +57,11 @@ export default function DashboardViewTabs({
               onClick={onSwitchToPayees}
               data-testid="view-tab-payees"
               className={cn(
-                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
-                "motion-safe:active:scale-[0.98]",
+                'px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150',
+                'motion-safe:active:scale-[0.98]',
                 viewMode === DASHBOARD_VIEWS.PAYEES
-                  ? "bg-theme-surface text-theme-text"
-                  : "bg-theme-background text-theme-muted hover:text-theme-text",
+                  ? 'bg-theme-surface text-theme-text'
+                  : 'bg-theme-background text-theme-muted hover:text-theme-text',
               )}
             >
               Payees
@@ -77,11 +70,11 @@ export default function DashboardViewTabs({
               onClick={onSwitchToExpenses}
               data-testid="view-tab-expenses"
               className={cn(
-                "px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150",
-                "motion-safe:active:scale-[0.98]",
+                'px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150',
+                'motion-safe:active:scale-[0.98]',
                 viewMode === DASHBOARD_VIEWS.EXPENSES
-                  ? "bg-theme-surface text-theme-text"
-                  : "bg-theme-background text-theme-muted hover:text-theme-text",
+                  ? 'bg-theme-surface text-theme-text'
+                  : 'bg-theme-background text-theme-muted hover:text-theme-text',
               )}
             >
               Expenses
@@ -90,11 +83,11 @@ export default function DashboardViewTabs({
           <button
             data-testid="btn-open-filters"
             className={cn(
-              "text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-[background-color,color,transform,box-shadow] duration-150 flex items-center gap-1.5",
-              "motion-safe:active:scale-[0.98]",
+              'text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-[background-color,color,transform,box-shadow] duration-150 flex items-center gap-1.5',
+              'motion-safe:active:scale-[0.98]',
               activeFilterCount > 0
-                ? "bg-theme-primary-muted text-theme-primary"
-                : "bg-theme-background text-theme-muted hover:text-theme-text",
+                ? 'bg-theme-primary-muted text-theme-primary'
+                : 'bg-theme-background text-theme-muted hover:text-theme-text',
             )}
             onClick={onOpenFilters}
           >
@@ -121,5 +114,5 @@ export default function DashboardViewTabs({
         </div>
       </div>
     </div>
-  );
+  )
 }

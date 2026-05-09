@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { describe, expect, it, vi } from 'vitest'
 import Navbar from '../components/layout/Navbar'
 
 function renderNavbar(props: Parameters<typeof Navbar>[0]) {
@@ -16,7 +16,7 @@ describe('Navbar', () => {
   it('renders navigation links in desktop sidebar', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     const expandButton = within(sidebar).getByTitle('Expand')
     fireEvent.click(expandButton)
 
@@ -30,7 +30,7 @@ describe('Navbar', () => {
     const onAddExpense = vi.fn()
     renderNavbar({ onAddExpense })
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     fireEvent.click(within(sidebar).getByLabelText('Add expense'))
     expect(onAddExpense).toHaveBeenCalledTimes(1)
   })
@@ -38,7 +38,7 @@ describe('Navbar', () => {
   it('renders sign out button when onSignOut provided', () => {
     renderNavbar({ onAddExpense: vi.fn(), onSignOut: vi.fn(), userEmail: 'test@example.com' })
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     const expandButton = within(sidebar).getByTitle('Expand')
     fireEvent.click(expandButton)
 
@@ -50,7 +50,7 @@ describe('Navbar', () => {
     const onSignOut = vi.fn()
     renderNavbar({ onAddExpense: vi.fn(), onSignOut })
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     const expandButton = within(sidebar).getByTitle('Expand')
     fireEvent.click(expandButton)
 
@@ -65,7 +65,7 @@ describe('Navbar', () => {
       </MemoryRouter>,
     )
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     const expandButton = within(sidebar).getByTitle('Expand')
     fireEvent.click(expandButton)
 
@@ -80,7 +80,7 @@ describe('Navbar', () => {
       </MemoryRouter>,
     )
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     const expandButton = within(sidebar).getByTitle('Expand')
     fireEvent.click(expandButton)
 
@@ -97,7 +97,7 @@ describe('Navbar', () => {
   it('expands and collapses sidebar', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     // Initially collapsed - desktop link text is hidden
     expect(within(sidebar).queryByText('Dashboard')).not.toBeInTheDocument()
 
@@ -117,7 +117,7 @@ describe('Navbar', () => {
   it('toggle buttons have hover-only opacity classes', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 
-    const sidebar = document.querySelector('aside')!
+    const sidebar = document.querySelector('aside') as HTMLElement
     const expandButton = within(sidebar).getByTitle('Expand')
     expect(expandButton).toHaveClass('opacity-0')
     expect(expandButton).toHaveClass('group-hover:opacity-100')
@@ -214,10 +214,8 @@ describe('Navbar', () => {
       { wrapper: Wrapper },
     )
 
-    const getMobileNavContainer = () =>
-      document.body.querySelector('.mobile-nav-container')
-    const getMobileNav = () =>
-      document.body.querySelector('nav.mobile-nav-bounce')
+    const getMobileNavContainer = () => document.body.querySelector('.mobile-nav-container')
+    const getMobileNav = () => document.body.querySelector('nav.mobile-nav-bounce')
 
     // Start at stage 1
     expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
@@ -230,28 +228,20 @@ describe('Navbar', () => {
     expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
 
     // While still scrolling, nav stays at stage 2
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />,
-    )
+    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />)
     expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
 
     // Scroll stops → auto-collapse to stage 0
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />,
-    )
+    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />)
     expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
     expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
 
     // While scrolling up, stays at stage 0
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />,
-    )
+    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />)
     expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
 
     // Scroll up stops → restore to stage 1
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />,
-    )
+    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />)
     expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
     expect(getMobileNav()).not.toHaveClass('translate-y-[calc(100%-18px)]')
   })
@@ -266,14 +256,10 @@ describe('Navbar', () => {
       { wrapper: Wrapper },
     )
 
-    const getMobileNavContainer = () =>
-      document.body.querySelector('.mobile-nav-container')
-    const getMobileNav = () =>
-      document.body.querySelector('nav.mobile-nav-bounce')
+    const getMobileNavContainer = () => document.body.querySelector('.mobile-nav-container')
+    const getMobileNav = () => document.body.querySelector('nav.mobile-nav-bounce')
 
-    rerender(
-      <Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />,
-    )
+    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />)
 
     expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
     expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')

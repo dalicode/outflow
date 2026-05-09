@@ -1,32 +1,28 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { cn } from "../../utils/cn";
-import Spinner from "../ui/Spinner";
-import Modal from "../ui/Modal";
-import { CheckIcon } from "../ui/IconButton";
-import {
-  getFilteredOptions,
-  hasExactMatch,
-  type ComboboxOption,
-} from "./comboboxUtils";
-import { useHaptics } from "../../hooks/useHaptics";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useHaptics } from '../../hooks/useHaptics'
+import { cn } from '../../utils/cn'
+import { CheckIcon } from '../ui/IconButton'
+import Modal from '../ui/Modal'
+import Spinner from '../ui/Spinner'
+import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './comboboxUtils'
 
 interface MobileEntityPickerProps {
-  open: boolean;
-  title: string;
-  value?: string | number;
-  options: ComboboxOption[];
-  recentOptions?: ComboboxOption[];
-  recentLabel?: string;
-  placeholder?: string;
-  emptyMessage?: string;
-  createLabel?: (query: string) => string;
-  createHint?: string;
-  allowCreate?: boolean;
-  allowClear?: boolean;
-  clearLabel?: string;
-  onChange: (id: string | number | undefined) => void;
-  onCreate?: (name: string) => Promise<string | number>;
-  onClose: () => void;
+  open: boolean
+  title: string
+  value?: string | number
+  options: ComboboxOption[]
+  recentOptions?: ComboboxOption[]
+  recentLabel?: string
+  placeholder?: string
+  emptyMessage?: string
+  createLabel?: (query: string) => string
+  createHint?: string
+  allowCreate?: boolean
+  allowClear?: boolean
+  clearLabel?: string
+  onChange: (id: string | number | undefined) => void
+  onCreate?: (name: string) => Promise<string | number>
+  onClose: () => void
 }
 
 export default function MobileEntityPicker({
@@ -35,104 +31,97 @@ export default function MobileEntityPicker({
   value,
   options,
   recentOptions,
-  recentLabel = "Recent",
-  placeholder = "Search…",
-  emptyMessage = "No matches found.",
+  recentLabel = 'Recent',
+  placeholder = 'Search…',
+  emptyMessage = 'No matches found.',
   createLabel = (query) => `Add "${query.trim()}"`,
-  createHint = "Type a new name to add it.",
+  createHint = 'Type a new name to add it.',
   allowCreate = false,
   allowClear = false,
-  clearLabel = "Clear selection",
+  clearLabel = 'Clear selection',
   onChange,
   onCreate,
   onClose,
 }: MobileEntityPickerProps) {
-  const [query, setQuery] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const haptics = useHaptics();
+  const [query, setQuery] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const haptics = useHaptics()
 
   // Reset query when picker opens
   useEffect(() => {
     if (open) {
-      setQuery("");
-      setCreateError(null);
+      setQuery('')
+      setCreateError(null)
       const timer = setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
+        inputRef.current?.focus()
+      }, 100)
+      return () => clearTimeout(timer)
     }
-  }, [open]);
+  }, [open])
 
-  const filtered = useMemo(
-    () => getFilteredOptions(options, query),
-    [options, query],
-  );
-  const showRecentSection = Boolean(recentOptions?.length && !query.trim());
+  const filtered = useMemo(() => getFilteredOptions(options, query), [options, query])
+  const showRecentSection = Boolean(recentOptions?.length && !query.trim())
   const recentVisibleOptions = showRecentSection
     ? (recentOptions ?? []).filter((opt) => !opt.isArchived)
-    : [];
+    : []
   const recentIds = useMemo(
     () => new Set(recentVisibleOptions.map((opt) => opt.id)),
     [recentVisibleOptions],
-  );
+  )
   const displayOptions = showRecentSection
     ? filtered.filter((opt) => !recentIds.has(opt.id))
-    : filtered;
+    : filtered
 
-  const showCreateOption =
-    allowCreate &&
-    onCreate &&
-    query.trim() &&
-    !hasExactMatch(options, query);
-  const showCreateHint = allowCreate && onCreate && !query.trim();
+  const showCreateOption = allowCreate && onCreate && query.trim() && !hasExactMatch(options, query)
+  const showCreateHint = allowCreate && onCreate && !query.trim()
 
   const handleSelect = useCallback(
     (id: string | number) => {
-      onChange(id);
-      onClose();
-      haptics.selection();
+      onChange(id)
+      onClose()
+      haptics.selection()
     },
     [haptics, onChange, onClose],
-  );
+  )
 
   const handleClear = useCallback(() => {
-    onChange(undefined);
-    onClose();
-  }, [onChange, onClose]);
+    onChange(undefined)
+    onClose()
+  }, [onChange, onClose])
 
   const handleOptionClick = useCallback(
     (id: string | number | undefined) => () => {
       if (id === undefined) {
-        handleClear();
-        return;
+        handleClear()
+        return
       }
-      handleSelect(id);
+      handleSelect(id)
     },
     [handleClear, handleSelect],
-  );
+  )
 
   const handleCreate = useCallback(async () => {
-    if (!onCreate || isCreating) return;
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    setIsCreating(true);
-    setCreateError(null);
+    if (!onCreate || isCreating) return
+    const trimmed = query.trim()
+    if (!trimmed) return
+    setIsCreating(true)
+    setCreateError(null)
     try {
-      const newId = await onCreate(trimmed);
-      onChange(newId);
-      onClose();
-      haptics.light();
+      const newId = await onCreate(trimmed)
+      onChange(newId)
+      onClose()
+      haptics.light()
     } catch (err) {
-      setCreateError((err as Error).message);
+      setCreateError((err as Error).message)
     } finally {
-      setIsCreating(false);
+      setIsCreating(false)
     }
-  }, [haptics, onCreate, isCreating, query, onChange, onClose]);
+  }, [haptics, onCreate, isCreating, query, onChange, onClose])
 
-  const hasQuery = Boolean(query.trim());
-  const defaultMatchId = hasQuery ? displayOptions[0]?.id : value;
+  const hasQuery = Boolean(query.trim())
+  const defaultMatchId = hasQuery ? displayOptions[0]?.id : value
 
   return (
     <Modal
@@ -151,25 +140,23 @@ export default function MobileEntityPicker({
             type="text"
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value);
-              setCreateError(null);
+              setQuery(e.target.value)
+              setCreateError(null)
             }}
             onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
+              if (e.key !== 'Enter') return
+              e.preventDefault()
               if (showCreateOption && displayOptions.length === 0) {
-                void handleCreate();
-                return;
+                void handleCreate()
+                return
               }
-              if (isCreating || !filtered[0]) return;
-              handleSelect(filtered[0].id);
+              if (isCreating || !filtered[0]) return
+              handleSelect(filtered[0].id)
             }}
             placeholder={placeholder}
             className="input-md w-full"
           />
-          {createError && (
-            <p className="mt-1.5 text-theme-danger text-xs">{createError}</p>
-          )}
+          {createError && <p className="mt-1.5 text-theme-danger text-xs">{createError}</p>}
           {showCreateHint && (
             <div className="mt-2 flex items-center gap-2 text-xs text-theme-muted">
               <span
@@ -191,26 +178,24 @@ export default function MobileEntityPicker({
             </div>
           )}
           {recentVisibleOptions.map((opt) => {
-            const isSelected = opt.id === value;
+            const isSelected = opt.id === value
             return (
               <button
                 key={`recent-${opt.id}`}
                 type="button"
                 onClick={handleOptionClick(opt.id)}
                 className={cn(
-                  "flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm",
-                  "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
+                  'flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm',
+                  'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
                   isSelected
-                    ? "bg-theme-primary-subtle text-theme-primary font-medium"
-                    : "text-theme-text hover:bg-theme-border",
+                    ? 'bg-theme-primary-subtle text-theme-primary font-medium'
+                    : 'text-theme-text hover:bg-theme-border',
                 )}
               >
                 <span className="min-w-0 truncate">{opt.label}</span>
-                {isSelected && (
-                  <CheckIcon className="w-5 h-5 shrink-0 text-theme-primary" />
-                )}
+                {isSelected && <CheckIcon className="w-5 h-5 shrink-0 text-theme-primary" />}
               </button>
-            );
+            )
           })}
 
           {/* Clear option */}
@@ -226,26 +211,24 @@ export default function MobileEntityPicker({
 
           {/* Existing options */}
           {displayOptions.map((opt) => {
-            const isSelected = opt.id === defaultMatchId;
+            const isSelected = opt.id === defaultMatchId
             return (
               <button
                 key={opt.id}
                 type="button"
                 onClick={handleOptionClick(opt.id)}
                 className={cn(
-                  "flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm",
-                  "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
+                  'flex min-h-12 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm',
+                  'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
                   isSelected
-                    ? "bg-theme-primary-subtle text-theme-primary font-medium"
-                    : "text-theme-text hover:bg-theme-border",
+                    ? 'bg-theme-primary-subtle text-theme-primary font-medium'
+                    : 'text-theme-text hover:bg-theme-border',
                 )}
               >
                 <span className="min-w-0 truncate">{opt.label}</span>
-                {isSelected && (
-                  <CheckIcon className="w-5 h-5 shrink-0 text-theme-primary" />
-                )}
+                {isSelected && <CheckIcon className="w-5 h-5 shrink-0 text-theme-primary" />}
               </button>
-            );
+            )
           })}
 
           {/* Create option */}
@@ -253,20 +236,19 @@ export default function MobileEntityPicker({
             <button
               type="button"
               onClick={() => {
-                void handleCreate();
+                void handleCreate()
               }}
               disabled={isCreating}
               className={cn(
-                "flex min-h-12 w-full items-center gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm",
-                "transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]",
-                      isCreating
-                        ? "opacity-60 cursor-not-allowed"
-                        : cn(
-                            "text-theme-text hover:bg-theme-border",
-                            displayOptions.length === 0 &&
-                              "bg-theme-primary-subtle",
-                          ),
-                    )}
+                'flex min-h-12 w-full items-center gap-3 border-b border-theme-border px-2 py-2.5 text-left text-sm',
+                'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+                isCreating
+                  ? 'opacity-60 cursor-not-allowed'
+                  : cn(
+                      'text-theme-text hover:bg-theme-border',
+                      displayOptions.length === 0 && 'bg-theme-primary-subtle',
+                    ),
+              )}
             >
               {isCreating ? (
                 <span className="flex items-center gap-2 text-theme-text">
@@ -291,12 +273,10 @@ export default function MobileEntityPicker({
           {displayOptions.length === 0 &&
             !showCreateOption &&
             recentVisibleOptions.length === 0 && (
-            <div className="px-3 py-8 text-sm text-theme-muted text-center">
-              {emptyMessage}
-            </div>
-          )}
+              <div className="px-3 py-8 text-sm text-theme-muted text-center">{emptyMessage}</div>
+            )}
         </div>
       </div>
     </Modal>
-  );
+  )
 }

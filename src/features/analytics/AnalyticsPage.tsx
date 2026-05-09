@@ -1,20 +1,20 @@
-import { useState, useCallback, useMemo } from "react";
-import { useViewportWidth } from "../../hooks/useViewportWidth";
-import { useMaxVisible } from "../../hooks/useMaxVisible";
-import { useAnalytics } from "../../hooks/useAnalytics";
-import type { AnalyticsSessionState } from "../../hooks/useAnalytics";
-import IncomeTrendSection from "./incomeTrend/IncomeTrendSection";
-import YearStrip from "./YearStrip";
-import type { AllTimeRow } from "../../utils/analyticsTrendUtils";
-import type { Expense, Category, Payee } from "../../types";
-import "./analytics.css";
+import { useCallback, useMemo, useState } from 'react'
+import type { AnalyticsSessionState } from '../../hooks/useAnalytics'
+import { useAnalytics } from '../../hooks/useAnalytics'
+import { useMaxVisible } from '../../hooks/useMaxVisible'
+import { useViewportWidth } from '../../hooks/useViewportWidth'
+import type { Category, Expense, Payee } from '../../types'
+import type { AllTimeRow } from '../../utils/analyticsTrendUtils'
+import IncomeTrendSection from './incomeTrend/IncomeTrendSection'
+import YearStrip from './YearStrip'
+import './analytics.css'
 
 interface AnalyticsPageProps {
-  expenses: Expense[];
-  categories: Category[];
-  payees: Payee[];
-  sessionState?: AnalyticsSessionState;
-  onSessionStateChange?: (patch: Partial<AnalyticsSessionState>) => void;
+  expenses: Expense[]
+  categories: Category[]
+  payees: Payee[]
+  sessionState?: AnalyticsSessionState
+  onSessionStateChange?: (patch: Partial<AnalyticsSessionState>) => void
 }
 
 export default function AnalyticsPage({
@@ -24,67 +24,55 @@ export default function AnalyticsPage({
   sessionState,
   onSessionStateChange,
 }: AnalyticsPageProps) {
-  const viewportWidth = useViewportWidth();
-  const maxVisible = useMaxVisible(viewportWidth);
+  const viewportWidth = useViewportWidth()
+  const maxVisible = useMaxVisible(viewportWidth)
 
-  const {
-    currentYear,
-    currentMonth,
-    data,
-    multiYearData,
-    trendKey,
-    trendDrilldown,
-  } = useAnalytics({
-    expenses,
-    categories,
-    sessionState,
-    onSessionStateChange,
-  });
+  const { currentYear, currentMonth, data, multiYearData, trendKey, trendDrilldown } = useAnalytics(
+    {
+      expenses,
+      categories,
+      sessionState,
+      onSessionStateChange,
+    },
+  )
 
   // year and isCurrentYear are always fixed — the strip only pans the brush
-  const year = currentYear;
-  const priorYearsData = multiYearData.filter((d) => d.year < year);
-  const isCurrentYear = true;
-  const monthCount = currentMonth + 1;
+  const year = currentYear
+  const priorYearsData = multiYearData.filter((d) => d.year < year)
+  const isCurrentYear = true
+  const monthCount = currentMonth + 1
 
   // Only show years that have loaded data
   const availableYears = useMemo(
     () => multiYearData.filter((d) => !d.loading).map((d) => d.year),
     [multiYearData],
-  );
+  )
 
   // Brush window state lifted here so YearStrip can reflect active years
-  const [brushWindow, setBrushWindow] = useState<AllTimeRow[] | null>(null);
+  const [brushWindow, setBrushWindow] = useState<AllTimeRow[] | null>(null)
   // Track the year the strip is currently positioned at (for chevron step back/forward)
-  const [stripYear, setStripYear] = useState(currentYear);
+  const [stripYear, setStripYear] = useState(currentYear)
   // Year to pan the brush to
-  const [panToYear, setPanToYear] = useState<number | null>(null);
-  const [panToYearVersion, setPanToYearVersion] = useState(0);
+  const [panToYear, setPanToYear] = useState<number | null>(null)
+  const [panToYearVersion, setPanToYearVersion] = useState(0)
 
   // Derive which years are currently in the brush window
-  const activeYears = brushWindow
-    ? new Set(brushWindow.map((r) => r.year))
-    : new Set([stripYear]);
+  const activeYears = brushWindow ? new Set(brushWindow.map((r) => r.year)) : new Set([stripYear])
 
   const handleYearPan = useCallback((y: number) => {
-    setStripYear(y);
-    setPanToYear(y);
-    setPanToYearVersion((v) => v + 1);
-  }, []);
+    setStripYear(y)
+    setPanToYear(y)
+    setPanToYearVersion((v) => v + 1)
+  }, [])
 
   const handleBrushWindowChange = useCallback((window: AllTimeRow[]) => {
-    setBrushWindow(window.length > 0 ? window : null);
-    setPanToYear(null);
-  }, []);
+    setBrushWindow(window.length > 0 ? window : null)
+    setPanToYear(null)
+  }, [])
 
   return (
-    <main
-      className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6"
-      data-testid="analytics-page"
-    >
-      <h1 className="text-2xl font-bold text-theme-text tracking-tight">
-        Analytics
-      </h1>
+    <main className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="analytics-page">
+      <h1 className="text-2xl font-bold text-theme-text tracking-tight">Analytics</h1>
 
       <div className="space-y-6 max-w-6xl mx-auto">
         <YearStrip
@@ -117,5 +105,5 @@ export default function AnalyticsPage({
         />
       </div>
     </main>
-  );
+  )
 }

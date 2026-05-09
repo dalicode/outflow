@@ -1,19 +1,19 @@
-import Modal from "./Modal";
-import ModalFooter from "./ModalFooter";
-import { cn } from "../../utils/cn";
+import { cn } from '../../utils/cn'
+import Modal from './Modal'
+import ModalFooter from './ModalFooter'
 
 interface ConfirmDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  description?: React.ReactNode;
-  cancelLabel?: string;
-  confirmLabel?: string;
-  confirmVariant?: "default" | "destructive";
-  onCancel?: () => void;
-  onConfirm: () => void;
-  confirmDisabled?: boolean;
-  size?: "sm" | "md";
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  description?: React.ReactNode
+  cancelLabel?: string
+  confirmLabel?: string
+  confirmVariant?: 'default' | 'destructive'
+  onCancel?: () => void
+  onConfirm: () => void
+  confirmDisabled?: boolean
+  size?: 'sm' | 'md'
 }
 
 export default function ConfirmDialog({
@@ -21,23 +21,23 @@ export default function ConfirmDialog({
   onClose,
   title,
   description,
-  cancelLabel = "Cancel",
-  confirmLabel = "Confirm",
-  confirmVariant = "default",
+  cancelLabel = 'Cancel',
+  confirmLabel = 'Confirm',
+  confirmVariant = 'default',
   onCancel,
   onConfirm,
   confirmDisabled = false,
-  size = "sm",
+  size = 'sm',
 }: ConfirmDialogProps) {
   const handleCancel = () => {
-    onCancel?.();
-    onClose();
-  };
+    onCancel?.()
+    onClose()
+  }
 
   const handleConfirm = () => {
-    onConfirm();
-    onClose();
-  };
+    onConfirm()
+    onClose()
+  }
 
   return (
     <Modal
@@ -47,11 +47,7 @@ export default function ConfirmDialog({
       size={size}
       footer={
         <ModalFooter>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="btn-cancel-sm flex-1"
-          >
+          <button type="button" onClick={handleCancel} className="btn-cancel-sm flex-1">
             {cancelLabel}
           </button>
           <button
@@ -60,10 +56,8 @@ export default function ConfirmDialog({
             onClick={handleConfirm}
             disabled={confirmDisabled}
             className={cn(
-              "flex-1",
-              confirmVariant === "destructive"
-                ? "btn-modal-destructive"
-                : "btn-modal-primary",
+              'flex-1',
+              confirmVariant === 'destructive' ? 'btn-modal-destructive' : 'btn-modal-primary',
             )}
           >
             {confirmLabel}
@@ -71,9 +65,7 @@ export default function ConfirmDialog({
         </ModalFooter>
       }
     >
-      {description && (
-        <div className="pb-1">{description}</div>
-      )}
+      {description && <div className="pb-1">{description}</div>}
     </Modal>
-  );
+  )
 }

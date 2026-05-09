@@ -1,6 +1,6 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import CreatableCombobox from '../components/inputs/CreatableCombobox'
 
 describe('CreatableCombobox', () => {

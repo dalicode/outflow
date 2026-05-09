@@ -1,8 +1,8 @@
 interface OutflowMarkProps {
-  className?: string;
+  className?: string
 }
 
-export default function OutflowMark({ className = "" }: OutflowMarkProps) {
+export default function OutflowMark({ className = '' }: OutflowMarkProps) {
   return (
     <svg
       viewBox="0 0 64 64"
@@ -40,5 +40,5 @@ export default function OutflowMark({ className = "" }: OutflowMarkProps) {
         opacity="0.9"
       />
     </svg>
-  );
+  )
 }

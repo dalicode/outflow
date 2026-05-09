@@ -8,23 +8,23 @@
  * @capacitor/haptics and @capacitor/core, then replacing tryNativeHaptic.
  */
 
-export type HapticType = "selection" | "light" | "medium" | "success" | "warning" | "error";
+export type HapticType = 'selection' | 'light' | 'medium' | 'success' | 'warning' | 'error'
 
 /** Web Vibration API patterns (ms) */
 const WEB_PATTERNS: Record<HapticType, number | number[]> = {
   selection: 8,
-  light:     10,
-  medium:    20,
-  success:   [10, 30, 10],
-  warning:   [20, 40, 20],
-  error:     [30, 40, 30],
-};
+  light: 10,
+  medium: 20,
+  success: [10, 30, 10],
+  warning: [20, 40, 20],
+  error: [30, 40, 30],
+}
 
 function tryWebVibration(type: HapticType): void {
   try {
-    if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
-    const pattern = WEB_PATTERNS[type];
-    if (pattern != null) navigator.vibrate(pattern);
+    if (typeof navigator === 'undefined' || !('vibrate' in navigator)) return
+    const pattern = WEB_PATTERNS[type]
+    if (pattern != null) navigator.vibrate(pattern)
   } catch {
     // silently ignore — haptic failure must never break app behaviour
   }
@@ -38,6 +38,6 @@ function tryWebVibration(type: HapticType): void {
  * Capacitor.isNativePlatform() check + Haptics.impact/notification calls.
  */
 export function triggerHaptic(type: HapticType, enabled = true): void {
-  if (!enabled) return;
-  tryWebVibration(type);
+  if (!enabled) return
+  tryWebVibration(type)
 }

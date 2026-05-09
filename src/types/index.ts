@@ -111,12 +111,12 @@ export interface Schedule {
   newValue: number
   previousValue?: number | null
   materializedAt?: string
-  isActive: number  // IndexedDB cannot index booleans; stored as 1/0
+  isActive: number // IndexedDB cannot index booleans; stored as 1/0
   note?: string
   createdAt?: string
-  day?: number        // 1–31, used by expense schedules
+  day?: number // 1–31, used by expense schedules
   categoryId?: number // used by expense schedules
-  payeeId?: number    // used by expense schedules
+  payeeId?: number // used by expense schedules
 }
 
 export interface ScheduleMaterializationNotice {
@@ -360,6 +360,6 @@ export interface SettingsContextValue {
 
 /** Common formatting callbacks passed through component trees. */
 export interface FormattingProps {
-  formatAmount: (n: number) => string;
-  formatDate: (iso: string) => string;
+  formatAmount: (n: number) => string
+  formatDate: (iso: string) => string
 }

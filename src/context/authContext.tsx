@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
-import type { User, AuthError } from '@supabase/supabase-js'
+import type { AuthError, User } from '@supabase/supabase-js'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { supabase } from '../services/supabase'
-import { flushSyncQueue, pullFromSupabase, migrateLocalToSupabase } from '../services/syncService'
+import { flushSyncQueue, migrateLocalToSupabase, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
 
 interface AuthContextValue {
@@ -37,17 +37,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!supabase) { setLoading(false); return }
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-      if (session?.user) runSync(session.user.id)
-    }).catch((err: Error) => {
-      console.warn('Auth session error:', err)
-      setUser(null)
-      setLoading(false)
-    })
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+        setLoading(false)
+        if (session?.user) runSync(session.user.id)
+      })
+      .catch((err: Error) => {
+        console.warn('Auth session error:', err)
+        setUser(null)
+        setLoading(false)
+      })
 
     let subscription = { unsubscribe: () => {} }
     try {
@@ -84,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase || !user) return
     if (flushTimer) clearTimeout(flushTimer)
     flushTimer = setTimeout(() => flushSyncQueue(user.id), 2000)
-  }, [user])
+  }, [user, flushTimer])
 
   const signOut = async () => {
     if (!supabase) return { error: null as AuthError | null }

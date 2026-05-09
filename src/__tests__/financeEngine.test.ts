@@ -1,12 +1,18 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type {
+  Expense,
+  FinanceEngineData,
+  FixedExpense,
+  FixedExpenseSnapshot,
+  Schedule,
+} from '../types'
 import {
+  getEditHistoricalDataPreviewTimeline,
   getMonthlyFinancialSummary,
   getYearFinancialSummary,
   getYearVariableGrid,
-  getEditHistoricalDataPreviewTimeline,
   MONTHS,
 } from '../utils/financeEngine'
-import type { FinanceEngineData, Expense, FixedExpense, FixedExpenseSnapshot, Schedule } from '../types'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -427,12 +433,8 @@ describe('getYearVariableGrid', () => {
   })
 
   it('ignores deleted categories but still shows expenses with that categoryId', () => {
-    const expenses: Expense[] = [
-      makeExpense({ date: '2024-01-15', amount: 100, categoryId: 1 }),
-    ]
-    const categories = [
-      { id: 1, name: 'Food', isArchived: true },
-    ]
+    const expenses: Expense[] = [makeExpense({ date: '2024-01-15', amount: 100, categoryId: 1 })]
+    const categories = [{ id: 1, name: 'Food', isArchived: true }]
 
     const result = getYearVariableGrid(2024, expenses, categories)
     // Deleted category is not included in the ordered result list,
@@ -440,13 +442,11 @@ describe('getYearVariableGrid', () => {
     // because they fall through to Object.keys(grid)
     const row = result.variableRows.find((r) => r.key === '1')
     expect(row).toBeDefined()
-    expect(row!.name).toBe('1') // Falls back to raw key since category is deleted
+    expect(row?.name).toBe('1') // Falls back to raw key since category is deleted
   })
 
   it('handles uncategorized expenses', () => {
-    const expenses: Expense[] = [
-      makeExpense({ date: '2024-01-15', amount: 100 }),
-    ]
+    const expenses: Expense[] = [makeExpense({ date: '2024-01-15', amount: 100 })]
 
     const result = getYearVariableGrid(2024, expenses, [])
     expect(result.variableRows).toHaveLength(1)
@@ -475,7 +475,7 @@ describe('getYearVariableGrid', () => {
 
     const result = getYearVariableGrid(2024, expenses, categories)
     expect(result.maxPerMonth[0]).toBe(200) // January max
-    expect(result.maxPerMonth[1]).toBe(0)  // February
+    expect(result.maxPerMonth[1]).toBe(0) // February
   })
 
   it('computes monthly variable totals', () => {
@@ -572,9 +572,7 @@ describe('getEditHistoricalDataPreviewTimeline', () => {
   })
 
   it('clamps month ranges to 1-12', () => {
-    const items = [
-      { name: 'Rent', amount: 1000, startMonth: -5, endMonth: 15 },
-    ]
+    const items = [{ name: 'Rent', amount: 1000, startMonth: -5, endMonth: 15 }]
 
     const result = getEditHistoricalDataPreviewTimeline(items, null, null)
     expect(result[0].fixedTotal).toBe(1000) // clamped to 1-12

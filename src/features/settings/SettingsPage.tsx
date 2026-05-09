@@ -1,50 +1,45 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import "./settings.css";
-import { useSettings } from "../../context/settingsContext";
-import { useAuth } from "../../context/authContext";
-import { useToasts } from "../../context/toastContext";
-import { StorageService } from "../../services/storageService";
-import { cn } from "../../utils/cn";
-import { getLocalToday } from "../../utils/historicalDataHelpers";
-import { useScheduleList } from "../../hooks/useScheduleList";
-import { usePayees } from "../../hooks/useLocalData";
-import { expenseToRow, downloadCSV } from "../importExport/utils/csvHelpers";
-import Card from "../../components/ui/Card";
-import Modal from "../../components/ui/Modal";
-import ModalFooter from "../../components/ui/ModalFooter";
-import ConfirmDialog from "../../components/ui/ConfirmDialog";
-import LoadingOverlay from "../../components/ui/LoadingOverlay";
-import DatePicker from "../../components/inputs/DatePicker";
-import EditHistoricalDataModal from "./EditHistoricalDataModal";
-import ScheduleModal from "./ScheduleModal";
-import ImportReviewModal from "../importExport/ImportReviewModal";
-import ThemeSelector from "./ThemeSelector";
-import ImportLogPanel from "../importExport/ImportLogPanel";
-import ScheduleList from "./ScheduleList";
-import { useBackup } from "../importExport/hooks/useBackup";
-import { useCsvImport } from "../importExport/hooks/useCsvImport";
-import type {
-  Expense,
-  Schedule,
-  Category,
-  ScheduleMaterializationNotice,
-} from "../../types";
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import './settings.css'
+import DatePicker from '../../components/inputs/DatePicker'
+import Card from '../../components/ui/Card'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import LoadingOverlay from '../../components/ui/LoadingOverlay'
+import Modal from '../../components/ui/Modal'
+import ModalFooter from '../../components/ui/ModalFooter'
+import { useAuth } from '../../context/authContext'
+import { useSettings } from '../../context/settingsContext'
+import { useToasts } from '../../context/toastContext'
+import { usePayees } from '../../hooks/useLocalData'
+import { useScheduleList } from '../../hooks/useScheduleList'
+import { StorageService } from '../../services/storageService'
+import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
+import { cn } from '../../utils/cn'
+import { getLocalToday } from '../../utils/historicalDataHelpers'
+import { useBackup } from '../importExport/hooks/useBackup'
+import { useCsvImport } from '../importExport/hooks/useCsvImport'
+import ImportLogPanel from '../importExport/ImportLogPanel'
+import ImportReviewModal from '../importExport/ImportReviewModal'
+import { downloadCSV, expenseToRow } from '../importExport/utils/csvHelpers'
+import EditHistoricalDataModal from './EditHistoricalDataModal'
+import ScheduleList from './ScheduleList'
+import ScheduleModal from './ScheduleModal'
+import ThemeSelector from './ThemeSelector'
 
 const WEEKDAYS = [
-  { value: "0", label: "Sun" },
-  { value: "1", label: "Mon" },
-  { value: "2", label: "Tue" },
-  { value: "3", label: "Wed" },
-  { value: "4", label: "Thu" },
-  { value: "5", label: "Fri" },
-  { value: "6", label: "Sat" },
-];
+  { value: '0', label: 'Sun' },
+  { value: '1', label: 'Mon' },
+  { value: '2', label: 'Tue' },
+  { value: '3', label: 'Wed' },
+  { value: '4', label: 'Thu' },
+  { value: '5', label: 'Fri' },
+  { value: '6', label: 'Sat' },
+]
 
 interface RowProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: [string, string][];
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: [string, string][]
 }
 
 function Row({ label, value, onChange, options }: RowProps) {
@@ -63,196 +58,172 @@ function Row({ label, value, onChange, options }: RowProps) {
         ))}
       </select>
     </div>
-  );
+  )
 }
 
 interface SettingsPageProps {
-  expenses: Expense[];
-  onImport?: () => Promise<void> | void;
-  onRefreshAll?: () => Promise<void> | void;
-  triggerSync?: () => void;
+  expenses: Expense[]
+  onImport?: () => Promise<void> | void
+  onRefreshAll?: () => Promise<void> | void
+  triggerSync?: () => void
 }
 
-export default function SettingsPage({
-  expenses,
-  onRefreshAll,
-  triggerSync,
-}: SettingsPageProps) {
-  const { settings, save, formatDate, formatAmount, currentTheme } =
-    useSettings();
-  const { user } = useAuth();
-  const { showToast } = useToasts();
-  const { payees } = usePayees();
+export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: SettingsPageProps) {
+  const { settings, save, formatDate, formatAmount, currentTheme } = useSettings()
+  const { user } = useAuth()
+  const { showToast } = useToasts()
+  const { payees } = usePayees()
 
-  const [importStatus, setImportStatus] = useState("");
-  const [importErrors, setImportErrors] = useState<string[]>([]);
-  const [editHistoricalDataYears, setEditHistoricalDataYears] = useState<
-    number[]
-  >([]);
-  const [showHistoricalCompletionPrompt, setShowHistoricalCompletionPrompt] =
-    useState(false);
-  const [isHistoricalDataModalOpen, setIsHistoricalDataModalOpen] =
-    useState(false);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [scheduleToEdit, setScheduleToEdit] = useState<Schedule | null>(null);
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [savingsRate, setSavingsRate] = useState("");
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [importStatus, setImportStatus] = useState('')
+  const [importErrors, setImportErrors] = useState<string[]>([])
+  const [editHistoricalDataYears, setEditHistoricalDataYears] = useState<number[]>([])
+  const [showHistoricalCompletionPrompt, setShowHistoricalCompletionPrompt] = useState(false)
+  const [isHistoricalDataModalOpen, setIsHistoricalDataModalOpen] = useState(false)
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+  const [scheduleToEdit, setScheduleToEdit] = useState<Schedule | null>(null)
+  const [monthlyIncome, setMonthlyIncome] = useState('')
+  const [savingsRate, setSavingsRate] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
   const [appliedScheduleNotices, setAppliedScheduleNotices] = useState<
     ScheduleMaterializationNotice[]
-  >([]);
-  const [exportRange, setExportRange] = useState({ from: "", to: "" });
-  const [showCsvModal, setShowCsvModal] = useState(false);
-  const [csvCategories, setCsvCategories] = useState<Category[]>([]);
-  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [isClearReloading, setIsClearReloading] = useState(false);
+  >([])
+  const [exportRange, setExportRange] = useState({ from: '', to: '' })
+  const [showCsvModal, setShowCsvModal] = useState(false)
+  const [csvCategories, setCsvCategories] = useState<Category[]>([])
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [isClearReloading, setIsClearReloading] = useState(false)
 
-  const { schedules, loadSchedules, deleteSchedule } = useScheduleList();
+  const { schedules, loadSchedules, deleteSchedule } = useScheduleList()
   const backup = useBackup({
     user,
     onStatus: setImportStatus,
     onRefreshAll,
     triggerSync,
-  });
+  })
 
   const handleImportComplete = async (importedYears: number[]) => {
     if (importedYears.length > 0) {
-      setEditHistoricalDataYears(importedYears);
-      setShowHistoricalCompletionPrompt(true);
+      setEditHistoricalDataYears(importedYears)
+      setShowHistoricalCompletionPrompt(true)
     }
-    await onRefreshAll?.();
-  };
+    await onRefreshAll?.()
+  }
 
   const csvImport = useCsvImport({
     onImportComplete: handleImportComplete,
     onStatusChange: setImportStatus,
     onErrorsChange: setImportErrors,
-  });
+  })
 
   useEffect(() => {
-    StorageService.getCategories().then(setCategories);
-  }, []);
+    StorageService.getCategories().then(setCategories)
+  }, [])
   useEffect(() => {
     StorageService.getSetting<ScheduleMaterializationNotice[]>(
-      "scheduleMaterializationLog",
+      'scheduleMaterializationLog',
       [],
     ).then((log) => {
-      setAppliedScheduleNotices(Array.isArray(log) ? log : []);
-    });
-  }, []);
+      setAppliedScheduleNotices(Array.isArray(log) ? log : [])
+    })
+  }, [])
   useEffect(() => {
     Promise.all([
-      StorageService.getSetting("monthlyIncome", 0),
-      StorageService.getSetting("savingsRate", 0),
+      StorageService.getSetting('monthlyIncome', 0),
+      StorageService.getSetting('savingsRate', 0),
     ]).then(([income, rate]) => {
-      setMonthlyIncome(String((income as number | null) ?? ""));
-      setSavingsRate(String((rate as number | null) ?? ""));
-    });
-  }, []);
+      setMonthlyIncome(String((income as number | null) ?? ''))
+      setSavingsRate(String((rate as number | null) ?? ''))
+    })
+  }, [])
   useEffect(() => {
-    StorageService.getCategories().then(setCsvCategories);
-  }, []);
+    StorageService.getCategories().then(setCsvCategories)
+  }, [])
 
   const dismissHistoricalCompletionPrompt = () => {
-    setShowHistoricalCompletionPrompt(false);
+    setShowHistoricalCompletionPrompt(false)
     showToast({
-      message:
-        "You can reopen this later in Settings under the Historical Data card.",
-      tone: "default",
+      message: 'You can reopen this later in Settings under the Historical Data card.',
+      tone: 'default',
       durationMs: 7000,
-    });
-  };
+    })
+  }
 
   const reviewHistoricalData = () => {
-    setShowHistoricalCompletionPrompt(false);
-    setIsHistoricalDataModalOpen(true);
-  };
+    setShowHistoricalCompletionPrompt(false)
+    setIsHistoricalDataModalOpen(true)
+  }
 
   const handleEditSchedule = (schedule: Schedule) => {
-    setScheduleToEdit(schedule);
-    setIsScheduleModalOpen(true);
-  };
+    setScheduleToEdit(schedule)
+    setIsScheduleModalOpen(true)
+  }
   const handleAddSchedule = () => {
-    setScheduleToEdit(null);
-    setIsScheduleModalOpen(true);
-  };
+    setScheduleToEdit(null)
+    setIsScheduleModalOpen(true)
+  }
   const handleScheduleModalClose = () => {
-    setIsScheduleModalOpen(false);
-    setScheduleToEdit(null);
-  };
+    setIsScheduleModalOpen(false)
+    setScheduleToEdit(null)
+  }
 
   const handleDismissAppliedScheduleNotices = async () => {
-    await StorageService.setSetting("scheduleMaterializationLog", []);
-    setAppliedScheduleNotices([]);
-  };
+    await StorageService.setSetting('scheduleMaterializationLog', [])
+    setAppliedScheduleNotices([])
+  }
 
   const handleClearAll = async () => {
-    await StorageService.clearAllData();
-    setImportStatus("All data cleared successfully.");
-    onRefreshAll?.();
-  };
+    await StorageService.clearAllData()
+    setImportStatus('All data cleared successfully.')
+    onRefreshAll?.()
+  }
 
   const triggerClearReload = useCallback(() => {
-    setIsClearReloading(true);
+    setIsClearReloading(true)
     setTimeout(() => {
-      window.location.reload();
-    }, 1500);
-  }, []);
+      window.location.reload()
+    }, 1500)
+  }, [])
 
   const handleCsvExport = () => {
-    const catMap = Object.fromEntries(
-      csvCategories.map((c) => [c.id as number, c.name]),
-    );
-    const payeeMap = Object.fromEntries(
-      payees.map((p) => [p.id as number, p.name]),
-    );
-    let rows = expenses;
-    if (exportRange.from) rows = rows.filter((e) => e.date >= exportRange.from);
-    if (exportRange.to) rows = rows.filter((e) => e.date <= exportRange.to);
-    const csvRows = rows.map((e) =>
-      expenseToRow(e, catMap, payeeMap, formatDate),
-    );
-    downloadCSV(csvRows, `expenses-${getLocalToday()}.csv`);
-    setShowCsvModal(false);
-  };
+    const catMap = Object.fromEntries(csvCategories.map((c) => [c.id as number, c.name]))
+    const payeeMap = Object.fromEntries(payees.map((p) => [p.id as number, p.name]))
+    let rows = expenses
+    if (exportRange.from) rows = rows.filter((e) => e.date >= exportRange.from)
+    if (exportRange.to) rows = rows.filter((e) => e.date <= exportRange.to)
+    const csvRows = rows.map((e) => expenseToRow(e, catMap, payeeMap, formatDate))
+    downloadCSV(csvRows, `expenses-${getLocalToday()}.csv`)
+    setShowCsvModal(false)
+  }
 
   const handleCloseCsvModal = () => {
-    setShowCsvModal(false);
-    setExportRange({ from: "", to: "" });
-  };
+    setShowCsvModal(false)
+    setExportRange({ from: '', to: '' })
+  }
 
   const availableYears = useMemo(() => {
-    const expenseYears = [
-      ...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10))),
-    ].sort((a, b) => a - b);
-    if (editHistoricalDataYears.length === 0) return expenseYears;
-    const importedYearSet = new Set(editHistoricalDataYears);
+    const expenseYears = [...new Set(expenses.map((e) => parseInt(e.date.slice(0, 4), 10)))].sort(
+      (a, b) => a - b,
+    )
+    if (editHistoricalDataYears.length === 0) return expenseYears
+    const importedYearSet = new Set(editHistoricalDataYears)
     return [
       ...editHistoricalDataYears,
       ...expenseYears.filter((year) => !importedYearSet.has(year)),
-    ];
-  }, [editHistoricalDataYears, expenses]);
+    ]
+  }, [editHistoricalDataYears, expenses])
 
   return (
     <main className="w-full mx-auto max-w-4xl px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold text-theme-text tracking-tight">
-        Settings
-      </h1>
+      <h1 className="text-2xl font-bold text-theme-text tracking-tight">Settings</h1>
 
       <div className="mx-auto md:max-w-3xl flex flex-col space-y-6">
         {/* ── APPEARANCE ── */}
         <Card title="Appearance">
-          <ThemeSelector
-            value={settings.visualTheme}
-            onChange={(v) => save({ visualTheme: v })}
-          />
+          <ThemeSelector value={settings.visualTheme} onChange={(v) => save({ visualTheme: v })} />
           <div className="flex items-center gap-2 text-xs text-theme-muted mt-2">
             <span className="inline-block w-2 h-2 rounded-full bg-theme-success" />
-            Active:{" "}
-            <span className="font-medium text-theme-text">
-              {currentTheme.name}
-            </span>
+            Active: <span className="font-medium text-theme-text">{currentTheme.name}</span>
           </div>
 
           <div className="border-t border-theme-border mt-4 mb-3" />
@@ -265,13 +236,13 @@ export default function SettingsPage({
             value={settings.font}
             onChange={(v) => save({ font: v })}
             options={[
-              ["system", "System UI"],
-              ["sans", "Sans-serif"],
-              ["serif", "Serif"],
-              ["mono", "Monospace"],
-              ["roboto", "Roboto"],
-              ["georgia", "Georgia"],
-              ["financeMono", "Data Mono"],
+              ['system', 'System UI'],
+              ['sans', 'Sans-serif'],
+              ['serif', 'Serif'],
+              ['mono', 'Monospace'],
+              ['roboto', 'Roboto'],
+              ['georgia', 'Georgia'],
+              ['financeMono', 'Data Mono'],
             ]}
           />
           <Row
@@ -279,10 +250,10 @@ export default function SettingsPage({
             value={settings.fontSize}
             onChange={(v) => save({ fontSize: v })}
             options={[
-              ["0.85", "Small"],
-              ["1", "Medium"],
-              ["1.15", "Large"],
-              ["1.3", "X-Large"],
+              ['0.85', 'Small'],
+              ['1', 'Medium'],
+              ['1.15', 'Large'],
+              ['1.3', 'X-Large'],
             ]}
           />
           <Row
@@ -290,11 +261,11 @@ export default function SettingsPage({
             value={settings.currencySymbol}
             onChange={(v) => save({ currencySymbol: v })}
             options={[
-              ["$", "$ Dollar"],
-              ["€", "€ Euro"],
-              ["£", "£ Pound"],
-              ["¥", "¥ Yen"],
-              ["₹", "₹ Rupee"],
+              ['$', '$ Dollar'],
+              ['€', '€ Euro'],
+              ['£', '£ Pound'],
+              ['¥', '¥ Yen'],
+              ['₹', '₹ Rupee'],
             ]}
           />
           <Row
@@ -302,9 +273,9 @@ export default function SettingsPage({
             value={settings.decimalPlaces}
             onChange={(v) => save({ decimalPlaces: v })}
             options={[
-              ["0", "0"],
-              ["1", "1"],
-              ["2", "2"],
+              ['0', '0'],
+              ['1', '1'],
+              ['2', '2'],
             ]}
           />
           <Row
@@ -312,9 +283,9 @@ export default function SettingsPage({
             value={settings.thousandSep}
             onChange={(v) => save({ thousandSep: v })}
             options={[
-              [",", "1,000"],
-              [".", "1.000"],
-              [" ", "1 000"],
+              [',', '1,000'],
+              ['.', '1.000'],
+              [' ', '1 000'],
             ]}
           />
           <Row
@@ -322,9 +293,9 @@ export default function SettingsPage({
             value={settings.dateFormat}
             onChange={(v) => save({ dateFormat: v })}
             options={[
-              ["MM/DD/YYYY", "MM/DD/YYYY"],
-              ["DD/MM/YYYY", "DD/MM/YYYY"],
-              ["YYYY-MM-DD", "YYYY-MM-DD"],
+              ['MM/DD/YYYY', 'MM/DD/YYYY'],
+              ['DD/MM/YYYY', 'DD/MM/YYYY'],
+              ['YYYY-MM-DD', 'YYYY-MM-DD'],
             ]}
           />
           <p className="text-xs text-theme-muted mt-2">
@@ -337,9 +308,7 @@ export default function SettingsPage({
           <div className="flex items-center justify-between py-2">
             <div>
               <p className="text-sm text-theme-text">Haptics</p>
-              <p className="text-xs text-theme-muted">
-                Vibration feedback on mobile actions
-              </p>
+              <p className="text-xs text-theme-muted">Vibration feedback on mobile actions</p>
             </div>
             <button
               type="button"
@@ -360,9 +329,7 @@ export default function SettingsPage({
           <div className="flex items-center justify-between py-2">
             <div>
               <p className="text-sm text-theme-text">Check-in reminders</p>
-              <p className="text-xs text-theme-muted">
-                Optional nudges to log spending
-              </p>
+              <p className="text-xs text-theme-muted">Optional nudges to log spending</p>
             </div>
             <button
               type="button"
@@ -385,12 +352,8 @@ export default function SettingsPage({
                 <span className="text-sm text-theme-text">Reminder time</span>
                 <input
                   type="time"
-                  value={settings.reminderTime ?? "20:00"}
-                  onChange={(e) =>
-                    void save({ reminderTime: e.target.value }).catch(
-                      console.warn,
-                    )
-                  }
+                  value={settings.reminderTime ?? '20:00'}
+                  onChange={(e) => void save({ reminderTime: e.target.value }).catch(console.warn)}
                   className="input-theme px-3 py-1.5 text-sm"
                 />
               </div>
@@ -398,9 +361,8 @@ export default function SettingsPage({
                 <p className="text-xs text-theme-muted mb-2">Days</p>
                 <div className="flex flex-wrap gap-2">
                   {WEEKDAYS.map((day) => {
-                    const reminderDays =
-                      settings.reminderDays ?? WEEKDAYS.map((d) => d.value);
-                    const active = reminderDays.includes(day.value);
+                    const reminderDays = settings.reminderDays ?? WEEKDAYS.map((d) => d.value)
+                    const active = reminderDays.includes(day.value)
                     return (
                       <button
                         key={day.value}
@@ -408,19 +370,19 @@ export default function SettingsPage({
                         onClick={() => {
                           const next = active
                             ? reminderDays.filter((v) => v !== day.value)
-                            : [...reminderDays, day.value];
-                          void save({ reminderDays: next }).catch(console.warn);
+                            : [...reminderDays, day.value]
+                          void save({ reminderDays: next }).catch(console.warn)
                         }}
                         className={cn(
-                          "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
                           active
-                            ? "border-theme-primary bg-theme-primary-subtle text-theme-primary"
-                            : "border-theme-border bg-theme-surface text-theme-muted hover:text-theme-text",
+                            ? 'border-theme-primary bg-theme-primary-subtle text-theme-primary'
+                            : 'border-theme-border bg-theme-surface text-theme-muted hover:text-theme-text',
                         )}
                       >
                         {day.label}
                       </button>
-                    );
+                    )
                   })}
                 </div>
               </div>
@@ -483,12 +445,8 @@ export default function SettingsPage({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-theme-text">
-                          {notice.title}
-                        </p>
-                        <p className="text-xs text-theme-muted mt-0.5">
-                          {notice.summary}
-                        </p>
+                        <p className="text-sm font-semibold text-theme-text">{notice.title}</p>
+                        <p className="text-xs text-theme-muted mt-0.5">{notice.summary}</p>
                       </div>
                       <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-theme-primary">
                         {notice.effectiveLabel}
@@ -517,13 +475,10 @@ export default function SettingsPage({
           </p>
           <div className="space-y-1.5 text-xs text-theme-muted">
             <p>
-              Your data stays on this device unless you enable sync. Outflow
-              works offline after your first visit.
+              Your data stays on this device unless you enable sync. Outflow works offline after
+              your first visit.
             </p>
-            <p>
-              Clearing browser data may remove local history unless you export a
-              backup.
-            </p>
+            <p>Clearing browser data may remove local history unless you export a backup.</p>
             {settings.lastBackupAt ? (
               <p className="pt-2">
                 Last backup: {new Date(settings.lastBackupAt).toLocaleString()}
@@ -538,13 +493,10 @@ export default function SettingsPage({
           </p>
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs text-theme-muted">
-              Export your expenses as a CSV file. Compatible with any
-              spreadsheet app (Excel, Google Sheets) or budgeting tool.
+              Export your expenses as a CSV file. Compatible with any spreadsheet app (Excel, Google
+              Sheets) or budgeting tool.
             </p>
-            <button
-              onClick={() => setShowCsvModal(true)}
-              className="settings-action-btn shrink-0"
-            >
+            <button onClick={() => setShowCsvModal(true)} className="settings-action-btn shrink-0">
               Export
             </button>
           </div>
@@ -574,10 +526,7 @@ export default function SettingsPage({
               <span className="settings-action-btn">Choose File</span>
             </label>
           </div>
-          <ImportLogPanel
-            importStatus={importStatus}
-            importErrors={importErrors}
-          />
+          <ImportLogPanel importStatus={importStatus} importErrors={importErrors} />
 
           <div className="border-t border-theme-border mt-4 mb-3" />
           <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
@@ -614,10 +563,7 @@ export default function SettingsPage({
                   onChange={backup.handleBackupImport}
                   className="absolute inset-0 opacity-0 pointer-events-none"
                 />
-                <span
-                  className="settings-action-btn"
-                  data-testid="btn-import-backup"
-                >
+                <span className="settings-action-btn" data-testid="btn-import-backup">
                   Choose File
                 </span>
               </label>
@@ -662,36 +608,24 @@ export default function SettingsPage({
         <Modal
           isOpen={backup.showPasswordModal}
           onClose={backup.closePasswordModal}
-          title={
-            backup.passwordModalMode === "export"
-              ? "Encrypt Backup"
-              : "Decrypt Backup"
-          }
+          title={backup.passwordModalMode === 'export' ? 'Encrypt Backup' : 'Decrypt Backup'}
           size="md"
           footer={
             <ModalFooter>
-              <button
-                onClick={backup.closePasswordModal}
-                className="btn-cancel-sm flex-1"
-              >
+              <button onClick={backup.closePasswordModal} className="btn-cancel-sm flex-1">
                 Cancel
               </button>
-              <button
-                onClick={backup.handlePasswordSubmit}
-                className="btn-modal-primary flex-1"
-              >
-                {backup.passwordModalMode === "export"
-                  ? "Encrypt & Export"
-                  : "Decrypt & Import"}
+              <button onClick={backup.handlePasswordSubmit} className="btn-modal-primary flex-1">
+                {backup.passwordModalMode === 'export' ? 'Encrypt & Export' : 'Decrypt & Import'}
               </button>
             </ModalFooter>
           }
         >
           <div className="space-y-3">
             <p className="text-xs text-theme-muted">
-              {backup.passwordModalMode === "export"
-                ? "Enter a password to encrypt this backup."
-                : "Enter the password to decrypt and restore this backup."}
+              {backup.passwordModalMode === 'export'
+                ? 'Enter a password to encrypt this backup.'
+                : 'Enter the password to decrypt and restore this backup.'}
             </p>
             <label className="flex flex-col gap-1 text-xs text-theme-muted">
               Password
@@ -703,27 +637,23 @@ export default function SettingsPage({
                 className="input-theme px-3 py-2 text-sm"
                 autoFocus
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") backup.handlePasswordSubmit();
+                  if (e.key === 'Enter') backup.handlePasswordSubmit()
                 }}
               />
             </label>
-            {backup.passwordModalMode === "export" && user?.id && (
+            {backup.passwordModalMode === 'export' && user?.id && (
               <label className="flex items-center gap-2 text-xs text-theme-text cursor-pointer">
                 <input
                   type="checkbox"
                   checked={backup.rememberBackupPassword}
-                  onChange={(e) =>
-                    backup.setRememberBackupPassword(e.target.checked)
-                  }
+                  onChange={(e) => backup.setRememberBackupPassword(e.target.checked)}
                   className="rounded-theme-small"
                 />
                 Remember for future backups
               </label>
             )}
             {backup.passwordError && (
-              <p className="text-xs text-theme-danger">
-                {backup.passwordError}
-              </p>
+              <p className="text-xs text-theme-danger">{backup.passwordError}</p>
             )}
           </div>
         </Modal>
@@ -735,25 +665,22 @@ export default function SettingsPage({
           description={
             <div className="space-y-3">
               <p className="text-xs text-theme-danger">
-                This backup was made with a newer app version. Some data may not
-                import correctly.
+                This backup was made with a newer app version. Some data may not import correctly.
               </p>
               {backup.pendingImportMeta && (
                 <div className="text-xs text-theme-muted space-y-1">
                   <p>
-                    <span className="font-medium">Exported:</span>{" "}
+                    <span className="font-medium">Exported:</span>{' '}
                     {backup.pendingImportMeta.exportedAt
-                      ? new Date(
-                          backup.pendingImportMeta.exportedAt as string,
-                        ).toLocaleString()
-                      : "Unknown"}
+                      ? new Date(backup.pendingImportMeta.exportedAt as string).toLocaleString()
+                      : 'Unknown'}
                   </p>
                   <p>
-                    <span className="font-medium">Backup DB version:</span>{" "}
-                    {String(backup.pendingImportMeta.dbVersion ?? "?")}
+                    <span className="font-medium">Backup DB version:</span>{' '}
+                    {String(backup.pendingImportMeta.dbVersion ?? '?')}
                   </p>
                   <p>
-                    <span className="font-medium">Current DB version:</span>{" "}
+                    <span className="font-medium">Current DB version:</span>{' '}
                     {StorageService.dbVersion()}
                   </p>
                 </div>
@@ -768,8 +695,8 @@ export default function SettingsPage({
         <Modal
           isOpen={isClearModalOpen}
           onClose={() => {
-            setIsClearModalOpen(false);
-            setDeleteConfirm("");
+            setIsClearModalOpen(false)
+            setDeleteConfirm('')
           }}
           title="Clear All Data"
           size="sm"
@@ -777,8 +704,8 @@ export default function SettingsPage({
             <ModalFooter>
               <button
                 onClick={() => {
-                  setIsClearModalOpen(false);
-                  setDeleteConfirm("");
+                  setIsClearModalOpen(false)
+                  setDeleteConfirm('')
                 }}
                 className="btn-cancel-sm flex-1"
               >
@@ -786,13 +713,13 @@ export default function SettingsPage({
               </button>
               <button
                 onClick={async () => {
-                  if (deleteConfirm !== "DELETE") return;
-                  await handleClearAll();
-                  setIsClearModalOpen(false);
-                  setDeleteConfirm("");
-                  triggerClearReload();
+                  if (deleteConfirm !== 'DELETE') return
+                  await handleClearAll()
+                  setIsClearModalOpen(false)
+                  setDeleteConfirm('')
+                  triggerClearReload()
                 }}
-                disabled={deleteConfirm !== "DELETE"}
+                disabled={deleteConfirm !== 'DELETE'}
                 className="btn-modal-destructive flex-1 disabled:opacity-40"
               >
                 Clear Everything
@@ -805,8 +732,7 @@ export default function SettingsPage({
               This will permanently delete everything. This cannot be undone.
             </p>
             <label className="flex flex-col gap-1 text-xs text-theme-muted">
-              Type <span className="font-mono text-theme-danger">DELETE</span>{" "}
-              to confirm
+              Type <span className="font-mono text-theme-danger">DELETE</span> to confirm
               <input
                 value={deleteConfirm}
                 onChange={(e) => setDeleteConfirm(e.target.value)}
@@ -832,16 +758,10 @@ export default function SettingsPage({
           size="sm"
           footer={
             <ModalFooter>
-              <button
-                onClick={handleCloseCsvModal}
-                className="btn-cancel-sm flex-1"
-              >
+              <button onClick={handleCloseCsvModal} className="btn-cancel-sm flex-1">
                 Cancel
               </button>
-              <button
-                onClick={handleCsvExport}
-                className="btn-modal-primary flex-1"
-              >
+              <button onClick={handleCsvExport} className="btn-modal-primary flex-1">
                 Download
               </button>
             </ModalFooter>
@@ -849,8 +769,7 @@ export default function SettingsPage({
         >
           <div className="flex flex-col gap-4">
             <p className="text-xs text-theme-muted">
-              Select a date range to filter the export. Leave blank to include
-              all expenses.
+              Select a date range to filter the export. Leave blank to include all expenses.
             </p>
             <label className="flex flex-col gap-1 text-xs text-theme-muted">
               From
@@ -883,17 +802,15 @@ export default function SettingsPage({
           defaultIncome={monthlyIncome}
           defaultSavingsRate={savingsRate}
           onComplete={() => {
-            setEditHistoricalDataYears([]);
-            setShowHistoricalCompletionPrompt(false);
-            onRefreshAll?.();
-            triggerSync?.();
+            setEditHistoricalDataYears([])
+            setShowHistoricalCompletionPrompt(false)
+            onRefreshAll?.()
+            triggerSync?.()
           }}
         />
 
         <Modal
-          isOpen={
-            showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0
-          }
+          isOpen={showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0}
           onClose={dismissHistoricalCompletionPrompt}
           title="Complete Imported Months"
           size="md"
@@ -917,10 +834,9 @@ export default function SettingsPage({
           }
         >
           <p className="text-sm text-theme-muted">
-            Your transactions were imported successfully. Add income, fixed
-            expenses, and savings rate for{" "}
-            {editHistoricalDataYears.join(", ") + " "} to make summaries and
-            analytics accurate.
+            Your transactions were imported successfully. Add income, fixed expenses, and savings
+            rate for {`${editHistoricalDataYears.join(', ')} `} to make summaries and analytics
+            accurate.
           </p>
         </Modal>
 
@@ -929,11 +845,11 @@ export default function SettingsPage({
           onClose={handleScheduleModalClose}
           editSchedule={scheduleToEdit}
           onComplete={() => {
-            loadSchedules();
-            onRefreshAll?.();
+            loadSchedules()
+            onRefreshAll?.()
           }}
         />
       </div>
     </main>
-  );
+  )
 }

@@ -1,35 +1,28 @@
-import { useMemo } from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import { useSettings } from "../../context/settingsContext";
-import EmptyState from "../../components/ui/EmptyState";
-import { cn } from "../../utils/cn";
+import { useMemo } from 'react'
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import EmptyState from '../../components/ui/EmptyState'
+import { useSettings } from '../../context/settingsContext'
+import { cn } from '../../utils/cn'
 
 interface BreakdownItem {
-  name: string;
-  amount: number;
+  name: string
+  amount: number
 }
 
 interface FinancialSummary {
-  fixedExpenses: BreakdownItem[];
-  autoSavings: number;
-  remaining: number;
-  variableExpenses: number;
-  fixedExpensesTotal: number;
+  fixedExpenses: BreakdownItem[]
+  autoSavings: number
+  remaining: number
+  variableExpenses: number
+  fixedExpensesTotal: number
 }
 
-type SliceType = "fixed" | "variable" | "savings";
+type SliceType = 'fixed' | 'variable' | 'savings'
 
 interface BreakdownPieProps {
-  type: SliceType;
-  financialSummary: FinancialSummary;
-  variableBreakdown: BreakdownItem[];
+  type: SliceType
+  financialSummary: FinancialSummary
+  variableBreakdown: BreakdownItem[]
 }
 
 export default function BreakdownPie({
@@ -37,24 +30,24 @@ export default function BreakdownPie({
   financialSummary,
   variableBreakdown,
 }: BreakdownPieProps) {
-  const { currency, currentTheme } = useSettings();
+  const { currency, currentTheme } = useSettings()
 
   const data = useMemo(() => {
-    if (type === "fixed") {
+    if (type === 'fixed') {
       return financialSummary.fixedExpenses
         .map((item) => ({ name: item.name, value: item.amount }))
-        .filter((d) => d.value > 0);
+        .filter((d) => d.value > 0)
     }
-    if (type === "variable") {
+    if (type === 'variable') {
       return variableBreakdown
         .map((item) => ({ name: item.name, value: item.amount }))
-        .filter((d) => d.value > 0);
+        .filter((d) => d.value > 0)
     }
     return [
-      { name: "Auto Savings", value: financialSummary.autoSavings },
-      { name: "Remaining", value: financialSummary.remaining },
-    ];
-  }, [type, financialSummary, variableBreakdown]);
+      { name: 'Auto Savings', value: financialSummary.autoSavings },
+      { name: 'Remaining', value: financialSummary.remaining },
+    ]
+  }, [type, financialSummary, variableBreakdown])
 
   const baseColors = [
     currentTheme.colors.primary,
@@ -62,9 +55,9 @@ export default function BreakdownPie({
     currentTheme.colors.success,
     currentTheme.colors.danger,
     currentTheme.colors.muted,
-  ];
+  ]
 
-  const hasNegative = data.some((d) => d.value < 0);
+  const hasNegative = data.some((d) => d.value < 0)
 
   if (hasNegative) {
     return (
@@ -77,8 +70,8 @@ export default function BreakdownPie({
             <span className="text-sm text-theme-text">{item.name}</span>
             <span
               className={cn(
-                "text-sm font-medium tabular-nums",
-                item.value < 0 ? "text-theme-danger" : "text-theme-text",
+                'text-sm font-medium tabular-nums',
+                item.value < 0 ? 'text-theme-danger' : 'text-theme-text',
               )}
             >
               {currency(item.value)}
@@ -86,23 +79,19 @@ export default function BreakdownPie({
           </div>
         ))}
         <div className="breakdown-total-row">
-          <span className="text-sm font-medium text-theme-text">
-            Total Savings
-          </span>
+          <span className="text-sm font-medium text-theme-text">Total Savings</span>
           <span className="text-sm font-bold tabular-nums text-theme-success">
             {currency(financialSummary.autoSavings + financialSummary.remaining)}
           </span>
         </div>
       </div>
-    );
+    )
   }
 
-  const positiveData = data.filter((d) => d.value > 0);
+  const positiveData = data.filter((d) => d.value > 0)
 
   if (positiveData.length === 0) {
-    return (
-      <EmptyState message="No data to display." padding="py-6" />
-    );
+    return <EmptyState message="No data to display." padding="py-6" />
   }
 
   return (
@@ -126,5 +115,5 @@ export default function BreakdownPie({
         </PieChart>
       </ResponsiveContainer>
     </div>
-  );
+  )
 }

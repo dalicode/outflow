@@ -1,50 +1,50 @@
-import { useMemo, useCallback, useEffect, useRef } from "react";
-import { cn } from "../../utils/cn";
-import "./dashboard.css";
-import ConfirmDialog from "../../components/ui/ConfirmDialog";
-import MobileSelectionBanner from "../../components/ui/MobileSelectionBanner";
-import IncomeModalForm from "./components/IncomeModalForm";
-import SavingsModalForm from "./components/SavingsModalForm";
-import PullToRefreshContainer from "../../components/ui/PullToRefreshContainer";
-import { useSettings } from "../../context/settingsContext";
-import { useDashboard } from "../../hooks/useDashboard";
-import type { DashboardSessionState } from "../../hooks/useDashboard";
-import { normalizeName } from "../../utils/normalizeName";
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { cn } from '../../utils/cn'
+import './dashboard.css'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import MobileSelectionBanner from '../../components/ui/MobileSelectionBanner'
+import PullToRefreshContainer from '../../components/ui/PullToRefreshContainer'
+import { useSettings } from '../../context/settingsContext'
+import type { DashboardSessionState } from '../../hooks/useDashboard'
+import { useDashboard } from '../../hooks/useDashboard'
+import type { Category, Expense, Payee } from '../../types'
 import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
-} from "../../utils/dashboardHelpers";
-import DashboardHeader from "./DashboardHeader";
-import MonthSpanSelector from "./MonthSpanSelector";
-import DashboardMonthStrip from "./DashboardMonthStrip";
-import DashboardViewTabs from "./DashboardViewTabs";
-import ExpensesView from "./ExpensesView";
-import type { ExpenseTableHandle } from "./ExpenseTable";
-import FilterModal from "./FilterModal";
-import CategoryViewTable from "./CategoryViewTable";
-import ExpenseDrilldown from "./ExpenseDrilldown";
-import PayeeViewTable from "./PayeeViewTable";
-import CheckInReminderCard from "./CheckInReminderCard";
-import { DASHBOARD_VIEWS } from "./constants";
-import type { DashboardView } from "./constants";
-import type { Expense, Category, Payee } from "../../types";
+} from '../../utils/dashboardHelpers'
+import { normalizeName } from '../../utils/normalizeName'
+import CategoryViewTable from './CategoryViewTable'
+import CheckInReminderCard from './CheckInReminderCard'
+import IncomeModalForm from './components/IncomeModalForm'
+import SavingsModalForm from './components/SavingsModalForm'
+import type { DashboardView } from './constants'
+import { DASHBOARD_VIEWS } from './constants'
+import DashboardHeader from './DashboardHeader'
+import DashboardMonthStrip from './DashboardMonthStrip'
+import DashboardViewTabs from './DashboardViewTabs'
+import ExpenseDrilldown from './ExpenseDrilldown'
+import ExpensesView from './ExpensesView'
+import type { ExpenseTableHandle } from './ExpenseTable'
+import FilterModal from './FilterModal'
+import MonthSpanSelector from './MonthSpanSelector'
+import PayeeViewTable from './PayeeViewTable'
 
 interface DashboardProps {
-  expenses: Expense[];
-  categories: Category[];
-  payees: Payee[];
-  onUpdate: (id: number, changes: Partial<Expense>) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
-  onBulkDelete: (ids: number[]) => Promise<void>;
-  onSelectionChange?: (active: boolean) => void;
-  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
-  refreshCategories?: () => Promise<void>;
-  refreshPayees?: () => Promise<void>;
-  registerCycleView?: (fn: () => void) => void;
-  sessionState?: DashboardSessionState;
-  onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void;
-  onAddExpense?: () => void;
-  onRefresh?: () => Promise<void>;
+  expenses: Expense[]
+  categories: Category[]
+  payees: Payee[]
+  onUpdate: (id: number, changes: Partial<Expense>) => Promise<void>
+  onDelete: (id: number) => Promise<void>
+  onBulkDelete: (ids: number[]) => Promise<void>
+  onSelectionChange?: (active: boolean) => void
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void
+  refreshCategories?: () => Promise<void>
+  refreshPayees?: () => Promise<void>
+  registerCycleView?: (fn: () => void) => void
+  sessionState?: DashboardSessionState
+  onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void
+  onAddExpense?: () => void
+  onRefresh?: () => Promise<void>
 }
 
 export default function Dashboard({
@@ -64,7 +64,7 @@ export default function Dashboard({
   onAddExpense,
   onRefresh,
 }: DashboardProps) {
-  const { formatAmount, getNumberColorClass, formatDate } = useSettings();
+  const { formatAmount, getNumberColorClass, formatDate } = useSettings()
 
   // ── Hooks ──
   const dash = useDashboard(
@@ -75,30 +75,32 @@ export default function Dashboard({
     onSelectionChange,
     sessionState,
     onSessionStateChange,
-  );
+  )
 
   // ── Derived values ──
-  const isMobile = dash.viewportWidth < 640;
+  const isMobile = dash.viewportWidth < 640
 
   // Register the view-cycle callback for the Navbar dashboard icon
   const VIEW_CYCLE: DashboardView[] = [
     DASHBOARD_VIEWS.CATEGORIES,
     DASHBOARD_VIEWS.PAYEES,
     DASHBOARD_VIEWS.EXPENSES,
-  ];
+  ]
   useEffect(() => {
     registerCycleView?.(() => {
-      dash.setView(
-        VIEW_CYCLE[(VIEW_CYCLE.indexOf(dash.viewMode) + 1) % VIEW_CYCLE.length],
-      );
-    });
+      dash.setView(VIEW_CYCLE[(VIEW_CYCLE.indexOf(dash.viewMode) + 1) % VIEW_CYCLE.length])
+    })
     // Re-register whenever viewMode changes so the closure captures the latest value
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dash.viewMode, registerCycleView]);
-  const payeeMap = useMemo(
-    () => Object.fromEntries(payees.map((p) => [p.id, p])),
-    [payees],
-  );
+  }, [
+    dash.viewMode,
+    registerCycleView,
+    dash.setView,
+    VIEW_CYCLE.length,
+    VIEW_CYCLE.indexOf,
+    VIEW_CYCLE,
+  ])
+  const payeeMap = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])
 
   const multiCategoryRows = useMemo(
     () =>
@@ -108,60 +110,59 @@ export default function Dashboard({
         dash.getExpenseCategoryName,
       ),
     [dash.filteredExpenses, dash.monthKeys, dash.getExpenseCategoryName],
-  );
+  )
 
   const multiFixedRows = useMemo(
     () => computeMultiMonthFixedRows(dash.monthSummaries),
     [dash.monthSummaries],
-  );
+  )
 
   const drilldownExpenses = useMemo(() => {
-    if (!dash.drilldownCategory) return [];
-    const mk = dash.monthKeys[dash.drilldownCategoryMonthIndex];
+    if (!dash.drilldownCategory) return []
+    const mk = dash.monthKeys[dash.drilldownCategoryMonthIndex]
     return dash.filteredExpenses
       .filter((e) => {
-        const matchesMonth = e.date.startsWith(mk.key);
-        const matchesCategory =
-          dash.getExpenseCategoryName(e) === dash.drilldownCategory;
-        return matchesMonth && matchesCategory;
+        const matchesMonth = e.date.startsWith(mk.key)
+        const matchesCategory = dash.getExpenseCategoryName(e) === dash.drilldownCategory
+        return matchesMonth && matchesCategory
       })
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => a.date.localeCompare(b.date))
   }, [
     dash.drilldownCategory,
     dash.drilldownCategoryMonthIndex,
     dash.filteredExpenses,
     dash.monthKeys,
     dash.getExpenseCategoryName,
-  ]);
+  ])
 
   const spanVariableTotal = useMemo(
     () => dash.monthSummaries.reduce((s, m) => s + m.variableExpenses, 0),
     [dash.monthSummaries],
-  );
+  )
 
-  const expenseTableRef = useRef<ExpenseTableHandle>(null);
+  const expenseTableRef = useRef<ExpenseTableHandle>(null)
 
   const triggerMobileEdit = useCallback(() => {
     if (dash.selectedIds.size > 1) {
-      expenseTableRef.current?.handleEditRequest(Array.from(dash.selectedIds));
+      expenseTableRef.current?.handleEditRequest(Array.from(dash.selectedIds))
     } else {
-      const id = Array.from(dash.selectedIds)[0];
+      const id = Array.from(dash.selectedIds)[0]
       if (id != null) {
-        dash.setMobileEditTrigger(id);
-        requestAnimationFrame(() => dash.setMobileEditTrigger(null));
+        dash.setMobileEditTrigger(id)
+        requestAnimationFrame(() => dash.setMobileEditTrigger(null))
       }
     }
-  }, [dash.selectedIds, dash.setMobileEditTrigger]);
+  }, [dash.selectedIds, dash.setMobileEditTrigger])
 
   const handleMobileCopy = useCallback(() => {
-    const ids = Array.from(dash.selectedIds);
+    const ids = Array.from(dash.selectedIds)
     if (ids.length > 0) {
-      expenseTableRef.current?.handleCopyRequest(ids);
+      expenseTableRef.current?.handleCopyRequest(ids)
     }
-  }, [dash.selectedIds]);
+  }, [dash.selectedIds])
 
   // ── Income / Savings modal helpers ──
-  const modalMonthKey = dash.monthKeys[dash.modalTargetMonthIndex];
+  const modalMonthKey = dash.monthKeys[dash.modalTargetMonthIndex]
 
   return (
     <PullToRefreshContainer
@@ -175,14 +176,11 @@ export default function Dashboard({
       <div className="w-full max-w-4xl mx-auto">
         <div
           className={cn(
-            "mx-auto px-4 pt-6 pb-3 space-y-6",
-            dash.monthSpan === 12 ? "max-w-none" : "max-w-7xl",
+            'mx-auto px-4 pt-6 pb-3 space-y-6',
+            dash.monthSpan === 12 ? 'max-w-none' : 'max-w-7xl',
           )}
         >
-          <DashboardHeader
-            financialSummary={dash.financialSummary}
-            daysLeft={dash.daysLeft}
-          />
+          <DashboardHeader financialSummary={dash.financialSummary} daysLeft={dash.daysLeft} />
           <MonthSpanSelector
             monthSpan={dash.monthSpan}
             showGrandTotal={dash.showGrandTotal}
@@ -230,27 +228,24 @@ export default function Dashboard({
       >
         <div
           className={cn(
-            "mx-auto px-4 pb-24",
-            dash.monthSpan === 12 ? "max-w-[120rem]" : "max-w-7xl",
+            'mx-auto px-4 pb-24',
+            dash.monthSpan === 12 ? 'max-w-[120rem]' : 'max-w-7xl',
           )}
         >
           <div
             className={cn(
-              "w-full mx-auto",
+              'w-full mx-auto',
               dash.viewMode === DASHBOARD_VIEWS.EXPENSES
-                ? "md:max-w-3xl"
+                ? 'md:max-w-3xl'
                 : dash.monthSpan <= 3
-                  ? "md:max-w-3xl"
+                  ? 'md:max-w-3xl'
                   : dash.monthSpan === 6
-                    ? "md:max-w-6xl"
-                    : "md:max-w-[120rem]",
+                    ? 'md:max-w-6xl'
+                    : 'md:max-w-[120rem]',
             )}
           >
             {onAddExpense && (
-              <CheckInReminderCard
-                expenses={expenses}
-                onAddExpense={onAddExpense}
-              />
+              <CheckInReminderCard expenses={expenses} onAddExpense={onAddExpense} />
             )}
             <section
               ref={dash.swipeAreaRef}
@@ -260,18 +255,17 @@ export default function Dashboard({
             >
               {/* Count row */}
               <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
-                {dash.viewMode === DASHBOARD_VIEWS.EXPENSES &&
-                  dash.selectedCategories.size > 0 && (
-                    <button
-                      onClick={() => dash.setSelectedCategories(new Set())}
-                      className="text-[0.6875rem] font-medium px-2 py-1 rounded-theme-medium bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
-                    >
-                      Reset Filter
-                    </button>
-                  )}
+                {dash.viewMode === DASHBOARD_VIEWS.EXPENSES && dash.selectedCategories.size > 0 && (
+                  <button
+                    onClick={() => dash.setSelectedCategories(new Set())}
+                    className="text-[0.6875rem] font-medium px-2 py-1 rounded-theme-medium bg-theme-background text-theme-text border border-theme-border hover:bg-theme-border transition-colors"
+                  >
+                    Reset Filter
+                  </button>
+                )}
                 <p className="text-sm text-theme-muted tabular-nums">
                   {dash.expensesInSelectedSpan.length} transaction
-                  {dash.expensesInSelectedSpan.length !== 1 ? "s" : ""} ·{" "}
+                  {dash.expensesInSelectedSpan.length !== 1 ? 's' : ''} ·{' '}
                   {formatAmount(spanVariableTotal)}
                 </p>
               </div>
@@ -283,11 +277,9 @@ export default function Dashboard({
                 title="Confirm Delete"
                 description={
                   <span className="text-sm text-theme-muted">
-                    Are you sure you want to delete{" "}
-                    <strong className="text-theme-text">
-                      {dash.selectedIds.size}
-                    </strong>{" "}
-                    expense{dash.selectedIds.size !== 1 ? "s" : ""}?
+                    Are you sure you want to delete{' '}
+                    <strong className="text-theme-text">{dash.selectedIds.size}</strong> expense
+                    {dash.selectedIds.size !== 1 ? 's' : ''}?
                   </span>
                 }
                 confirmLabel="Delete"
@@ -299,9 +291,9 @@ export default function Dashboard({
               {dash.viewMode === DASHBOARD_VIEWS.CATEGORIES ? (
                 <div
                   className={cn(
-                    "space-y-4",
-                    dash.viewAnimation === "slide-left" && "view-slide-left",
-                    dash.viewAnimation === "slide-right" && "view-slide-right",
+                    'space-y-4',
+                    dash.viewAnimation === 'slide-left' && 'view-slide-left',
+                    dash.viewAnimation === 'slide-right' && 'view-slide-right',
                   )}
                 >
                   <CategoryViewTable
@@ -329,8 +321,8 @@ export default function Dashboard({
                         formatAmount={formatAmount}
                         resolveName={dash.getExpenseCategoryName}
                         resolvePayeeName={(exp) => {
-                          const p = payeeMap[exp.payeeId as number];
-                          return p ? normalizeName(p.name) : "";
+                          const p = payeeMap[exp.payeeId as number]
+                          return p ? normalizeName(p.name) : ''
                         }}
                         onClose={dash.closeDrilldown}
                         isMobile={isMobile}
@@ -341,9 +333,9 @@ export default function Dashboard({
               ) : dash.viewMode === DASHBOARD_VIEWS.PAYEES ? (
                 <div
                   className={cn(
-                    "space-y-4",
-                    dash.viewAnimation === "slide-left" && "view-slide-left",
-                    dash.viewAnimation === "slide-right" && "view-slide-right",
+                    'space-y-4',
+                    dash.viewAnimation === 'slide-left' && 'view-slide-left',
+                    dash.viewAnimation === 'slide-right' && 'view-slide-right',
                   )}
                 >
                   <PayeeViewTable
@@ -371,8 +363,8 @@ export default function Dashboard({
                         formatAmount={formatAmount}
                         resolveName={dash.getExpenseCategoryName}
                         resolvePayeeName={(exp) => {
-                          const p = payeeMap[exp.payeeId as number];
-                          return p ? normalizeName(p.name) : "";
+                          const p = payeeMap[exp.payeeId as number]
+                          return p ? normalizeName(p.name) : ''
                         }}
                         onClose={dash.closePayeeDrilldown}
                         isMobile={isMobile}
@@ -389,9 +381,7 @@ export default function Dashboard({
                   selectedIds={dash.selectedIds}
                   onToggleSelect={dash.toggleExpenseSelection}
                   onToggleSelectAll={dash.toggleSelectAll}
-                  onBulkDelete={() =>
-                    onBulkDelete(Array.from(dash.selectedIds))
-                  }
+                  onBulkDelete={() => onBulkDelete(Array.from(dash.selectedIds))}
                   onUpdate={onUpdate}
                   onDelete={onDelete}
                   isMobile={isMobile}
@@ -421,7 +411,7 @@ export default function Dashboard({
         <IncomeModalForm
           isOpen={dash.isIncomeModalOpen}
           onClose={dash.closeIncomeModal}
-          title={`Edit Income — ${modalMonthKey?.name ?? ""} ${modalMonthKey?.year ?? ""}`}
+          title={`Edit Income — ${modalMonthKey?.name ?? ''} ${modalMonthKey?.year ?? ''}`}
           size="sm"
           initialAmount=""
           initialFrequency="monthly"
@@ -434,7 +424,7 @@ export default function Dashboard({
         <SavingsModalForm
           isOpen={dash.isSavingsModalOpen}
           onClose={dash.closeSavingsModal}
-          title={`Edit Savings Rate — ${modalMonthKey?.name ?? ""} ${modalMonthKey?.year ?? ""}`}
+          title={`Edit Savings Rate — ${modalMonthKey?.name ?? ''} ${modalMonthKey?.year ?? ''}`}
           size="sm"
           initialRate={dash.getInitialSavingsRate()}
           onSave={dash.handleSavingsSave}
@@ -456,18 +446,18 @@ export default function Dashboard({
             filterAmount: dash.filterAmount,
           }}
           onApply={(draft) => {
-            dash.setFilterGlobal(draft.filterGlobal);
-            dash.setFilterDateFrom(draft.filterDateFrom);
-            dash.setFilterDateTo(draft.filterDateTo);
-            dash.setSelectedCategories(draft.selectedCategories);
-            dash.setSelectedPayees(draft.selectedPayees);
-            dash.setFilterDescription(draft.filterDescription);
-            dash.setFilterAmount(draft.filterAmount);
+            dash.setFilterGlobal(draft.filterGlobal)
+            dash.setFilterDateFrom(draft.filterDateFrom)
+            dash.setFilterDateTo(draft.filterDateTo)
+            dash.setSelectedCategories(draft.selectedCategories)
+            dash.setSelectedPayees(draft.selectedPayees)
+            dash.setFilterDescription(draft.filterDescription)
+            dash.setFilterAmount(draft.filterAmount)
           }}
           categories={categories}
           payees={payees}
         />
       </div>
     </PullToRefreshContainer>
-  );
+  )
 }

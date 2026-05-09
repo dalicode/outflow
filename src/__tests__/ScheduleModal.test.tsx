@@ -1,18 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ScheduleModal from '../features/settings/ScheduleModal'
 
 vi.mock('../services/storageService', () => ({
   StorageService: {
     getActiveFixedExpenses: vi.fn(() => Promise.resolve([])),
-    getCategories: vi.fn(() => Promise.resolve([
-      { id: 1, name: 'Groceries' },
-      { id: 2, name: 'Entertainment' },
-    ])),
-    getPayees: vi.fn(() => Promise.resolve([
-      { id: 1, name: 'Amazon' },
-      { id: 2, name: 'Supermarket' },
-    ])),
+    getCategories: vi.fn(() =>
+      Promise.resolve([
+        { id: 1, name: 'Groceries' },
+        { id: 2, name: 'Entertainment' },
+      ]),
+    ),
+    getPayees: vi.fn(() =>
+      Promise.resolve([
+        { id: 1, name: 'Amazon' },
+        { id: 2, name: 'Supermarket' },
+      ]),
+    ),
     addCategory: vi.fn(() => Promise.resolve(3)),
     addPayee: vi.fn(() => Promise.resolve(3)),
     addSchedule: vi.fn(() => Promise.resolve(1)),

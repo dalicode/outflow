@@ -1,39 +1,37 @@
-import { useSettings } from "../../context/settingsContext";
-import { getCategoryColor } from "./summaryColorUtils";
+import { useSettings } from '../../context/settingsContext'
+import { getCategoryColor } from './summaryColorUtils'
 
 interface BreakdownItem {
-  name: string;
-  amount: number;
-  pct: number;
+  name: string
+  amount: number
+  pct: number
 }
 
 interface SpendingBreakdownProps {
-  items: BreakdownItem[];
-  total: number;
+  items: BreakdownItem[]
+  total: number
 }
 
 export default function SpendingBreakdown({ items, total }: SpendingBreakdownProps) {
-  const { formatAmount } = useSettings();
+  const { formatAmount } = useSettings()
 
-  if (items.length === 0) return null;
+  if (items.length === 0) return null
 
-  const maxAmount = items[0]?.amount ?? 0;
+  const maxAmount = items[0]?.amount ?? 0
 
   return (
     <div className="rounded-theme-large border border-theme-border bg-theme-surface p-5 space-y-4">
       {/* Header */}
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold text-theme-text">Variable Spending</p>
-        <p className="text-sm font-semibold text-theme-text tabular-nums">
-          {formatAmount(total)}
-        </p>
+        <p className="text-sm font-semibold text-theme-text tabular-nums">{formatAmount(total)}</p>
       </div>
 
       {/* Category rows */}
       <div className="space-y-3">
         {items.map((item, _i) => {
-          const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
-          const color = getCategoryColor(item.name);
+          const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0
+          const color = getCategoryColor(item.name)
 
           return (
             <div key={item.name} className="space-y-1">
@@ -65,14 +63,14 @@ export default function SpendingBreakdown({ items, total }: SpendingBreakdownPro
                 />
               </div>
             </div>
-          );
+          )
         })}
       </div>
 
       {/* Footer: transaction count hint */}
       <p className="text-xs text-theme-muted pt-1 border-t border-theme-border">
-        {items.length} {items.length === 1 ? "category" : "categories"} · current month
+        {items.length} {items.length === 1 ? 'category' : 'categories'} · current month
       </p>
     </div>
-  );
+  )
 }

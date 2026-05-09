@@ -1,44 +1,42 @@
-import { useMemo } from "react";
+import { useMemo } from 'react'
 import {
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
   CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
   Cell,
   LabelList,
-} from "recharts";
-import type { AnalyticsData } from "../../types";
-import type { ThemeColors } from "./AnalyticsCharts";
-import { fmtCompact, fmtFull, fmtDelta } from "../../utils/analyticsFormatting";
-
-
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import type { AnalyticsData } from '../../types'
+import { fmtCompact, fmtDelta, fmtFull } from '../../utils/analyticsFormatting'
+import type { ThemeColors } from './AnalyticsCharts'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface YearPoint {
-  label: string;
-  year: number;
-  savings: number;
-  expenses: number;
-  savingsDelta: number | null;
-  expensesDelta: number | null;
+  label: string
+  year: number
+  savings: number
+  expenses: number
+  savingsDelta: number | null
+  expensesDelta: number | null
 }
 
 // ── Tooltip ──────────────────────────────────────────────────────────────────
 
 interface TooltipProps {
-  active?: boolean;
-  payload?: Array<{ value: number; name: string; color: string; payload: YearPoint }>;
-  colors: ThemeColors;
+  active?: boolean
+  payload?: Array<{ value: number; name: string; color: string; payload: YearPoint }>
+  colors: ThemeColors
 }
 
 const YoYTooltip = ({ active, payload, colors }: TooltipProps) => {
-  if (!active || !payload || payload.length === 0) return null;
-  const pt = payload[0].payload;
+  if (!active || !payload || payload.length === 0) return null
+  const pt = payload[0].payload
 
   return (
     <div
@@ -55,7 +53,10 @@ const YoYTooltip = ({ active, payload, colors }: TooltipProps) => {
 
       <div className="flex items-center justify-between gap-4 mb-1">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colors.success }} />
+          <span
+            className="inline-block w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: colors.success }}
+          />
           <span style={{ color: colors.muted }}>Total Saved</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -75,11 +76,17 @@ const YoYTooltip = ({ active, payload, colors }: TooltipProps) => {
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colors.danger }} />
+          <span
+            className="inline-block w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: colors.danger }}
+          />
           <span style={{ color: colors.muted }}>Expenses</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="font-medium tabular-nums" style={{ color: pt.expenses < 0 ? colors.success : colors.danger }}>
+          <span
+            className="font-medium tabular-nums"
+            style={{ color: pt.expenses < 0 ? colors.success : colors.danger }}
+          >
             {fmtFull(pt.expenses)}
           </span>
           {pt.expensesDelta != null && (
@@ -93,16 +100,16 @@ const YoYTooltip = ({ active, payload, colors }: TooltipProps) => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
 // ── Main component ───────────────────────────────────────────────────────────
 
 interface YearOverYearChartProps {
-  multiYearData: AnalyticsData[];
-  selectedMonth: number;
-  colors: ThemeColors;
-  monthLabel: string;
+  multiYearData: AnalyticsData[]
+  selectedMonth: number
+  colors: ThemeColors
+  monthLabel: string
 }
 
 export default function YearOverYearChart({
@@ -120,7 +127,7 @@ export default function YearOverYearChart({
         expenses: d.monthlyTotals[selectedMonth] ?? 0,
       }))
       .filter((d) => d.savings !== 0 || d.expenses !== 0)
-      .sort((a, b) => a.year - b.year);
+      .sort((a, b) => a.year - b.year)
 
     return raw.map((d, i) => ({
       label: `${monthLabel} ${d.year}`,
@@ -129,27 +136,25 @@ export default function YearOverYearChart({
       expenses: d.expenses,
       savingsDelta: i === 0 ? null : d.savings - raw[i - 1].savings,
       expensesDelta: i === 0 ? null : d.expenses - raw[i - 1].expenses,
-    }));
-  }, [multiYearData, selectedMonth, monthLabel]);
+    }))
+  }, [multiYearData, selectedMonth, monthLabel])
 
-  const isLoading = multiYearData.some((d) => d.loading);
+  const isLoading = multiYearData.some((d) => d.loading)
 
   if (isLoading) {
     return (
       <div className="h-[260px] flex items-center justify-center">
         <span className="text-xs text-theme-muted">Loading…</span>
       </div>
-    );
+    )
   }
 
   if (points.length < 2) {
     return (
       <div className="h-[260px] flex items-center justify-center">
-        <span className="text-xs text-theme-muted">
-          Need data from at least 2 years to compare
-        </span>
+        <span className="text-xs text-theme-muted">Need data from at least 2 years to compare</span>
       </div>
-    );
+    )
   }
 
   return (
@@ -176,13 +181,16 @@ export default function YearOverYearChart({
           tickFormatter={fmtCompact}
         />
 
-        <Tooltip content={<YoYTooltip colors={colors} />} cursor={{ fill: colors.grid, opacity: 0.15 }} />
+        <Tooltip
+          content={<YoYTooltip colors={colors} />}
+          cursor={{ fill: colors.grid, opacity: 0.15 }}
+        />
 
         <Legend
           verticalAlign="top"
           align="right"
-          wrapperStyle={{ fontSize: "11px", paddingBottom: "6px" }}
-          formatter={(value) => (value === "savings" ? "Total Saved" : "Expenses")}
+          wrapperStyle={{ fontSize: '11px', paddingBottom: '6px' }}
+          formatter={(value) => (value === 'savings' ? 'Total Saved' : 'Expenses')}
         />
 
         {/* Savings bars */}
@@ -193,10 +201,10 @@ export default function YearOverYearChart({
           <LabelList
             content={(props) => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const { x, y, width, index } = props as any;
-              const pt = points[index as number];
-              if (!pt || pt.savingsDelta == null) return null;
-              const isPos = pt.savingsDelta >= 0;
+              const { x, y, width, index } = props as any
+              const pt = points[index as number]
+              if (!pt || pt.savingsDelta == null) return null
+              const isPos = pt.savingsDelta >= 0
               return (
                 <text
                   x={(x as number) + (width as number) / 2}
@@ -207,7 +215,7 @@ export default function YearOverYearChart({
                 >
                   {fmtDelta(pt.savingsDelta)}
                 </text>
-              );
+              )
             }}
           />
         </Bar>
@@ -220,10 +228,10 @@ export default function YearOverYearChart({
           <LabelList
             content={(props) => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const { x, y, width, index } = props as any;
-              const pt = points[index as number];
-              if (!pt || pt.expensesDelta == null) return null;
-              const isIncrease = pt.expensesDelta > 0;
+              const { x, y, width, index } = props as any
+              const pt = points[index as number]
+              if (!pt || pt.expensesDelta == null) return null
+              const isIncrease = pt.expensesDelta > 0
               return (
                 <text
                   x={(x as number) + (width as number) / 2}
@@ -234,11 +242,11 @@ export default function YearOverYearChart({
                 >
                   {fmtDelta(pt.expensesDelta)}
                 </text>
-              );
+              )
             }}
           />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
-  );
+  )
 }

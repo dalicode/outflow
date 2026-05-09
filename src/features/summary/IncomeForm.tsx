@@ -1,41 +1,33 @@
-import { useState } from "react";
-import { useSettings } from "../../context/settingsContext";
-import IncomeModalForm from "../dashboard/components/IncomeModalForm";
+import { useState } from 'react'
+import { useSettings } from '../../context/settingsContext'
+import IncomeModalForm from '../dashboard/components/IncomeModalForm'
 
 const MULTIPLIERS: Record<string, number> = {
   monthly: 1,
   biweekly: 2.17,
   weekly: 4.33,
-};
-
-const FREQ_LABEL: Record<string, string> = {
-  monthly: "monthly",
-  biweekly: "bi-weekly",
-  weekly: "weekly",
-};
-
-interface IncomeFormProps {
-  income: number | string | null | undefined;
-  frequency: string | null | undefined;
-  onSave: (data: {
-    income: number;
-    frequency: string;
-    monthlyIncome: number;
-  }) => void;
 }
 
-export default function IncomeForm({
-  income,
-  frequency,
-  onSave,
-}: IncomeFormProps) {
-  const { formatAmount } = useSettings();
-  const [showModal, setShowModal] = useState(false);
+const FREQ_LABEL: Record<string, string> = {
+  monthly: 'monthly',
+  biweekly: 'bi-weekly',
+  weekly: 'weekly',
+}
 
-  const raw = parseFloat(String(income || 0));
-  const freq = frequency || "monthly";
-  const monthly = raw * MULTIPLIERS[freq];
-  const isSet = raw > 0;
+interface IncomeFormProps {
+  income: number | string | null | undefined
+  frequency: string | null | undefined
+  onSave: (data: { income: number; frequency: string; monthlyIncome: number }) => void
+}
+
+export default function IncomeForm({ income, frequency, onSave }: IncomeFormProps) {
+  const { formatAmount } = useSettings()
+  const [showModal, setShowModal] = useState(false)
+
+  const raw = parseFloat(String(income || 0))
+  const freq = frequency || 'monthly'
+  const monthly = raw * MULTIPLIERS[freq]
+  const isSet = raw > 0
 
   return (
     <>
@@ -55,7 +47,7 @@ export default function IncomeForm({
                   {formatAmount(monthly)}
                   <span className="text-sm font-normal text-theme-muted ml-1">/mo</span>
                 </p>
-                {freq !== "monthly" && (
+                {freq !== 'monthly' && (
                   <p className="text-xs text-theme-muted">
                     {formatAmount(raw)} {FREQ_LABEL[freq]}
                   </p>
@@ -76,14 +68,14 @@ export default function IncomeForm({
         onClose={() => setShowModal(false)}
         title="Edit Income"
         size="md"
-        initialAmount={income ? String(income) : ""}
+        initialAmount={income ? String(income) : ''}
         initialFrequency={freq}
         onSave={(data) => {
-          onSave(data);
-          setShowModal(false);
+          onSave(data)
+          setShowModal(false)
         }}
         description="Sets your monthly income. This affects budget calculations, savings targets, and remaining balance."
       />
     </>
-  );
+  )
 }

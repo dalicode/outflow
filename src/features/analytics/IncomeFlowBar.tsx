@@ -1,32 +1,42 @@
-import { cn } from "../../utils/cn";
-import { useThemeColors } from "./AnalyticsCharts";
 import BudgetFlowBar, {
   AllocationRow,
-  getRemainingBarColor,
   barPct,
-} from "../../components/ui/BudgetFlowBar";
+  getRemainingBarColor,
+} from '../../components/ui/BudgetFlowBar'
+import { cn } from '../../utils/cn'
+import { useThemeColors } from './AnalyticsCharts'
 
 const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-] as const;
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
 
 interface IncomeFlowBarProps {
-  yearIncome: number;
-  yearFixed: number;
-  yearVariable: number;
-  yearSavings: number;
-  yearRemaining: number;
-  monthlyIncome: number[];
-  monthlyFixed: number[];
-  monthlyVariable: number[];
-  monthlySavings: (number | null)[];
-  monthlyRemaining: (number | null)[];
-  selectedMonth: number | null;
-  monthCount: number;
-  isCurrentYear: boolean;
-  year: number;
-  formatAmount: (n: number) => string;
+  yearIncome: number
+  yearFixed: number
+  yearVariable: number
+  yearSavings: number
+  yearRemaining: number
+  monthlyIncome: number[]
+  monthlyFixed: number[]
+  monthlyVariable: number[]
+  monthlySavings: (number | null)[]
+  monthlyRemaining: (number | null)[]
+  selectedMonth: number | null
+  monthCount: number
+  isCurrentYear: boolean
+  year: number
+  formatAmount: (n: number) => string
 }
 
 export default function IncomeFlowBar({
@@ -45,46 +55,64 @@ export default function IncomeFlowBar({
   isCurrentYear,
   formatAmount,
 }: IncomeFlowBarProps) {
-  const colors = useThemeColors();
+  const colors = useThemeColors()
 
-  const income    = selectedMonth !== null ? (monthlyIncome[selectedMonth] ?? 0)    : yearIncome;
-  const fixed     = selectedMonth !== null ? (monthlyFixed[selectedMonth] ?? 0)     : yearFixed;
-  const variable  = selectedMonth !== null ? (monthlyVariable[selectedMonth] ?? 0)  : yearVariable;
-  const savings   = selectedMonth !== null ? (monthlySavings[selectedMonth] ?? 0)   : yearSavings;
-  const remaining = selectedMonth !== null ? (monthlyRemaining[selectedMonth] ?? 0) : yearRemaining;
+  const income = selectedMonth !== null ? (monthlyIncome[selectedMonth] ?? 0) : yearIncome
+  const fixed = selectedMonth !== null ? (monthlyFixed[selectedMonth] ?? 0) : yearFixed
+  const variable = selectedMonth !== null ? (monthlyVariable[selectedMonth] ?? 0) : yearVariable
+  const savings = selectedMonth !== null ? (monthlySavings[selectedMonth] ?? 0) : yearSavings
+  const remaining = selectedMonth !== null ? (monthlyRemaining[selectedMonth] ?? 0) : yearRemaining
 
-  const cappedSavings = Math.min(Math.max(0, savings), income);
-  const totalAllocated = cappedSavings + fixed + variable;
-  const isOverBudget = totalAllocated > income;
-  const overflowAmt = isOverBudget ? totalAllocated - income : 0;
-  const baselineRemaining = Math.max(0, income - Math.max(0, savings) - fixed);
+  const cappedSavings = Math.min(Math.max(0, savings), income)
+  const totalAllocated = cappedSavings + fixed + variable
+  const isOverBudget = totalAllocated > income
+  const overflowAmt = isOverBudget ? totalAllocated - income : 0
+  const baselineRemaining = Math.max(0, income - Math.max(0, savings) - fixed)
   const remainingColor = getRemainingBarColor(
     remaining,
     baselineRemaining,
     colors.success,
     colors.danger,
-  );
-  const spentPct = barPct(totalAllocated, income);
+  )
+  const spentPct = barPct(totalAllocated, income)
 
   const headlineLabel =
     selectedMonth !== null
       ? `${MONTH_LABELS[selectedMonth]} Income`
       : isCurrentYear
-        ? "YTD Income"
-        : "Total Income";
+        ? 'YTD Income'
+        : 'Total Income'
 
   const headlineContext =
     selectedMonth !== null
       ? null
       : isCurrentYear
-        ? `${monthCount} month${monthCount === 1 ? "" : "s"}`
-        : `${monthCount} month${monthCount === 1 ? "" : "s"}`;
+        ? `${monthCount} month${monthCount === 1 ? '' : 's'}`
+        : `${monthCount} month${monthCount === 1 ? '' : 's'}`
 
   const segments = [
-    { key: "savings",  label: "Savings",  value: cappedSavings, widthPct: barPct(cappedSavings, income), color: colors.text },
-    { key: "fixed",    label: "Fixed",    value: fixed,         widthPct: barPct(fixed, income),         color: colors.primary },
-    { key: "variable", label: "Variable", value: variable,      widthPct: barPct(variable, income),      color: colors.danger },
-  ].filter((s) => s.value > 0);
+    {
+      key: 'savings',
+      label: 'Savings',
+      value: cappedSavings,
+      widthPct: barPct(cappedSavings, income),
+      color: colors.text,
+    },
+    {
+      key: 'fixed',
+      label: 'Fixed',
+      value: fixed,
+      widthPct: barPct(fixed, income),
+      color: colors.primary,
+    },
+    {
+      key: 'variable',
+      label: 'Variable',
+      value: variable,
+      widthPct: barPct(variable, income),
+      color: colors.danger,
+    },
+  ].filter((s) => s.value > 0)
 
   return (
     <div className="space-y-4">
@@ -96,9 +124,7 @@ export default function IncomeFlowBar({
         <span className="text-lg font-bold text-theme-text tabular-nums">
           {formatAmount(income)}
         </span>
-        {headlineContext && (
-          <span className="text-xs text-theme-muted">· {headlineContext}</span>
-        )}
+        {headlineContext && <span className="text-xs text-theme-muted">· {headlineContext}</span>}
       </div>
 
       {/* Bar + allocation rows */}
@@ -147,32 +173,30 @@ export default function IncomeFlowBar({
               <span
                 className="inline-block w-2 h-2 rounded-full shrink-0"
                 style={{
-                  backgroundColor:
-                    remaining >= 0 ? colors.success : colors.danger,
+                  backgroundColor: remaining >= 0 ? colors.success : colors.danger,
                 }}
               />
               <span className="text-sm text-theme-text">
-                {remaining >= 0 ? "Remaining" : "Over Budget"}
+                {remaining >= 0 ? 'Remaining' : 'Over Budget'}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-                {income > 0
-                  ? `${((remaining / income) * 100).toFixed(0)}%`
-                  : "—"}
+                {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
               </span>
               <span
-                className={cn("text-sm font-semibold tabular-nums w-24 text-right")}
+                className={cn('text-sm font-semibold tabular-nums w-24 text-right')}
                 style={{
                   color: remaining >= 0 ? colors.success : colors.danger,
                 }}
               >
-                {remaining >= 0 ? "+" : "−"}{formatAmount(Math.abs(remaining))}
+                {remaining >= 0 ? '+' : '−'}
+                {formatAmount(Math.abs(remaining))}
               </span>
             </div>
           </div>
         </div>
       </BudgetFlowBar>
     </div>
-  );
+  )
 }

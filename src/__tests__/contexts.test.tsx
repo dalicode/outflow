@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { SettingsProvider, useSettings } from '../context/settingsContext'
-import { AuthProvider, useAuth } from '../context/authContext'
 import type { ReactNode } from 'react'
+import { describe, expect, it, vi } from 'vitest'
+import { AuthProvider, useAuth } from '../context/authContext'
+import { SettingsProvider, useSettings } from '../context/settingsContext'
 
 // Mock StorageService
 vi.mock('../services/storageService', () => ({
@@ -104,9 +104,7 @@ describe('useSettings', () => {
 })
 
 describe('useAuth', () => {
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <AuthProvider>{children}</AuthProvider>
-  )
+  const wrapper = ({ children }: { children: ReactNode }) => <AuthProvider>{children}</AuthProvider>
 
   it('provides auth context with default values', () => {
     const { result } = renderHook(() => useAuth(), { wrapper })
@@ -120,8 +118,6 @@ describe('useAuth', () => {
   })
 
   it('throws when used outside provider', () => {
-    expect(() => renderHook(() => useAuth())).toThrow(
-      'useAuth must be used within AuthProvider',
-    )
+    expect(() => renderHook(() => useAuth())).toThrow('useAuth must be used within AuthProvider')
   })
 })

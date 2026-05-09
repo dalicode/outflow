@@ -1,16 +1,16 @@
-import type { ReactNode, MouseEventHandler } from "react";
-import DesktopSidebar from "./DesktopSidebar";
-import MobileBottomNav from "./MobileBottomNav";
+import type { MouseEventHandler, ReactNode } from 'react'
+import DesktopSidebar from './DesktopSidebar'
+import MobileBottomNav from './MobileBottomNav'
 
 interface NavbarProps {
-  onAddExpense: MouseEventHandler<HTMLButtonElement>;
-  syncDot?: ReactNode;
-  onSignOut?: MouseEventHandler<HTMLButtonElement>;
-  userEmail?: string;
-  scrollDirection?: "up" | "down" | null;
-  isScrolling?: boolean;
-  hidden?: boolean;
-  onCycleDashboardView?: () => void;
+  onAddExpense: MouseEventHandler<HTMLButtonElement>
+  syncDot?: ReactNode
+  onSignOut?: MouseEventHandler<HTMLButtonElement>
+  userEmail?: string
+  scrollDirection?: 'up' | 'down' | null
+  isScrolling?: boolean
+  hidden?: boolean
+  onCycleDashboardView?: () => void
 }
 
 export default function Navbar(props: NavbarProps) {
@@ -31,7 +31,7 @@ export default function Navbar(props: NavbarProps) {
         onCycleDashboardView={props.onCycleDashboardView}
       />
     </>
-  );
+  )
 }
 
-export type { NavbarProps };
+export type { NavbarProps }

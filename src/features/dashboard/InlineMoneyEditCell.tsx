@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { useSettings } from "../../context/settingsContext";
-import MoneyInput from "../../components/inputs/MoneyInput";
-import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
+import { useState } from 'react'
+import MoneyInput from '../../components/inputs/MoneyInput'
+import { useSettings } from '../../context/settingsContext'
+import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 
 interface InlineMoneyEditCellProps {
-  initialValue: number;
-  onCommit: (value: number) => void;
-  onCancel: () => void;
-  onTab?: (shiftKey: boolean) => void;
+  initialValue: number
+  onCommit: (value: number) => void
+  onCancel: () => void
+  onTab?: (shiftKey: boolean) => void
 }
 
 export default function InlineMoneyEditCell({
@@ -16,11 +16,9 @@ export default function InlineMoneyEditCell({
   onCancel,
   onTab,
 }: InlineMoneyEditCellProps) {
-  const { settings } = useSettings();
-  const { currency, locale } = resolveMoneyLocaleConfig(
-    settings.currencySymbol,
-  );
-  const [draftValue, setDraftValue] = useState(initialValue);
+  const { settings } = useSettings()
+  const { currency, locale } = resolveMoneyLocaleConfig(settings.currencySymbol)
+  const [draftValue, setDraftValue] = useState(initialValue)
 
   return (
     <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
@@ -36,14 +34,14 @@ export default function InlineMoneyEditCell({
         inputClassName="text-right"
         onBlurValue={onCommit}
         onEnterValue={(value) => {
-          onCommit(value);
+          onCommit(value)
         }}
         onTabValue={(value, shiftKey) => {
-          onCommit(value);
-          onTab?.(shiftKey);
+          onCommit(value)
+          onTab?.(shiftKey)
         }}
         onEscape={onCancel}
       />
     </div>
-  );
+  )
 }

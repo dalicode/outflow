@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import Modal from '../components/ui/Modal'
 
 describe('Modal', () => {
@@ -174,13 +174,7 @@ describe('Modal', () => {
   it('supports mobile full-screen behavior without changing desktop size', () => {
     setVisualViewport(390, 844)
     render(
-      <Modal
-        isOpen={true}
-        onClose={vi.fn()}
-        title="Test"
-        size="md"
-        mobileFullScreen
-      >
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="md" mobileFullScreen>
         Content
       </Modal>,
     )
@@ -241,7 +235,14 @@ describe('Modal', () => {
     const onAction = vi.fn()
     setVisualViewport(390, 844)
     render(
-      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={onAction}>
+      <Modal
+        isOpen={true}
+        onClose={vi.fn()}
+        title="Test"
+        size="full"
+        mobileActionLabel="Save"
+        onMobileAction={onAction}
+      >
         Content
       </Modal>,
     )
@@ -254,7 +255,14 @@ describe('Modal', () => {
     const onAction = vi.fn()
     setVisualViewport(390, 844)
     render(
-      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={onAction}>
+      <Modal
+        isOpen={true}
+        onClose={vi.fn()}
+        title="Test"
+        size="full"
+        mobileActionLabel="Save"
+        onMobileAction={onAction}
+      >
         Content
       </Modal>,
     )

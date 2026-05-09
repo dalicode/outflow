@@ -14,13 +14,13 @@
  */
 
 const ENVELOPE_VERSION = 1
-const FORMAT = "gzip+aes"
+const FORMAT = 'gzip+aes'
 const ITERATIONS = 100_000
 const KEY_LENGTH = 256
 
 function bufToBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf)
-  let binary = ""
+  let binary = ''
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i])
   }
@@ -36,34 +36,27 @@ function base64ToBuf(b64: string): ArrayBuffer {
   return bytes.buffer
 }
 
-async function getPasswordKey(
-  password: string,
-  salt: Uint8Array,
-): Promise<CryptoKey> {
+async function getPasswordKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const enc = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(password),
-    "PBKDF2",
-    false,
-    ["deriveKey"],
-  )
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, [
+    'deriveKey',
+  ])
   return crypto.subtle.deriveKey(
     {
-      name: "PBKDF2",
+      name: 'PBKDF2',
       salt: salt as BufferSource,
       iterations: ITERATIONS,
-      hash: "SHA-256",
+      hash: 'SHA-256',
     },
     keyMaterial,
-    { name: "AES-GCM", length: KEY_LENGTH },
+    { name: 'AES-GCM', length: KEY_LENGTH },
     false,
-    ["encrypt", "decrypt"],
+    ['encrypt', 'decrypt'],
   )
 }
 
 async function compressBytes(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new CompressionStream("gzip")
+  const stream = new CompressionStream('gzip')
   const writer = stream.writable.getWriter()
   writer.write(data as BufferSource)
   writer.close()
@@ -85,7 +78,7 @@ async function compressBytes(data: Uint8Array): Promise<Uint8Array> {
 }
 
 async function decompressBytes(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new DecompressionStream("gzip")
+  const stream = new DecompressionStream('gzip')
   const writer = stream.writable.getWriter()
   writer.write(data as BufferSource)
   writer.close()
@@ -127,7 +120,7 @@ export async function encryptBackup(
   const key = await getPasswordKey(password, salt)
 
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
     compressed as BufferSource,
   )
@@ -159,12 +152,12 @@ export async function decryptBackup(
   let decrypted: ArrayBuffer
   try {
     decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
+      { name: 'AES-GCM', iv },
       key,
       base64ToBuf(envelope.ciphertext),
     )
   } catch {
-    throw new Error("Incorrect password or corrupted backup file.")
+    throw new Error('Incorrect password or corrupted backup file.')
   }
 
   const decompressed = await decompressBytes(new Uint8Array(decrypted))
@@ -172,16 +165,14 @@ export async function decryptBackup(
   return JSON.parse(text) as Record<string, unknown>
 }
 
-export function isEncryptedEnvelope(
-  data: unknown,
-): data is EncryptedEnvelope {
+export function isEncryptedEnvelope(data: unknown): data is EncryptedEnvelope {
   return (
-    typeof data === "object" &&
+    typeof data === 'object' &&
     data !== null &&
-    "version" in data &&
-    "format" in data &&
-    "salt" in data &&
-    "iv" in data &&
-    "ciphertext" in data
+    'version' in data &&
+    'format' in data &&
+    'salt' in data &&
+    'iv' in data &&
+    'ciphertext' in data
   )
 }

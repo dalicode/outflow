@@ -1,14 +1,15 @@
-import { describe, it, expect } from 'vitest'
-import { THEMES, getTheme, getCSSVariables, LIGHT_THEME_DEFAULTS, DARK_THEME_DEFAULTS } from '../utils/themeConfig'
+import { describe, expect, it } from 'vitest'
+import {
+  DARK_THEME_DEFAULTS,
+  getCSSVariables,
+  getTheme,
+  LIGHT_THEME_DEFAULTS,
+  THEMES,
+} from '../utils/themeConfig'
 
 describe('THEMES', () => {
   it('contains all expected theme IDs', () => {
-    const expectedIds = [
-      'default',
-      'sharpProfessionalDark',
-      'darkMinimal',
-      'runescapeClassic',
-    ]
+    const expectedIds = ['default', 'sharpProfessionalDark', 'darkMinimal', 'runescapeClassic']
     expectedIds.forEach((id) => {
       expect(THEMES[id]).toBeDefined()
       expect(THEMES[id].id).toBe(id)

@@ -1,61 +1,58 @@
-import { useMemo, useCallback, useState, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
-  ComposedChart,
-  Line,
   Bar,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
+  Cell,
+  ComposedChart,
+  Customized,
+  Legend,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
-  Legend,
-  Cell,
-  Customized,
-} from "recharts";
-import { useViewportWidth } from "../../../hooks/useViewportWidth";
-import type {
-  YearTrendRow,
-  AllTimeRow,
-} from "../../../utils/analyticsTrendUtils";
-import type { ThemeColors } from "../AnalyticsCharts";
-import BrushOverview from "./BrushOverview";
-import ColoredCumulativeLine, { type ColoredCumulativeLineProps } from "./ColoredCumulativeLine";
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { useViewportWidth } from '../../../hooks/useViewportWidth'
+import type { AllTimeRow, YearTrendRow } from '../../../utils/analyticsTrendUtils'
+import type { ThemeColors } from '../AnalyticsCharts'
+import BrushOverview from './BrushOverview'
+import ColoredCumulativeLine, { type ColoredCumulativeLineProps } from './ColoredCumulativeLine'
 
 interface IncomeTrendYearChartProps {
-  rows: YearTrendRow[];
-  priorRows?: YearTrendRow[] | null;
-  priorYear?: number;
-  selectedMonth: string | null;
-  onSelectMonth: (trendKey: string | null) => void;
-  colors: ThemeColors;
-  formatAmount: (n: number) => string;
+  rows: YearTrendRow[]
+  priorRows?: YearTrendRow[] | null
+  priorYear?: number
+  selectedMonth: string | null
+  onSelectMonth: (trendKey: string | null) => void
+  colors: ThemeColors
+  formatAmount: (n: number) => string
   /** Full all-time dataset for the brush mini-timeline */
-  allTimeRows?: AllTimeRow[];
+  allTimeRows?: AllTimeRow[]
   /** Currently selected year — used to set the default brush window */
-  selectedYear?: number;
+  selectedYear?: number
   /** Called when the brush window changes */
-  onBrushChange?: (window: AllTimeRow[]) => void;
+  onBrushChange?: (window: AllTimeRow[]) => void
   /** External brush window to apply (e.g. from year strip pan) */
-  externalBrushWindow?: AllTimeRow[] | null;
+  externalBrushWindow?: AllTimeRow[] | null
   /** Increment to force re-apply even if window content is the same */
-  externalBrushVersion?: number;
+  externalBrushVersion?: number
 }
 
 interface TooltipPayloadItem {
-  value: number;
-  name: string;
-  color: string;
+  value: number
+  name: string
+  color: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any;
+  payload: any
 }
 
 interface IncomeTrendTooltipProps {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-  label?: string;
-  colors: ThemeColors;
-  formatAmount: (n: number) => string;
+  active?: boolean
+  payload?: TooltipPayloadItem[]
+  label?: string
+  colors: ThemeColors
+  formatAmount: (n: number) => string
 }
 
 const IncomeTrendTooltip = ({
@@ -65,34 +62,34 @@ const IncomeTrendTooltip = ({
   colors,
   formatAmount,
 }: IncomeTrendTooltipProps) => {
-  if (!active || !payload || payload.length === 0) return null;
+  if (!active || !payload || payload.length === 0) return null
 
-  const thisYearEntry = payload.find((p) => p.name === "thisYear");
-  const monthlySavedEntry = payload.find((p) => p.name === "monthlySaved");
-  const priorSavedEntry = payload.find((p) => p.name === "priorSaved");
-  const deltaEntry = payload.find((p) => p.name === "savedDelta");
+  const thisYearEntry = payload.find((p) => p.name === 'thisYear')
+  const monthlySavedEntry = payload.find((p) => p.name === 'monthlySaved')
+  const priorSavedEntry = payload.find((p) => p.name === 'priorSaved')
+  const deltaEntry = payload.find((p) => p.name === 'savedDelta')
 
-  const cumulativeValue: number | undefined = thisYearEntry?.value;
-  const monthlySavedValue: number | undefined = monthlySavedEntry?.value;
-  const priorSavedValue: number | undefined = priorSavedEntry?.value;
-  const deltaValue: number | null = deltaEntry?.value ?? null;
+  const cumulativeValue: number | undefined = thisYearEntry?.value
+  const monthlySavedValue: number | undefined = monthlySavedEntry?.value
+  const priorSavedValue: number | undefined = priorSavedEntry?.value
+  const deltaValue: number | null = deltaEntry?.value ?? null
 
   const row = thisYearEntry?.payload as
     | {
-        income?: number;
-        expenses?: number;
-        saved?: number;
-        savingsRate?: number | null;
-        priorSavedAmt?: number;
+        income?: number
+        expenses?: number
+        saved?: number
+        savingsRate?: number | null
+        priorSavedAmt?: number
       }
-    | undefined;
+    | undefined
 
   const savedDelta =
     deltaValue != null
       ? deltaValue
       : monthlySavedValue != null && priorSavedValue != null
         ? monthlySavedValue - priorSavedValue
-        : null;
+        : null
 
   return (
     <div
@@ -183,7 +180,7 @@ const IncomeTrendTooltip = ({
                   color: savedDelta >= 0 ? colors.success : colors.danger,
                 }}
               >
-                {savedDelta >= 0 ? "+" : "−"}
+                {savedDelta >= 0 ? '+' : '−'}
                 {formatAmount(Math.abs(savedDelta))}
               </span>
             </div>
@@ -200,10 +197,7 @@ const IncomeTrendTooltip = ({
           {row.income != null && row.income > 0 && (
             <div className="flex justify-between gap-4">
               <span style={{ color: colors.muted }}>Income</span>
-              <span
-                className="tabular-nums font-medium"
-                style={{ color: colors.text }}
-              >
+              <span className="tabular-nums font-medium" style={{ color: colors.text }}>
                 {formatAmount(row.income)}
               </span>
             </div>
@@ -211,10 +205,7 @@ const IncomeTrendTooltip = ({
           {row.savingsRate != null && (
             <div className="flex justify-between gap-4">
               <span style={{ color: colors.muted }}>Savings rate</span>
-              <span
-                className="tabular-nums font-medium"
-                style={{ color: colors.text }}
-              >
+              <span className="tabular-nums font-medium" style={{ color: colors.text }}>
                 {row.savingsRate.toFixed(1)}%
               </span>
             </div>
@@ -222,8 +213,8 @@ const IncomeTrendTooltip = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
 export default function IncomeTrendYearChart({
   rows,
@@ -239,59 +230,58 @@ export default function IncomeTrendYearChart({
   externalBrushWindow,
   externalBrushVersion,
 }: IncomeTrendYearChartProps) {
-  const isMobile = useViewportWidth() < 640;
+  const isMobile = useViewportWidth() < 640
 
   // Brush indices into allTimeRows — default to the selected year's window
   const defaultBrushIndices = useMemo(() => {
-    if (!allTimeRows || allTimeRows.length === 0) return null;
-    const start = allTimeRows.findIndex((r) => r.year === selectedYear);
-    if (start === -1) return null;
-    const end = allTimeRows.findLastIndex((r) => r.year === selectedYear);
-    return { start, end };
-  }, [allTimeRows, selectedYear]);
+    if (!allTimeRows || allTimeRows.length === 0) return null
+    const start = allTimeRows.findIndex((r) => r.year === selectedYear)
+    if (start === -1) return null
+    const end = allTimeRows.findLastIndex((r) => r.year === selectedYear)
+    return { start, end }
+  }, [allTimeRows, selectedYear])
 
   const [brushIndices, setBrushIndices] = useState<{
-    start: number;
-    end: number;
-  } | null>(defaultBrushIndices);
+    start: number
+    end: number
+  } | null>(defaultBrushIndices)
 
   // Reset brush when year changes
-  const prevSelectedYear = useMemo(() => selectedYear, [selectedYear]);
+  const prevSelectedYear = useMemo(() => selectedYear, [selectedYear])
   if (prevSelectedYear !== selectedYear) {
-    setBrushIndices(defaultBrushIndices);
+    setBrushIndices(defaultBrushIndices)
   }
 
   // Sync brush when external window is set (e.g. year strip pan)
-  const prevExternalVersion = useRef(externalBrushVersion);
+  const prevExternalVersion = useRef(externalBrushVersion)
   if (
     prevExternalVersion.current !== externalBrushVersion &&
     externalBrushWindow != null &&
     allTimeRows
   ) {
-    prevExternalVersion.current = externalBrushVersion;
-    const firstKey = externalBrushWindow[0]?.monthKey;
-    const lastKey =
-      externalBrushWindow[externalBrushWindow.length - 1]?.monthKey;
-    const start = allTimeRows.findIndex((r) => r.monthKey === firstKey);
-    const end = allTimeRows.findLastIndex((r) => r.monthKey === lastKey);
+    prevExternalVersion.current = externalBrushVersion
+    const firstKey = externalBrushWindow[0]?.monthKey
+    const lastKey = externalBrushWindow[externalBrushWindow.length - 1]?.monthKey
+    const start = allTimeRows.findIndex((r) => r.monthKey === firstKey)
+    const end = allTimeRows.findLastIndex((r) => r.monthKey === lastKey)
     if (start !== -1 && end !== -1) {
-      setBrushIndices({ start, end });
+      setBrushIndices({ start, end })
     }
   }
   // Only switch to all-time mode when the brush spans outside the selected year
   const isBrushCustom = useMemo(() => {
-    if (!brushIndices || !defaultBrushIndices) return false;
+    if (!brushIndices || !defaultBrushIndices) return false
     return (
       brushIndices.start !== defaultBrushIndices.start ||
       brushIndices.end !== defaultBrushIndices.end
-    );
-  }, [brushIndices, defaultBrushIndices]);
+    )
+  }, [brushIndices, defaultBrushIndices])
 
   // When brush is active and custom, derive the visible rows from the brushed window
   const visibleAllTimeRows = useMemo(() => {
-    if (!allTimeRows || !brushIndices || !isBrushCustom) return null;
-    return allTimeRows.slice(brushIndices.start, brushIndices.end + 1);
-  }, [allTimeRows, brushIndices, isBrushCustom]); // Merge this year and prior year data by month index
+    if (!allTimeRows || !brushIndices || !isBrushCustom) return null
+    return allTimeRows.slice(brushIndices.start, brushIndices.end + 1)
+  }, [allTimeRows, brushIndices, isBrushCustom]) // Merge this year and prior year data by month index
   // When brush is active, use the all-time rows for the visible window
   const chartData = useMemo(() => {
     if (visibleAllTimeRows && visibleAllTimeRows.length > 0) {
@@ -311,14 +301,12 @@ export default function IncomeTrendYearChart({
         saved: row.saved,
         savingsRate: row.savingsRate,
         priorSavedAmt: row.priorSaved,
-      }));
+      }))
     }
     // Default: per-year rows with prior-year overlay
-    const priorByMonth = new Map(
-      (priorRows ?? []).map((r) => [r.monthIndex, r]),
-    );
+    const priorByMonth = new Map((priorRows ?? []).map((r) => [r.monthIndex, r]))
     return rows.map((row) => {
-      const prior = priorByMonth.get(row.monthIndex);
+      const prior = priorByMonth.get(row.monthIndex)
       return {
         month: row.monthLabel,
         thisYear: row.cumulativeRemaining,
@@ -334,70 +322,84 @@ export default function IncomeTrendYearChart({
         saved: row.saved,
         savingsRate: row.savingsRate,
         priorSavedAmt: prior?.saved,
-      };
-    });
-  }, [visibleAllTimeRows, rows, priorRows, selectedYear]);
+      }
+    })
+  }, [visibleAllTimeRows, rows, priorRows, selectedYear])
 
   // Prior year line: muted color, always consistent
-  const priorLineColor = colors.muted;
-  const hasPriorData = priorRows != null && priorRows.length > 0;
+  const priorLineColor = colors.muted
+  const hasPriorData = priorRows != null && priorRows.length > 0
 
   const legendPayload = useMemo(() => {
-    const items: { value: string; id: string; type: "line"; color: string }[] = [];
-    items.push({ value: "Saved (this year)", id: "monthlySaved", type: "line", color: colors.primary });
+    const items: { value: string; id: string; type: 'line'; color: string }[] = []
+    items.push({
+      value: 'Saved (this year)',
+      id: 'monthlySaved',
+      type: 'line',
+      color: colors.primary,
+    })
     if (hasPriorData) {
-      items.push({ value: `Saved (${priorYear ?? "prior year"})`, id: "priorSaved", type: "line", color: priorLineColor });
+      items.push({
+        value: `Saved (${priorYear ?? 'prior year'})`,
+        id: 'priorSaved',
+        type: 'line',
+        color: priorLineColor,
+      })
     }
-    return items;
-  }, [hasPriorData, priorYear, colors.primary, priorLineColor]);
+    return items
+  }, [hasPriorData, priorYear, colors.primary, priorLineColor])
 
   const dotSelectedMonth = useMemo(() => {
-    if (!selectedMonth) return null;
-    return parseInt(selectedMonth.split("-")[1], 10) - 1;
-  }, [selectedMonth]);
+    if (!selectedMonth) return null
+    return parseInt(selectedMonth.split('-')[1], 10) - 1
+  }, [selectedMonth])
 
-  const handleDotSelect = useCallback((monthIndex: number | null) => {
-    if (monthIndex == null) {
-      onSelectMonth(null);
-      return;
-    }
-    const dotRow = chartData.find((d) => d.monthIndex === monthIndex);
-    if (dotRow?.monthKey) {
-      onSelectMonth(dotRow.monthKey);
-    }
-  }, [onSelectMonth, chartData]);
+  const handleDotSelect = useCallback(
+    (monthIndex: number | null) => {
+      if (monthIndex == null) {
+        onSelectMonth(null)
+        return
+      }
+      const dotRow = chartData.find((d) => d.monthIndex === monthIndex)
+      if (dotRow?.monthKey) {
+        onSelectMonth(dotRow.monthKey)
+      }
+    },
+    [onSelectMonth, chartData],
+  )
 
   const handleChartClick = useCallback(
-    (chartState: {
-      activePayload?: Array<{ payload: { monthKey: string } }>;
-    }) => {
-      if (!chartState?.activePayload?.length) return;
-      const clickedKey = chartState.activePayload[0].payload.monthKey;
-      onSelectMonth(clickedKey === selectedMonth ? null : clickedKey);
+    (chartState: { activePayload?: Array<{ payload: { monthKey: string } }> }) => {
+      if (!chartState?.activePayload?.length) return
+      const clickedKey = chartState.activePayload[0].payload.monthKey
+      onSelectMonth(clickedKey === selectedMonth ? null : clickedKey)
     },
     [selectedMonth, onSelectMonth],
-  );
+  )
 
   const yAxisFormatter = useCallback((v: number) => {
-    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-    if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}k`;
-    return `${v}`;
-  }, []);
+    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+    if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}k`
+    return `${v}`
+  }, [])
 
-  const chartHeight = isMobile ? 120 : 260;
+  const chartHeight = isMobile ? 120 : 260
 
   if (rows.length === 0) {
     return (
       <div className="h-[260px] flex items-center justify-center">
         <span className="text-xs text-theme-muted">No data for this year</span>
       </div>
-    );
+    )
   }
 
   if (rows.length === 1) {
-    const row = rows[0];
+    const row = rows[0]
     return (
-      <div className="flex flex-col items-center justify-center gap-2" style={{ height: chartHeight }}>
+      <div
+        className="flex flex-col items-center justify-center gap-2"
+        style={{ height: chartHeight }}
+      >
         <div
           className="text-2xl font-bold tabular-nums"
           style={{
@@ -406,35 +408,27 @@ export default function IncomeTrendYearChart({
         >
           {formatAmount(row.cumulativeRemaining)}
         </div>
-        <div className="text-xs text-theme-muted">
-          Cash flow after {row.monthLabel}
-        </div>
-        <div className="text-[0.625rem] text-theme-muted">
-          Add more months to see the trend
-        </div>
+        <div className="text-xs text-theme-muted">Cash flow after {row.monthLabel}</div>
+        <div className="text-[0.625rem] text-theme-muted">Add more months to see the trend</div>
       </div>
-    );
+    )
   }
 
   return (
     <div
       aria-label="Cash flow chart showing cumulative surplus or deficit by month"
-      style={{ touchAction: isMobile ? "pan-y pinch-zoom" : "none" }}
+      style={{ touchAction: isMobile ? 'pan-y pinch-zoom' : 'none' }}
     >
       <ResponsiveContainer width="100%" height={chartHeight}>
         <ComposedChart
           data={chartData}
           margin={{ top: 10, right: isMobile ? 16 : 0, left: isMobile ? 16 : 0, bottom: 0 }}
           onClick={handleChartClick}
-          style={{ cursor: "pointer" }}
+          style={{ cursor: 'pointer' }}
         >
           {!isMobile && (
             <>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={colors.grid}
-                opacity={0.5}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
               <XAxis
                 dataKey="month"
                 tick={{ fill: colors.muted, fontSize: 12 }}
@@ -458,11 +452,7 @@ export default function IncomeTrendYearChart({
             </>
           )}
           {!isMobile && (
-            <Tooltip
-              content={
-                <IncomeTrendTooltip colors={colors} formatAmount={formatAmount} />
-              }
-            />
+            <Tooltip content={<IncomeTrendTooltip colors={colors} formatAmount={formatAmount} />} />
           )}
           {!isMobile && (
             <>
@@ -485,7 +475,7 @@ export default function IncomeTrendYearChart({
                 verticalAlign="top"
                 align="right"
                 iconType="line"
-                wrapperStyle={{ fontSize: "11px", paddingBottom: "4px" }}
+                wrapperStyle={{ fontSize: '11px', paddingBottom: '4px' }}
                 payload={legendPayload}
               />
             </>
@@ -508,7 +498,7 @@ export default function IncomeTrendYearChart({
                       key={`delta-${index}`}
                       fill={
                         entry.savedDelta == null
-                          ? "transparent"
+                          ? 'transparent'
                           : entry.savedDelta >= 0
                             ? colors.success
                             : colors.danger
@@ -579,9 +569,9 @@ export default function IncomeTrendYearChart({
           defaultBrushIndices={defaultBrushIndices}
           colors={colors}
           onBrushChange={(next) => {
-            setBrushIndices(next);
+            setBrushIndices(next)
             if (onBrushChange) {
-              onBrushChange(allTimeRows.slice(next.start, next.end + 1));
+              onBrushChange(allTimeRows.slice(next.start, next.end + 1))
             }
           }}
         />
@@ -590,7 +580,7 @@ export default function IncomeTrendYearChart({
       <div className="sr-only" aria-live="polite">
         {selectedMonth !== null && chartData.find((d) => d.monthKey === selectedMonth)
           ? `Selected: ${chartData.find((d) => d.monthKey === selectedMonth)?.month}, cumulative cash flow: ${formatAmount(chartData.find((d) => d.monthKey === selectedMonth)?.thisYear ?? 0)}`
-          : "No month selected"}
+          : 'No month selected'}
       </div>
 
       <label className="sr-only" htmlFor="income-trend-month-select">
@@ -599,10 +589,10 @@ export default function IncomeTrendYearChart({
       <select
         id="income-trend-month-select"
         className="sr-only"
-        value={selectedMonth ?? ""}
+        value={selectedMonth ?? ''}
         onChange={(e) => {
-          const val = e.target.value;
-          onSelectMonth(val === "" ? null : val);
+          const val = e.target.value
+          onSelectMonth(val === '' ? null : val)
         }}
         aria-label="Select month to preview"
       >
@@ -614,5 +604,5 @@ export default function IncomeTrendYearChart({
         ))}
       </select>
     </div>
-  );
+  )
 }

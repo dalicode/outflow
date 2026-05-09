@@ -1,18 +1,14 @@
-import { cn } from "../../utils/cn";
+import { cn } from '../../utils/cn'
 
 interface ImportLogPanelProps {
-  importStatus: string;
-  importErrors: string[];
+  importStatus: string
+  importErrors: string[]
 }
 
-export default function ImportLogPanel({
-  importStatus,
-  importErrors,
-}: ImportLogPanelProps) {
-  if (!importStatus && importErrors.length === 0) return null;
+export default function ImportLogPanel({ importStatus, importErrors }: ImportLogPanelProps) {
+  if (!importStatus && importErrors.length === 0) return null
 
-  const isSuccess =
-    importStatus.includes("success") || importStatus.startsWith("Imported");
+  const isSuccess = importStatus.includes('success') || importStatus.startsWith('Imported')
 
   return (
     <div className="bg-theme-surface rounded-theme-large shadow-sm p-4 space-y-2">
@@ -20,12 +16,7 @@ export default function ImportLogPanel({
         Import Log
       </h2>
       {importStatus && (
-        <p
-          className={cn(
-            "text-xs",
-            isSuccess ? "text-theme-success" : "text-theme-danger",
-          )}
-        >
+        <p className={cn('text-xs', isSuccess ? 'text-theme-success' : 'text-theme-danger')}>
           {importStatus}
         </p>
       )}
@@ -44,5 +35,5 @@ export default function ImportLogPanel({
         </details>
       )}
     </div>
-  );
+  )
 }

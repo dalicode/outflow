@@ -1,109 +1,101 @@
-import { useState, useMemo } from "react";
-import { normalizeName } from "../../utils/normalizeName";
-import { usePayees } from "../../hooks/useLocalData";
-import { useToasts } from "../../context/toastContext";
-import { StorageService } from "../../services/storageService";
-import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
-import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
-import type { Payee } from "../../types";
-import EmptyState from "../../components/ui/EmptyState";
+import { useMemo, useState } from 'react'
+import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
+import EmptyState from '../../components/ui/EmptyState'
+import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
+import { useToasts } from '../../context/toastContext'
+import { usePayees } from '../../hooks/useLocalData'
+import { StorageService } from '../../services/storageService'
+import type { Payee } from '../../types'
+import { normalizeName } from '../../utils/normalizeName'
 
 export default function PayeesPage() {
-  const { payees, refresh } = usePayees();
-  const { showUndoToast } = useToasts();
-  const [search, setSearch] = useState("");
-  const [newName, setNewName] = useState("");
-  const [error, setError] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [mergeSource, setMergeSource] = useState<Payee | null>(null);
-  const [mergeExpenseCount, setMergeExpenseCount] = useState(0);
-  const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null);
+  const { payees, refresh } = usePayees()
+  const { showUndoToast } = useToasts()
+  const [search, setSearch] = useState('')
+  const [newName, setNewName] = useState('')
+  const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const [mergeSource, setMergeSource] = useState<Payee | null>(null)
+  const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null)
 
-  const activePayees = useMemo(
-    () => payees.filter((p) => !p.isArchived),
-    [payees],
-  );
+  const activePayees = useMemo(() => payees.filter((p) => !p.isArchived), [payees])
 
   const sortedPayees = useMemo(
     () => [...activePayees].sort((a, b) => a.name.localeCompare(b.name)),
     [activePayees],
-  );
+  )
 
   const filteredPayees = useMemo(() => {
-    if (!search.trim()) return sortedPayees;
-    const q = search.toLowerCase();
-    return sortedPayees.filter((p) => p.name.toLowerCase().includes(q));
-  }, [sortedPayees, search]);
+    if (!search.trim()) return sortedPayees
+    const q = search.toLowerCase()
+    return sortedPayees.filter((p) => p.name.toLowerCase().includes(q))
+  }, [sortedPayees, search])
 
   const handleAdd = async () => {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
+    const trimmed = newName.trim()
+    if (!trimmed) return
     try {
-      await StorageService.addPayee(trimmed);
-      setNewName("");
-      setError("");
-      refresh();
+      await StorageService.addPayee(trimmed)
+      setNewName('')
+      setError('')
+      refresh()
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message)
     }
-  };
+  }
 
   const startEdit = (payee: Payee) => {
-    setEditingId(payee.id as number);
-    setEditName(payee.name);
-    setError("");
-  };
+    setEditingId(payee.id as number)
+    setEditName(payee.name)
+    setError('')
+  }
 
   const cancelEdit = () => {
-    setEditingId(null);
-    setEditName("");
-    setError("");
-  };
+    setEditingId(null)
+    setEditName('')
+    setError('')
+  }
 
   const saveEdit = async (id: number) => {
-    const trimmed = editName.trim();
-    if (!trimmed) return;
+    const trimmed = editName.trim()
+    if (!trimmed) return
     try {
-      await StorageService.updatePayee(id, trimmed);
-      setEditingId(null);
-      setEditName("");
-      setError("");
-      refresh();
+      await StorageService.updatePayee(id, trimmed)
+      setEditingId(null)
+      setEditName('')
+      setError('')
+      refresh()
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message)
     }
-  };
+  }
 
   const handleDelete = async (id: number) => {
-    await StorageService.archivePayee(id);
-    showUndoToast("Payee archived.", async () => {
-      await StorageService.unarchivePayee(id);
-      refresh();
-    });
-    refresh();
-  };
+    await StorageService.archivePayee(id)
+    showUndoToast('Payee archived.', async () => {
+      await StorageService.unarchivePayee(id)
+      refresh()
+    })
+    refresh()
+  }
 
   const openMerge = async (payee: Payee) => {
-    const count = await StorageService.getExpenseCountForPayee(
-      payee.id as number,
-    );
-    setMergeExpenseCount(count);
-    setMergeSource(payee);
-  };
+    const count = await StorageService.getExpenseCountForPayee(payee.id as number)
+    setMergeExpenseCount(count)
+    setMergeSource(payee)
+  }
 
   const handleMerge = async (targetId: number) => {
-    await StorageService.mergePayee(mergeSource!.id as number, targetId);
-    setMergeSource(null);
-    refresh();
-  };
+    await StorageService.mergePayee(mergeSource?.id as number, targetId)
+    setMergeSource(null)
+    refresh()
+  }
 
   return (
     <>
-      <div
-        className="w-full max-w-4xl mx-auto px-4 py-6 space-y-6"
-        data-testid="payees-page"
-      >
+      <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-6" data-testid="payees-page">
         <h1 className="text-xl font-bold text-theme-text">Payees</h1>
 
         {/* Search + Add */}
@@ -123,7 +115,7 @@ export default function PayeesPage() {
               placeholder="New payee name"
               className="input-md flex-1 sm:w-48"
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleAdd();
+                if (e.key === 'Enter') handleAdd()
               }}
             />
             <button
@@ -156,8 +148,8 @@ export default function PayeesPage() {
                     className="input-sm flex-1"
                     autoFocus
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") saveEdit(payee.id as number);
-                      if (e.key === "Escape") cancelEdit();
+                      if (e.key === 'Enter') saveEdit(payee.id as number)
+                      if (e.key === 'Escape') cancelEdit()
                     }}
                   />
                   <button
@@ -166,10 +158,7 @@ export default function PayeesPage() {
                   >
                     Save
                   </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="text-xs text-theme-muted"
-                  >
+                  <button onClick={cancelEdit} className="text-xs text-theme-muted">
                     Cancel
                   </button>
                 </div>
@@ -208,11 +197,7 @@ export default function PayeesPage() {
           ))}
           {filteredPayees.length === 0 && (
             <EmptyState
-              message={
-                search.trim()
-                  ? "No payees match your search."
-                  : "No payees yet."
-              }
+              message={search.trim() ? 'No payees match your search.' : 'No payees yet.'}
             />
           )}
         </div>
@@ -240,15 +225,15 @@ export default function PayeesPage() {
           entityName={deleteTarget.name}
           canMerge={activePayees.length > 1}
           onConfirmDelete={async () => {
-            await handleDelete(deleteTarget.id as number);
-            setDeleteTarget(null);
+            await handleDelete(deleteTarget.id as number)
+            setDeleteTarget(null)
           }}
           onMergeInstead={() => {
-            openMerge(deleteTarget);
-            setDeleteTarget(null);
+            openMerge(deleteTarget)
+            setDeleteTarget(null)
           }}
         />
       )}
     </>
-  );
+  )
 }

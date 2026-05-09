@@ -125,17 +125,12 @@
 .input-theme:focus {
   outline: none;
   border-color: var(--theme-primary);
-  box-shadow: 0 0 0 2px
-    color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 20%, transparent);
 }
 
 /* Table theme */
 .table-theme th {
-  background-color: color-mix(
-    in srgb,
-    var(--theme-background) 80%,
-    var(--theme-border)
-  );
+  background-color: color-mix(in srgb, var(--theme-background) 80%, var(--theme-border));
   color: var(--theme-muted);
   font-size: 0.8125rem;
   text-transform: uppercase;
@@ -148,11 +143,7 @@
   border-bottom: 1px solid var(--theme-border);
 }
 .table-theme tbody tr:hover {
-  background-color: color-mix(
-    in srgb,
-    var(--theme-primary) 4%,
-    var(--theme-surface)
-  );
+  background-color: color-mix(in srgb, var(--theme-primary) 4%, var(--theme-surface));
 }
 
 /* Modal / overlay */
@@ -388,14 +379,11 @@
 .input-sm:focus {
   outline: none;
   border-color: var(--theme-primary);
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
-    var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
-    calc(1px + var(--tw-ring-offset-width))
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width)
+    var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width))
     color-mix(in srgb, var(--theme-primary) 40%, transparent);
-  box-shadow:
-    var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
-    var(--tw-shadow, 0 0 #0000);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
 /* Standard modal input — matches MoneyInput md size (44px) */
@@ -419,8 +407,7 @@
 }
 .input-md:focus {
   outline: none;
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--theme-primary) 15%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 15%, transparent);
 }
 
 /* Table header cell (sticky, blurred) */
@@ -460,14 +447,11 @@
 }
 .icon-btn:focus {
   outline: none;
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
-    var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
-    calc(2px + var(--tw-ring-offset-width))
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width)
+    var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width))
     color-mix(in srgb, var(--theme-primary) 40%, transparent);
-  box-shadow:
-    var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
-    var(--tw-shadow, 0 0 #0000);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
 /* Modal backdrop overlay */
@@ -648,8 +632,7 @@
   border-radius: 9999px;
   background-color: var(--theme-primary);
   color: #ffffff;
-  box-shadow: 0 2px 8px
-    color-mix(in srgb, var(--theme-primary) 40%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--theme-primary) 40%, transparent);
   flex-shrink: 0;
   z-index: 10;
   transition:
@@ -792,49 +775,31 @@ th .expense-checkbox-wrapper {
   border-color: color-mix(in srgb, var(--theme-danger) 30%, transparent);
 }
 .bg-theme-background-muted {
-  background-color: color-mix(
-    in srgb,
-    var(--theme-background) 80%,
-    transparent
-  );
+  background-color: color-mix(in srgb, var(--theme-background) 80%, transparent);
 }
 .bg-theme-background-semi {
-  background-color: color-mix(
-    in srgb,
-    var(--theme-background) 50%,
-    transparent
-  );
+  background-color: color-mix(in srgb, var(--theme-background) 50%, transparent);
 }
 .bg-theme-background-solid {
-  background-color: color-mix(
-    in srgb,
-    var(--theme-background) 95%,
-    transparent
-  );
+  background-color: color-mix(in srgb, var(--theme-background) 95%, transparent);
 }
 .border-theme-muted-subtle {
   border-color: color-mix(in srgb, var(--theme-muted) 10%, transparent);
 }
 .focus-ring-primary:focus {
   outline: none;
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
-    var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
-    calc(2px + var(--tw-ring-offset-width))
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width)
+    var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width))
     color-mix(in srgb, var(--theme-primary) 40%, transparent);
-  box-shadow:
-    var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
-    var(--tw-shadow, 0 0 #0000);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 .ring-primary-30 {
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
-    var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
-    calc(2px + var(--tw-ring-offset-width))
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width)
+    var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width))
     color-mix(in srgb, var(--theme-primary) 30%, transparent);
-  box-shadow:
-    var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
-    var(--tw-shadow, 0 0 #0000);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
 /* Mobile bottom nav bounce transition */

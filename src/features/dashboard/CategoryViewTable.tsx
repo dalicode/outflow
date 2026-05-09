@@ -1,23 +1,23 @@
-import MultiMonthViewTable from "./MultiMonthViewTable";
 import type {
+  MonthKey,
+  MonthlySummary,
   MultiMonthCategoryRow,
   MultiMonthFixedRow,
-  MonthlySummary,
-  MonthKey,
-} from "../../types";
+} from '../../types'
+import MultiMonthViewTable from './MultiMonthViewTable'
 
 interface CategoryViewTableProps {
-  multiCategoryRows: MultiMonthCategoryRow[];
-  multiFixedRows: MultiMonthFixedRow[];
-  monthSummaries: MonthlySummary[];
-  monthKeys: MonthKey[];
-  monthSpan: number;
-  showGrandTotal: boolean;
-  onCategoryClick: (name: string, monthIndex: number) => void;
-  onIncomeClick: (monthIndex: number) => void;
-  onSavingsClick: (monthIndex: number) => void;
-  formatAmount: (n: number) => string;
-  getNumberColorClass: (n: number) => string;
+  multiCategoryRows: MultiMonthCategoryRow[]
+  multiFixedRows: MultiMonthFixedRow[]
+  monthSummaries: MonthlySummary[]
+  monthKeys: MonthKey[]
+  monthSpan: number
+  showGrandTotal: boolean
+  onCategoryClick: (name: string, monthIndex: number) => void
+  onIncomeClick: (monthIndex: number) => void
+  onSavingsClick: (monthIndex: number) => void
+  formatAmount: (n: number) => string
+  getNumberColorClass: (n: number) => string
 }
 
 export default function CategoryViewTable({
@@ -47,7 +47,7 @@ export default function CategoryViewTable({
       onSavingsClick={onSavingsClick}
       formatAmount={formatAmount}
       getNumberColorClass={getNumberColorClass}
-      emptyMessage='No expenses yet. Hit + to add one.'
+      emptyMessage="No expenses yet. Hit + to add one."
     />
-  );
+  )
 }

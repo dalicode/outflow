@@ -1,29 +1,24 @@
-import { createPortal } from "react-dom";
-import { cn } from "../../utils/cn";
+import { createPortal } from 'react-dom'
+import { cn } from '../../utils/cn'
 
 export interface ContextMenuItem {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  danger?: boolean;
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  danger?: boolean
 }
 
 interface ContextMenuProps {
-  x: number;
-  y: number;
-  items: ContextMenuItem[];
-  onClose: () => void;
-  menuRef?: React.RefObject<HTMLDivElement | null>;
+  x: number
+  y: number
+  items: ContextMenuItem[]
+  onClose: () => void
+  menuRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export default function ContextMenu({ x, y, items, onClose, menuRef }: ContextMenuProps) {
   return createPortal(
-    <div
-      ref={menuRef}
-      className="context-menu"
-      style={{ left: x, top: y }}
-      role="menu"
-    >
+    <div ref={menuRef} className="context-menu" style={{ left: x, top: y }} role="menu">
       {items.map((item, i) => (
         <button
           key={i}
@@ -31,14 +26,14 @@ export default function ContextMenu({ x, y, items, onClose, menuRef }: ContextMe
           disabled={item.disabled}
           onClick={() => {
             if (!item.disabled) {
-              item.onClick();
-              onClose();
+              item.onClick()
+              onClose()
             }
           }}
           className={cn(
-            "context-menu-item w-full text-left",
-            item.danger && "context-menu-item-danger",
-            item.disabled && "opacity-40 cursor-not-allowed",
+            'context-menu-item w-full text-left',
+            item.danger && 'context-menu-item-danger',
+            item.disabled && 'opacity-40 cursor-not-allowed',
           )}
         >
           {item.label}
@@ -46,5 +41,5 @@ export default function ContextMenu({ x, y, items, onClose, menuRef }: ContextMe
       ))}
     </div>,
     document.body,
-  );
+  )
 }

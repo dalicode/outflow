@@ -1,38 +1,33 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from "@tanstack/react-table";
-import { cn } from "../../utils/cn";
-import EmptyState from "./EmptyState";
+import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import { cn } from '../../utils/cn'
+import EmptyState from './EmptyState'
 
-declare module "@tanstack/react-table" {
-  interface ColumnMeta<TData extends unknown, TValue> {
-    className?: string;
-    cellClassName?: string;
-    getCellClassName?: (row: TData) => string;
-    width?: string;
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData, TValue> {
+    className?: string
+    cellClassName?: string
+    getCellClassName?: (row: TData) => string
+    width?: string
   }
 }
 
 interface DataTableProps<T> {
-  data: T[];
-  columns: ColumnDef<T, unknown>[];
-  emptyMessage?: string;
-  fixedLayout?: boolean;
-  getRowClassName?: (row: T) => string;
-  getRowId?: (row: T) => string;
-  onRowContextMenu?: (e: React.MouseEvent, row: T) => void;
-  onRowTouchStart?: (e: React.TouchEvent, row: T) => void;
-  onRowTouchMove?: (e: React.TouchEvent) => void;
-  onRowTouchEnd?: (e: React.TouchEvent, row: T) => void;
+  data: T[]
+  columns: ColumnDef<T, unknown>[]
+  emptyMessage?: string
+  fixedLayout?: boolean
+  getRowClassName?: (row: T) => string
+  getRowId?: (row: T) => string
+  onRowContextMenu?: (e: React.MouseEvent, row: T) => void
+  onRowTouchStart?: (e: React.TouchEvent, row: T) => void
+  onRowTouchMove?: (e: React.TouchEvent) => void
+  onRowTouchEnd?: (e: React.TouchEvent, row: T) => void
 }
 
 export default function DataTable<T>({
   data,
   columns,
-  emptyMessage = "No rows to display.",
+  emptyMessage = 'No rows to display.',
   fixedLayout = false,
   getRowClassName,
   getRowId,
@@ -45,21 +40,19 @@ export default function DataTable<T>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  });
+  })
 
-  const rows = table.getRowModel().rows;
+  const rows = table.getRowModel().rows
 
   if (rows.length === 0) {
-    return (
-      <EmptyState message={emptyMessage} />
-    );
+    return <EmptyState message={emptyMessage} />
   }
 
   return (
     <table
       className={cn(
-        "w-full text-sm border-separate border-spacing-0",
-        fixedLayout && "table-fixed",
+        'w-full text-sm border-separate border-spacing-0',
+        fixedLayout && 'table-fixed',
       )}
     >
       {fixedLayout && (
@@ -68,9 +61,7 @@ export default function DataTable<T>({
             <col
               key={column.id}
               style={
-                column.columnDef.meta?.width
-                  ? { width: column.columnDef.meta.width }
-                  : undefined
+                column.columnDef.meta?.width ? { width: column.columnDef.meta.width } : undefined
               }
             />
           ))}
@@ -82,17 +73,11 @@ export default function DataTable<T>({
             {headerGroup.headers.map((header) => (
               <th
                 key={header.id}
-                className={cn(
-                  "table-header-cell",
-                  header.column.columnDef.meta?.className,
-                )}
+                className={cn('table-header-cell', header.column.columnDef.meta?.className)}
               >
                 {header.isPlaceholder
                   ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
+                  : flexRender(header.column.columnDef.header, header.getContext())}
               </th>
             ))}
           </tr>
@@ -103,30 +88,17 @@ export default function DataTable<T>({
           <tr
             key={row.id}
             data-testid={getRowId?.(row.original)}
-            className={cn(
-              "border-b border-theme-muted-subtle",
-              getRowClassName?.(row.original),
-            )}
-            onContextMenu={
-              onRowContextMenu
-                ? (e) => onRowContextMenu(e, row.original)
-                : undefined
-            }
-            onTouchStart={
-              onRowTouchStart
-                ? (e) => onRowTouchStart(e, row.original)
-                : undefined
-            }
+            className={cn('border-b border-theme-muted-subtle', getRowClassName?.(row.original))}
+            onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(e, row.original) : undefined}
+            onTouchStart={onRowTouchStart ? (e) => onRowTouchStart(e, row.original) : undefined}
             onTouchMove={onRowTouchMove}
-            onTouchEnd={
-              onRowTouchEnd ? (e) => onRowTouchEnd(e, row.original) : undefined
-            }
+            onTouchEnd={onRowTouchEnd ? (e) => onRowTouchEnd(e, row.original) : undefined}
           >
             {row.getVisibleCells().map((cell) => (
               <td
                 key={cell.id}
                 className={cn(
-                  "px-3 py-1",
+                  'px-3 py-1',
                   cell.column.columnDef.meta?.cellClassName,
                   cell.column.columnDef.meta?.getCellClassName?.(row.original),
                 )}
@@ -138,5 +110,5 @@ export default function DataTable<T>({
         ))}
       </tbody>
     </table>
-  );
+  )
 }

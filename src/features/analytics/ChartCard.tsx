@@ -1,7 +1,7 @@
 interface ChartCardProps {
-  title: string;
-  headerAction?: React.ReactNode;
-  children: React.ReactNode;
+  title: string
+  headerAction?: React.ReactNode
+  children: React.ReactNode
 }
 
 export default function ChartCard({ title, headerAction, children }: ChartCardProps) {
@@ -13,5 +13,5 @@ export default function ChartCard({ title, headerAction, children }: ChartCardPr
       </div>
       {children}
     </div>
-  );
+  )
 }

@@ -1,65 +1,66 @@
-import { useState, useMemo } from "react";
-import { getLocalToday } from "../../utils/historicalDataHelpers";
-import { expenseToRow, downloadCSV } from "./utils/csvHelpers";
-import { usePayees } from "../../hooks/useLocalData";
-import { StorageService } from "../../services/storageService";
-import DatePicker from "../../components/inputs/DatePicker";
-import Card from "../../components/ui/Card";
-import Modal from "../../components/ui/Modal";
-import ModalFooter from "../../components/ui/ModalFooter";
-import type { Expense } from "../../types";
+import { useMemo, useState } from 'react'
+import DatePicker from '../../components/inputs/DatePicker'
+import Card from '../../components/ui/Card'
+import Modal from '../../components/ui/Modal'
+import ModalFooter from '../../components/ui/ModalFooter'
+import { usePayees } from '../../hooks/useLocalData'
+import { StorageService } from '../../services/storageService'
+import type { Expense } from '../../types'
+import { getLocalToday } from '../../utils/historicalDataHelpers'
+import { downloadCSV, expenseToRow } from './utils/csvHelpers'
 
 interface CsvExportCardProps {
-  expenses: Expense[];
-  formatDate: (iso: string) => string;
-  variant?: "default" | "flat";
+  expenses: Expense[]
+  formatDate: (iso: string) => string
+  variant?: 'default' | 'flat'
 }
 
-export default function CsvExportCard({ expenses, formatDate, variant = "default" }: CsvExportCardProps) {
-  const [exportRange, setExportRange] = useState({ from: "", to: "" });
-  const [showModal, setShowModal] = useState(false);
-  const { payees } = usePayees();
-  const [categories, setCategories] = useState<{ id?: number; name: string }[]>([]);
+export default function CsvExportCard({
+  expenses,
+  formatDate,
+  variant = 'default',
+}: CsvExportCardProps) {
+  const [exportRange, setExportRange] = useState({ from: '', to: '' })
+  const [showModal, setShowModal] = useState(false)
+  const { payees } = usePayees()
+  const [categories, setCategories] = useState<{ id?: number; name: string }[]>([])
 
   useMemo(() => {
-    StorageService.getCategories().then(setCategories);
-  }, []);
+    StorageService.getCategories().then(setCategories)
+  }, [])
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id as number, c.name])),
-    [categories]
-  );
+    [categories],
+  )
   const payeeMap = useMemo(
     () => Object.fromEntries(payees.map((p) => [p.id as number, p.name])),
-    [payees]
-  );
+    [payees],
+  )
 
   const handleExport = () => {
-    let rows = expenses;
-    if (exportRange.from) rows = rows.filter((e) => e.date >= exportRange.from);
-    if (exportRange.to) rows = rows.filter((e) => e.date <= exportRange.to);
-    const csvRows = rows.map((e) => expenseToRow(e, catMap, payeeMap, formatDate));
-    downloadCSV(csvRows, `expenses-${getLocalToday()}.csv`);
-    setShowModal(false);
-  };
+    let rows = expenses
+    if (exportRange.from) rows = rows.filter((e) => e.date >= exportRange.from)
+    if (exportRange.to) rows = rows.filter((e) => e.date <= exportRange.to)
+    const csvRows = rows.map((e) => expenseToRow(e, catMap, payeeMap, formatDate))
+    downloadCSV(csvRows, `expenses-${getLocalToday()}.csv`)
+    setShowModal(false)
+  }
 
   const handleClose = () => {
-    setShowModal(false);
-    setExportRange({ from: "", to: "" });
-  };
+    setShowModal(false)
+    setExportRange({ from: '', to: '' })
+  }
 
   return (
     <>
       <Card title="Export CSV" className="flex-1" variant={variant}>
         <div className="flex items-center justify-between gap-4">
           <p className="text-xs text-theme-muted">
-            Export your expenses as a CSV file. Compatible with any spreadsheet
-            app (Excel, Google Sheets) or budgeting tool.
+            Export your expenses as a CSV file. Compatible with any spreadsheet app (Excel, Google
+            Sheets) or budgeting tool.
           </p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="settings-action-btn shrink-0"
-          >
+          <button onClick={() => setShowModal(true)} className="settings-action-btn shrink-0">
             Export
           </button>
         </div>
@@ -72,8 +73,12 @@ export default function CsvExportCard({ expenses, formatDate, variant = "default
         size="sm"
         footer={
           <ModalFooter>
-            <button onClick={handleClose} className="btn-cancel-sm flex-1">Cancel</button>
-            <button onClick={handleExport} className="btn-modal-primary flex-1">Download</button>
+            <button onClick={handleClose} className="btn-cancel-sm flex-1">
+              Cancel
+            </button>
+            <button onClick={handleExport} className="btn-modal-primary flex-1">
+              Download
+            </button>
           </ModalFooter>
         }
       >
@@ -104,5 +109,5 @@ export default function CsvExportCard({ expenses, formatDate, variant = "default
         </div>
       </Modal>
     </>
-  );
+  )
 }

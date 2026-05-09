@@ -1,19 +1,19 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { RangeItem } from '../utils/historicalDataHelpers'
 import {
-  getMaxMonthForYear,
-  findGapToFill,
-  removeRangeAndMerge,
-  updateRangeEndAndCascade,
   checkRangeOverlaps,
+  findGapToFill,
+  flattenRangesToMonthMap,
+  getMaxMonthForYear,
+  getYearlyVariableTotals,
   isFullyCovered,
   monthMapToRanges,
-  flattenRangesToMonthMap,
-  getYearlyVariableTotals,
-  toISODate,
   parseISODate,
+  removeRangeAndMerge,
   shouldMaterializeNow,
+  toISODate,
+  updateRangeEndAndCascade,
 } from '../utils/historicalDataHelpers'
-import type { RangeItem } from '../utils/historicalDataHelpers'
 
 const makeRange = (id: string, startMonth: number, endMonth: number): RangeItem => ({
   id,
@@ -23,7 +23,6 @@ const makeRange = (id: string, startMonth: number, endMonth: number): RangeItem 
 })
 
 describe('getMaxMonthForYear', () => {
-
   function mockDate(year: number, month: number) {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(year, month - 1, 15))
@@ -99,8 +98,8 @@ describe('removeRangeAndMerge', () => {
     const ranges = [makeRange('a', 1, 3), makeRange('b', 4, 6), makeRange('c', 7, 12)]
     const result = removeRangeAndMerge(ranges, 'b')
     expect(result).toHaveLength(2)
-    expect(result.find(r => r.id === 'a')).toEqual(makeRange('a', 1, 3))
-    expect(result.find(r => r.id === 'c')).toEqual(makeRange('c', 7, 12))
+    expect(result.find((r) => r.id === 'a')).toEqual(makeRange('a', 1, 3))
+    expect(result.find((r) => r.id === 'c')).toEqual(makeRange('c', 7, 12))
   })
 
   it('removes last range leaving previous unchanged', () => {
@@ -127,8 +126,8 @@ describe('updateRangeEndAndCascade', () => {
   it('leaves next range start unchanged when endMonth shrinks (gap allowed)', () => {
     const ranges = [makeRange('a', 1, 6), makeRange('b', 7, 12)]
     const result = updateRangeEndAndCascade(ranges, 'a', 4)
-    const a = result.find(r => r.id === 'a')!
-    const b = result.find(r => r.id === 'b')!
+    const a = result.find((r) => r.id === 'a') as RangeItem
+    const b = result.find((r) => r.id === 'b') as RangeItem
     expect(a.endMonth).toBe(4)
     expect(b.startMonth).toBe(7) // unchanged — gap is fine
   })
@@ -136,8 +135,8 @@ describe('updateRangeEndAndCascade', () => {
   it('pushes next range start forward when endMonth overlaps it', () => {
     const ranges = [makeRange('a', 1, 6), makeRange('b', 7, 12)]
     const result = updateRangeEndAndCascade(ranges, 'a', 9)
-    const a = result.find(r => r.id === 'a')!
-    const b = result.find(r => r.id === 'b')!
+    const a = result.find((r) => r.id === 'a') as RangeItem
+    const b = result.find((r) => r.id === 'b') as RangeItem
     expect(a.endMonth).toBe(9)
     expect(b.startMonth).toBe(10)
   })
@@ -146,8 +145,8 @@ describe('updateRangeEndAndCascade', () => {
     const ranges = [makeRange('a', 1, 6), makeRange('b', 7, 8), makeRange('c', 9, 12)]
     const result = updateRangeEndAndCascade(ranges, 'a', 9)
     expect(result).toHaveLength(2)
-    const a = result.find(r => r.id === 'a')!
-    const c = result.find(r => r.id === 'c')!
+    const a = result.find((r) => r.id === 'a') as RangeItem
+    const c = result.find((r) => r.id === 'c') as RangeItem
     expect(a.endMonth).toBe(9)
     expect(c.startMonth).toBe(10)
   })
@@ -185,7 +184,9 @@ describe('checkRangeOverlaps', () => {
 
   it('detects inverted range', () => {
     const ranges = [{ id: 'a', amount: '100', startMonth: 6, endMonth: 3 }]
-    expect(checkRangeOverlaps(ranges, 'Income')).toContain('Income start month must be ≤ end month.')
+    expect(checkRangeOverlaps(ranges, 'Income')).toContain(
+      'Income start month must be ≤ end month.',
+    )
   })
 })
 
@@ -229,11 +230,18 @@ describe('monthMapToRanges', () => {
 
   it('splits on gaps into multiple ranges', () => {
     const map: Record<number, number | null | undefined> = {
-      1: 5000, 2: 5000, 3: 5000,
+      1: 5000,
+      2: 5000,
+      3: 5000,
       4: null,
-      5: 5500, 6: 5500,
+      5: 5500,
+      6: 5500,
       7: undefined,
-      8: 5000, 9: 5000, 10: 5000, 11: 5000, 12: 5000,
+      8: 5000,
+      9: 5000,
+      10: 5000,
+      11: 5000,
+      12: 5000,
     }
     const result = monthMapToRanges(map)
     expect(result).toHaveLength(3)
@@ -244,7 +252,11 @@ describe('monthMapToRanges', () => {
 
   it('treats zero values as gaps', () => {
     const map: Record<number, number | null | undefined> = {
-      1: 100, 2: 100, 3: 0, 4: 100, 5: 100,
+      1: 100,
+      2: 100,
+      3: 0,
+      4: 100,
+      5: 100,
     }
     const result = monthMapToRanges(map)
     expect(result).toHaveLength(2)
@@ -310,8 +322,8 @@ describe('getYearlyVariableTotals', () => {
     ]
     const result = getYearlyVariableTotals(2024, expenses)
     expect(result[0]).toBe(150) // Jan
-    expect(result[1]).toBe(0)   // Feb
-    expect(result[2]).toBe(75)  // Mar
+    expect(result[1]).toBe(0) // Feb
+    expect(result[2]).toBe(75) // Mar
     expect(result[11]).toBe(200) // Dec
   })
 
@@ -325,11 +337,7 @@ describe('getYearlyVariableTotals', () => {
   })
 
   it('ignores expenses with missing date or amount', () => {
-    const expenses = [
-      { date: '2024-01-15' },
-      { amount: 100 },
-      { date: '2024-02-10', amount: 50 },
-    ]
+    const expenses = [{ date: '2024-01-15' }, { amount: 100 }, { date: '2024-02-10', amount: 50 }]
     const result = getYearlyVariableTotals(2024, expenses)
     expect(result[0]).toBe(0)
     expect(result[1]).toBe(50)

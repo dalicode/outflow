@@ -1,46 +1,45 @@
-import { useState } from "react";
-import { supabase } from "../../services/supabase";
-import "./auth.css";
+import { useState } from 'react'
+import { supabase } from '../../services/supabase'
+import './auth.css'
 
-type AuthMode = "login" | "signup";
+type AuthMode = 'login' | 'signup'
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<AuthMode>('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const submit = async (e: React.SubmitEvent) => {
-    e.preventDefault();
-    setError("");
-    setMessage("");
-    setLoading(true);
+    e.preventDefault()
+    setError('')
+    setMessage('')
+    setLoading(true)
     if (!supabase) {
-      setError("Authentication service is not available.");
-      setLoading(false);
-      return;
+      setError('Authentication service is not available.')
+      setLoading(false)
+      return
     }
     const fn =
-      mode === "login"
+      mode === 'login'
         ? supabase.auth.signInWithPassword({ email, password })
-        : supabase.auth.signUp({ email, password });
-    const { error: err } = await fn;
-    setLoading(false);
+        : supabase.auth.signUp({ email, password })
+    const { error: err } = await fn
+    setLoading(false)
     if (err) {
-      setError(err.message);
-      return;
+      setError(err.message)
+      return
     }
-    if (mode === "signup")
-      setMessage("Check your email to confirm your account.");
-  };
+    if (mode === 'signup') setMessage('Check your email to confirm your account.')
+  }
 
   const signInWithGoogle = () =>
     supabase?.auth.signInWithOAuth({
-      provider: "google",
+      provider: 'google',
       options: { redirectTo: window.location.origin },
-    });
+    })
 
   return (
     <div className="min-h-dvh bg-theme-background flex items-center justify-center px-4">
@@ -49,24 +48,16 @@ export default function AuthPage() {
           <div className="flex items-center justify-center mb-2">
             <div className="relative flex items-center">
               <img src="/icon.svg" alt="" className="w-7 h-7 shrink-0 absolute right-full mr-2" />
-              <span className="text-lg font-bold text-theme-primary tracking-tight">
-                Outflow
-              </span>
+              <span className="text-lg font-bold text-theme-primary tracking-tight">Outflow</span>
             </div>
           </div>
           <p className="text-sm text-theme-muted">
-            {mode === "login"
-              ? "Sign in to sync your data"
-              : "Create an account"}
+            {mode === 'login' ? 'Sign in to sync your data' : 'Create an account'}
           </p>
         </div>
 
-        {error && (
-          <p className="text-theme-danger text-sm text-center">{error}</p>
-        )}
-        {message && (
-          <p className="text-theme-success text-sm text-center">{message}</p>
-        )}
+        {error && <p className="text-theme-danger text-sm text-center">{error}</p>}
+        {message && <p className="text-theme-success text-sm text-center">{message}</p>}
 
         <form onSubmit={submit} className="space-y-3">
           <input
@@ -87,11 +78,7 @@ export default function AuthPage() {
             className="input-md w-full"
           />
           <button type="submit" disabled={loading} className="auth-submit-btn">
-            {loading
-              ? "Please wait…"
-              : mode === "login"
-                ? "Sign In"
-                : "Sign Up"}
+            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
 
@@ -123,21 +110,19 @@ export default function AuthPage() {
         </button>
 
         <p className="text-center text-sm text-theme-muted">
-          {mode === "login"
-            ? "Don't have an account? "
-            : "Already have an account? "}
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <button
             onClick={() => {
-              setMode(mode === "login" ? "signup" : "login");
-              setError("");
-              setMessage("");
+              setMode(mode === 'login' ? 'signup' : 'login')
+              setError('')
+              setMessage('')
             }}
             className="text-theme-primary hover:underline font-medium"
           >
-            {mode === "login" ? "Sign up" : "Sign in"}
+            {mode === 'login' ? 'Sign up' : 'Sign in'}
           </button>
         </p>
       </div>
     </div>
-  );
+  )
 }

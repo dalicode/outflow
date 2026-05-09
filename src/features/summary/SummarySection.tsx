@@ -1,50 +1,40 @@
-import { useSettings } from "../../context/settingsContext";
-import type { MonthlySummary } from "../../types";
+import { useSettings } from '../../context/settingsContext'
+import type { MonthlySummary } from '../../types'
 
 interface CardProps {
-  label: string;
-  value: string;
-  colorClass?: string;
+  label: string
+  value: string
+  colorClass?: string
 }
 
-function Card({ label, value, colorClass = "text-theme-text" }: CardProps) {
+function Card({ label, value, colorClass = 'text-theme-text' }: CardProps) {
   return (
     <div className="summary-stat-card">
-      <span className="summary-label">
-        {label}
-      </span>
+      <span className="summary-label">{label}</span>
       <span className={`text-xl font-semibold ${colorClass}`}>{value}</span>
     </div>
-  );
+  )
 }
 
 interface SummarySectionProps {
-  summary: MonthlySummary | null;
+  summary: MonthlySummary | null
 }
 
 export default function SummarySection({ summary }: SummarySectionProps) {
-  const { formatAmount } = useSettings();
-  if (!summary) return null;
+  const { formatAmount } = useSettings()
+  if (!summary) return null
 
-  const {
-    income,
-    fixedExpensesTotal,
-    variableExpenses,
-    autoSavings,
-    remaining,
-  } = summary;
+  const { income, fixedExpensesTotal, variableExpenses, autoSavings, remaining } = summary
 
-  const available = income - fixedExpensesTotal;
+  const available = income - fixedExpensesTotal
 
   return (
     <div className="space-y-2">
-      <span className="text-sm font-semibold text-theme-text tracking-tight">Financial Summary</span>
+      <span className="text-sm font-semibold text-theme-text tracking-tight">
+        Financial Summary
+      </span>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Card
-          label="Monthly Income"
-          value={formatAmount(income)}
-          colorClass="text-theme-primary"
-        />
+        <Card label="Monthly Income" value={formatAmount(income)} colorClass="text-theme-primary" />
         <Card
           label="Fixed Expenses"
           value={formatAmount(fixedExpensesTotal)}
@@ -70,13 +60,13 @@ export default function SummarySection({ summary }: SummarySectionProps) {
           value={formatAmount(remaining)}
           colorClass={
             remaining > 0
-              ? "text-theme-success"
+              ? 'text-theme-success'
               : remaining < 0
-                ? "text-theme-danger"
-                : "text-theme-text"
+                ? 'text-theme-danger'
+                : 'text-theme-text'
           }
         />
       </div>
     </div>
-  );
+  )
 }

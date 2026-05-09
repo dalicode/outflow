@@ -1,9 +1,18 @@
-import { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef, type ReactNode } from 'react'
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { StorageService } from '../services/storageService'
-import { THEMES, getTheme, getCSSVariables } from '../utils/themeConfig'
 import { supabase } from '../services/supabase'
-import { syncThemeToProfile, fetchThemeFromProfile } from '../services/syncService'
+import { fetchThemeFromProfile, syncThemeToProfile } from '../services/syncService'
 import type { AppSettings, ThemeConfig } from '../types'
+import { getCSSVariables, getTheme, THEMES } from '../utils/themeConfig'
 
 const DEFAULTS: AppSettings = {
   visualTheme: 'default',
@@ -21,13 +30,15 @@ const DEFAULTS: AppSettings = {
 }
 
 const FONT_MAP: Record<string, string> = {
-  system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif',
+  system:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif',
   sans: 'ui-sans-serif, system-ui, sans-serif',
   serif: 'ui-serif, Georgia, serif',
   mono: 'ui-monospace, monospace',
   roboto: 'Roboto, "Helvetica Neue", Arial, sans-serif',
   georgia: 'Georgia, Cambria, "Times New Roman", serif',
-  financeMono: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  financeMono:
+    'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
 }
 
 interface SettingsContextValue {
@@ -62,36 +73,45 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
-    StorageService.getSetting('uiSettings', null).then((saved: unknown) => {
-      if (cancelled) return
-      const next = saved ? { ...DEFAULTS, ...(saved as Record<string, unknown>) } : { ...DEFAULTS }
-      setSettings(next as AppSettings)
-      setLoaded(true)
-      if (fallbackTimer) clearTimeout(fallbackTimer)
-
-      if (supabase) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user?.id) {
-            fetchThemeFromProfile(session.user.id).then((profileTheme: string | null) => {
-              if (!cancelled && profileTheme && THEMES[profileTheme]) {
-                setSettings((prev) => ({ ...prev, visualTheme: profileTheme }))
-              }
-            }).catch((err: Error) => {
-              console.warn('Theme profile fetch error:', err)
-            })
-          }
-        }).catch((err: Error) => {
-          console.warn('Auth session error in settings:', err)
-        })
-      }
-    }).catch((err: Error) => {
-      console.warn('Settings load error:', err)
-      if (!cancelled) {
-        setSettings({ ...DEFAULTS })
+    StorageService.getSetting('uiSettings', null)
+      .then((saved: unknown) => {
+        if (cancelled) return
+        const next = saved
+          ? { ...DEFAULTS, ...(saved as Record<string, unknown>) }
+          : { ...DEFAULTS }
+        setSettings(next as AppSettings)
         setLoaded(true)
         if (fallbackTimer) clearTimeout(fallbackTimer)
-      }
-    })
+
+        if (supabase) {
+          supabase.auth
+            .getSession()
+            .then(({ data: { session } }) => {
+              if (session?.user?.id) {
+                fetchThemeFromProfile(session.user.id)
+                  .then((profileTheme: string | null) => {
+                    if (!cancelled && profileTheme && THEMES[profileTheme]) {
+                      setSettings((prev) => ({ ...prev, visualTheme: profileTheme }))
+                    }
+                  })
+                  .catch((err: Error) => {
+                    console.warn('Theme profile fetch error:', err)
+                  })
+              }
+            })
+            .catch((err: Error) => {
+              console.warn('Auth session error in settings:', err)
+            })
+        }
+      })
+      .catch((err: Error) => {
+        console.warn('Settings load error:', err)
+        if (!cancelled) {
+          setSettings({ ...DEFAULTS })
+          setLoaded(true)
+          if (fallbackTimer) clearTimeout(fallbackTimer)
+        }
+      })
 
     fallbackTimer = setTimeout(() => {
       if (!cancelled) {
@@ -140,31 +160,41 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     root.setAttribute('data-theme-mode', theme.isDark ? 'dark' : 'light')
   }, [settings.visualTheme, loaded])
 
-  const save = useCallback(async (patch: Partial<AppSettings>) => {
-    const next = { ...settings, ...patch }
-    setSettings(next)
-    await StorageService.setSetting('uiSettings', next)
-    if (patch.visualTheme) {
-      await StorageService.setSetting('selectedTheme', patch.visualTheme)
-      if (supabase) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user?.id) {
-          await syncThemeToProfile(session.user.id, patch.visualTheme)
+  const save = useCallback(
+    async (patch: Partial<AppSettings>) => {
+      const next = { ...settings, ...patch }
+      setSettings(next)
+      await StorageService.setSetting('uiSettings', next)
+      if (patch.visualTheme) {
+        await StorageService.setSetting('selectedTheme', patch.visualTheme)
+        if (supabase) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+          if (session?.user?.id) {
+            await syncThemeToProfile(session.user.id, patch.visualTheme)
+          }
         }
       }
-    }
-  }, [settings])
+    },
+    [settings],
+  )
 
-  const currency = useCallback((n: number | null | undefined) => {
-    if (n == null) return '—'
-    const dec = parseInt(settings.decimalPlaces, 10)
-    const sep = settings.thousandSep
-    const parts = Math.abs(n).toFixed(dec).split('.')
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,
-      sep === ',' ? ',' : sep === '.' ? '.' : '\u00A0')
-    const formatted = dec > 0 ? parts.join(sep === '.' ? ',' : '.') : parts[0]
-    return `${n < 0 ? '-' : ''}${settings.currencySymbol}${formatted}`
-  }, [settings.currencySymbol, settings.decimalPlaces, settings.thousandSep])
+  const currency = useCallback(
+    (n: number | null | undefined) => {
+      if (n == null) return '—'
+      const dec = parseInt(settings.decimalPlaces, 10)
+      const sep = settings.thousandSep
+      const parts = Math.abs(n).toFixed(dec).split('.')
+      parts[0] = parts[0].replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        sep === ',' ? ',' : sep === '.' ? '.' : '\u00A0',
+      )
+      const formatted = dec > 0 ? parts.join(sep === '.' ? ',' : '.') : parts[0]
+      return `${n < 0 ? '-' : ''}${settings.currencySymbol}${formatted}`
+    },
+    [settings.currencySymbol, settings.decimalPlaces, settings.thousandSep],
+  )
 
   const formatAmount = currency
   const formatAmountPlain = currency
@@ -176,43 +206,90 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return 'zero-number'
   }, [])
 
-  const formatDate = useCallback((iso: string) => {
-    if (!iso) return ''
-    const [y, m, d] = iso.slice(0, 10).split('-')
-    switch (settings.dateFormat) {
-      case 'DD/MM/YYYY': return `${d}/${m}/${y}`
-      case 'YYYY-MM-DD': return `${y}-${m}-${d}`
-      default: return `${m}/${d}/${y}`
-    }
-  }, [settings.dateFormat])
+  const formatDate = useCallback(
+    (iso: string) => {
+      if (!iso) return ''
+      const [y, m, d] = iso.slice(0, 10).split('-')
+      switch (settings.dateFormat) {
+        case 'DD/MM/YYYY':
+          return `${d}/${m}/${y}`
+        case 'YYYY-MM-DD':
+          return `${y}-${m}-${d}`
+        default:
+          return `${m}/${d}/${y}`
+      }
+    },
+    [settings.dateFormat],
+  )
 
   const formatMonth = useCallback((n: number) => {
-    const names = ['January','February','March','April','May','June','July','August','September','October','November','December']
+    const names = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ]
     return names[n - 1] ?? ''
   }, [])
 
   const formatShortMonth = useCallback((n: number) => {
-    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    const names = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ]
     return names[n - 1] ?? ''
   }, [])
 
   const currentTheme = useMemo(() => getTheme(settings.visualTheme), [settings.visualTheme])
 
-  const value = useMemo(() => ({
-    settings,
-    save,
-    currentTheme,
-    themeColors: currentTheme.colors,
-    currency,
-    formatAmount,
-    formatAmountPlain,
-    getNumberColorClass,
-    formatDate,
-    formatMonth,
-    formatShortMonth,
-    loaded,
-    availableThemes: THEMES,
-  }), [settings, save, currentTheme, currency, formatAmount, formatAmountPlain, getNumberColorClass, formatDate, formatMonth, formatShortMonth, loaded])
+  const value = useMemo(
+    () => ({
+      settings,
+      save,
+      currentTheme,
+      themeColors: currentTheme.colors,
+      currency,
+      formatAmount,
+      formatAmountPlain,
+      getNumberColorClass,
+      formatDate,
+      formatMonth,
+      formatShortMonth,
+      loaded,
+      availableThemes: THEMES,
+    }),
+    [
+      settings,
+      save,
+      currentTheme,
+      currency,
+      formatAmount,
+      formatAmountPlain,
+      getNumberColorClass,
+      formatDate,
+      formatMonth,
+      formatShortMonth,
+      loaded,
+    ],
+  )
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
 }

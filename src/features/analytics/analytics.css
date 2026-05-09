@@ -62,8 +62,7 @@
   gap: 0.125rem;
   min-width: 9.5rem;
   border-radius: var(--radius-small);
-  border: 1px solid
-    color-mix(in srgb, var(--theme-border) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-border) 80%, transparent);
   background-color: color-mix(in srgb, var(--theme-background) 70%, transparent);
   padding: 0.5rem 0.75rem;
 }
@@ -96,8 +95,7 @@
   flex-direction: column;
   gap: 0.125rem;
   border-radius: var(--radius-small);
-  border: 1px solid
-    color-mix(in srgb, var(--theme-border) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-border) 70%, transparent);
   background-color: var(--theme-surface);
   padding: 0.625rem 0.75rem;
 }
@@ -150,15 +148,13 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--theme-muted);
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--theme-border) 80%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 80%, transparent);
   white-space: nowrap;
 }
 
 .analytics-overview-table tbody td {
   padding: 0.75rem 0.9rem;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--theme-border) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 70%, transparent);
   white-space: nowrap;
   vertical-align: middle;
 }
@@ -182,7 +178,9 @@
   width: 100%;
   border-radius: 9999px 9999px 4px 4px;
   background-color: color-mix(in srgb, var(--theme-muted) 55%, transparent);
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .analytics-overview-pulse-bar-selected {
@@ -208,15 +206,13 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--theme-muted);
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--theme-border) 80%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 80%, transparent);
   white-space: nowrap;
 }
 
 .analytics-breakdown-table tbody td {
   padding: 0.7rem 0.9rem;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--theme-border) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 70%, transparent);
   white-space: nowrap;
   vertical-align: middle;
 }
@@ -238,8 +234,7 @@
   letter-spacing: 0.05em;
   color: var(--theme-muted);
   white-space: nowrap;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--theme-muted) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
 }
 
 .analytics-empty-cell {
@@ -248,16 +243,14 @@
   font-style: italic;
   color: var(--theme-muted);
   white-space: nowrap;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--theme-muted) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
 }
 
 .analytics-data-cell {
   padding: 0.625rem 0.75rem;
   font-size: 0.875rem;
   white-space: nowrap;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--theme-muted) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-muted) 10%, transparent);
   transition:
     color 0.15s ease,
     background-color 0.15s ease,

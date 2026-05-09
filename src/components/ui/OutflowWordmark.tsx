@@ -1,8 +1,8 @@
 interface OutflowWordmarkProps {
-  className?: string;
+  className?: string
 }
 
-export default function OutflowWordmark({ className = "" }: OutflowWordmarkProps) {
+export default function OutflowWordmark({ className = '' }: OutflowWordmarkProps) {
   return (
     <svg
       viewBox="0 0 520 80"
@@ -52,12 +52,12 @@ export default function OutflowWordmark({ className = "" }: OutflowWordmarkProps
           fontFamily:
             "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           fontWeight: 800,
-          fontSize: "64px",
-          letterSpacing: "-0.04em",
+          fontSize: '64px',
+          letterSpacing: '-0.04em',
         }}
       >
         Outflow
       </text>
     </svg>
-  );
+  )
 }

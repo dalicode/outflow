@@ -1,96 +1,80 @@
 import {
-  useState,
-  useMemo,
-  useEffect,
-  useRef,
-  useCallback,
-  type PointerEvent as ReactPointerEvent,
   type FormEvent,
-} from "react";
-import { createPortal } from "react-dom";
-import { useSettings } from "../../context/settingsContext";
-import Modal from "../../components/ui/Modal";
-import ModalFooter from "../../components/ui/ModalFooter";
-import MobileEntityPicker from "../../components/inputs/MobileEntityPicker";
-import DatePicker from "../../components/inputs/DatePicker";
-import MoneyInput from "../../components/inputs/MoneyInput";
-import { getLocalToday } from "../../utils/historicalDataHelpers";
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { createPortal } from 'react-dom'
 import {
+  type ComboboxOption,
   getFilteredOptions,
   hasExactMatch,
-  type ComboboxOption,
-} from "../../components/inputs/comboboxUtils";
-import { normalizeName } from "../../utils/normalizeName";
-import { StorageService } from "../../services/storageService";
-import { cn } from "../../utils/cn";
-import Spinner from "../../components/ui/Spinner";
-import {
-  findBestPayeeMatch,
-  normalizePayeeText,
-} from "../../utils/payeeMatching";
-import { resolveMoneyLocaleConfig } from "../../utils/moneyInput";
-import EntityMergeDialog from "../../components/ui/EntityMergeDialog";
-import DeleteEntityDialog from "../../components/ui/DeleteEntityDialog";
-import { useHaptics } from "../../hooks/useHaptics";
-import { useExpenses, usePayees } from "../../hooks/useLocalData";
-import { useToasts } from "../../context/toastContext";
-import {
-  getMostLikelyRelatedEntityId,
-  getRecentEntityIds,
-} from "../../utils/entityHistory";
-import type { MatchConfidence } from "../../utils/payeeMatching";
-import "./expenses.css";
-import type { Expense, Category, Payee } from "../../types";
+} from '../../components/inputs/comboboxUtils'
+import DatePicker from '../../components/inputs/DatePicker'
+import MobileEntityPicker from '../../components/inputs/MobileEntityPicker'
+import MoneyInput from '../../components/inputs/MoneyInput'
+import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
+import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
+import Modal from '../../components/ui/Modal'
+import ModalFooter from '../../components/ui/ModalFooter'
+import Spinner from '../../components/ui/Spinner'
+import { useSettings } from '../../context/settingsContext'
+import { useToasts } from '../../context/toastContext'
+import { useHaptics } from '../../hooks/useHaptics'
+import { useExpenses, usePayees } from '../../hooks/useLocalData'
+import { StorageService } from '../../services/storageService'
+import { cn } from '../../utils/cn'
+import { getMostLikelyRelatedEntityId, getRecentEntityIds } from '../../utils/entityHistory'
+import { getLocalToday } from '../../utils/historicalDataHelpers'
+import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
+import { normalizeName } from '../../utils/normalizeName'
+import type { MatchConfidence } from '../../utils/payeeMatching'
+import { findBestPayeeMatch, normalizePayeeText } from '../../utils/payeeMatching'
+import './expenses.css'
+import type { Category, Expense, Payee } from '../../types'
 
 const EMPTY_FORM = {
   date: getLocalToday(),
-  categoryId: "",
-  payeeId: "",
-  description: "",
-  amount: "",
-};
+  categoryId: '',
+  payeeId: '',
+  description: '',
+  amount: '',
+}
 
 function getFormFromExpense(expense: Expense) {
   return {
     date: expense.date,
-    categoryId: String(expense.categoryId ?? ""),
-    payeeId: String(expense.payeeId ?? ""),
-    description: expense.description ?? "",
-    amount: String(expense.amount ?? ""),
-  };
+    categoryId: String(expense.categoryId ?? ''),
+    payeeId: String(expense.payeeId ?? ''),
+    description: expense.description ?? '',
+    amount: String(expense.amount ?? ''),
+  }
 }
 
 interface SingleSelectTriggerProps {
-  value?: string;
-  placeholder: string;
-  isOpen: boolean;
-  onClick: () => void;
+  value?: string
+  placeholder: string
+  isOpen: boolean
+  onClick: () => void
 }
 
-function SingleSelectTrigger({
-  value,
-  placeholder,
-  isOpen,
-  onClick,
-}: SingleSelectTriggerProps) {
+function SingleSelectTrigger({ value, placeholder, isOpen, onClick }: SingleSelectTriggerProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       className="flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-surface px-3 py-2.5 text-left text-sm font-semibold transition-colors focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]"
     >
-      <span
-        className={cn(
-          "min-w-0 truncate",
-          value ? "text-theme-text" : "text-theme-muted",
-        )}
-      >
+      <span className={cn('min-w-0 truncate', value ? 'text-theme-text' : 'text-theme-muted')}>
         {value || placeholder}
       </span>
       <svg
         className={cn(
-          "h-4 w-4 shrink-0 text-theme-muted transition-transform",
-          isOpen && "rotate-180",
+          'h-4 w-4 shrink-0 text-theme-muted transition-transform',
+          isOpen && 'rotate-180',
         )}
         fill="none"
         stroke="currentColor"
@@ -101,165 +85,157 @@ function SingleSelectTrigger({
         <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
       </svg>
     </button>
-  );
+  )
 }
 
 interface DesktopSingleSelectDropdownProps {
-  value?: string | number;
-  options: ComboboxOption[];
-  recentOptions?: ComboboxOption[];
-  recentLabel?: string;
-  placeholder: string;
-  emptyMessage: string;
-  createHint?: string;
-  allowCreate?: boolean;
-  allowClear?: boolean;
-  clearLabel?: string;
-  autoFocus?: boolean;
-  onChange: (id: string | number | undefined) => void;
-  onCreate?: (name: string) => Promise<string | number>;
+  value?: string | number
+  options: ComboboxOption[]
+  recentOptions?: ComboboxOption[]
+  recentLabel?: string
+  placeholder: string
+  emptyMessage: string
+  createHint?: string
+  allowCreate?: boolean
+  allowClear?: boolean
+  clearLabel?: string
+  autoFocus?: boolean
+  onChange: (id: string | number | undefined) => void
+  onCreate?: (name: string) => Promise<string | number>
 }
 
 function DesktopSingleSelectDropdown({
   value,
   options,
   recentOptions,
-  recentLabel = "Recent",
+  recentLabel = 'Recent',
   placeholder,
   emptyMessage,
-  createHint = "Type a new name to add it.",
+  createHint = 'Type a new name to add it.',
   allowCreate = false,
   allowClear = false,
-  clearLabel = "Clear selection",
+  clearLabel = 'Clear selection',
   autoFocus = false,
   onChange,
   onCreate,
 }: DesktopSingleSelectDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const [panelStyle, setPanelStyle] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+    top: number
+    left: number
+    width: number
+  } | null>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Auto-open on mount when autoFocus is set
   useEffect(() => {
-    if (!autoFocus) return;
-    const timer = window.setTimeout(() => setIsOpen(true), 50);
-    return () => window.clearTimeout(timer);
+    if (!autoFocus) return
+    const timer = window.setTimeout(() => setIsOpen(true), 50)
+    return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autoFocus])
 
   const selectedOption = useMemo(
     () => options.find((option) => option.id === value),
     [options, value],
-  );
+  )
 
-  const filteredOptions = useMemo(
-    () => getFilteredOptions(options, query),
-    [options, query],
-  );
-  const showRecentSection = Boolean(recentOptions?.length && !query.trim());
+  const filteredOptions = useMemo(() => getFilteredOptions(options, query), [options, query])
+  const showRecentSection = Boolean(recentOptions?.length && !query.trim())
   const recentVisibleOptions = showRecentSection
     ? (recentOptions ?? []).filter((option) => !option.isArchived)
-    : [];
+    : []
   const recentIds = useMemo(
     () => new Set(recentVisibleOptions.map((option) => option.id)),
     [recentVisibleOptions],
-  );
+  )
   const displayOptions = showRecentSection
     ? filteredOptions.filter((option) => !recentIds.has(option.id))
-    : filteredOptions;
+    : filteredOptions
 
-  const showCreateOption =
-    allowCreate && onCreate && query.trim() && !hasExactMatch(options, query);
-  const showCreateHint = allowCreate && onCreate && !query.trim();
+  const showCreateOption = allowCreate && onCreate && query.trim() && !hasExactMatch(options, query)
+  const showCreateHint = allowCreate && onCreate && !query.trim()
 
   const updatePanelPosition = useCallback(() => {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (!rect) return
 
     setPanelStyle({
       top: rect.bottom + 4,
       left: rect.left,
       width: rect.width,
-    });
-  }, []);
+    })
+  }, [])
 
   useEffect(() => {
     if (!isOpen) {
-      setQuery("");
-      setCreateError(null);
-      setPanelStyle(null);
-      return;
+      setQuery('')
+      setCreateError(null)
+      setPanelStyle(null)
+      return
     }
 
-    updatePanelPosition();
+    updatePanelPosition()
 
     const timer = window.setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 0);
+      searchInputRef.current?.focus()
+    }, 0)
 
     const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (
-        triggerRef.current?.contains(target) ||
-        panelRef.current?.contains(target)
-      ) {
-        return;
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
+        return
       }
-      setIsOpen(false);
-    };
+      setIsOpen(false)
+    }
 
-    window.addEventListener("resize", updatePanelPosition);
-    window.addEventListener("scroll", updatePanelPosition, true);
-    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener('resize', updatePanelPosition)
+    window.addEventListener('scroll', updatePanelPosition, true)
+    document.addEventListener('pointerdown', handlePointerDown)
 
     return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("resize", updatePanelPosition);
-      window.removeEventListener("scroll", updatePanelPosition, true);
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isOpen, updatePanelPosition]);
+      window.clearTimeout(timer)
+      window.removeEventListener('resize', updatePanelPosition)
+      window.removeEventListener('scroll', updatePanelPosition, true)
+      document.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [isOpen, updatePanelPosition])
 
   const handleSelect = (id: string | number | undefined) => {
-    onChange(id);
-    setIsOpen(false);
-  };
+    onChange(id)
+    setIsOpen(false)
+  }
 
-  const handlePointerSelect = (id: string | number | undefined) => (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    handleSelect(id);
-  };
+  const handlePointerSelect =
+    (id: string | number | undefined) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      handleSelect(id)
+    }
 
   const handleCreate = async () => {
-    if (!onCreate || isCreating) return;
-    const trimmed = query.trim();
-    if (!trimmed) return;
+    if (!onCreate || isCreating) return
+    const trimmed = query.trim()
+    if (!trimmed) return
 
-    setIsCreating(true);
-    setCreateError(null);
+    setIsCreating(true)
+    setCreateError(null)
     try {
-      const newId = await onCreate(trimmed);
-      onChange(newId);
-      setIsOpen(false);
+      const newId = await onCreate(trimmed)
+      onChange(newId)
+      setIsOpen(false)
     } catch (err) {
-      setCreateError((err as Error).message);
+      setCreateError((err as Error).message)
     } finally {
-      setIsCreating(false);
+      setIsCreating(false)
     }
-  };
+  }
 
   return (
     <div ref={triggerRef} className="relative">
@@ -286,26 +262,24 @@ function DesktopSingleSelectDropdown({
               type="text"
               value={query}
               onChange={(e) => {
-                setQuery(e.target.value);
-                setCreateError(null);
+                setQuery(e.target.value)
+                setCreateError(null)
               }}
               onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
+                if (e.key !== 'Enter') return
+                e.preventDefault()
                 if (showCreateOption && displayOptions.length === 0) {
-                  void handleCreate();
-                  return;
+                  void handleCreate()
+                  return
                 }
                 if (displayOptions[0]) {
-                  handleSelect(displayOptions[0].id);
+                  handleSelect(displayOptions[0].id)
                 }
               }}
               placeholder={placeholder}
               className="input-md w-full"
             />
-            {createError && (
-              <p className="mt-1.5 text-xs text-theme-danger">{createError}</p>
-            )}
+            {createError && <p className="mt-1.5 text-xs text-theme-danger">{createError}</p>}
             {showCreateHint && (
               <div className="mt-2 flex items-center gap-2 text-xs text-theme-muted">
                 <span
@@ -325,27 +299,25 @@ function DesktopSingleSelectDropdown({
                   </div>
                 )}
                 {recentVisibleOptions.map((option) => {
-                  const isSelected = option.id === value;
+                  const isSelected = option.id === value
                   return (
                     <button
                       key={`recent-${option.id}`}
                       type="button"
                       onPointerDown={handlePointerSelect(option.id)}
                       className={cn(
-                        "flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                        'flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors',
                         isSelected
-                          ? "bg-theme-primary-subtle text-theme-primary font-medium"
-                          : "text-theme-text hover:bg-theme-border",
+                          ? 'bg-theme-primary-subtle text-theme-primary font-medium'
+                          : 'text-theme-text hover:bg-theme-border',
                       )}
                     >
                       <span className="min-w-0 truncate">{option.label}</span>
                       {isSelected && (
-                        <span className="text-xs font-medium text-theme-primary">
-                          Selected
-                        </span>
+                        <span className="text-xs font-medium text-theme-primary">Selected</span>
                       )}
                     </button>
-                  );
+                  )
                 })}
                 {allowClear && value != null && (
                   <button
@@ -357,42 +329,40 @@ function DesktopSingleSelectDropdown({
                   </button>
                 )}
                 {displayOptions.map((option) => {
-                  const isSelected = option.id === value;
+                  const isSelected = option.id === value
                   return (
                     <button
                       key={option.id}
                       type="button"
                       onPointerDown={handlePointerSelect(option.id)}
                       className={cn(
-                        "flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                        'flex min-h-8 w-full items-center justify-between gap-3 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors',
                         isSelected
-                          ? "bg-theme-primary-subtle text-theme-primary font-medium"
-                          : "text-theme-text hover:bg-theme-border",
+                          ? 'bg-theme-primary-subtle text-theme-primary font-medium'
+                          : 'text-theme-text hover:bg-theme-border',
                       )}
                     >
                       <span className="min-w-0 truncate">{option.label}</span>
                       {isSelected && (
-                        <span className="text-xs font-medium text-theme-primary">
-                          Selected
-                        </span>
+                        <span className="text-xs font-medium text-theme-primary">Selected</span>
                       )}
                     </button>
-                  );
+                  )
                 })}
                 {showCreateOption && (
                   <button
                     type="button"
                     onPointerDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      void handleCreate();
+                      e.preventDefault()
+                      e.stopPropagation()
+                      void handleCreate()
                     }}
                     disabled={isCreating}
                     className={cn(
-                      "flex min-h-8 w-full items-center gap-2 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors",
+                      'flex min-h-8 w-full items-center gap-2 border-b border-theme-border px-2 py-1 text-left text-sm transition-colors',
                       isCreating
-                        ? "cursor-not-allowed opacity-60"
-                        : "text-theme-text hover:bg-theme-border",
+                        ? 'cursor-not-allowed opacity-60'
+                        : 'text-theme-text hover:bg-theme-border',
                     )}
                   >
                     {isCreating ? (
@@ -416,31 +386,31 @@ function DesktopSingleSelectDropdown({
                 {displayOptions.length === 0 &&
                   !showCreateOption &&
                   recentVisibleOptions.length === 0 && (
-                  <div className="px-2.5 py-3 text-center text-xs text-theme-muted">
-                    {emptyMessage}
-                  </div>
-                )}
+                    <div className="px-2.5 py-3 text-center text-xs text-theme-muted">
+                      {emptyMessage}
+                    </div>
+                  )}
               </div>
             </div>
           </div>,
           document.body,
         )}
     </div>
-  );
+  )
 }
 
 interface CategoryModalProps {
-  categories: Category[];
+  categories: Category[]
   onCategoriesChange?: (
-    action: "add" | "update" | "delete",
+    action: 'add' | 'update' | 'delete',
     payload: { id?: number; name?: string },
-  ) => Promise<number | undefined>;
-  onClose: () => void;
-  refreshCategories?: () => void | Promise<void>;
+  ) => Promise<number | undefined>
+  onClose: () => void
+  refreshCategories?: () => void | Promise<void>
 }
 
 interface AddEntityButtonProps {
-  label: string;
+  label: string
 }
 
 function AddEntityButton({ label }: AddEntityButtonProps) {
@@ -459,15 +429,11 @@ function AddEntityButton({ label }: AddEntityButtonProps) {
         strokeWidth="2"
         className="h-4 w-4 shrink-0"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 5v14M5 12h14"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
       </svg>
       <span className="sm:hidden">{label}</span>
     </button>
-  );
+  )
 }
 
 function CategoryModal({
@@ -476,80 +442,73 @@ function CategoryModal({
   onClose,
   refreshCategories,
 }: CategoryModalProps) {
-  const [newName, setNewName] = useState("");
-  const [newError, setNewError] = useState("");
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [mergeSource, setMergeSource] = useState<Category | null>(null);
-  const [mergeExpenseCount, setMergeExpenseCount] = useState(0);
-  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [newName, setNewName] = useState('')
+  const [newError, setNewError] = useState('')
+  const [editId, setEditId] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [mergeSource, setMergeSource] = useState<Category | null>(null)
+  const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
 
-  const active = categories.filter((c) => !c.isArchived);
+  const active = categories.filter((c) => !c.isArchived)
   const filteredCategories = active.filter((category) =>
-    normalizeName(category.name)
-      .toLowerCase()
-      .includes(searchQuery.trim().toLowerCase()),
-  );
+    normalizeName(category.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  )
 
   const addCat = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const name = newName.trim();
+    e.preventDefault()
+    const name = newName.trim()
     if (!name) {
-      setNewError("Name is required.");
-      return;
+      setNewError('Name is required.')
+      return
     }
     if (active.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
-      setNewError("Already exists.");
-      return;
+      setNewError('Already exists.')
+      return
     }
     if (onCategoriesChange) {
-      await onCategoriesChange("add", { name });
+      await onCategoriesChange('add', { name })
     } else {
-      await StorageService.addCategory(name);
-      refreshCategories?.();
+      await StorageService.addCategory(name)
+      refreshCategories?.()
     }
-    setNewName("");
-    setNewError("");
-  };
+    setNewName('')
+    setNewError('')
+  }
 
   const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (editId == null) return;
-    const name = editName.trim();
-    if (!name) return;
-    if (
-      active.some(
-        (c) => c.id !== editId && c.name.toLowerCase() === name.toLowerCase(),
-      )
-    )
-      return;
+    e.preventDefault()
+    if (editId == null) return
+    const name = editName.trim()
+    if (!name) return
+    if (active.some((c) => c.id !== editId && c.name.toLowerCase() === name.toLowerCase())) return
     if (onCategoriesChange) {
-      await onCategoriesChange("update", { id: editId, name });
+      await onCategoriesChange('update', { id: editId, name })
     } else {
-      await StorageService.updateCategory(editId, { name });
-      refreshCategories?.();
+      await StorageService.updateCategory(editId, { name })
+      refreshCategories?.()
     }
-    setEditId(null);
-  };
+    setEditId(null)
+  }
 
   const openMerge = async (cat: Category) => {
-    if (cat.id == null) return;
-    const count = await StorageService.getExpenseCountForCategory(cat.id);
-    setMergeExpenseCount(count);
-    setMergeSource(cat);
-  };
+    if (cat.id == null) return
+    const count = await StorageService.getExpenseCountForCategory(cat.id)
+    setMergeExpenseCount(count)
+    setMergeSource(cat)
+  }
 
   const handleMerge = async (targetId: number) => {
-    if (!mergeSource || mergeSource.id == null) return;
-    await StorageService.mergeCategory(mergeSource.id, targetId);
-    await refreshCategories?.();
+    if (!mergeSource || mergeSource.id == null) return
+    await StorageService.mergeCategory(mergeSource.id, targetId)
+    await refreshCategories?.()
     if (onCategoriesChange) {
       // Trigger a refresh via the parent
-      await onCategoriesChange("delete", { id: mergeSource.id });
+      await onCategoriesChange('delete', { id: mergeSource.id })
     }
-    setMergeSource(null);
-  };
+    setMergeSource(null)
+  }
 
   return (
     <>
@@ -580,16 +539,14 @@ function CategoryModal({
             <input
               value={newName}
               onChange={(e) => {
-                setNewName(e.target.value);
-                setNewError("");
+                setNewName(e.target.value)
+                setNewError('')
               }}
               placeholder="New category…"
               autoFocus
               className="input-md w-full"
             />
-            {newError && (
-              <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
-            )}
+            {newError && <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>}
           </div>
           <AddEntityButton label="Add category" />
         </form>
@@ -615,10 +572,7 @@ function CategoryModal({
           ) : (
             <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
               {filteredCategories.map((cat) => (
-                <li
-                  key={cat.id}
-                  className="border-b border-theme-border p-3 last:border-b-0"
-                >
+                <li key={cat.id} className="border-b border-theme-border p-3 last:border-b-0">
                   {editId === cat.id ? (
                     <form
                       onSubmit={saveEdit}
@@ -631,10 +585,7 @@ function CategoryModal({
                         className="input-md min-w-0 flex-1"
                       />
                       <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          className="btn-primary-sm flex-1 sm:flex-none"
-                        >
+                        <button type="submit" className="btn-primary-sm flex-1 sm:flex-none">
                           Save
                         </button>
                         <button
@@ -655,8 +606,8 @@ function CategoryModal({
                         <button
                           type="button"
                           onClick={() => {
-                            setEditId(cat.id as number);
-                            setEditName(cat.name);
+                            setEditId(cat.id as number)
+                            setEditName(cat.name)
                           }}
                           className="font-medium text-theme-primary hover:opacity-80"
                         >
@@ -711,259 +662,239 @@ function CategoryModal({
           canMerge={active.length > 1}
           onConfirmDelete={async () => {
             if (onCategoriesChange) {
-              await onCategoriesChange("delete", { id: deleteTarget.id });
+              await onCategoriesChange('delete', { id: deleteTarget.id })
             } else {
-              await StorageService.deleteCategory(deleteTarget.id as number);
-              await refreshCategories?.();
+              await StorageService.deleteCategory(deleteTarget.id as number)
+              await refreshCategories?.()
             }
-            setDeleteTarget(null);
+            setDeleteTarget(null)
           }}
           onMergeInstead={() => {
-            openMerge(deleteTarget);
-            setDeleteTarget(null);
+            openMerge(deleteTarget)
+            setDeleteTarget(null)
           }}
         />
       )}
     </>
-  );
+  )
 }
 
 interface PayeeModalProps {
-  payees: Payee[];
-  onPayeesChange?: () => void;
-  onClose: () => void;
-  refreshPayees?: () => void | Promise<void>;
+  payees: Payee[]
+  onPayeesChange?: () => void
+  onClose: () => void
+  refreshPayees?: () => void | Promise<void>
 }
 
-function PayeeModal({
-  payees,
-  onPayeesChange,
-  onClose,
-  refreshPayees,
-}: PayeeModalProps) {
-  const { showUndoToast } = useToasts();
-  const [newName, setNewName] = useState("");
-  const [newError, setNewError] = useState("");
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+function PayeeModal({ payees, onPayeesChange, onClose, refreshPayees }: PayeeModalProps) {
+  const { showUndoToast } = useToasts()
+  const [newName, setNewName] = useState('')
+  const [newError, setNewError] = useState('')
+  const [editId, setEditId] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const active = payees.filter((p) => !p.isArchived);
+  const active = payees.filter((p) => !p.isArchived)
   const filteredPayees = active.filter((payee) =>
-    normalizeName(payee.name)
-      .toLowerCase()
-      .includes(searchQuery.trim().toLowerCase()),
-  );
+    normalizeName(payee.name).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  )
 
   const addPayee = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const name = newName.trim();
+    e.preventDefault()
+    const name = newName.trim()
     if (!name) {
-      setNewError("Name is required.");
-      return;
+      setNewError('Name is required.')
+      return
     }
     if (active.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-      setNewError("Already exists.");
-      return;
+      setNewError('Already exists.')
+      return
     }
     try {
-      await StorageService.addPayee(name);
-      setNewName("");
-      setNewError("");
-      onPayeesChange?.();
-      refreshPayees?.();
+      await StorageService.addPayee(name)
+      setNewName('')
+      setNewError('')
+      onPayeesChange?.()
+      refreshPayees?.()
     } catch (err) {
-      setNewError((err as Error).message);
+      setNewError((err as Error).message)
     }
-  };
+  }
 
   const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (editId == null) return;
-    const name = editName.trim();
-    if (!name) return;
-    if (
-      active.some(
-        (p) => p.id !== editId && p.name.toLowerCase() === name.toLowerCase(),
-      )
-    )
-      return;
+    e.preventDefault()
+    if (editId == null) return
+    const name = editName.trim()
+    if (!name) return
+    if (active.some((p) => p.id !== editId && p.name.toLowerCase() === name.toLowerCase())) return
     try {
-      await StorageService.updatePayee(editId, name);
-      setEditId(null);
-      onPayeesChange?.();
-      refreshPayees?.();
+      await StorageService.updatePayee(editId, name)
+      setEditId(null)
+      onPayeesChange?.()
+      refreshPayees?.()
     } catch (err) {
-      setNewError((err as Error).message);
+      setNewError((err as Error).message)
     }
-  };
+  }
 
   const handleArchive = async (id: number) => {
-    await StorageService.archivePayee(id);
-    onPayeesChange?.();
-    refreshPayees?.();
-    showUndoToast("Payee archived.", async () => {
-      await StorageService.unarchivePayee(id);
-      onPayeesChange?.();
-      refreshPayees?.();
-    });
-  };
+    await StorageService.archivePayee(id)
+    onPayeesChange?.()
+    refreshPayees?.()
+    showUndoToast('Payee archived.', async () => {
+      await StorageService.unarchivePayee(id)
+      onPayeesChange?.()
+      refreshPayees?.()
+    })
+  }
 
-  const [mergeSource, setMergeSource] = useState<Payee | null>(null);
-  const [mergeExpenseCount, setMergeExpenseCount] = useState(0);
-  const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null);
+  const [mergeSource, setMergeSource] = useState<Payee | null>(null)
+  const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null)
 
   const openMerge = async (payee: Payee) => {
-    if (payee.id == null) return;
-    const count = await StorageService.getExpenseCountForPayee(payee.id);
-    setMergeExpenseCount(count);
-    setMergeSource(payee);
-  };
+    if (payee.id == null) return
+    const count = await StorageService.getExpenseCountForPayee(payee.id)
+    setMergeExpenseCount(count)
+    setMergeSource(payee)
+  }
 
   const handleMerge = async (targetId: number) => {
-    if (!mergeSource || mergeSource.id == null) return;
-    await StorageService.mergePayee(mergeSource.id, targetId);
-    onPayeesChange?.();
-    await refreshPayees?.();
-    setMergeSource(null);
-  };
+    if (!mergeSource || mergeSource.id == null) return
+    await StorageService.mergePayee(mergeSource.id, targetId)
+    onPayeesChange?.()
+    await refreshPayees?.()
+    setMergeSource(null)
+  }
 
   return (
     <>
-    <Modal
-      isOpen={true}
-      onClose={onClose}
-      title="Manage Payees"
-      size="lg"
-      mobileFullScreen
-      bodyClassName="flex flex-col gap-4 overflow-hidden"
-      footer={
-        <ModalFooter>
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-modal-primary min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
-          >
-            Done
-          </button>
-        </ModalFooter>
-      }
-    >
-      <form
-        onSubmit={addPayee}
-        className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title="Manage Payees"
+        size="lg"
+        mobileFullScreen
+        bodyClassName="flex flex-col gap-4 overflow-hidden"
+        footer={
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-modal-primary min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem]"
+            >
+              Done
+            </button>
+          </ModalFooter>
+        }
       >
-        <div className="min-w-0 flex-1">
-          <input
-            value={newName}
-            onChange={(e) => {
-              setNewName(e.target.value);
-              setNewError("");
-            }}
-            placeholder="New payee…"
-            autoFocus
-            className="input-md w-full"
-          />
-          {newError && (
-            <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>
-          )}
-        </div>
-        <AddEntityButton label="Add payee" />
-      </form>
+        <form
+          onSubmit={addPayee}
+          className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
+        >
+          <div className="min-w-0 flex-1">
+            <input
+              value={newName}
+              onChange={(e) => {
+                setNewName(e.target.value)
+                setNewError('')
+              }}
+              placeholder="New payee…"
+              autoFocus
+              className="input-md w-full"
+            />
+            {newError && <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>}
+          </div>
+          <AddEntityButton label="Add payee" />
+        </form>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background">
-        <div className="border-b border-theme-border p-3">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search payees..."
-            className="input-md w-full"
-          />
-        </div>
-        {active.length === 0 ? (
-          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
-            No payees yet.
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background">
+          <div className="border-b border-theme-border p-3">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search payees..."
+              className="input-md w-full"
+            />
           </div>
-        ) : filteredPayees.length === 0 ? (
-          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
-            No payees match your search.
-          </div>
-        ) : (
-          <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
-            {filteredPayees.map((payee) => (
-              <li
-                key={payee.id}
-                className="border-b border-theme-border p-3 last:border-b-0"
-              >
-                {editId === payee.id ? (
-                  <form
-                    onSubmit={saveEdit}
-                    className="flex flex-col gap-2 sm:flex-row sm:items-center"
-                  >
-                    <input
-                      autoFocus
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="input-md min-w-0 flex-1"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        className="btn-primary-sm flex-1 sm:flex-none"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditId(null)}
-                        className="btn-cancel-sm flex-1 sm:flex-none"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
-                      {normalizeName(payee.name)}
-                    </span>
-                    <div className="flex gap-3 text-sm sm:gap-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditId(payee.id as number);
-                          setEditName(payee.name);
-                        }}
-                        className="font-medium text-theme-primary hover:opacity-80"
-                      >
-                        Edit
-                      </button>
-                      {active.length > 1 && (
+          {active.length === 0 ? (
+            <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+              No payees yet.
+            </div>
+          ) : filteredPayees.length === 0 ? (
+            <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-sm text-theme-muted">
+              No payees match your search.
+            </div>
+          ) : (
+            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
+              {filteredPayees.map((payee) => (
+                <li key={payee.id} className="border-b border-theme-border p-3 last:border-b-0">
+                  {editId === payee.id ? (
+                    <form
+                      onSubmit={saveEdit}
+                      className="flex flex-col gap-2 sm:flex-row sm:items-center"
+                    >
+                      <input
+                        autoFocus
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="input-md min-w-0 flex-1"
+                      />
+                      <div className="flex gap-2">
+                        <button type="submit" className="btn-primary-sm flex-1 sm:flex-none">
+                          Save
+                        </button>
                         <button
                           type="button"
-                          onClick={() => openMerge(payee)}
-                          className="font-medium text-theme-muted hover:text-theme-text"
+                          onClick={() => setEditId(null)}
+                          className="btn-cancel-sm flex-1 sm:flex-none"
                         >
-                          Merge
+                          Cancel
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget(payee)}
-                        className="font-medium text-theme-danger hover:opacity-80"
-                      >
-                        Delete
-                      </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-theme-text">
+                        {normalizeName(payee.name)}
+                      </span>
+                      <div className="flex gap-3 text-sm sm:gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditId(payee.id as number)
+                            setEditName(payee.name)
+                          }}
+                          className="font-medium text-theme-primary hover:opacity-80"
+                        >
+                          Edit
+                        </button>
+                        {active.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => openMerge(payee)}
+                            className="font-medium text-theme-muted hover:text-theme-text"
+                          >
+                            Merge
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(payee)}
+                          className="font-medium text-theme-danger hover:opacity-80"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Modal>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Modal>
 
       {mergeSource && (
         <EntityMergeDialog
@@ -987,31 +918,31 @@ function PayeeModal({
           entityName={deleteTarget.name}
           canMerge={active.length > 1}
           onConfirmDelete={async () => {
-            await handleArchive(deleteTarget.id as number);
-            setDeleteTarget(null);
+            await handleArchive(deleteTarget.id as number)
+            setDeleteTarget(null)
           }}
           onMergeInstead={() => {
-            openMerge(deleteTarget);
-            setDeleteTarget(null);
+            openMerge(deleteTarget)
+            setDeleteTarget(null)
           }}
         />
       )}
     </>
-  );
+  )
 }
 
 interface ExpenseFormProps {
-  onAdd?: (expense: Omit<Expense, "id">) => void;
-  onUpdate?: (id: number, changes: Partial<Expense>) => void;
-  onClose: () => void;
-  categories: Category[];
+  onAdd?: (expense: Omit<Expense, 'id'>) => void
+  onUpdate?: (id: number, changes: Partial<Expense>) => void
+  onClose: () => void
+  categories: Category[]
   onCategoriesChange?: (
-    action: "add" | "update" | "delete",
+    action: 'add' | 'update' | 'delete',
     payload: { id?: number; name?: string },
-  ) => Promise<number | undefined>;
-  initialExpense?: Expense;
-  refreshCategories?: () => Promise<void>;
-  refreshPayees?: () => Promise<void>;
+  ) => Promise<number | undefined>
+  initialExpense?: Expense
+  refreshCategories?: () => Promise<void>
+  refreshPayees?: () => Promise<void>
 }
 
 export default function ExpenseForm({
@@ -1024,58 +955,52 @@ export default function ExpenseForm({
   refreshCategories: refreshCategoriesProp,
   refreshPayees: refreshPayeesProp,
 }: ExpenseFormProps) {
-  const isEdit = !!initialExpense;
-  const { expenses } = useExpenses();
-  const { payees, refresh: refreshPayees } = usePayees();
-  const { settings } = useSettings();
-  const decimalPlaces = parseInt(settings.decimalPlaces, 10) || 2;
-  const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol);
+  const isEdit = !!initialExpense
+  const { expenses } = useExpenses()
+  const { payees, refresh: refreshPayees } = usePayees()
+  const { settings } = useSettings()
+  const decimalPlaces = parseInt(settings.decimalPlaces, 10) || 2
+  const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
 
   const [form, setForm] = useState(() => {
-    if (!isEdit || !initialExpense) return EMPTY_FORM;
-    const base = getFormFromExpense(initialExpense);
+    if (!isEdit || !initialExpense) return EMPTY_FORM
+    const base = getFormFromExpense(initialExpense)
     return {
       ...base,
-      amount:
-        initialExpense.amount != null
-          ? initialExpense.amount.toFixed(decimalPlaces)
-          : "",
-    };
-  });
-  const [error, setError] = useState("");
-  const [showCatModal, setShowCatModal] = useState(false);
-  const [showPayeeModal, setShowPayeeModal] = useState(false);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showPayeePicker, setShowPayeePicker] = useState(false);
-  const [payeeSuggestion, setPayeeSuggestion] = useState<Payee | null>(null);
+      amount: initialExpense.amount != null ? initialExpense.amount.toFixed(decimalPlaces) : '',
+    }
+  })
+  const [error, setError] = useState('')
+  const [showCatModal, setShowCatModal] = useState(false)
+  const [showPayeeModal, setShowPayeeModal] = useState(false)
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [showPayeePicker, setShowPayeePicker] = useState(false)
+  const [payeeSuggestion, setPayeeSuggestion] = useState<Payee | null>(null)
   const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] =
-    useState<MatchConfidence | null>(null);
-  const haptics = useHaptics();
-  const [showAliasOffer, setShowAliasOffer] = useState(false);
-  const [aliasSaved, setAliasSaved] = useState(false);
+    useState<MatchConfidence | null>(null)
+  const haptics = useHaptics()
+  const [showAliasOffer, setShowAliasOffer] = useState(false)
+  const [aliasSaved, setAliasSaved] = useState(false)
 
   const activeCategories = useMemo(
-    () =>
-      categories.filter(
-        (c): c is Category & { id: number } => !c.isArchived && c.id != null,
-      ),
+    () => categories.filter((c): c is Category & { id: number } => !c.isArchived && c.id != null),
     [categories],
-  );
+  )
   const activePayees = useMemo(
     () =>
       payees
         .filter((p): p is Payee & { id: number } => !p.isArchived && p.id != null)
         .sort((a, b) => a.name.localeCompare(b.name)),
     [payees],
-  );
+  )
   const activeCategoryIds = useMemo(
     () => new Set(activeCategories.map((category) => category.id)),
     [activeCategories],
-  );
+  )
   const activePayeeIds = useMemo(
     () => new Set(activePayees.map((payee) => payee.id)),
     [activePayees],
-  );
+  )
 
   const categoryOptions = useMemo<ComboboxOption[]>(
     () =>
@@ -1084,145 +1009,125 @@ export default function ExpenseForm({
         label: normalizeName(c.name),
       })),
     [activeCategories],
-  );
+  )
   const payeeOptions = useMemo<ComboboxOption[]>(
     () => activePayees.map((p) => ({ id: p.id, label: normalizeName(p.name) })),
     [activePayees],
-  );
+  )
   const recentCategoryOptions = useMemo(() => {
-    const recentIds = getRecentEntityIds(
-      expenses,
-      "categoryId",
-      5,
-      activeCategoryIds,
-    );
+    const recentIds = getRecentEntityIds(expenses, 'categoryId', 5, activeCategoryIds)
     return recentIds
       .map((id) => categoryOptions.find((option) => option.id === id))
-      .filter((option): option is ComboboxOption => Boolean(option));
-  }, [activeCategoryIds, categoryOptions, expenses]);
+      .filter((option): option is ComboboxOption => Boolean(option))
+  }, [activeCategoryIds, categoryOptions, expenses])
   const recentPayeeOptions = useMemo(() => {
-    const recentIds = getRecentEntityIds(
-      expenses,
-      "payeeId",
-      5,
-      activePayeeIds,
-    );
+    const recentIds = getRecentEntityIds(expenses, 'payeeId', 5, activePayeeIds)
     return recentIds
       .map((id) => payeeOptions.find((option) => option.id === id))
-      .filter((option): option is ComboboxOption => Boolean(option));
-  }, [activePayeeIds, expenses, payeeOptions]);
+      .filter((option): option is ComboboxOption => Boolean(option))
+  }, [activePayeeIds, expenses, payeeOptions])
 
-  const selectedCategoryName = categoryOptions.find(
-    (o) => o.id === Number(form.categoryId),
-  )?.label;
-  const selectedPayeeName = payeeOptions.find(
-    (o) => o.id === Number(form.payeeId),
-  )?.label;
+  const selectedCategoryName = categoryOptions.find((o) => o.id === Number(form.categoryId))?.label
+  const selectedPayeeName = payeeOptions.find((o) => o.id === Number(form.payeeId))?.label
 
   const set =
     <K extends keyof typeof form>(field: K) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm((f) => ({ ...f, [field]: e.target.value }));
+      setForm((f) => ({ ...f, [field]: e.target.value }))
 
   // Run payee matching when description changes (debounced on blur)
   const runPayeeMatch = useCallback(
     (description: string) => {
       // Don't suggest if payee already selected
-      if (form.payeeId) return;
+      if (form.payeeId) return
       if (!description.trim()) {
-        setPayeeSuggestion(null);
-        return;
+        setPayeeSuggestion(null)
+        return
       }
-      const result = findBestPayeeMatch(description, payees);
+      const result = findBestPayeeMatch(description, payees)
       if (!result) {
-        setPayeeSuggestion(null);
-        return;
+        setPayeeSuggestion(null)
+        return
       }
-      setPayeeSuggestion(result.payee);
-      setPayeeSuggestionConfidence(result.confidence);
+      setPayeeSuggestion(result.payee)
+      setPayeeSuggestionConfidence(result.confidence)
       // Auto-apply only if confidence is "auto"
-      if (result.confidence === "auto") {
-        setForm((f) => ({ ...f, payeeId: String(result.payee.id) }));
+      if (result.confidence === 'auto') {
+        setForm((f) => ({ ...f, payeeId: String(result.payee.id) }))
       }
     },
     [form.payeeId, payees],
-  );
+  )
 
   const handleDescriptionBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    runPayeeMatch(e.target.value);
-  };
+    runPayeeMatch(e.target.value)
+  }
 
   const acceptSuggestion = () => {
-    if (!payeeSuggestion) return;
-    setForm((f) => ({ ...f, payeeId: String(payeeSuggestion.id) }));
-    setPayeeSuggestion(null);
-    setPayeeSuggestionConfidence(null);
-  };
+    if (!payeeSuggestion) return
+    setForm((f) => ({ ...f, payeeId: String(payeeSuggestion.id) }))
+    setPayeeSuggestion(null)
+    setPayeeSuggestionConfidence(null)
+  }
 
   const dismissSuggestion = () => {
-    setPayeeSuggestion(null);
-    setPayeeSuggestionConfidence(null);
-  };
+    setPayeeSuggestion(null)
+    setPayeeSuggestionConfidence(null)
+  }
 
   // When user manually picks a payee while description is filled,
   // offer to save the normalized description as an alias
   const handlePayeeManualSelect = useCallback(
     (id: string | number | undefined) => {
-      setForm((f) => ({ ...f, payeeId: id != null ? String(id) : "" }));
-      setPayeeSuggestion(null);
-      setPayeeSuggestionConfidence(null);
-      setAliasSaved(false);
+      setForm((f) => ({ ...f, payeeId: id != null ? String(id) : '' }))
+      setPayeeSuggestion(null)
+      setPayeeSuggestionConfidence(null)
+      setAliasSaved(false)
       if (id != null) {
         const likelyCategoryId = getMostLikelyRelatedEntityId(
           expenses,
-          "payeeId",
+          'payeeId',
           Number(id),
-          "categoryId",
+          'categoryId',
           activeCategoryIds,
-        );
+        )
         if (likelyCategoryId != null) {
           setForm((current) =>
-            current.categoryId
-              ? current
-              : { ...current, categoryId: String(likelyCategoryId) },
-          );
+            current.categoryId ? current : { ...current, categoryId: String(likelyCategoryId) },
+          )
         }
       }
       // Offer alias if description is set and payee was manually chosen
       if (id != null && form.description.trim()) {
-        const normalized = normalizePayeeText(form.description);
-        if (normalized) setShowAliasOffer(true);
+        const normalized = normalizePayeeText(form.description)
+        if (normalized) setShowAliasOffer(true)
       } else {
-        setShowAliasOffer(false);
+        setShowAliasOffer(false)
       }
     },
     [activeCategoryIds, expenses, form.description],
-  );
+  )
 
   const saveAlias = async () => {
-    if (!form.payeeId || !form.description.trim()) return;
-    const normalized = normalizePayeeText(form.description);
-    if (!normalized) return;
-    await StorageService.addPayeeAlias(Number(form.payeeId), normalized);
-    setShowAliasOffer(false);
-    setAliasSaved(true);
-  };
+    if (!form.payeeId || !form.description.trim()) return
+    const normalized = normalizePayeeText(form.description)
+    if (!normalized) return
+    await StorageService.addPayeeAlias(Number(form.payeeId), normalized)
+    setShowAliasOffer(false)
+    setAliasSaved(true)
+  }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!form.categoryId) {
-      haptics.error();
-      setError("Please select a category.");
-      return;
+      haptics.error()
+      setError('Please select a category.')
+      return
     }
-    if (
-      !form.amount ||
-      isNaN(Number(form.amount)) ||
-      Number(form.amount) === 0
-    ) {
-      haptics.error();
-      setError("Amount cannot be zero.");
-      return;
+    if (!form.amount || Number.isNaN(Number(form.amount)) || Number(form.amount) === 0) {
+      haptics.error()
+      setError('Amount cannot be zero.')
+      return
     }
     const payload = {
       date: form.date,
@@ -1230,26 +1135,26 @@ export default function ExpenseForm({
       payeeId: form.payeeId ? Number(form.payeeId) : undefined,
       description: form.description,
       amount: parseFloat(form.amount),
-    };
-    if (isEdit && initialExpense) {
-      haptics.success();
-      onUpdate?.(initialExpense.id as number, payload);
-    } else {
-      haptics.success();
-      onAdd?.(payload);
-      setForm(EMPTY_FORM);
     }
-    setError("");
-  };
+    if (isEdit && initialExpense) {
+      haptics.success()
+      onUpdate?.(initialExpense.id as number, payload)
+    } else {
+      haptics.success()
+      onAdd?.(payload)
+      setForm(EMPTY_FORM)
+    }
+    setError('')
+  }
 
-  const inputCls = "input-md w-full";
+  const inputCls = 'input-md w-full'
 
   return (
     <>
       <Modal
         isOpen={true}
         onClose={onClose}
-        title={isEdit ? "Edit Expense" : "Add Expense"}
+        title={isEdit ? 'Edit Expense' : 'Add Expense'}
         size="md"
         mobileFullScreen
         footer={
@@ -1267,7 +1172,7 @@ export default function ExpenseForm({
               data-testid="btn-save-expense"
               className="btn-save-expense min-h-12 flex-1 text-base sm:min-h-0 sm:text-[0.8125rem] motion-safe:active:scale-[0.98]"
             >
-              {isEdit ? "Save Changes" : "Save Expense"}
+              {isEdit ? 'Save Changes' : 'Save Expense'}
             </button>
           </ModalFooter>
         }
@@ -1310,10 +1215,10 @@ export default function ExpenseForm({
                 autoFocus={false}
                 onChange={handlePayeeManualSelect}
                 onCreate={async (name) => {
-                  const newId = await StorageService.addPayee(name);
-                  await refreshPayees();
-                  await refreshPayeesProp?.();
-                  return newId;
+                  const newId = await StorageService.addPayee(name)
+                  await refreshPayees()
+                  await refreshPayeesProp?.()
+                  return newId
                 }}
               />
             </div>
@@ -1339,10 +1244,10 @@ export default function ExpenseForm({
                 clearLabel="No payee"
                 onChange={handlePayeeManualSelect}
                 onCreate={async (name) => {
-                  const newId = await StorageService.addPayee(name);
-                  await refreshPayees();
-                  await refreshPayeesProp?.();
-                  return newId;
+                  const newId = await StorageService.addPayee(name)
+                  await refreshPayees()
+                  await refreshPayeesProp?.()
+                  return newId
                 }}
                 onClose={() => setShowPayeePicker(false)}
               />
@@ -1373,18 +1278,18 @@ export default function ExpenseForm({
                 onChange={(id) =>
                   setForm((f) => ({
                     ...f,
-                    categoryId: id != null ? String(id) : "",
+                    categoryId: id != null ? String(id) : '',
                   }))
                 }
                 onCreate={async (name) => {
                   if (onCategoriesChange) {
-                    const newId = await onCategoriesChange("add", { name });
-                    await refreshCategoriesProp?.();
-                    return newId ?? -1;
+                    const newId = await onCategoriesChange('add', { name })
+                    await refreshCategoriesProp?.()
+                    return newId ?? -1
                   }
-                  const newId = await StorageService.addCategory(name);
-                  await refreshCategoriesProp?.();
-                  return newId;
+                  const newId = await StorageService.addCategory(name)
+                  await refreshCategoriesProp?.()
+                  return newId
                 }}
               />
             </div>
@@ -1409,18 +1314,18 @@ export default function ExpenseForm({
                 onChange={(id) =>
                   setForm((f) => ({
                     ...f,
-                    categoryId: id != null ? String(id) : "",
+                    categoryId: id != null ? String(id) : '',
                   }))
                 }
                 onCreate={async (name) => {
                   if (onCategoriesChange) {
-                    const newId = await onCategoriesChange("add", { name });
-                    await refreshCategoriesProp?.();
-                    return newId ?? -1;
+                    const newId = await onCategoriesChange('add', { name })
+                    await refreshCategoriesProp?.()
+                    return newId ?? -1
                   }
-                  const newId = await StorageService.addCategory(name);
-                  await refreshCategoriesProp?.();
-                  return newId;
+                  const newId = await StorageService.addCategory(name)
+                  await refreshCategoriesProp?.()
+                  return newId
                 }}
                 onClose={() => setShowCategoryPicker(false)}
               />
@@ -1431,7 +1336,7 @@ export default function ExpenseForm({
             <input
               type="text"
               value={form.description}
-              onChange={set("description")}
+              onChange={set('description')}
               onBlur={handleDescriptionBlur}
               placeholder="Optional"
               className={inputCls}
@@ -1439,43 +1344,41 @@ export default function ExpenseForm({
           </label>
 
           {/* Payee suggestion banner */}
-          {payeeSuggestion &&
-            !form.payeeId &&
-            payeeSuggestionConfidence === "confirm" && (
-              <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
-                <span className="text-theme-muted">
-                  Suggested payee:{" "}
-                  <span className="font-medium text-theme-text">
-                    {normalizeName(payeeSuggestion.name)}
-                  </span>
+          {payeeSuggestion && !form.payeeId && payeeSuggestionConfidence === 'confirm' && (
+            <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
+              <span className="text-theme-muted">
+                Suggested payee:{' '}
+                <span className="font-medium text-theme-text">
+                  {normalizeName(payeeSuggestion.name)}
                 </span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={acceptSuggestion}
-                    className="font-medium text-theme-primary hover:opacity-80"
-                  >
-                    Use
-                  </button>
-                  <button
-                    type="button"
-                    onClick={dismissSuggestion}
-                    className="text-theme-muted hover:text-theme-text"
-                  >
-                    Dismiss
-                  </button>
-                </div>
+              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={acceptSuggestion}
+                  className="font-medium text-theme-primary hover:opacity-80"
+                >
+                  Use
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissSuggestion}
+                  className="text-theme-muted hover:text-theme-text"
+                >
+                  Dismiss
+                </button>
               </div>
-            )}
+            </div>
+          )}
 
           {/* Alias offer banner */}
           {showAliasOffer && !aliasSaved && (
             <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
               <span className="text-theme-muted">
-                Save{" "}
+                Save{' '}
                 <span className="font-medium text-theme-text">
                   "{normalizePayeeText(form.description)}"
-                </span>{" "}
+                </span>{' '}
                 as an alias for faster matching next time?
               </span>
               <div className="flex items-center gap-2 shrink-0">
@@ -1496,15 +1399,11 @@ export default function ExpenseForm({
               </div>
             </div>
           )}
-          {aliasSaved && (
-            <p className="text-xs text-theme-success">Alias saved.</p>
-          )}
+          {aliasSaved && <p className="text-xs text-theme-success">Alias saved.</p>}
           <MoneyInput
             label="Amount"
-            value={Number.parseFloat(form.amount || "0")}
-            onChange={(amount) =>
-              setForm((f) => ({ ...f, amount: amount.toFixed(2) }))
-            }
+            value={Number.parseFloat(form.amount || '0')}
+            onChange={(amount) => setForm((f) => ({ ...f, amount: amount.toFixed(2) }))}
             currency={moneyConfig.currency}
             locale={moneyConfig.locale}
             allowNegative
@@ -1536,5 +1435,5 @@ export default function ExpenseForm({
         />
       )}
     </>
-  );
+  )
 }

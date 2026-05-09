@@ -1,23 +1,26 @@
-import { coloredMonotoneSegments } from "../../../utils/chartMath";
-import type { ThemeColors } from "../AnalyticsCharts";
+import { coloredMonotoneSegments } from '../../../utils/chartMath'
+import type { ThemeColors } from '../AnalyticsCharts'
 
 interface PointPayload {
-  hasData: boolean;
-  monthIndex: number;
+  hasData: boolean
+  monthIndex: number
 }
 
 interface LayoutPoint {
-  x: number;
-  y: number;
-  value: number;
-  payload: PointPayload;
+  x: number
+  y: number
+  value: number
+  payload: PointPayload
 }
 
 export interface ColoredCumulativeLineProps {
-  formattedGraphicalItems?: Array<{ item: { props: { dataKey: string } }; props: { points: LayoutPoint[] } }>;
-  colors: ThemeColors;
-  selectedMonth: number | null;
-  onSelectMonth: (i: number | null) => void;
+  formattedGraphicalItems?: Array<{
+    item: { props: { dataKey: string } }
+    props: { points: LayoutPoint[] }
+  }>
+  colors: ThemeColors
+  selectedMonth: number | null
+  onSelectMonth: (i: number | null) => void
 }
 
 export default function ColoredCumulativeLine({
@@ -26,16 +29,14 @@ export default function ColoredCumulativeLine({
   selectedMonth,
   onSelectMonth,
 }: ColoredCumulativeLineProps) {
-  const lineItem = formattedGraphicalItems?.find(
-    (item) => item.item.props.dataKey === "thisYear",
-  );
-  const points = lineItem?.props.points;
+  const lineItem = formattedGraphicalItems?.find((item) => item.item.props.dataKey === 'thisYear')
+  const points = lineItem?.props.points
 
-  if (!points || points.length < 2) return null;
+  if (!points || points.length < 2) return null
 
-  const values = points.map((p) => p.value);
-  const pts = points.map((p) => ({ x: p.x, y: p.y }));
-  const segments = coloredMonotoneSegments(pts, values, colors.success, colors.danger);
+  const values = points.map((p) => p.value)
+  const pts = points.map((p) => ({ x: p.x, y: p.y }))
+  const segments = coloredMonotoneSegments(pts, values, colors.success, colors.danger)
 
   return (
     <g>
@@ -51,7 +52,7 @@ export default function ColoredCumulativeLine({
         />
       ))}
       {points.map((p, i) => {
-        const isSelected = p.payload.monthIndex === selectedMonth;
+        const isSelected = p.payload.monthIndex === selectedMonth
         if (!p.payload.hasData) {
           return (
             <circle
@@ -64,9 +65,9 @@ export default function ColoredCumulativeLine({
               strokeWidth={1.5}
               opacity={0.4}
             />
-          );
+          )
         }
-        const rising = values[i] >= (values[i - 1] ?? values[i]);
+        const rising = values[i] >= (values[i - 1] ?? values[i])
         return (
           <circle
             key={`dot-${i}`}
@@ -76,15 +77,13 @@ export default function ColoredCumulativeLine({
             fill={rising ? colors.success : colors.danger}
             stroke={colors.background}
             strokeWidth={isSelected ? 2 : 0}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: 'pointer' }}
             onClick={() =>
-              onSelectMonth(
-                selectedMonth === p.payload.monthIndex ? null : p.payload.monthIndex,
-              )
+              onSelectMonth(selectedMonth === p.payload.monthIndex ? null : p.payload.monthIndex)
             }
           />
-        );
+        )
       })}
     </g>
-  );
+  )
 }

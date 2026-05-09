@@ -4,46 +4,44 @@
  */
 
 export interface RangeItem {
-  id: string;
-  amount: string | number;
-  startMonth: number;
-  endMonth: number;
+  id: string
+  amount: string | number
+  startMonth: number
+  endMonth: number
 }
 
-let _idCounter = 0;
-const nextId = () => `tmp-${++_idCounter}`;
+let _idCounter = 0
+const nextId = () => `tmp-${++_idCounter}`
 
 export function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
+  return Math.max(min, Math.min(max, n))
 }
 
 /**
  * Convert a { month: value } map into an array of contiguous ranges.
  * Months with no entry or null/undefined are treated as gaps.
  */
-export function monthMapToRanges(
-  monthMap: Record<number, number | null | undefined>,
-): RangeItem[] {
-  const ranges: RangeItem[] = [];
-  let current: RangeItem | null = null;
+export function monthMapToRanges(monthMap: Record<number, number | null | undefined>): RangeItem[] {
+  const ranges: RangeItem[] = []
+  let current: RangeItem | null = null
   for (let m = 1; m <= 12; m++) {
-    const val = monthMap?.[m];
+    const val = monthMap?.[m]
     if (val != null && val !== 0) {
       if (current && current.amount === val) {
-        current.endMonth = m;
+        current.endMonth = m
       } else {
-        if (current) ranges.push(current);
-        current = { id: nextId(), amount: val, startMonth: m, endMonth: m };
+        if (current) ranges.push(current)
+        current = { id: nextId(), amount: val, startMonth: m, endMonth: m }
       }
     } else {
       if (current) {
-        ranges.push(current);
-        current = null;
+        ranges.push(current)
+        current = null
       }
     }
   }
-  if (current) ranges.push(current);
-  return ranges;
+  if (current) ranges.push(current)
+  return ranges
 }
 
 /**
@@ -51,22 +49,22 @@ export function monthMapToRanges(
  * Later ranges overwrite earlier ones for overlapping months.
  */
 export function flattenRangesToMonthMap(ranges: RangeItem[]): Record<number, number> {
-  const map: Record<number, number> = {};
+  const map: Record<number, number> = {}
   for (const range of ranges) {
-    const val = parseFloat(String(range.amount));
-    if (isNaN(val)) continue;
-    const sm = clamp(range.startMonth || 1, 1, 12);
-    const em = clamp(range.endMonth || 12, 1, 12);
+    const val = parseFloat(String(range.amount))
+    if (Number.isNaN(val)) continue
+    const sm = clamp(range.startMonth || 1, 1, 12)
+    const em = clamp(range.endMonth || 12, 1, 12)
     for (let m = sm; m <= em; m++) {
-      map[m] = val;
+      map[m] = val
     }
   }
-  return map;
+  return map
 }
 
 interface ExpenseLike {
-  date?: string;
-  amount?: number;
+  date?: string
+  amount?: number
 }
 
 /**
@@ -74,23 +72,23 @@ interface ExpenseLike {
  * Returns an array of 12 numbers (index 0 = Jan).
  */
 export function getYearlyVariableTotals(year: number, expenses: ExpenseLike[]): number[] {
-  const totals = Array(12).fill(0);
-  const prefix = `${year}-`;
+  const totals = Array(12).fill(0)
+  const prefix = `${year}-`
   for (const e of expenses || []) {
-    if (!e.date || !e.date.startsWith(prefix)) continue;
-    const month = parseInt(e.date.slice(5, 7), 10) - 1;
+    if (!e.date?.startsWith(prefix)) continue
+    const month = parseInt(e.date.slice(5, 7), 10) - 1
     if (month >= 0 && month < 12) {
-      totals[month] += e.amount || 0;
+      totals[month] += e.amount || 0
     }
   }
-  return totals;
+  return totals
 }
 
 export function getMaxMonthForYear(year: number): number {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  return year === currentYear ? Math.max(0, currentMonth - 1) : 12;
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+  return year === currentYear ? Math.max(0, currentMonth - 1) : 12
 }
 
 /**
@@ -102,11 +100,11 @@ export function findGapToFill(
   ranges: RangeItem[],
   maxMonth: number,
 ): { startMonth: number; endMonth: number } | null {
-  const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth);
+  const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth)
 
   // No ranges yet — default to a single-month placeholder at month 1
   if (sorted.length === 0) {
-    return { startMonth: 1, endMonth: maxMonth };
+    return { startMonth: 1, endMonth: maxMonth }
   }
 
   // Gap between existing ranges
@@ -115,7 +113,7 @@ export function findGapToFill(
       return {
         startMonth: sorted[i].endMonth + 1,
         endMonth: sorted[i + 1].startMonth - 1,
-      };
+      }
     }
   }
 
@@ -124,17 +122,17 @@ export function findGapToFill(
     return {
       startMonth: sorted[sorted.length - 1].endMonth + 1,
       endMonth: maxMonth,
-    };
+    }
   }
 
-  return null; // fully covered
+  return null // fully covered
 }
 
 /**
  * Remove a range by id. Adjacent ranges are left as-is (gaps are allowed).
  */
 export function removeRangeAndMerge(ranges: RangeItem[], id: string): RangeItem[] {
-  return ranges.filter((r) => r.id !== id);
+  return ranges.filter((r) => r.id !== id)
 }
 
 /**
@@ -147,48 +145,48 @@ export function updateRangeEndAndCascade(
   id: string,
   newEndMonth: number,
 ): RangeItem[] {
-  const result = [...ranges];
-  const idx = result.findIndex((r) => r.id === id);
-  if (idx === -1) return result;
+  const result = [...ranges]
+  const idx = result.findIndex((r) => r.id === id)
+  if (idx === -1) return result
 
-  result[idx] = { ...result[idx], endMonth: newEndMonth };
+  result[idx] = { ...result[idx], endMonth: newEndMonth }
 
   // Push subsequent ranges forward only if they now overlap
-  const sorted = [...result].sort((a, b) => a.startMonth - b.startMonth);
-  const sortedIdx = sorted.findIndex((r) => r.id === id);
+  const sorted = [...result].sort((a, b) => a.startMonth - b.startMonth)
+  const sortedIdx = sorted.findIndex((r) => r.id === id)
   for (let i = sortedIdx + 1; i < sorted.length; i++) {
     if (sorted[i].startMonth <= sorted[i - 1].endMonth) {
-      const newStart = sorted[i - 1].endMonth + 1;
-      sorted[i] = { ...sorted[i], startMonth: newStart };
+      const newStart = sorted[i - 1].endMonth + 1
+      sorted[i] = { ...sorted[i], startMonth: newStart }
       if (sorted[i].startMonth > sorted[i].endMonth) {
-        sorted.splice(i, 1);
-        i--;
+        sorted.splice(i, 1)
+        i--
       }
     }
   }
-  return sorted;
+  return sorted
 }
 
 /**
  * Validate that ranges don't overlap. Gaps between ranges are allowed.
  */
 export function checkRangeOverlaps(ranges: RangeItem[], label: string): string[] {
-  const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth);
-  const errs: string[] = [];
+  const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth)
+  const errs: string[] = []
 
   for (let i = 0; i < sorted.length; i++) {
     if (sorted[i].startMonth > sorted[i].endMonth) {
-      errs.push(`${label} start month must be ≤ end month.`);
+      errs.push(`${label} start month must be ≤ end month.`)
     }
   }
 
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i].startMonth <= sorted[i - 1].endMonth) {
-      errs.push(`${label} ranges must not overlap.`);
+      errs.push(`${label} ranges must not overlap.`)
     }
   }
 
-  return errs;
+  return errs
 }
 
 /**
@@ -196,22 +194,22 @@ export function checkRangeOverlaps(ranges: RangeItem[], label: string): string[]
  * and the last range reaches maxMonth. The first range may start at any month.
  */
 export function isFullyCovered(ranges: RangeItem[], maxMonth: number): boolean {
-  if (ranges.length === 0) return false;
+  if (ranges.length === 0) return false
 
-  const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth);
+  const sorted = [...ranges].sort((a, b) => a.startMonth - b.startMonth)
 
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].startMonth !== sorted[i - 1].endMonth + 1) return false;
+    if (sorted[i].startMonth !== sorted[i - 1].endMonth + 1) return false
   }
 
-  return sorted[sorted.length - 1].endMonth >= maxMonth;
+  return sorted[sorted.length - 1].endMonth >= maxMonth
 }
 
 /**
  * Format year/month/day as YYYY-MM-DD string.
  */
 export function toISODate(year: number, month: number, day: number): string {
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 /**
@@ -219,29 +217,29 @@ export function toISODate(year: number, month: number, day: number): string {
  * Returns null if the string is not a valid ISO date.
  */
 export function parseISODate(dateStr: string): { year: number; month: number; day: number } | null {
-  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
   return {
     year: parseInt(m[1], 10),
     month: parseInt(m[2], 10),
     day: parseInt(m[3], 10),
-  };
+  }
 }
 
 /**
  * Get today's date in the user's local timezone as YYYY-MM-DD.
  */
 export function getLocalToday(): string {
-  const now = new Date();
-  return toISODate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  const now = new Date()
+  return toISODate(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }
 
 /**
  * Get current year-month in the user's local timezone as YYYY-MM.
  */
 export function getLocalMonthKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 /**
@@ -255,7 +253,6 @@ export function shouldMaterializeNow(
   currentMonth: number,
 ): boolean {
   return (
-    scheduleYear < currentYear ||
-    (scheduleYear === currentYear && scheduleMonth <= currentMonth)
-  );
+    scheduleYear < currentYear || (scheduleYear === currentYear && scheduleMonth <= currentMonth)
+  )
 }

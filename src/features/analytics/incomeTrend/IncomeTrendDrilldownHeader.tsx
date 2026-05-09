@@ -1,13 +1,13 @@
-import type { ThemeColors } from "../AnalyticsCharts";
+import type { ThemeColors } from '../AnalyticsCharts'
 
 function DrilldownStat({
   label,
   value,
   valueColor,
 }: {
-  label: string;
-  value: string;
-  valueColor?: string;
+  label: string
+  value: string
+  valueColor?: string
 }) {
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
@@ -21,20 +21,20 @@ function DrilldownStat({
         {value}
       </span>
     </div>
-  );
+  )
 }
 
 interface IncomeTrendDrilldownHeaderProps {
-  monthLabel: string;
-  year: number;
-  income: number;
-  expenses: number;
-  saved: number;
-  savingsRate: number | null;
-  cumulativeRemaining: number;
-  colors: ThemeColors;
-  formatAmount: (n: number) => string;
-  onBack: () => void;
+  monthLabel: string
+  year: number
+  income: number
+  expenses: number
+  saved: number
+  savingsRate: number | null
+  cumulativeRemaining: number
+  colors: ThemeColors
+  formatAmount: (n: number) => string
+  onBack: () => void
 }
 
 export default function IncomeTrendDrilldownHeader({
@@ -49,8 +49,7 @@ export default function IncomeTrendDrilldownHeader({
   formatAmount,
   onBack,
 }: IncomeTrendDrilldownHeaderProps) {
-  const cumulativeColor =
-    cumulativeRemaining < 0 ? colors.danger : colors.success;
+  const cumulativeColor = cumulativeRemaining < 0 ? colors.danger : colors.success
 
   return (
     <div className="border-b border-theme-border">
@@ -76,9 +75,7 @@ export default function IncomeTrendDrilldownHeader({
           {year}
         </button>
         <span className="text-theme-muted text-sm">/</span>
-        <span className="text-sm font-semibold text-theme-text">
-          {monthLabel}
-        </span>
+        <span className="text-sm font-semibold text-theme-text">{monthLabel}</span>
       </div>
 
       <div className="px-4 pb-2 sm:px-5">
@@ -88,10 +85,7 @@ export default function IncomeTrendDrilldownHeader({
         >
           All-time cash flow
         </div>
-        <div
-          className="text-2xl font-bold tabular-nums"
-          style={{ color: cumulativeColor }}
-        >
+        <div className="text-2xl font-bold tabular-nums" style={{ color: cumulativeColor }}>
           {formatAmount(cumulativeRemaining)}
         </div>
       </div>
@@ -110,9 +104,9 @@ export default function IncomeTrendDrilldownHeader({
         />
         <DrilldownStat
           label="Rate"
-          value={savingsRate !== null ? `${savingsRate.toFixed(1)}%` : "—"}
+          value={savingsRate !== null ? `${savingsRate.toFixed(1)}%` : '—'}
         />
       </div>
     </div>
-  );
+  )
 }

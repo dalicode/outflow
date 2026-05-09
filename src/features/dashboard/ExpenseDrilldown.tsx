@@ -1,19 +1,19 @@
-import { forwardRef } from "react";
-import { cn } from "../../utils/cn";
-import EmptyState from "../../components/ui/EmptyState";
-import type { Expense } from "../../types";
-import ExpenseTableMobile from "./ExpenseTableMobile";
+import { forwardRef } from 'react'
+import EmptyState from '../../components/ui/EmptyState'
+import type { Expense } from '../../types'
+import { cn } from '../../utils/cn'
+import ExpenseTableMobile from './ExpenseTableMobile'
 
 interface ExpenseDrilldownProps {
-  title: string;
-  expenses: Expense[];
-  formatDate: (iso: string) => string;
-  formatAmount: (n: number) => string;
-  resolveName: (exp: Expense) => string;
-  resolvePayeeName?: (exp: Expense) => string;
-  onClose: () => void;
-  isMobile?: boolean;
-  secondColumn: "payee" | "category";
+  title: string
+  expenses: Expense[]
+  formatDate: (iso: string) => string
+  formatAmount: (n: number) => string
+  resolveName: (exp: Expense) => string
+  resolvePayeeName?: (exp: Expense) => string
+  onClose: () => void
+  isMobile?: boolean
+  secondColumn: 'payee' | 'category'
 }
 
 const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
@@ -49,7 +49,7 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
             formatAmount={formatAmount}
             resolveName={resolveName}
             resolvePayeeName={resolvePayeeName}
-            hideCategory={secondColumn === "payee"}
+            hideCategory={secondColumn === 'payee'}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -58,7 +58,7 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
                 <tr>
                   <th className="table-header-cell text-left">Date</th>
                   <th className="table-header-cell text-left">
-                    {secondColumn === "payee" ? "Payee" : "Category"}
+                    {secondColumn === 'payee' ? 'Payee' : 'Category'}
                   </th>
                   <th className="table-header-cell text-left">Description</th>
                   <th className="table-header-cell text-right tabular-nums">Amount</th>
@@ -66,34 +66,30 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
               </thead>
               <tbody>
                 {expenses.map((exp) => {
-                  const amountColor =
-                    exp.amount < 0 ? "text-theme-success" : "text-theme-primary";
+                  const amountColor = exp.amount < 0 ? 'text-theme-success' : 'text-theme-primary'
                   return (
-                    <tr
-                      key={exp.id}
-                      className="border-b border-theme-muted-subtle row-hover"
-                    >
+                    <tr key={exp.id} className="border-b border-theme-muted-subtle row-hover">
                       <td className="px-3 py-1 text-theme-text whitespace-nowrap">
                         {formatDate(exp.date)}
                       </td>
                       <td className="px-3 py-1 text-theme-text whitespace-nowrap">
-                        {secondColumn === "payee"
-                          ? (resolvePayeeName?.(exp) || "—")
+                        {secondColumn === 'payee'
+                          ? resolvePayeeName?.(exp) || '—'
                           : resolveName(exp)}
                       </td>
                       <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
-                        {exp.description || "—"}
+                        {exp.description || '—'}
                       </td>
                       <td
                         className={cn(
-                          "px-3 py-1 text-right tabular-nums font-semibold",
+                          'px-3 py-1 text-right tabular-nums font-semibold',
                           amountColor,
                         )}
                       >
                         {formatAmount(exp.amount)}
                       </td>
                     </tr>
-                  );
+                  )
                 })}
               </tbody>
             </table>
@@ -101,8 +97,8 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
         )}
         {expenses.length === 0 && <EmptyState message="No expenses" />}
       </div>
-    );
+    )
   },
-);
+)
 
-export default ExpenseDrilldown;
+export default ExpenseDrilldown

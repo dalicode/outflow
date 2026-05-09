@@ -1,30 +1,30 @@
-import { useMemo, useState } from "react";
-import { buildMonthDrilldownData } from "../../../utils/analyticsTrendUtils";
-import IncomeTrendDrilldownHeader from "./IncomeTrendDrilldownHeader";
-import IncomeTrendDailyChart from "./IncomeTrendDailyChart";
-import IncomeTrendExpensePreview from "./IncomeTrendExpensePreview";
-import YearOverYearChart from "../YearOverYearChart";
+import { useMemo, useState } from 'react'
+import type { AnalyticsData, Category, Expense, FormattingProps, Payee } from '../../../types'
+import { buildMonthDrilldownData } from '../../../utils/analyticsTrendUtils'
+import type { ThemeColors } from '../AnalyticsCharts'
 import {
-  RankedCategoryViz,
-  RankedPayeeViz,
   RankedCategoryTable,
+  RankedCategoryViz,
   RankedPayeeTable,
-} from "../AnalyticsCharts";
-import ViewToggle from "../ViewToggle";
-import type { AnalyticsData, Expense, Category, Payee, FormattingProps } from "../../../types";
-import type { ThemeColors } from "../AnalyticsCharts";
+  RankedPayeeViz,
+} from '../AnalyticsCharts'
+import ViewToggle from '../ViewToggle'
+import YearOverYearChart from '../YearOverYearChart'
+import IncomeTrendDailyChart from './IncomeTrendDailyChart'
+import IncomeTrendDrilldownHeader from './IncomeTrendDrilldownHeader'
+import IncomeTrendExpensePreview from './IncomeTrendExpensePreview'
 
 interface IncomeTrendMonthDrilldownProps extends FormattingProps {
-  data: AnalyticsData;
-  expenses: Expense[];
-  categories: Category[];
-  payees: Payee[];
-  year: number;
-  monthIndex: number;
-  cumulativeRemaining: number;
-  colors: ThemeColors;
-  onBack: () => void;
-  multiYearData: AnalyticsData[];
+  data: AnalyticsData
+  expenses: Expense[]
+  categories: Category[]
+  payees: Payee[]
+  year: number
+  monthIndex: number
+  cumulativeRemaining: number
+  colors: ThemeColors
+  onBack: () => void
+  multiYearData: AnalyticsData[]
 }
 
 export default function IncomeTrendMonthDrilldown({
@@ -44,10 +44,10 @@ export default function IncomeTrendMonthDrilldown({
   const drilldownData = useMemo(
     () => buildMonthDrilldownData(data, expenses, year, monthIndex),
     [data, expenses, year, monthIndex],
-  );
+  )
 
-  const [catViz, setCatViz] = useState(true);
-  const [payeeViz, setPayeeViz] = useState(true);
+  const [catViz, setCatViz] = useState(true)
+  const [payeeViz, setPayeeViz] = useState(true)
 
   return (
     <div className="motion-fade-up" data-testid="income-trend-drilldown">
@@ -106,10 +106,7 @@ export default function IncomeTrendMonthDrilldown({
             <h3 className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
               Payee Concentration
             </h3>
-            <ViewToggle
-              isViz={payeeViz}
-              onToggle={() => setPayeeViz((v) => !v)}
-            />
+            <ViewToggle isViz={payeeViz} onToggle={() => setPayeeViz((v) => !v)} />
           </div>
           {payeeViz ? (
             <RankedPayeeViz
@@ -157,5 +154,5 @@ export default function IncomeTrendMonthDrilldown({
         </div>
       </div>
     </div>
-  );
+  )
 }

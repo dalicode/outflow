@@ -1,46 +1,43 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { StorageService } from "../services/storageService";
-import {
-  getYearFinancialSummary,
-  getYearVariableGrid,
-} from "../utils/financeEngine";
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { StorageService } from '../services/storageService'
 import type {
   AnalyticsData,
-  Expense,
   Category,
-  Payee,
+  Expense,
   FixedExpense,
   FixedExpenseSnapshot,
   IncomeSnapshot,
+  Payee,
   SavingsSnapshot,
   Schedule,
-} from "../types";
+} from '../types'
+import { getYearFinancialSummary, getYearVariableGrid } from '../utils/financeEngine'
 
 export interface AnalyticsSessionState {
-  year: number;
-  trendKey: string | null;
-  trendDrilldown: boolean;
+  year: number
+  trendKey: string | null
+  trendDrilldown: boolean
 }
 
 interface UseAnalyticsParams {
-  expenses: Expense[];
-  categories: Category[];
-  sessionState?: AnalyticsSessionState;
-  onSessionStateChange?: (patch: Partial<AnalyticsSessionState>) => void;
+  expenses: Expense[]
+  categories: Category[]
+  sessionState?: AnalyticsSessionState
+  onSessionStateChange?: (patch: Partial<AnalyticsSessionState>) => void
 }
 
 // ---------------------------------------------------------------------------
 // Shared DB state fetched once for all years
 // ---------------------------------------------------------------------------
 interface SharedAnalyticsDB {
-  fixedDefs: FixedExpense[];
-  allFixedSnaps: FixedExpenseSnapshot[];
-  allIncomeSnaps: IncomeSnapshot[];
-  allSavingsSnaps: SavingsSnapshot[];
-  globalIncome: number;
-  globalRate: number;
-  schedules: Schedule[];
-  payees: Payee[];
+  fixedDefs: FixedExpense[]
+  allFixedSnaps: FixedExpenseSnapshot[]
+  allIncomeSnaps: IncomeSnapshot[]
+  allSavingsSnaps: SavingsSnapshot[]
+  globalIncome: number
+  globalRate: number
+  schedules: Schedule[]
+  payees: Payee[]
 }
 
 function makeEmptyAnalyticsData(year: number): AnalyticsData {
@@ -69,7 +66,7 @@ function makeEmptyAnalyticsData(year: number): AnalyticsData {
     yearTotalIncome: 0,
     avgSavingsPct: 0,
     maxPerMonth: Array(12).fill(0),
-  };
+  }
 }
 
 function buildAnalyticsDataForYear(
@@ -79,9 +76,9 @@ function buildAnalyticsDataForYear(
   db: SharedAnalyticsDB,
   now: Date,
 ): AnalyticsData {
-  const incomeSnaps = db.allIncomeSnaps.filter((s) => s.year === year);
-  const savingsSnaps = db.allSavingsSnaps.filter((s) => s.year === year);
-  const fixedSnaps = db.allFixedSnaps.filter((s) => s.year === year);
+  const incomeSnaps = db.allIncomeSnaps.filter((s) => s.year === year)
+  const savingsSnaps = db.allSavingsSnaps.filter((s) => s.year === year)
+  const fixedSnaps = db.allFixedSnaps.filter((s) => s.year === year)
 
   const fin = getYearFinancialSummary(
     year,
@@ -96,23 +93,19 @@ function buildAnalyticsDataForYear(
       savingsSnapshots: savingsSnaps,
     },
     { currentYear: now.getFullYear(), currentMonth: now.getMonth() },
-  );
+  )
 
-  const vGrid = getYearVariableGrid(year, expenses, categories);
+  const vGrid = getYearVariableGrid(year, expenses, categories)
 
-  const payeeById = new Map(db.payees.map((p) => [p.id, p.name]));
-  const monthlyAmountsByPayee = new Map<string, number[]>();
-  const yearExpenses = expenses.filter((e) => e.date?.startsWith(`${year}-`));
+  const payeeById = new Map(db.payees.map((p) => [p.id, p.name]))
+  const monthlyAmountsByPayee = new Map<string, number[]>()
+  const yearExpenses = expenses.filter((e) => e.date?.startsWith(`${year}-`))
   for (const exp of yearExpenses) {
-    const monthIdx = parseInt(exp.date.slice(5, 7), 10) - 1;
-    if (monthIdx < 0 || monthIdx > 11) continue;
-    const name =
-      exp.payeeId != null
-        ? (payeeById.get(exp.payeeId) ?? "Unknown")
-        : "No Payee";
-    if (!monthlyAmountsByPayee.has(name))
-      monthlyAmountsByPayee.set(name, Array(12).fill(0));
-    monthlyAmountsByPayee.get(name)![monthIdx] += exp.amount;
+    const monthIdx = parseInt(exp.date.slice(5, 7), 10) - 1
+    if (monthIdx < 0 || monthIdx > 11) continue
+    const name = exp.payeeId != null ? (payeeById.get(exp.payeeId) ?? 'Unknown') : 'No Payee'
+    if (!monthlyAmountsByPayee.has(name)) monthlyAmountsByPayee.set(name, Array(12).fill(0))
+    monthlyAmountsByPayee.get(name)![monthIdx] += exp.amount
   }
   const payeeRows = Array.from(monthlyAmountsByPayee.entries())
     .map(([name, amounts]) => ({
@@ -121,18 +114,16 @@ function buildAnalyticsDataForYear(
       amounts,
       yearTotal: amounts.reduce((s, v) => s + v, 0),
     }))
-    .sort((a, b) => b.yearTotal - a.yearTotal);
+    .sort((a, b) => b.yearTotal - a.yearTotal)
 
   const monthlyHasData = Array.from({ length: 12 }, (_, m) => {
-    const monthStr = String(m + 1).padStart(2, "0");
-    return expenses.some((e) => e.date?.startsWith(`${year}-${monthStr}`));
-  });
+    const monthStr = String(m + 1).padStart(2, '0')
+    return expenses.some((e) => e.date?.startsWith(`${year}-${monthStr}`))
+  })
 
-  const isCurrentYear = year === now.getFullYear();
-  const currentMonthIdx = now.getMonth();
-  const monthsToCount = isCurrentYear
-    ? fin.months.slice(0, currentMonthIdx + 1)
-    : fin.months;
+  const isCurrentYear = year === now.getFullYear()
+  const currentMonthIdx = now.getMonth()
+  const monthsToCount = isCurrentYear ? fin.months.slice(0, currentMonthIdx + 1) : fin.months
 
   return {
     loading: false,
@@ -161,7 +152,7 @@ function buildAnalyticsDataForYear(
     yearTotalIncome: monthsToCount.reduce((s, m) => s + m.income, 0),
     avgSavingsPct: fin.totals.avgSavingsPct,
     maxPerMonth: vGrid.maxPerMonth,
-  };
+  }
 }
 
 export function useAnalytics({
@@ -170,66 +161,75 @@ export function useAnalytics({
   sessionState,
   onSessionStateChange,
 }: UseAnalyticsParams) {
-  const now = useMemo(() => new Date(), []);
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
+  const now = useMemo(() => new Date(), [])
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
 
-  const [year, setYearState] = useState(sessionState?.year ?? currentYear);
+  const [year, setYearState] = useState(sessionState?.year ?? currentYear)
 
   const setYear = useCallback(
     (newYear: number | ((prev: number) => number)) => {
       setYearState((prev) => {
-        const next = typeof newYear === "function" ? newYear(prev) : newYear;
-        onSessionStateChange?.({ year: next, trendKey: null, trendDrilldown: false });
-        return next;
-      });
+        const next = typeof newYear === 'function' ? newYear(prev) : newYear
+        onSessionStateChange?.({ year: next, trendKey: null, trendDrilldown: false })
+        return next
+      })
     },
     [onSessionStateChange],
-  );
+  )
 
   const handleYearChange = useCallback(
     (newYear: number) => {
-      setYear(newYear);
-      onSessionStateChange?.({ year: newYear, trendKey: null, trendDrilldown: false });
+      setYear(newYear)
+      onSessionStateChange?.({ year: newYear, trendKey: null, trendDrilldown: false })
     },
     [setYear, onSessionStateChange],
-  );
+  )
 
   // Derive the earliest year with expense data
   const earliestYear = useMemo(() => {
-    let min = year;
+    let min = year
     for (const e of expenses) {
       if (e.date) {
-        const y = parseInt(e.date.slice(0, 4), 10);
-        if (!isNaN(y) && y < min) min = y;
+        const y = parseInt(e.date.slice(0, 4), 10)
+        if (!Number.isNaN(y) && y < min) min = y
       }
     }
-    return min;
-  }, [expenses, year]);
+    return min
+  }, [expenses, year])
 
   // All years to load: from earliestYear up to the selected year
   const yearsToLoad = useMemo(() => {
-    const result: number[] = [];
-    for (let y = earliestYear; y <= year; y++) result.push(y);
-    return result;
-  }, [earliestYear, year]);
+    const result: number[] = []
+    for (let y = earliestYear; y <= year; y++) result.push(y)
+    return result
+  }, [earliestYear, year])
 
   // Single DB fetch for all shared data
-  const [db, setDb] = useState<SharedAnalyticsDB | null>(null);
+  const [db, setDb] = useState<SharedAnalyticsDB | null>(null)
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
     Promise.all([
       StorageService.getFixedExpenses(),
       StorageService.getAllFixedExpenseSnapshots(),
       StorageService.getAllIncomeSnapshots(),
       StorageService.getAllSavingsSnapshots(),
-      StorageService.getSetting("monthlyIncome", 0),
-      StorageService.getSetting("savingsRate", 0),
+      StorageService.getSetting('monthlyIncome', 0),
+      StorageService.getSetting('savingsRate', 0),
       StorageService.getActiveSchedules(),
       StorageService.getPayees(),
     ]).then(
-      ([fixedDefs, allFixedSnaps, allIncomeSnaps, allSavingsSnaps, globalIncome, globalRate, schedules, payees]) => {
+      ([
+        fixedDefs,
+        allFixedSnaps,
+        allIncomeSnaps,
+        allSavingsSnaps,
+        globalIncome,
+        globalRate,
+        schedules,
+        payees,
+      ]) => {
         if (!cancelled) {
           setDb({
             fixedDefs: fixedDefs as FixedExpense[],
@@ -240,29 +240,28 @@ export function useAnalytics({
             globalRate: (globalRate as number | null) ?? 0,
             schedules: schedules as Schedule[],
             payees: payees as Payee[],
-          });
+          })
         }
       },
-    );
-    return () => { cancelled = true; };
-  }, [expenses]); // re-fetch when expenses change (new data may have been saved)
+    )
+    return () => {
+      cancelled = true
+    }
+  }, []) // re-fetch when expenses change (new data may have been saved)
 
   // Compute AnalyticsData for every year in one pass
   const multiYearData = useMemo<AnalyticsData[]>(() => {
-    if (!db) return yearsToLoad.map(makeEmptyAnalyticsData);
-    return yearsToLoad.map((y) =>
-      buildAnalyticsDataForYear(y, expenses, categories, db, now),
-    );
-  }, [db, yearsToLoad, expenses, categories, now]);
+    if (!db) return yearsToLoad.map(makeEmptyAnalyticsData)
+    return yearsToLoad.map((y) => buildAnalyticsDataForYear(y, expenses, categories, db, now))
+  }, [db, yearsToLoad, expenses, categories, now])
 
   // The entry for the selected year
   const data = useMemo(
     () => multiYearData.find((d) => d.year === year) ?? makeEmptyAnalyticsData(year),
     [multiYearData, year],
-  );
+  )
 
-  const lastMonth =
-    year === currentYear ? currentMonth : year < currentYear ? 11 : -1;
+  const lastMonth = year === currentYear ? currentMonth : year < currentYear ? 11 : -1
 
   return {
     year,
@@ -275,5 +274,5 @@ export function useAnalytics({
     multiYearData,
     trendKey: sessionState?.trendKey ?? null,
     trendDrilldown: sessionState?.trendDrilldown ?? false,
-  };
+  }
 }

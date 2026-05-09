@@ -1,25 +1,25 @@
-import { useMemo, useState } from "react";
-import { useRegisterSW } from "virtual:pwa-register/react";
+import { useRegisterSW } from 'virtual:pwa-register/react'
+import { useMemo, useState } from 'react'
 
-import { cn } from "../../utils/cn";
+import { cn } from '../../utils/cn'
 
 export default function PWAUpdatePrompt() {
-  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null)
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
-      registration?.update().catch(() => undefined);
+      registration?.update().catch(() => undefined)
     },
-  });
+  })
 
   const isVisible = useMemo(() => {
-    if (!needRefresh) return false;
-    return dismissedVersion !== "waiting";
-  }, [dismissedVersion, needRefresh]);
+    if (!needRefresh) return false
+    return dismissedVersion !== 'waiting'
+  }, [dismissedVersion, needRefresh])
 
-  if (!isVisible) return null;
+  if (!isVisible) return null
 
   return (
     <div
@@ -28,8 +28,8 @@ export default function PWAUpdatePrompt() {
     >
       <section
         className={cn(
-          "pointer-events-auto w-full max-w-md rounded-theme-medium border px-4 py-3 shadow-lg backdrop-blur-sm",
-          "bg-theme-surface border-theme-border text-theme-text",
+          'pointer-events-auto w-full max-w-md rounded-theme-medium border px-4 py-3 shadow-lg backdrop-blur-sm',
+          'bg-theme-surface border-theme-border text-theme-text',
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -42,7 +42,7 @@ export default function PWAUpdatePrompt() {
           <button
             type="button"
             aria-label="Dismiss update prompt"
-            onClick={() => setDismissedVersion("waiting")}
+            onClick={() => setDismissedVersion('waiting')}
             className="shrink-0 text-theme-muted transition-colors hover:text-theme-text"
           >
             <svg
@@ -60,7 +60,7 @@ export default function PWAUpdatePrompt() {
         <div className="mt-3 flex items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => setDismissedVersion("waiting")}
+            onClick={() => setDismissedVersion('waiting')}
             className="btn-modal-cancel px-4"
           >
             Later
@@ -75,5 +75,5 @@ export default function PWAUpdatePrompt() {
         </div>
       </section>
     </div>
-  );
+  )
 }
