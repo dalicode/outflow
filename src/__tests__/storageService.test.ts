@@ -37,7 +37,7 @@ import {
   buildDefaultPayees,
   DEFAULT_CATEGORIES,
   DEFAULT_PAYEES,
-} from '../services/storageService'
+} from '../services/defaults'
 
 describe('storageService seeded reference data', () => {
   it('builds the default categories with the expected names', () => {
