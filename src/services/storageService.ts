@@ -72,6 +72,7 @@ export const StorageService = {
   updateCategory: categoryRepo.updateCategory,
   deleteCategory: categoryRepo.deleteCategory,
   mergeCategory: categoryRepo.mergeCategory,
+  revertCategoryMerge: categoryRepo.revertCategoryMerge,
 
   // ── Payees ────────────────────────────────────────────────
   getPayees: payeeRepo.getPayees,
@@ -82,6 +83,7 @@ export const StorageService = {
   archivePayee: payeeRepo.archivePayee,
   unarchivePayee: payeeRepo.unarchivePayee,
   mergePayee: payeeRepo.mergePayee,
+  revertPayeeMerge: payeeRepo.revertPayeeMerge,
 
   // ── Sync Queue ───────────────────────────────────────────
   getSyncQueue: syncRepo.getSyncQueue,

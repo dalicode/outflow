@@ -3,7 +3,6 @@ import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
 import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
-import PageBanner from '../../components/ui/PageBanner'
 import { useToasts } from '../../context/toastContext'
 import { StorageService } from '../../services/storageService'
 import type { Payee } from '../../types'
@@ -14,6 +13,7 @@ interface PayeeModalProps {
   onPayeesChange?: () => void
   onClose: () => void
   refreshPayees?: () => void | Promise<void>
+  refreshExpenses?: () => Promise<void>
 }
 
 export default function PayeeModal({
@@ -21,8 +21,9 @@ export default function PayeeModal({
   onPayeesChange,
   onClose,
   refreshPayees,
+  refreshExpenses,
 }: PayeeModalProps) {
-  const { showUndoToast } = useToasts()
+  const { showToast, showUndoToast } = useToasts()
   const [newName, setNewName] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -30,8 +31,6 @@ export default function PayeeModal({
   const [mergeSource, setMergeSource] = useState<Payee | null>(null)
   const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null)
-  const [banner, setBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [bannerKey, setBannerKey] = useState(0)
   const newNameInputRef = useRef<HTMLInputElement>(null)
 
   const active = payees.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name))
@@ -43,25 +42,21 @@ export default function PayeeModal({
     e.preventDefault()
     const name = newName.trim()
     if (!name) {
-      setBannerKey((k) => k + 1)
-      setBanner({ message: 'Name is required.', type: 'error' })
+      showToast({ message: 'Name is required.', tone: 'danger' })
       return
     }
     if (active.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-      setBannerKey((k) => k + 1)
-      setBanner({ message: 'Already exists.', type: 'error' })
+      showToast({ message: 'Already exists.', tone: 'danger' })
       return
     }
     try {
       await StorageService.addPayee(name)
-      setBannerKey((k) => k + 1)
-      setBanner({ message: 'Payee added', type: 'success' })
+      showToast({ message: 'Payee added', tone: 'success' })
       setNewName('')
       onPayeesChange?.()
       refreshPayees?.()
     } catch (err) {
-      setBannerKey((k) => k + 1)
-      setBanner({ message: (err as Error).message, type: 'error' })
+      showToast({ message: (err as Error).message, tone: 'danger' })
     }
   }
 
@@ -77,8 +72,7 @@ export default function PayeeModal({
       onPayeesChange?.()
       refreshPayees?.()
     } catch (err) {
-      setBannerKey((k) => k + 1)
-      setBanner({ message: (err as Error).message, type: 'error' })
+      showToast({ message: (err as Error).message, tone: 'danger' })
     }
   }
 
@@ -102,12 +96,19 @@ export default function PayeeModal({
 
   const handleMerge = async (targetId: number) => {
     if (!mergeSource || mergeSource.id == null) return
-    await StorageService.mergePayee(mergeSource.id, targetId)
+    const mergeId = await StorageService.mergePayee(mergeSource.id, targetId)
     onPayeesChange?.()
     await refreshPayees?.()
+    await refreshExpenses?.()
     const targetName = active.find((p) => p.id === targetId)?.name ?? 'another payee'
-    setBannerKey((k) => k + 1)
-    setBanner({ message: `Merged ${mergeSource.name} into ${targetName}`, type: 'success' })
+    const sourceName = mergeSource.name
+    showUndoToast(`Merged ${sourceName} into ${targetName}`, async () => {
+      await StorageService.revertPayeeMerge(mergeId)
+      showToast({ message: `Undid merge of ${sourceName} into ${targetName}`, tone: 'success' })
+      onPayeesChange?.()
+      await refreshPayees?.()
+      await refreshExpenses?.()
+    })
     setMergeSource(null)
   }
 
@@ -132,11 +133,6 @@ export default function PayeeModal({
           </ModalFooter>
         }
       >
-        <PageBanner
-          key={bannerKey}
-          message={banner?.message ?? ''}
-          type={banner?.type ?? 'success'}
-        />
         <form
           onSubmit={addPayee}
           className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"

@@ -45,12 +45,13 @@ interface ExpenseFormProps {
   onClose: () => void
   categories: Category[]
   onCategoriesChange?: (
-    action: 'add' | 'update' | 'delete',
+    action: 'add' | 'update' | 'delete' | 'merge',
     payload: { id?: number; name?: string },
   ) => Promise<number | undefined>
   initialExpense?: Expense
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
+  refreshExpenses?: () => Promise<void>
 }
 
 export default function ExpenseForm({
@@ -62,6 +63,7 @@ export default function ExpenseForm({
   initialExpense,
   refreshCategories: refreshCategoriesProp,
   refreshPayees: refreshPayeesProp,
+  refreshExpenses: refreshExpensesProp,
 }: ExpenseFormProps) {
   const isEdit = !!initialExpense
   const { expenses } = useExpenses()
@@ -529,6 +531,7 @@ export default function ExpenseForm({
           categories={categories}
           onCategoriesChange={onCategoriesChange}
           refreshCategories={refreshCategoriesProp}
+          refreshExpenses={refreshExpensesProp}
           onClose={() => setShowCatModal(false)}
         />
       )}
@@ -537,6 +540,7 @@ export default function ExpenseForm({
           payees={payees}
           onPayeesChange={refreshPayees}
           refreshPayees={refreshPayeesProp}
+          refreshExpenses={refreshExpensesProp}
           onClose={() => setShowPayeeModal(false)}
         />
       )}

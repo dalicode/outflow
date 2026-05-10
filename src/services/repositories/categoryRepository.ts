@@ -50,7 +50,7 @@ export async function deleteCategory(id: number): Promise<void> {
 export async function mergeCategory(
   sourceCategoryId: number,
   targetCategoryId: number,
-): Promise<void> {
+): Promise<number> {
   if (sourceCategoryId === targetCategoryId) {
     throw new Error('Cannot merge a category into itself.')
   }
@@ -85,5 +85,45 @@ export async function mergeCategory(
     updatedAt: now,
   })
   const updatedCat = await db.categories.get(sourceCategoryId)
+  await enqueue('categories', 'update', updatedCat as unknown as Record<string, unknown>)
+
+  return mergeId
+}
+
+export async function revertCategoryMerge(mergeId: number): Promise<void> {
+  const mergeRow = await db.categoryMergeHistory.get(mergeId)
+  if (!mergeRow || mergeRow.revertedAt) {
+    throw new Error('Merge record not found or already reverted.')
+  }
+  const now = new Date().toISOString()
+
+  // Revert expenses back to source category
+  if (mergeRow.affectedExpenseIds.length > 0) {
+    await db.expenses.bulkUpdate(
+      mergeRow.affectedExpenseIds.map((id) => ({
+        key: id,
+        changes: { categoryId: mergeRow.sourceCategoryId },
+      })),
+    )
+  }
+
+  // Un-archive the source category
+  await db.categories.update(mergeRow.sourceCategoryId, {
+    isArchived: false,
+    archivedAt: undefined,
+    mergedIntoCategoryId: null,
+    updatedAt: now,
+  } as Partial<Category>)
+
+  // Mark merge as reverted
+  await db.categoryMergeHistory.update(mergeId, { revertedAt: now })
+  const updatedMerge = await db.categoryMergeHistory.get(mergeId)
+  await enqueue(
+    'categoryMergeHistory',
+    'update',
+    updatedMerge as unknown as Record<string, unknown>,
+  )
+
+  const updatedCat = await db.categories.get(mergeRow.sourceCategoryId)
   await enqueue('categories', 'update', updatedCat as unknown as Record<string, unknown>)
 }

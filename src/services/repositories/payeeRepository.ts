@@ -79,7 +79,7 @@ export async function unarchivePayee(id: number): Promise<void> {
   await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
 }
 
-export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): Promise<void> {
+export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): Promise<number> {
   if (sourcePayeeId === targetPayeeId) {
     throw new Error('Cannot merge a payee into itself.')
   }
@@ -111,5 +111,38 @@ export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): 
     updatedAt: now,
   })
   const updatedPayee = await db.payees.get(sourcePayeeId)
+  await enqueue('payees', 'update', updatedPayee as unknown as Record<string, unknown>)
+
+  return mergeId
+}
+
+export async function revertPayeeMerge(mergeId: number): Promise<void> {
+  const mergeRow = await db.payeeMergeHistory.get(mergeId)
+  if (!mergeRow || mergeRow.revertedAt) {
+    throw new Error('Merge record not found or already reverted.')
+  }
+  const now = new Date().toISOString()
+
+  if (mergeRow.affectedExpenseIds.length > 0) {
+    await db.expenses.bulkUpdate(
+      mergeRow.affectedExpenseIds.map((id) => ({
+        key: id,
+        changes: { payeeId: mergeRow.sourcePayeeId },
+      })),
+    )
+  }
+
+  await db.payees.update(mergeRow.sourcePayeeId, {
+    isArchived: false,
+    archivedAt: undefined,
+    mergedIntoPayeeId: null,
+    updatedAt: now,
+  } as Partial<Payee>)
+
+  await db.payeeMergeHistory.update(mergeId, { revertedAt: now })
+  const updatedMerge = await db.payeeMergeHistory.get(mergeId)
+  await enqueue('payeeMergeHistory', 'update', updatedMerge as unknown as Record<string, unknown>)
+
+  const updatedPayee = await db.payees.get(mergeRow.sourcePayeeId)
   await enqueue('payees', 'update', updatedPayee as unknown as Record<string, unknown>)
 }

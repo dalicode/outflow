@@ -5,7 +5,6 @@ import OfflineStatusBadge from './components/pwa/OfflineStatusBadge'
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt'
 import PWAUpdatePrompt from './components/pwa/PWAUpdatePrompt'
 import LoadingOverlay from './components/ui/LoadingOverlay'
-import PageBanner from './components/ui/PageBanner'
 import PullToRefreshContainer from './components/ui/PullToRefreshContainer'
 import { ROUTES } from './constants/routes'
 import { useAuth } from './context/authContext'
@@ -165,8 +164,6 @@ function AppShell() {
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false)
   const [snapshotsReady, setSnapshotsReady] = useState(false)
   const [pendingExpenseDeleteIds, setPendingExpenseDeleteIds] = useState<number[]>([])
-  const [deleteBanner, setDeleteBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [deleteBannerKey, setDeleteBannerKey] = useState(0)
   const pendingExpenseDeleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const announceAppliedScheduleUpdates = useCallback(
@@ -361,7 +358,7 @@ function AppShell() {
   ])
 
   const handleCategoriesChange = async (
-    action: 'add' | 'update' | 'delete',
+    action: 'add' | 'update' | 'delete' | 'merge',
     payload: { id?: number; name?: string },
   ): Promise<number | undefined> => {
     let newId: number | undefined
@@ -381,6 +378,10 @@ function AppShell() {
         await refreshCategories()
         triggerSync?.()
       })
+    } else if (action === 'merge') {
+      // Merge already archives source + reassigns expenses in the repository.
+      // Refresh both categories and expenses so tables update instantly.
+      await refreshExpenses()
     }
     await refreshCategories()
     triggerSync?.()
@@ -485,8 +486,6 @@ function AppShell() {
     pendingExpenseDeleteTimersRef.current.push(timer)
     setPendingExpenseDeleteIds((current) => [...new Set([...current, ...ids])])
     setExpenses((prev) => prev.filter((expense) => !selectedIdSet.has(expense.id as number)))
-    setDeleteBannerKey((k) => k + 1)
-    setDeleteBanner({ message: `Deleted ${selected.length} expenses`, type: 'success' })
     showUndoToast(`Deleted ${selected.length} expenses.`, async () => {
       clearTimeout(timer)
       pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
@@ -557,11 +556,6 @@ function AppShell() {
               isScrolling={isScrolling}
               hidden={mobileSelectionActive}
               onCycleDashboardView={() => cycleDashboardViewRef.current?.()}
-            />
-            <PageBanner
-              key={deleteBannerKey}
-              message={deleteBanner?.message ?? ''}
-              type={deleteBanner?.type ?? 'success'}
             />
             <main
               className={cn(
@@ -635,7 +629,7 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <PayeesPage />
+                      <PayeesPage refreshExpenses={refreshExpenses} />
                     </ScrollablePage>
                   }
                 />
@@ -670,6 +664,7 @@ function AppShell() {
                 categories={categories}
                 onCategoriesChange={handleCategoriesChange}
                 refreshPayees={refreshPayees}
+                refreshExpenses={refreshExpenses}
               />
             )}
           </>

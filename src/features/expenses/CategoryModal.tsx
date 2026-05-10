@@ -3,7 +3,7 @@ import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
 import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
-import PageBanner from '../../components/ui/PageBanner'
+import { useToasts } from '../../context/toastContext'
 import { StorageService } from '../../services/storageService'
 import type { Category } from '../../types'
 import AddEntityButton from './AddEntityButton'
@@ -11,11 +11,12 @@ import AddEntityButton from './AddEntityButton'
 interface CategoryModalProps {
   categories: Category[]
   onCategoriesChange?: (
-    action: 'add' | 'update' | 'delete',
+    action: 'add' | 'update' | 'delete' | 'merge',
     payload: { id?: number; name?: string },
   ) => Promise<number | undefined>
   onClose: () => void
   refreshCategories?: () => void | Promise<void>
+  refreshExpenses?: () => Promise<void>
 }
 
 export default function CategoryModal({
@@ -23,7 +24,9 @@ export default function CategoryModal({
   onCategoriesChange,
   onClose,
   refreshCategories,
+  refreshExpenses,
 }: CategoryModalProps) {
+  const { showToast, showUndoToast } = useToasts()
   const [newName, setNewName] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -31,8 +34,6 @@ export default function CategoryModal({
   const [mergeSource, setMergeSource] = useState<Category | null>(null)
   const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
-  const [banner, setBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [bannerKey, setBannerKey] = useState(0)
   const newNameInputRef = useRef<HTMLInputElement>(null)
 
   const active = categories
@@ -46,13 +47,11 @@ export default function CategoryModal({
     e.preventDefault()
     const name = newName.trim()
     if (!name) {
-      setBannerKey((k) => k + 1)
-      setBanner({ message: 'Name is required.', type: 'error' })
+      showToast({ message: 'Name is required.', tone: 'danger' })
       return
     }
     if (active.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
-      setBannerKey((k) => k + 1)
-      setBanner({ message: 'Already exists.', type: 'error' })
+      showToast({ message: 'Already exists.', tone: 'danger' })
       return
     }
     if (onCategoriesChange) {
@@ -61,8 +60,7 @@ export default function CategoryModal({
       await StorageService.addCategory(name)
       refreshCategories?.()
     }
-    setBannerKey((k) => k + 1)
-    setBanner({ message: 'Category added', type: 'success' })
+    showToast({ message: 'Category added', tone: 'success' })
     setNewName('')
   }
 
@@ -90,14 +88,21 @@ export default function CategoryModal({
 
   const handleMerge = async (targetId: number) => {
     if (!mergeSource || mergeSource.id == null) return
-    await StorageService.mergeCategory(mergeSource.id, targetId)
+    const mergeId = await StorageService.mergeCategory(mergeSource.id, targetId)
     await refreshCategories?.()
+    await refreshExpenses?.()
     if (onCategoriesChange) {
-      await onCategoriesChange('delete', { id: mergeSource.id })
+      await onCategoriesChange('merge', { id: mergeSource.id })
     }
     const targetName = active.find((c) => c.id === targetId)?.name ?? 'another category'
-    setBannerKey((k) => k + 1)
-    setBanner({ message: `Merged ${mergeSource.name} into ${targetName}`, type: 'success' })
+    const sourceName = mergeSource.name
+    showUndoToast(`Merged ${sourceName} into ${targetName}`, async () => {
+      await StorageService.revertCategoryMerge(mergeId)
+      showToast({ message: `Undid merge of ${sourceName} into ${targetName}`, tone: 'success' })
+      await refreshCategories?.()
+      await refreshExpenses?.()
+      if (onCategoriesChange) await onCategoriesChange('merge', { id: mergeSource.id })
+    })
     setMergeSource(null)
   }
 
@@ -122,11 +127,6 @@ export default function CategoryModal({
           </ModalFooter>
         }
       >
-        <PageBanner
-          key={bannerKey}
-          message={banner?.message ?? ''}
-          type={banner?.type ?? 'success'}
-        />
         <form
           onSubmit={addCat}
           className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
