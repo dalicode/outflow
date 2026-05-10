@@ -216,12 +216,18 @@ create trigger on_auth_user_created
 
 The Supabase schema above matches the current cloud-sync layer.
 
+### Sync methods
+
+| Method | Tables |
+|--------|--------|
+| **Sync queue** (last-write-wins via `updated_at`) | `expenses`, `categories`, `payees`, `fixed_expenses`, `fixed_expense_snapshots`, `income_snapshots`, `savings_snapshots`, `schedules`, `category_merge_history`, `payee_merge_history`, `settings` |
+| **Direct read/write** (via Supabase client) | `profiles` |
+| **Device-local only** | `syncQueue` |
+
 Important notes:
-- Tables that sync to Supabase: `expenses`, `categories`, `payees`, `fixedExpenses`, `fixedExpenseSnapshots`, `incomeSnapshots`, `savingsSnapshots`, `schedules`, `categoryMergeHistory`, `payeeMergeHistory`, and `settings`.
-- `syncQueue` stays device-local and is **not** synced. It is the outbound work queue that the app drains after network reconnect.
 - Supabase row IDs are stored as `text`, but the app normalizes them back to local numeric IDs when pulling data down.
-- `settings.value` is stored as text in Supabase and serialized as JSON by the sync layer.
-- `profiles.backup_password` is optional and only used for the encrypted backup password auto-fill flow.
+- `settings.value` is stored as text in Supabase (string-to-string, no JSON serialization).
+- `profiles` is a single-row-per-user table — it is read and written directly by the Supabase client, not through the sync queue. The `handle_new_user()` trigger creates the row on signup.
 
 ## 5. Profiles table
 

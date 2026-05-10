@@ -29,3 +29,4 @@ test-results/
 *.swp
 *.swo
 .DS_Store
+scripts/deploy-uat.sh
