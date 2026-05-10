@@ -84,32 +84,31 @@ export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): 
     throw new Error('Cannot merge a payee into itself.')
   }
   const now = new Date().toISOString()
-  await db.transaction('rw', [db.expenses, db.payees, db.payeeMergeHistory], async () => {
-    const affected = await db.expenses.where('payeeId').equals(sourcePayeeId).toArray()
-    const affectedIds = affected.map((e) => e.id as number)
 
-    if (affectedIds.length > 0) {
-      await db.expenses.where('payeeId').equals(sourcePayeeId).modify({ payeeId: targetPayeeId })
-    }
+  const affected = await db.expenses.where('payeeId').equals(sourcePayeeId).toArray()
+  const affectedIds = affected.map((e) => e.id as number)
 
-    const mergeId = await db.payeeMergeHistory.add({
-      sourcePayeeId,
-      targetPayeeId,
-      affectedExpenseIds: affectedIds,
-      createdAt: now,
-      revertedAt: null,
-    } as PayeeMergeHistory)
-    const mergeRow = await db.payeeMergeHistory.get(mergeId)
-    if (mergeRow) {
-      await enqueue('payeeMergeHistory', 'insert', mergeRow as unknown as Record<string, unknown>)
-    }
+  if (affectedIds.length > 0) {
+    await db.expenses.where('payeeId').equals(sourcePayeeId).modify({ payeeId: targetPayeeId })
+  }
 
-    await db.payees.update(sourcePayeeId, {
-      isArchived: true,
-      archivedAt: now,
-      mergedIntoPayeeId: targetPayeeId,
-      updatedAt: now,
-    })
+  const mergeId = await db.payeeMergeHistory.add({
+    sourcePayeeId,
+    targetPayeeId,
+    affectedExpenseIds: affectedIds,
+    createdAt: now,
+    revertedAt: null,
+  } as PayeeMergeHistory)
+  const mergeRow = await db.payeeMergeHistory.get(mergeId)
+  if (mergeRow) {
+    await enqueue('payeeMergeHistory', 'insert', mergeRow as unknown as Record<string, unknown>)
+  }
+
+  await db.payees.update(sourcePayeeId, {
+    isArchived: true,
+    archivedAt: now,
+    mergedIntoPayeeId: targetPayeeId,
+    updatedAt: now,
   })
   const updatedPayee = await db.payees.get(sourcePayeeId)
   await enqueue('payees', 'update', updatedPayee as unknown as Record<string, unknown>)

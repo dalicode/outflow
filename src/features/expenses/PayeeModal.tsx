@@ -1,8 +1,9 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
 import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
+import PageBanner from '../../components/ui/PageBanner'
 import { useToasts } from '../../context/toastContext'
 import { StorageService } from '../../services/storageService'
 import type { Payee } from '../../types'
@@ -23,15 +24,17 @@ export default function PayeeModal({
 }: PayeeModalProps) {
   const { showUndoToast } = useToasts()
   const [newName, setNewName] = useState('')
-  const [newError, setNewError] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [mergeSource, setMergeSource] = useState<Payee | null>(null)
   const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null)
+  const [banner, setBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [bannerKey, setBannerKey] = useState(0)
+  const newNameInputRef = useRef<HTMLInputElement>(null)
 
-  const active = payees.filter((p) => !p.isArchived)
+  const active = payees.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name))
   const filteredPayees = active.filter((payee) =>
     payee.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   )
@@ -40,21 +43,25 @@ export default function PayeeModal({
     e.preventDefault()
     const name = newName.trim()
     if (!name) {
-      setNewError('Name is required.')
+      setBannerKey((k) => k + 1)
+      setBanner({ message: 'Name is required.', type: 'error' })
       return
     }
     if (active.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-      setNewError('Already exists.')
+      setBannerKey((k) => k + 1)
+      setBanner({ message: 'Already exists.', type: 'error' })
       return
     }
     try {
       await StorageService.addPayee(name)
+      setBannerKey((k) => k + 1)
+      setBanner({ message: 'Payee added', type: 'success' })
       setNewName('')
-      setNewError('')
       onPayeesChange?.()
       refreshPayees?.()
     } catch (err) {
-      setNewError((err as Error).message)
+      setBannerKey((k) => k + 1)
+      setBanner({ message: (err as Error).message, type: 'error' })
     }
   }
 
@@ -70,7 +77,8 @@ export default function PayeeModal({
       onPayeesChange?.()
       refreshPayees?.()
     } catch (err) {
-      setNewError((err as Error).message)
+      setBannerKey((k) => k + 1)
+      setBanner({ message: (err as Error).message, type: 'error' })
     }
   }
 
@@ -97,6 +105,9 @@ export default function PayeeModal({
     await StorageService.mergePayee(mergeSource.id, targetId)
     onPayeesChange?.()
     await refreshPayees?.()
+    const targetName = active.find((p) => p.id === targetId)?.name ?? 'another payee'
+    setBannerKey((k) => k + 1)
+    setBanner({ message: `Merged ${mergeSource.name} into ${targetName}`, type: 'success' })
     setMergeSource(null)
   }
 
@@ -121,22 +132,24 @@ export default function PayeeModal({
           </ModalFooter>
         }
       >
+        <PageBanner
+          key={bannerKey}
+          message={banner?.message ?? ''}
+          type={banner?.type ?? 'success'}
+        />
         <form
           onSubmit={addPayee}
           className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
         >
           <div className="min-w-0 flex-1">
             <input
+              ref={newNameInputRef}
               value={newName}
-              onChange={(e) => {
-                setNewName(e.target.value)
-                setNewError('')
-              }}
+              onChange={(e) => setNewName(e.target.value)}
               placeholder="New payee…"
               autoFocus
               className="input-md w-full"
             />
-            {newError && <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>}
           </div>
           <AddEntityButton label="Add payee" />
         </form>

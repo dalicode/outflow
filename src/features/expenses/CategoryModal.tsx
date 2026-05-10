@@ -1,8 +1,9 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
 import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
+import PageBanner from '../../components/ui/PageBanner'
 import { StorageService } from '../../services/storageService'
 import type { Category } from '../../types'
 import AddEntityButton from './AddEntityButton'
@@ -24,15 +25,19 @@ export default function CategoryModal({
   refreshCategories,
 }: CategoryModalProps) {
   const [newName, setNewName] = useState('')
-  const [newError, setNewError] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [mergeSource, setMergeSource] = useState<Category | null>(null)
   const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
+  const [banner, setBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [bannerKey, setBannerKey] = useState(0)
+  const newNameInputRef = useRef<HTMLInputElement>(null)
 
-  const active = categories.filter((c) => !c.isArchived)
+  const active = categories
+    .filter((c) => !c.isArchived)
+    .sort((a, b) => a.name.localeCompare(b.name))
   const filteredCategories = active.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   )
@@ -41,11 +46,13 @@ export default function CategoryModal({
     e.preventDefault()
     const name = newName.trim()
     if (!name) {
-      setNewError('Name is required.')
+      setBannerKey((k) => k + 1)
+      setBanner({ message: 'Name is required.', type: 'error' })
       return
     }
     if (active.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
-      setNewError('Already exists.')
+      setBannerKey((k) => k + 1)
+      setBanner({ message: 'Already exists.', type: 'error' })
       return
     }
     if (onCategoriesChange) {
@@ -54,8 +61,9 @@ export default function CategoryModal({
       await StorageService.addCategory(name)
       refreshCategories?.()
     }
+    setBannerKey((k) => k + 1)
+    setBanner({ message: 'Category added', type: 'success' })
     setNewName('')
-    setNewError('')
   }
 
   const saveEdit = async (e: FormEvent<HTMLFormElement>) => {
@@ -87,6 +95,9 @@ export default function CategoryModal({
     if (onCategoriesChange) {
       await onCategoriesChange('delete', { id: mergeSource.id })
     }
+    const targetName = active.find((c) => c.id === targetId)?.name ?? 'another category'
+    setBannerKey((k) => k + 1)
+    setBanner({ message: `Merged ${mergeSource.name} into ${targetName}`, type: 'success' })
     setMergeSource(null)
   }
 
@@ -111,22 +122,24 @@ export default function CategoryModal({
           </ModalFooter>
         }
       >
+        <PageBanner
+          key={bannerKey}
+          message={banner?.message ?? ''}
+          type={banner?.type ?? 'success'}
+        />
         <form
           onSubmit={addCat}
           className="flex shrink-0 flex-col gap-2 rounded-theme-medium border border-theme-border bg-theme-surface p-3 sm:flex-row sm:items-center"
         >
           <div className="min-w-0 flex-1">
             <input
+              ref={newNameInputRef}
               value={newName}
-              onChange={(e) => {
-                setNewName(e.target.value)
-                setNewError('')
-              }}
+              onChange={(e) => setNewName(e.target.value)}
               placeholder="New category…"
               autoFocus
               className="input-md w-full"
             />
-            {newError && <p className="mt-1.5 text-xs text-theme-danger">{newError}</p>}
           </div>
           <AddEntityButton label="Add category" />
         </form>

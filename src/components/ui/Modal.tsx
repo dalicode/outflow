@@ -150,6 +150,8 @@ export default function Modal({
   const myDepthRef = useRef(0)
   // Whether we're currently closing via history.back() to avoid double-close
   const closingViaBackRef = useRef(false)
+  // Whether this modal is the first one (no ancestor modals) — controls backdrop visibility
+  const [isTopLevel, setIsTopLevel] = useState(false)
 
   const [isScrolling, setIsScrolling] = useState(false)
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -169,6 +171,7 @@ export default function Modal({
   useEffect(() => {
     if (isOpen && !pushedRef.current) {
       myDepthRef.current = ++modalDepth
+      setIsTopLevel(myDepthRef.current <= 1)
       history.pushState({ modal: myDepthRef.current }, '')
       pushedRef.current = true
     }
@@ -268,7 +271,10 @@ export default function Modal({
     lockBodyScroll()
 
     return () => {
-      unlockBodyScroll()
+      // Defer unlock by one microtask — if another modal opens in the same
+      // render commit, its lockBodyScroll will bump the count back up first,
+      // preventing a brief unlock-re-lock flash.
+      queueMicrotask(() => unlockBodyScroll())
     }
   }, [isOpen])
 
@@ -301,8 +307,11 @@ export default function Modal({
         'fixed left-0 top-0 right-0 bottom-0 z-50',
         'flex justify-center',
         isFullScreenMobile
-          ? 'items-stretch bg-theme-surface sm:bg-black/40'
-          : 'items-center bg-black/40 p-3 sm:p-4',
+          ? cn(
+              'items-stretch bg-theme-surface',
+              isTopLevel ? 'sm:bg-black/40' : 'sm:bg-transparent',
+            )
+          : cn('items-center p-3 sm:p-4', isTopLevel ? 'bg-black/40' : 'bg-transparent'),
         desktopPlacementClass,
       )}
       onClick={handleBackdropClick}

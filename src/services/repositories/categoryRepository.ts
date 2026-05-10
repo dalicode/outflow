@@ -55,41 +55,35 @@ export async function mergeCategory(
     throw new Error('Cannot merge a category into itself.')
   }
   const now = new Date().toISOString()
-  await db.transaction('rw', [db.expenses, db.categories, db.categoryMergeHistory], async () => {
-    const affected = await db.expenses.where('categoryId').equals(sourceCategoryId).toArray()
-    const affectedIds = affected.map((e) => e.id as number)
 
-    if (affectedIds.length > 0) {
-      await db.expenses
-        .where('categoryId')
-        .equals(sourceCategoryId)
-        .modify({ categoryId: targetCategoryId })
-    }
+  const affected = await db.expenses.where('categoryId').equals(sourceCategoryId).toArray()
+  const affectedIds = affected.map((e) => e.id as number)
 
-    const mergeId = await db.categoryMergeHistory.add({
-      sourceCategoryId,
-      targetCategoryId,
-      affectedExpenseIds: affectedIds,
-      createdAt: now,
-      revertedAt: null,
-    } as CategoryMergeHistory)
-    const mergeRow = await db.categoryMergeHistory.get(mergeId)
-    if (mergeRow) {
-      await enqueue(
-        'categoryMergeHistory',
-        'insert',
-        mergeRow as unknown as Record<string, unknown>,
-      )
-    }
+  if (affectedIds.length > 0) {
+    await db.expenses
+      .where('categoryId')
+      .equals(sourceCategoryId)
+      .modify({ categoryId: targetCategoryId })
+  }
 
-    await db.categories.update(sourceCategoryId, {
-      isArchived: true,
-      archivedAt: now,
-      mergedIntoCategoryId: targetCategoryId,
-      updatedAt: now,
-    })
+  const mergeId = await db.categoryMergeHistory.add({
+    sourceCategoryId,
+    targetCategoryId,
+    affectedExpenseIds: affectedIds,
+    createdAt: now,
+    revertedAt: null,
+  } as CategoryMergeHistory)
+  const mergeRow = await db.categoryMergeHistory.get(mergeId)
+  if (mergeRow) {
+    await enqueue('categoryMergeHistory', 'insert', mergeRow as unknown as Record<string, unknown>)
+  }
+
+  await db.categories.update(sourceCategoryId, {
+    isArchived: true,
+    archivedAt: now,
+    mergedIntoCategoryId: targetCategoryId,
+    updatedAt: now,
   })
-  // Enqueue sync for affected records
   const updatedCat = await db.categories.get(sourceCategoryId)
   await enqueue('categories', 'update', updatedCat as unknown as Record<string, unknown>)
 }

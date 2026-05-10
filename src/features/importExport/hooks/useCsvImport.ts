@@ -2,7 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { StorageService } from '../../../services/storageService'
 import type { Payee } from '../../../types'
 import type { ImportReviewSelection } from '../ImportReviewModal'
-import { getCsvField, parseCSV, parseDateInput } from '../utils/csvHelpers'
+import { getCsvField, matchCategoryByName, parseCSV, parseDateInput } from '../utils/csvHelpers'
+import { DEFAULT_CATEGORIES } from '../../../services/defaults'
 import type { ImportPayeeMatchSummary, ImportPayeeReviewRow } from '../utils/importPayeeMatching'
 import { findBestImportPayeeMatch, getImportPayeeMatchSummary } from '../utils/importPayeeMatching'
 
@@ -86,7 +87,16 @@ export function useCsvImport({
       if (categoryNames.length > 0) {
         const existingCategories = await StorageService.getCategories()
         const existingByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c]))
+        const categoryDefs = DEFAULT_CATEGORIES as { name: string; aliases: string[] }[]
         for (const name of categoryNames) {
+          const matchedByName = matchCategoryByName(name, categoryDefs)
+          if (matchedByName) {
+            const matched = existingByName.get(matchedByName.toLowerCase())
+            if (matched && !matched.isArchived) {
+              categoryMap[name] = matched.id as number
+              continue
+            }
+          }
           const existingCategory = existingByName.get(name.toLowerCase())
           if (existingCategory && !existingCategory.isArchived) {
             categoryMap[name] = existingCategory.id as number

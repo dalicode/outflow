@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
 import EmptyState from '../../components/ui/EmptyState'
 import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
+import PageBanner from '../../components/ui/PageBanner'
 import { useToasts } from '../../context/toastContext'
 import { usePayees } from '../../hooks/useLocalData'
 import { StorageService } from '../../services/storageService'
@@ -12,12 +13,14 @@ export default function PayeesPage() {
   const { showUndoToast } = useToasts()
   const [search, setSearch] = useState('')
   const [newName, setNewName] = useState('')
-  const [error, setError] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [mergeSource, setMergeSource] = useState<Payee | null>(null)
   const [mergeExpenseCount, setMergeExpenseCount] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null)
+  const [banner, setBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [bannerKey, setBannerKey] = useState(0)
+  const newNameInputRef = useRef<HTMLInputElement>(null)
 
   const activePayees = useMemo(() => payees.filter((p) => !p.isArchived), [payees])
 
@@ -37,24 +40,24 @@ export default function PayeesPage() {
     if (!trimmed) return
     try {
       await StorageService.addPayee(trimmed)
+      setBannerKey((k) => k + 1)
+      setBanner({ message: 'Payee added', type: 'success' })
       setNewName('')
-      setError('')
       refresh()
     } catch (e) {
-      setError((e as Error).message)
+      setBannerKey((k) => k + 1)
+      setBanner({ message: (e as Error).message, type: 'error' })
     }
   }
 
   const startEdit = (payee: Payee) => {
     setEditingId(payee.id as number)
     setEditName(payee.name)
-    setError('')
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setEditName('')
-    setError('')
   }
 
   const saveEdit = async (id: number) => {
@@ -64,10 +67,10 @@ export default function PayeesPage() {
       await StorageService.updatePayee(id, trimmed)
       setEditingId(null)
       setEditName('')
-      setError('')
       refresh()
     } catch (e) {
-      setError((e as Error).message)
+      setBannerKey((k) => k + 1)
+      setBanner({ message: (e as Error).message, type: 'error' })
     }
   }
 
@@ -88,6 +91,9 @@ export default function PayeesPage() {
 
   const handleMerge = async (targetId: number) => {
     await StorageService.mergePayee(mergeSource?.id as number, targetId)
+    const targetName = activePayees.find((p) => p.id === targetId)?.name ?? 'another payee'
+    setBannerKey((k) => k + 1)
+    setBanner({ message: `Merged ${mergeSource?.name} into ${targetName}`, type: 'success' })
     setMergeSource(null)
     refresh()
   }
@@ -108,6 +114,7 @@ export default function PayeesPage() {
           />
           <div className="flex gap-2">
             <input
+              ref={newNameInputRef}
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -128,7 +135,11 @@ export default function PayeesPage() {
           </div>
         </div>
 
-        {error && <p className="text-xs text-theme-danger">{error}</p>}
+        <PageBanner
+          key={bannerKey}
+          message={banner?.message ?? ''}
+          type={banner?.type ?? 'success'}
+        />
 
         {/* List */}
         <div className="space-y-1 md:max-w-3xl mx-auto">

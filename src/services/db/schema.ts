@@ -215,6 +215,21 @@ class OutflowDB extends Dexie {
       payeeMergeHistory: '++id, sourcePayeeId, targetPayeeId',
     })
 
+    this.version(14).stores({
+      expenses: '++id, date, categoryId, payeeId',
+      settings: 'key',
+      fixedExpenses: '++id',
+      categories: '++id, name',
+      payees: '++id, name',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
+      schedules: '++id, type, effectiveYear, effectiveMonth, isActive, targetId, payeeId',
+      incomeSnapshots: '++id, [year+month], year, month',
+      savingsSnapshots: '++id, [year+month], year, month',
+      categoryMergeHistory: '++id, sourceCategoryId, targetCategoryId',
+      payeeMergeHistory: '++id, sourcePayeeId, targetPayeeId',
+    })
+
     this.on('populate', () => {
       const now = new Date().toISOString()
       this.table('categories').bulkAdd(buildDefaultCategories(now))

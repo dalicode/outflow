@@ -188,7 +188,7 @@ describe('Modal', () => {
     expect(modalCard.style.height).toBe('844px')
   })
 
-  it('locks body scroll while open and restores it on close', () => {
+  it('locks body scroll while open and restores it on close', async () => {
     Object.defineProperty(window, 'scrollY', {
       configurable: true,
       value: 240,
@@ -211,6 +211,9 @@ describe('Modal', () => {
         Content
       </Modal>,
     )
+
+    // Deferred via queueMicrotask — wait for it to execute
+    await new Promise((r) => setTimeout(r, 0))
 
     expect(document.body.style.position).toBe('')
     expect(document.body.style.top).toBe('')

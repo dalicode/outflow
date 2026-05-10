@@ -33,6 +33,9 @@ export const DEFAULT_CATEGORIES = [
       'Prescriptions',
       'Personal Care',
       'Wellness',
+      'Personal/Medical',
+      'Medical',
+      'Physical Activity',
     ],
   },
   {
@@ -48,6 +51,7 @@ export const DEFAULT_CATEGORIES = [
       'One-off',
       'Adjustment',
       'Refund',
+      'Gifts',
     ],
   },
   {
