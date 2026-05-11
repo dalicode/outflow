@@ -225,18 +225,27 @@ export async function rolloverSnapshots() {
     return
   }
 
-  // Parse last open month
+  // Parse last open month and validate format
   const [lastYearStr, lastMonthStr] = lastOpenKey.split('-')
   const lastYear = parseInt(lastYearStr, 10)
   const lastMonth = parseInt(lastMonthStr, 10)
+
+  // Guard against corrupted value: skip rollover if date is in the future or malformed
+  if (!isFinite(lastYear) || !isFinite(lastMonth) || lastMonth < 1 || lastMonth > 12) {
+    await db.settings.put({ key: 'lastAppOpenMonthKey', value: currentKey })
+    await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
+    return
+  }
 
   // Build list of months to snapshot — includes the last open month and all
   // skipped months up to (but not including) the current month.
   const gapMonths: { year: number; month: number }[] = []
   let y = lastYear
   let m = lastMonth
+  let iterationGuard = 0
   while (true) {
     if (y === currentYear && m === currentMonth) break
+    if (iterationGuard++ > 1200) break // safety cap: prevent infinite loop on corrupted data
     gapMonths.push({ year: y, month: m })
     m++
     if (m > 12) {
@@ -372,7 +381,7 @@ export async function rolloverSnapshots() {
   // Batch write everything in one transaction
   await db.transaction(
     'rw',
-    [db.incomeSnapshots, db.savingsSnapshots, db.fixedExpenseSnapshots, db.settings],
+    [db.incomeSnapshots, db.savingsSnapshots, db.fixedExpenseSnapshots, db.settings, db.syncQueue],
     async () => {
       if (incomeToAdd.length) await db.incomeSnapshots.bulkAdd(incomeToAdd)
       if (savingsToAdd.length) await db.savingsSnapshots.bulkAdd(savingsToAdd)
