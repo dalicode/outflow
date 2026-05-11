@@ -40,14 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authEvent, setAuthEvent] = useState<string | null>(null)
   const syncingRef = useRef(false)
 
-  function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  const withTimeout = useCallback(function <T>(promise: Promise<T>, ms: number): Promise<T> {
     return Promise.race([
       promise,
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms),
       ),
     ])
-  }
+  }, [])
 
   const doPullAndFlush = useCallback(
     async (userId: string) => {
@@ -137,6 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Signed-in follow-up loading (outside onAuthStateChange) ───────────
   useEffect(() => {
     if (!user?.id) return
+    // Prevent concurrent sync runs (e.g. Strict Mode double-invoke, rapid re-renders)
+    if (syncingRef.current) return
 
     let cancelled = false
 
@@ -148,9 +150,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (isSignIn) {
           console.log('[auth] SIGNED_IN — pulling cloud data first, then migrating local data')
+          syncingRef.current = true
           await withTimeout(pullFromSupabase(user.id), 30000)
           await withTimeout(migrateLocalToSupabase(user.id), 30000)
-          // Flush any local changes that weren't in the cloud yet
           await withTimeout(flushSyncQueue(user.id), 15000)
           if (!cancelled) {
             setSyncStatus('idle')
@@ -164,6 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           console.error('[auth] Failed to sync after sign-in:', error)
         }
+      } finally {
+        syncingRef.current = false
       }
     }
 
