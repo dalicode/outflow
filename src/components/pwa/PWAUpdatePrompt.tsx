@@ -8,13 +8,14 @@ export default function PWAUpdatePrompt() {
 
   const {
     needRefresh: [needRefresh],
+    updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       registration?.update().catch(() => undefined)
     },
   })
 
-  // Detect SW lifecycle changes (fires even with skipWaiting: true)
+  // Fallback: detect SW lifecycle changes if needRefresh doesn't fire
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
     const handleControllerChange = () => {
@@ -49,7 +50,7 @@ export default function PWAUpdatePrompt() {
           <div className="min-w-0">
             <p className="text-sm font-semibold">A new version of Outflow is ready.</p>
             <p className="mt-1 text-xs leading-5 text-theme-muted">
-              Reload to apply the update. Your data stays on this device.
+              Update when you are ready. Your data stays on this device.
             </p>
           </div>
           <button
@@ -74,10 +75,10 @@ export default function PWAUpdatePrompt() {
           </button>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => updateServiceWorker(true)}
             className="btn-modal-primary px-4"
           >
-            Reload Now
+            Update
           </button>
         </div>
       </section>
