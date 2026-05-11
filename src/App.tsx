@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
+import SyncIndicator from './components/layout/SyncIndicator'
 import OfflineStatusBadge from './components/pwa/OfflineStatusBadge'
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt'
 import PWAUpdatePrompt from './components/pwa/PWAUpdatePrompt'
@@ -117,28 +118,6 @@ function ScrollablePage({
         />
       )}
     </PullToRefreshContainer>
-  )
-}
-
-function SyncDot({ status }: { status: SyncStatus }) {
-  if (!supabase) return null
-  const styles: Record<string, string> = {
-    idle: 'bg-theme-success',
-    syncing: 'bg-yellow-400 animate-pulse',
-    offline: 'bg-theme-muted',
-    error: 'bg-theme-danger',
-  }
-  const labels: Record<string, string> = {
-    idle: 'Synced',
-    syncing: 'Syncing…',
-    offline: 'Offline',
-    error: 'Sync error',
-  }
-  return (
-    <span className="flex items-center gap-1 text-xs text-theme-muted" title={labels[status]}>
-      <span className={`w-2 h-2 rounded-theme-small ${styles[status] ?? styles.idle}`} />
-      <span className="hidden lg:inline">{labels[status]}</span>
-    </span>
   )
 }
 
@@ -550,20 +529,23 @@ function AppShell() {
             <OfflineStatusBadge />
             <Navbar
               onAddExpense={() => setShowForm(true)}
-              syncDot={<SyncDot status={syncStatus} />}
               onSignOut={supabase ? signOut : undefined}
               userEmail={user?.email}
               scrollDirection={direction}
               isScrolling={isScrolling}
               hidden={mobileSelectionActive}
               onCycleDashboardView={() => cycleDashboardViewRef.current?.()}
+              syncStatus={syncStatus}
             />
             <main
               className={cn(
-                'flex-1 min-w-0 overflow-hidden bg-theme-background',
+                'flex-1 min-w-0 overflow-hidden bg-theme-background relative',
                 isScrolling && 'is-scrolling',
               )}
             >
+              <div className="absolute inset-x-0 top-0 z-50 sm:hidden pointer-events-none">
+                <SyncIndicator syncStatus={syncStatus} variant="bar" />
+              </div>
               <Routes>
                 <Route
                   path={ROUTES.DASHBOARD}

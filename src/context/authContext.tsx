@@ -1,5 +1,5 @@
 import type { AuthError, User } from '@supabase/supabase-js'
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../services/supabase'
 import { flushSyncQueue, migrateLocalToSupabase, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
@@ -70,27 +70,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn('Auth state change subscription error:', err)
     }
 
-    const handleOnline = () => {
-      if (user) runSync(user.id)
-      else setSyncStatus('idle')
-    }
-    const handleOffline = () => setSyncStatus('offline')
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-
     return () => {
       subscription.unsubscribe()
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
     }
-  }, [runSync, user])
+  }, [runSync])
 
-  let flushTimer: ReturnType<typeof setTimeout> | null = null
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const triggerSync = useCallback(() => {
     if (!supabase || !user) return
-    if (flushTimer) clearTimeout(flushTimer)
-    flushTimer = setTimeout(() => flushSyncQueue(user.id), 2000)
-  }, [user, flushTimer])
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
+    setSyncStatus('syncing')
+    flushTimerRef.current = setTimeout(async () => {
+      try {
+        await flushSyncQueue(user.id)
+        setSyncStatus('idle')
+      } catch {
+        setSyncStatus('error')
+      }
+    }, 2000)
+  }, [user])
 
   const signOut = async () => {
     if (!supabase) return { error: null as AuthError | null }

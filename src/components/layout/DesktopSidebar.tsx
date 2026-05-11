@@ -1,13 +1,15 @@
-import { type MouseEventHandler, type ReactNode, useCallback, useState } from 'react'
+import { type MouseEventHandler, useCallback, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useHaptics } from '../../hooks/useHaptics'
 import { cn } from '../../utils/cn'
 import type { NavItemConfig } from './navConfig'
 import { NAV_ITEMS, PlusIcon, SignOutIcon } from './navConfig'
+import type { SyncStatus } from '../../types'
+import SyncIndicator from './SyncIndicator'
 
 interface DesktopSidebarProps {
   onAddExpense: MouseEventHandler<HTMLButtonElement>
-  syncDot?: ReactNode
+  syncStatus?: SyncStatus
   onSignOut?: MouseEventHandler<HTMLButtonElement>
   userEmail?: string
   onCycleDashboardView?: () => void
@@ -15,7 +17,7 @@ interface DesktopSidebarProps {
 
 export default function DesktopSidebar({
   onAddExpense,
-  syncDot,
+  syncStatus = 'idle',
   onSignOut,
   userEmail,
   onCycleDashboardView,
@@ -145,11 +147,9 @@ export default function DesktopSidebar({
           {!collapsed && <span className="text-sm font-medium truncate">Add</span>}
         </button>
 
-        {syncDot && (
-          <div className={cn(collapsed ? 'flex justify-center py-2' : 'px-3 py-2 mx-2')}>
-            {syncDot}
-          </div>
-        )}
+        <div className={cn('flex', collapsed ? 'justify-center py-1' : 'justify-start px-4 py-1')}>
+          <SyncIndicator syncStatus={syncStatus} />
+        </div>
 
         {onSignOut && (
           <button

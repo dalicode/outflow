@@ -1,16 +1,17 @@
-import type { MouseEventHandler, ReactNode } from 'react'
+import type { MouseEventHandler } from 'react'
 import DesktopSidebar from './DesktopSidebar'
 import MobileBottomNav from './MobileBottomNav'
+import type { SyncStatus } from '../../types'
 
 interface NavbarProps {
   onAddExpense: MouseEventHandler<HTMLButtonElement>
-  syncDot?: ReactNode
   onSignOut?: MouseEventHandler<HTMLButtonElement>
   userEmail?: string
   scrollDirection?: 'up' | 'down' | null
   isScrolling?: boolean
   hidden?: boolean
   onCycleDashboardView?: () => void
+  syncStatus?: SyncStatus
 }
 
 export default function Navbar(props: NavbarProps) {
@@ -18,7 +19,7 @@ export default function Navbar(props: NavbarProps) {
     <>
       <DesktopSidebar
         onAddExpense={props.onAddExpense}
-        syncDot={props.syncDot}
+        syncStatus={props.syncStatus}
         onSignOut={props.onSignOut}
         userEmail={props.userEmail}
         onCycleDashboardView={props.onCycleDashboardView}

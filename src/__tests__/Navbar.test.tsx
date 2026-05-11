@@ -87,11 +87,6 @@ describe('Navbar', () => {
     expect(analyticsLink).toHaveAttribute('aria-current', 'page')
   })
 
-  it('renders syncDot when provided', () => {
-    renderNavbar({ onAddExpense: vi.fn(), syncDot: <span data-testid="sync">syncing</span> })
-
-    expect(screen.getByTestId('sync')).toBeInTheDocument()
-  })
 
   it('expands and collapses sidebar', () => {
     renderNavbar({ onAddExpense: vi.fn() })
