@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { cn } from '../../utils/cn'
 
+const SW_UPDATE_KEY = 'sw:updateApplied'
+
 export default function PWAUpdatePrompt() {
-  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null)
-  const [updateDetected, setUpdateDetected] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
   const {
-    needRefresh: [needRefresh],
+    needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
@@ -15,23 +16,32 @@ export default function PWAUpdatePrompt() {
     },
   })
 
-  // Fallback: detect SW lifecycle changes if needRefresh doesn't fire
+  // Handle "Update" — mark the update as intentional before reloading
+  const handleUpdate = useCallback(() => {
+    sessionStorage.setItem(SW_UPDATE_KEY, 'true')
+    updateServiceWorker(true)
+  }, [updateServiceWorker])
+
+  // Ignore controllerchange when it's from our own intentional update
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
     const handleControllerChange = () => {
-      setUpdateDetected(true)
+      if (sessionStorage.getItem(SW_UPDATE_KEY) === 'true') {
+        sessionStorage.removeItem(SW_UPDATE_KEY)
+        return
+      }
+      setNeedRefresh(true)
     }
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
     }
-  }, [])
+  }, [setNeedRefresh])
 
   const isVisible = useMemo(() => {
-    const detected = needRefresh || updateDetected
-    if (!detected) return false
-    return dismissedVersion !== 'waiting'
-  }, [dismissedVersion, needRefresh, updateDetected])
+    if (dismissed) return false
+    return needRefresh
+  }, [dismissed, needRefresh])
 
   if (!isVisible) return null
 
@@ -56,7 +66,7 @@ export default function PWAUpdatePrompt() {
           <button
             type="button"
             aria-label="Dismiss update prompt"
-            onClick={() => setDismissedVersion('waiting')}
+            onClick={() => setDismissed(true)}
             className="shrink-0 text-theme-muted transition-colors hover:text-theme-text"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -68,14 +78,14 @@ export default function PWAUpdatePrompt() {
         <div className="mt-3 flex items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => setDismissedVersion('waiting')}
+            onClick={() => setDismissed(true)}
             className="btn-modal-cancel px-4"
           >
             Later
           </button>
           <button
             type="button"
-            onClick={() => updateServiceWorker(true)}
+            onClick={handleUpdate}
             className="btn-modal-primary px-4"
           >
             Update
