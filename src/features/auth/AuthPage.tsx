@@ -82,8 +82,8 @@ export default function AuthPage({ onClose }: { onClose?: () => void }) {
     if (mode === 'signup') setMessage('Check your email to confirm your account.')
   }
 
-  const card = (
-    <div className="modal-theme p-8 w-full max-w-sm space-y-5 shadow-xl">
+  const content = (
+    <>
       {onClose && (
         <button
           onClick={onClose}
@@ -95,70 +95,70 @@ export default function AuthPage({ onClose }: { onClose?: () => void }) {
           </svg>
         </button>
       )}
-        <div className="text-center">
-          <img src="/icon.svg" alt="" className="w-10 h-10 mx-auto mb-2" />
-          <h1 className="text-xl font-bold text-theme-primary tracking-tight">Outflow</h1>
-          <p className="text-sm text-theme-muted">
-            {mode === 'login' ? 'Sign in to sync your data' : 'Create an account'}
-          </p>
-        </div>
-
-        {error && <p className="text-theme-danger text-sm text-center">{error}</p>}
-        {message && <p className="text-theme-success text-sm text-center">{message}</p>}
-
-        <form onSubmit={submit} className="space-y-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            required
-            autoFocus
-            className="input-md w-full"
-          />
-          <PasswordField
-            value={password}
-            onChange={setPassword}
-            placeholder="Password"
-          />
-          {mode === 'signup' && (
-            <PasswordField
-              value={confirmPassword}
-              onChange={setConfirmPassword}
-              placeholder="Confirm password"
-            />
-          )}
-          <button type="submit" disabled={loading} className="auth-submit-btn">
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Sign Up'}
-          </button>
-        </form>
-
-
-
-        <p className="text-center text-sm text-theme-muted">
-          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button
-            onClick={() => {
-              setMode(mode === 'login' ? 'signup' : 'login')
-              setError('')
-              setMessage('')
-              setConfirmPassword('')
-            }}
-            className="text-theme-primary hover:underline font-medium"
-          >
-            {mode === 'login' ? 'Sign up' : 'Sign in'}
-          </button>
+      <div className="text-center">
+        <img src="/icon.svg" alt="" className="w-10 h-10 mx-auto mb-2" />
+        <h1 className="text-xl font-bold text-theme-primary tracking-tight">Outflow</h1>
+        <p className="text-sm text-theme-muted">
+          {mode === 'login' ? 'Sign in to sync your data' : 'Create an account'}
         </p>
       </div>
+
+      {error && <p className="text-theme-danger text-sm text-center">{error}</p>}
+      {message && <p className="text-theme-success text-sm text-center">{message}</p>}
+
+      <form onSubmit={submit} className="space-y-3">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+          autoFocus
+          className="input-md w-full"
+        />
+        <PasswordField
+          value={password}
+          onChange={setPassword}
+          placeholder="Password"
+        />
+        {mode === 'signup' && (
+          <PasswordField
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            placeholder="Confirm password"
+          />
+        )}
+        <button type="submit" disabled={loading} className="auth-submit-btn">
+          {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Sign Up'}
+        </button>
+      </form>
+
+      <p className="text-center text-sm text-theme-muted">
+        {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+        <button
+          onClick={() => {
+            setMode(mode === 'login' ? 'signup' : 'login')
+            setError('')
+            setMessage('')
+            setConfirmPassword('')
+          }}
+          className="text-theme-primary hover:underline font-medium"
+        >
+          {mode === 'login' ? 'Sign up' : 'Sign in'}
+        </button>
+      </p>
+    </>
   )
 
   if (onClose) {
-    return card
+    return content
   }
 
   return (
     <div className="min-h-dvh bg-theme-background flex items-center justify-center px-4">
-      {card}
+      <div className="modal-theme p-8 w-full max-w-sm space-y-5 shadow-xl">
+        {content}
+      </div>
     </div>
   )
 }
