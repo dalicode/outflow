@@ -22,6 +22,7 @@ import type {
 import db from './db/schema'
 import { StorageService } from './storageService'
 import { supabase } from './supabase'
+import { debugLog, debugWarn } from '../utils/debug'
 
 // Map local table names → Supabase table names
 const TABLE_MAP: Record<string, string> = {
@@ -287,7 +288,7 @@ async function resolveLocalCategoryId(
       updatedAt: now,
       isArchived: false,
     } as unknown as Category)
-    console.log(
+    debugLog(
       '[sync] auto-created category:',
       String(cloudCategoryName),
       'id:',
@@ -351,7 +352,7 @@ async function resolveLocalPayeeId(
       updatedAt: now,
       isArchived: false,
     } as unknown as Payee)
-    console.log(
+    debugLog(
       '[sync] auto-created payee:',
       String(cloudPayeeName),
       'id:',
@@ -739,14 +740,14 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   // Build name-based resolution maps from current local data
   const allLocalCats = await db.categories.toArray()
   const allLocalPayees = await db.payees.toArray()
-  console.log(
+  debugLog(
     '[sync] local cats after merge:',
     allLocalCats.length,
     'payees:',
     allLocalPayees.length,
   )
   if (allLocalCats.length > 0) {
-    console.log(
+    debugLog(
       '[sync] local cat sample:',
       allLocalCats.slice(0, 3).map((c) => ({ id: c.id, cloudId: c.cloudId, name: c.name })),
     )
@@ -770,7 +771,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     categoryNameToLocalId: catNameMap,
     payeeNameToLocalId: payeeNameMap,
   }
-  console.log(
+  debugLog(
     '[sync] resolution maps — cloudId->cat:',
     catMap.cloudIdToCategoryId?.size ?? 0,
     'name->cat:',
@@ -782,7 +783,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   )
 
   if (expRes.data?.length) {
-    console.log('[sync] resolving', expRes.data.length, 'cloud expenses')
+    debugLog('[sync] resolving', expRes.data.length, 'cloud expenses')
     const unresolvedCats = new Set<string>()
     const unresolvedPayees = new Set<string>()
     let autoCreatedCats = 0
@@ -834,7 +835,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
         return { ...local, categoryId, payeeId }
       }),
     )
-    console.log(
+    debugLog(
       '[sync] expense resolution: initial map match:',
       resolvedViaInitialMap,
       'fallback/auto-create:',
@@ -953,12 +954,12 @@ async function verifySyncIntegrity(): Promise<void> {
     }
   }
   if (brokenCats > 0) {
-    console.warn('[integrity] total expenses with broken category link:', brokenCats)
+    debugWarn('[integrity] total expenses with broken category link:', brokenCats)
   }
   if (brokenPayees > 0) {
-    console.warn('[integrity] total expenses with broken payee link:', brokenPayees)
+    debugWarn('[integrity] total expenses with broken payee link:', brokenPayees)
   }
-  console.log(
+  debugLog(
     '[integrity] checked',
     exps.length,
     'expenses,',

@@ -11,6 +11,7 @@ import {
 import { supabase } from '../services/supabase'
 import { flushSyncQueue, migrateLocalToSupabase, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
+import { debugLog, debugWarn } from '../utils/debug'
 
 interface AuthContextValue {
   user: User | null
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       syncingRef.current = true
       setSyncStatus('syncing')
       try {
-        console.log('[sync] pull + flush starting')
+        debugLog('[sync] pull + flush starting')
         await withTimeout(pullFromSupabase(userId), 30000)
         await withTimeout(flushSyncQueue(userId), 15000)
         setSyncStatus('idle')
@@ -94,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!mounted) return
 
-        console.log('[auth] getSession result', {
+        debugLog('[auth] getSession result', {
           hasSession: Boolean(data.session),
           userId: data.session?.user?.id,
           error,
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         if (mounted) {
           setLoading(false)
-          console.log('[auth] loading false')
+          debugLog('[auth] loading false')
         }
       }
     }
@@ -124,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null)
       setLoading(false)
       setAuthEvent(event)
-      console.log('[auth] state change', event, Boolean(session))
+      debugLog('[auth] state change', event, Boolean(session))
     })
 
     return () => {
@@ -149,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         if (isSignIn) {
-          console.log('[auth] SIGNED_IN — pulling cloud data first, then migrating local data')
+          debugLog('[auth] SIGNED_IN — pulling cloud data first, then migrating local data')
           syncingRef.current = true
           await withTimeout(pullFromSupabase(user.id), 30000)
           await withTimeout(migrateLocalToSupabase(user.id), 30000)
