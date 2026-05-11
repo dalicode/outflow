@@ -25,15 +25,17 @@ export async function update(id: number, changes: Partial<Expense>): Promise<voi
 }
 
 export async function remove(id: number): Promise<void> {
+  const expense = await db.expenses.get(id)
   await db.expenses.delete(id)
-  await enqueue('expenses', 'delete', { id })
+  await enqueue('expenses', 'delete', { id, cloudId: expense?.cloudId })
 }
 
 export async function removeMany(ids: number[]): Promise<void> {
   await db.transaction('rw', db.expenses, db.syncQueue, async () => {
+    const expenses = await db.expenses.bulkGet(ids)
     await db.expenses.bulkDelete(ids)
-    for (const id of ids) {
-      await enqueue('expenses', 'delete', { id })
+    for (let i = 0; i < ids.length; i++) {
+      await enqueue('expenses', 'delete', { id: ids[i], cloudId: expenses[i]?.cloudId })
     }
   })
 }

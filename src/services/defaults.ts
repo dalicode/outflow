@@ -661,8 +661,8 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
 
 export function buildDefaultCategories(now: string): Category[] {
   return DEFAULT_CATEGORIES.map((category) => ({
-    name: category.name,
     cloudId: crypto.randomUUID(),
+    name: category.name,
     createdAt: now,
     updatedAt: now,
     isArchived: false,
@@ -671,8 +671,8 @@ export function buildDefaultCategories(now: string): Category[] {
 
 export function buildDefaultPayees(now: string): Payee[] {
   return DEFAULT_PAYEES.map(({ name, aliases }) => ({
-    name,
     cloudId: crypto.randomUUID(),
+    name,
     aliases: aliases ?? [],
     createdAt: now,
     updatedAt: now,

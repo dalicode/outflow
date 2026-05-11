@@ -59,7 +59,13 @@ interface SettingsPageProps {
   onSignIn?: () => void
 }
 
-export default function SettingsPage({ expenses, onRefreshAll, triggerSync, showSignIn, onSignIn }: SettingsPageProps) {
+export default function SettingsPage({
+  expenses,
+  onRefreshAll,
+  triggerSync,
+  showSignIn,
+  onSignIn,
+}: SettingsPageProps) {
   const { settings, save, formatDate, formatAmount, currentTheme } = useSettings()
   const { user, signOut } = useAuth()
   const { showToast } = useToasts()
@@ -323,9 +329,7 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync, show
                 Cloud Sync
               </p>
               <p className="text-xs text-theme-muted mt-0.5">
-                {user
-                  ? `Syncing as ${user.email}`
-                  : 'Sync your data across devices by signing in.'}
+                {user ? `Syncing as ${user.email}` : 'Sync your data across devices by signing in.'}
               </p>
             </div>
             {user ? (
@@ -335,18 +339,17 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync, show
                   const { error } = await signOut()
                   if (error) showToast({ message: error.message, tone: 'danger' })
                 }}
-                className="btn-cancel-sm shrink-0"
+                className="settings-action-btn shrink-0 ml-4"
               >
                 Sign out
               </button>
-            ) : showSignIn && onSignIn && (
-              <button
-                type="button"
-                onClick={onSignIn}
-                className="btn-primary-sm shrink-0"
-              >
-                Sign in
-              </button>
+            ) : (
+              showSignIn &&
+              onSignIn && (
+                <button type="button" onClick={onSignIn} className="btn-primary-sm shrink-0">
+                  Sign in
+                </button>
+              )
             )}
           </div>
         </Card>

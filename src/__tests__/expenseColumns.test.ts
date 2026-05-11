@@ -8,14 +8,18 @@ describe('editableCellActivate', () => {
       switchCellEdit,
     } as unknown as Parameters<typeof editableCellActivate>[0]
 
-    const handlers = editableCellActivate(editing, { id: 1 } as Parameters<typeof editableCellActivate>[1], 'description')
+    const handlers = editableCellActivate(
+      editing,
+      { id: 1 } as Parameters<typeof editableCellActivate>[1],
+      'description',
+    )
 
     // The returned handler set should include onPointerDown but NOT onClick
     expect(typeof handlers.onPointerDown).toBe('function')
     expect((handlers as Record<string, unknown>).onClick).toBeUndefined()
 
     // Simulate a primary pointer down on a cell element
-    handlers.onPointerDown!({
+    handlers.onPointerDown?.({
       button: 0,
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
@@ -32,10 +36,14 @@ describe('editableCellActivate', () => {
       switchCellEdit,
     } as unknown as Parameters<typeof editableCellActivate>[0]
 
-    const handlers = editableCellActivate(editing, { id: 1 } as Parameters<typeof editableCellActivate>[1], 'payeeId')
+    const handlers = editableCellActivate(
+      editing,
+      { id: 1 } as Parameters<typeof editableCellActivate>[1],
+      'payeeId',
+    )
 
     // Right-click does NOT trigger
-    handlers.onPointerDown!({
+    handlers.onPointerDown?.({
       button: 2,
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
@@ -49,7 +57,7 @@ describe('editableCellActivate', () => {
     const nestedSpan = document.createElement('span')
     container.appendChild(nestedSpan)
 
-    handlers.onPointerDown!({
+    handlers.onPointerDown?.({
       button: 0,
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
@@ -58,7 +66,7 @@ describe('editableCellActivate', () => {
     expect(switchCellEdit).not.toHaveBeenCalled()
 
     // Left-click on a normal element DOES trigger
-    handlers.onPointerDown!({
+    handlers.onPointerDown?.({
       button: 0,
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),

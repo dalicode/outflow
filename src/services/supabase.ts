@@ -8,4 +8,13 @@ if (!url || !key) {
 }
 
 // null when env vars absent so the rest of the app can guard with `if (supabase)`
-export const supabase: SupabaseClient | null = url && key ? createClient(url, key) : null
+export const supabase: SupabaseClient | null =
+  url && key
+    ? createClient(url, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      })
+    : null

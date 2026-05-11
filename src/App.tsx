@@ -26,7 +26,7 @@ import type { DashboardSessionState } from './features/dashboard/hooks/useDashbo
 import { useCategories, useExpenses, usePayees } from './hooks/useLocalData'
 import { StorageService } from './services/storageService'
 import { supabase } from './services/supabase'
-import type { Expense, SyncStatus } from './types'
+import type { Expense } from './types'
 import { cn } from './utils/cn'
 import { summarizeScheduleMaterializationNotices } from './utils/scheduleNotificationUtils'
 import { parseTrendDrilldownParam, parseTrendMonthParam, parseYearParam } from './utils/urlParams'
@@ -129,7 +129,7 @@ function AppShell() {
     }
   }, [])
 
-  const { user, loading, syncStatus, triggerSync, signOut } = useAuth()
+  const { user, loading, syncStatus, syncCount, triggerSync, signOut } = useAuth()
   const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
@@ -269,15 +269,16 @@ function AppShell() {
     [handleScroll, handleScrollDirection],
   )
 
+  // Refresh all local data after every sync so the UI reflects cloud changes
+  // without requiring a manual page reload.
   useEffect(() => {
-    if (syncStatus === 'idle') {
-      refreshExpenses()
-      refreshCategories()
-      refreshPayees()
-      loadSettings()
-    }
+    if (syncCount === 0) return
+    refreshExpenses()
+    refreshCategories()
+    refreshPayees()
+    loadSettings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncStatus, refreshPayees, refreshExpenses, refreshCategories, loadSettings])
+  }, [syncCount, refreshPayees, refreshExpenses, refreshCategories, loadSettings])
 
   useEffect(() => {
     const init = async () => {
@@ -420,7 +421,7 @@ function AppShell() {
         )
         setPendingExpenseDeleteIds((current) => current.filter((pendingId) => pendingId !== id))
       }
-    }, 4500)
+    }, 2000)
 
     pendingExpenseDeleteTimersRef.current.push(timer)
     setPendingExpenseDeleteIds((current) => [...new Set([...current, id])])
@@ -430,7 +431,20 @@ function AppShell() {
       pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
         (item) => item !== timer,
       )
-      setPendingExpenseDeleteIds((current) => current.filter((pendingId) => pendingId !== id))
+
+      // Remove from pending delete set, and detect if timer already fired
+      let timerFired = false
+      setPendingExpenseDeleteIds((current) => {
+        timerFired = !current.includes(id)
+        return current.filter((pendingId) => pendingId !== id)
+      })
+
+      if (timerFired) {
+        // Timer already fired — expense was deleted from DB and synced.
+        // Re-create it locally and push the re-creation to the cloud.
+        await StorageService.add(expense)
+        triggerSync?.()
+      }
       setExpenses((prev) => {
         if (prev.some((item) => item.id === id)) return prev
         const restored = [...prev]
@@ -463,7 +477,7 @@ function AppShell() {
           current.filter((pendingId) => !selectedIdSet.has(pendingId)),
         )
       }
-    }, 4500)
+    }, 2000)
 
     pendingExpenseDeleteTimersRef.current.push(timer)
     setPendingExpenseDeleteIds((current) => [...new Set([...current, ...ids])])
@@ -473,9 +487,21 @@ function AppShell() {
       pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
         (item) => item !== timer,
       )
-      setPendingExpenseDeleteIds((current) =>
-        current.filter((pendingId) => !selectedIdSet.has(pendingId)),
-      )
+
+      let timerFired = false
+      setPendingExpenseDeleteIds((current) => {
+        timerFired = !ids.some((id) => current.includes(id))
+        return current.filter((pendingId) => !selectedIdSet.has(pendingId))
+      })
+
+      if (timerFired) {
+        // Timer already fired — expenses were deleted from DB and synced.
+        // Re-create them locally and push the re-creation to the cloud.
+        for (const expense of selected) {
+          await StorageService.add(expense)
+        }
+        triggerSync?.()
+      }
       setExpenses((prev) => {
         const restored = [...prev]
         positions
@@ -533,7 +559,19 @@ function AppShell() {
             <OfflineStatusBadge />
             <Navbar
               onAddExpense={() => setShowForm(true)}
-              onSignOut={supabase && user ? signOut : undefined}
+              onSignOut={
+                supabase && user
+                  ? (_e) => {
+                      signOut().then(({ error }) => {
+                        if (error) {
+                          showToast({ message: 'Sign out failed', tone: 'danger' })
+                        } else {
+                          showToast({ message: 'Signed out', tone: 'success', durationMs: 3000 })
+                        }
+                      })
+                    }
+                  : undefined
+              }
               onSignIn={() => setShowAuthModal(true)}
               showSignIn={!!supabase && !user}
               userEmail={user?.email}

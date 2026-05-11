@@ -87,7 +87,6 @@ describe('Navbar', () => {
     expect(analyticsLink).toHaveAttribute('aria-current', 'page')
   })
 
-
   it('expands and collapses sidebar', () => {
     renderNavbar({ onAddExpense: vi.fn() })
 

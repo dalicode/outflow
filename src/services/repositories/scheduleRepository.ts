@@ -39,8 +39,9 @@ export async function updateSchedule(id: number, changes: Partial<Schedule>): Pr
 }
 
 export async function deleteSchedule(id: number): Promise<void> {
+  const schedule = await db.schedules.get(id)
   await db.schedules.delete(id)
-  await enqueue('schedules', 'delete', { id })
+  await enqueue('schedules', 'delete', { id, cloudId: schedule?.cloudId })
 }
 
 // ── Schedule Materialization ──────────────────────────────
@@ -231,7 +232,12 @@ export async function rolloverSnapshots() {
   const lastMonth = parseInt(lastMonthStr, 10)
 
   // Guard against corrupted value: skip rollover if date is in the future or malformed
-  if (!isFinite(lastYear) || !isFinite(lastMonth) || lastMonth < 1 || lastMonth > 12) {
+  if (
+    !Number.isFinite(lastYear) ||
+    !Number.isFinite(lastMonth) ||
+    lastMonth < 1 ||
+    lastMonth > 12
+  ) {
     await db.settings.put({ key: 'lastAppOpenMonthKey', value: currentKey })
     await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
     return

@@ -221,7 +221,7 @@ function ToastViewport({
                 if (!touchRef.current || touchRef.current.id !== id) return
                 setTouchDeltas((prev) => ({
                   ...prev,
-                  [id]: e.touches[0].clientY - touchRef.current!.y,
+                  [id]: e.touches[0].clientY - touchRef.current?.y,
                 }))
               }}
               onTouchEnd={() => {

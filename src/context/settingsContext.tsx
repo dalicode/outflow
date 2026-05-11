@@ -164,9 +164,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const loadSettings = useCallback(async () => {
     try {
       const saved = await StorageService.getSetting('uiSettings', null)
-      const next = saved
-        ? { ...DEFAULTS, ...(saved as Record<string, unknown>) }
-        : { ...DEFAULTS }
+      const next = saved ? { ...DEFAULTS, ...(saved as Record<string, unknown>) } : { ...DEFAULTS }
       setSettings(next as AppSettings)
     } catch (err) {
       console.warn('Settings reload error:', err)

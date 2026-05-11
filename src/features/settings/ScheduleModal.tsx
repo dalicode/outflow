@@ -521,7 +521,12 @@ function ScheduleModalFooter({
         {isReadOnly ? 'Close' : 'Cancel'}
       </button>
       {!isReadOnly && (
-        <button onClick={onSave} className="btn-modal-primary flex-1" disabled={saving} data-testid="btn-save-schedule">
+        <button
+          onClick={onSave}
+          className="btn-modal-primary flex-1"
+          disabled={saving}
+          data-testid="btn-save-schedule"
+        >
           {saving ? 'Saving…' : editSchedule ? 'Update' : 'Save Schedule'}
         </button>
       )}

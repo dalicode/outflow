@@ -50,8 +50,9 @@ export async function updateFixedExpense(
 }
 
 export async function removeFixedExpense(id: number): Promise<void> {
+  const item = await db.fixedExpenses.get(id)
   await db.fixedExpenses.delete(id)
-  await enqueue('fixedExpenses', 'delete', { id })
+  await enqueue('fixedExpenses', 'delete', { id, cloudId: item?.cloudId })
 }
 
 export async function getSnapshotsForYear(year: number): Promise<FixedExpenseSnapshot[]> {

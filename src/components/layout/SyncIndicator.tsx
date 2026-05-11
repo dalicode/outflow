@@ -15,38 +15,34 @@ const COLOR_MAP: Record<SyncStatus, string> = {
 }
 
 const LABEL_MAP: Record<SyncStatus, string> = {
-  idle: 'Synced',
+  idle: 'Connected',
   syncing: 'Syncing…',
   error: 'Sync error',
   offline: 'Offline',
 }
 
 export default function SyncIndicator({ syncStatus, variant = 'dot' }: SyncIndicatorProps) {
-  const [visible, setVisible] = useState(false)
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [errorVisible, setErrorVisible] = useState(true)
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current)
-      hideTimerRef.current = null
-    }
-
-    if (syncStatus === 'idle') {
-      hideTimerRef.current = setTimeout(() => setVisible(false), 2000)
-    } else {
-      setVisible(true)
-    }
-
     if (syncStatus === 'error') {
-      hideTimerRef.current = setTimeout(() => setVisible(false), 4000)
+      setErrorVisible(true)
+      errorTimerRef.current = setTimeout(() => setErrorVisible(false), 4000)
+    } else {
+      setErrorVisible(true)
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current)
+        errorTimerRef.current = null
+      }
     }
 
     return () => {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
     }
   }, [syncStatus])
 
-  if (!visible) return null
+  if (syncStatus === 'error' && !errorVisible) return null
 
   if (variant === 'bar') {
     return (
