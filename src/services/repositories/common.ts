@@ -54,19 +54,23 @@ function resolveScheduleValueForMonth(
 }
 
 async function snapshotIncome(year: number, month: number, amount: number) {
+  const now = new Date().toISOString()
   const existing = await db.incomeSnapshots.where({ year, month }).first()
   if (existing) {
     await db.incomeSnapshots.update(existing.id as number, {
       amountSnapshot: amount,
+      updatedAt: now,
     })
     const updated = await db.incomeSnapshots.get(existing.id as number)
     await enqueue('incomeSnapshots', 'update', updated as unknown as Record<string, unknown>)
   } else {
     const id = await db.incomeSnapshots.add({
+      cloudId: crypto.randomUUID(),
       year,
       month,
       amountSnapshot: amount,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     })
     const row = await db.incomeSnapshots.get(id)
     await enqueue('incomeSnapshots', 'insert', row as unknown as Record<string, unknown>)
@@ -74,19 +78,23 @@ async function snapshotIncome(year: number, month: number, amount: number) {
 }
 
 async function snapshotSavings(year: number, month: number, rate: number) {
+  const now = new Date().toISOString()
   const existing = await db.savingsSnapshots.where({ year, month }).first()
   if (existing) {
     await db.savingsSnapshots.update(existing.id as number, {
       rateSnapshot: rate,
+      updatedAt: now,
     })
     const updated = await db.savingsSnapshots.get(existing.id as number)
     await enqueue('savingsSnapshots', 'update', updated as unknown as Record<string, unknown>)
   } else {
     const id = await db.savingsSnapshots.add({
+      cloudId: crypto.randomUUID(),
       year,
       month,
       rateSnapshot: rate,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     })
     const row = await db.savingsSnapshots.get(id)
     await enqueue('savingsSnapshots', 'insert', row as unknown as Record<string, unknown>)

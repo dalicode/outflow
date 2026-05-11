@@ -7,13 +7,19 @@ export async function getAll(): Promise<Expense[]> {
 }
 
 export async function add(expense: Omit<Expense, 'id'>): Promise<number> {
-  const id = await db.expenses.add(expense as Expense)
-  await enqueue('expenses', 'insert', { ...expense, id })
+  const now = new Date().toISOString()
+  const record = {
+    ...expense,
+    cloudId: crypto.randomUUID(),
+    updatedAt: now,
+  } as Expense
+  const id = await db.expenses.add(record)
+  await enqueue('expenses', 'insert', { ...expense, id, cloudId: record.cloudId })
   return id
 }
 
 export async function update(id: number, changes: Partial<Expense>): Promise<void> {
-  await db.expenses.update(id, changes)
+  await db.expenses.update(id, { ...changes, updatedAt: new Date().toISOString() })
   const row = await db.expenses.get(id)
   await enqueue('expenses', 'update', row as unknown as Record<string, unknown>)
 }

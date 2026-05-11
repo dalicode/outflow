@@ -26,9 +26,12 @@ export async function addPayee(name: string): Promise<number> {
     }
     throw new Error('A payee with that name already exists')
   }
+  const now = new Date().toISOString()
   const id = await db.payees.add({
     name: trimmed,
-    createdAt: new Date().toISOString(),
+    cloudId: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
     isArchived: false,
   } as Payee)
   const row = await db.payees.get(id)
@@ -93,10 +96,12 @@ export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): 
   }
 
   const mergeId = await db.payeeMergeHistory.add({
+    cloudId: crypto.randomUUID(),
     sourcePayeeId,
     targetPayeeId,
     affectedExpenseIds: affectedIds,
     createdAt: now,
+    updatedAt: now,
     revertedAt: null,
   } as PayeeMergeHistory)
   const mergeRow = await db.payeeMergeHistory.get(mergeId)

@@ -22,9 +22,12 @@ export async function addCategory(name: string): Promise<number> {
     }
     throw new Error('A category with that name already exists')
   }
+  const now = new Date().toISOString()
   const id = await db.categories.add({
     name: trimmed,
-    createdAt: new Date().toISOString(),
+    cloudId: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
     isArchived: false,
   } as Category)
   const row = await db.categories.get(id)
@@ -36,7 +39,7 @@ export async function updateCategory(id: number, changes: Partial<Category>): Pr
   if (changes.name) {
     changes.name = changes.name.trim()
   }
-  await db.categories.update(id, changes)
+  await db.categories.update(id, { ...changes, updatedAt: new Date().toISOString() })
   const row = await db.categories.get(id)
   await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
 }
@@ -67,10 +70,12 @@ export async function mergeCategory(
   }
 
   const mergeId = await db.categoryMergeHistory.add({
+    cloudId: crypto.randomUUID(),
     sourceCategoryId,
     targetCategoryId,
     affectedExpenseIds: affectedIds,
     createdAt: now,
+    updatedAt: now,
     revertedAt: null,
   } as CategoryMergeHistory)
   const mergeRow = await db.categoryMergeHistory.get(mergeId)

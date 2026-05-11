@@ -19,10 +19,13 @@ export async function getActiveSchedules(): Promise<Schedule[]> {
 export async function addSchedule(
   schedule: Omit<Schedule, 'id' | 'isActive' | 'createdAt'>,
 ): Promise<number> {
+  const now = new Date().toISOString()
   const id = await db.schedules.add({
     ...schedule,
+    cloudId: crypto.randomUUID(),
     isActive: 1,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   } as Schedule)
   const row = await db.schedules.get(id)
   await enqueue('schedules', 'insert', row as unknown as Record<string, unknown>)
@@ -161,11 +164,13 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
       const day = schedule.day ?? 1
       const date = `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
       const expenseId = await db.expenses.add({
+        cloudId: crypto.randomUUID(),
         date,
         amount: schedule.newValue,
         categoryId: schedule.categoryId,
         description: schedule.note,
         createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
       })
       const expenseRow = await db.expenses.get(expenseId)
       await enqueue('expenses', 'insert', expenseRow as unknown as Record<string, unknown>)
@@ -295,6 +300,7 @@ export async function rolloverSnapshots() {
     const hasIncome = incomeSnaps.some((s) => s.year === year && s.month === month)
     if (!hasIncome) {
       incomeToAdd.push({
+        cloudId: crypto.randomUUID(),
         year,
         month,
         amountSnapshot: resolveScheduleValueForMonth(
@@ -305,12 +311,14 @@ export async function rolloverSnapshots() {
           'income',
         ),
         createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
       })
     }
 
     const hasSavings = savingsSnaps.some((s) => s.year === year && s.month === month)
     if (!hasSavings) {
       savingsToAdd.push({
+        cloudId: crypto.randomUUID(),
         year,
         month,
         rateSnapshot: resolveScheduleValueForMonth(
@@ -321,6 +329,7 @@ export async function rolloverSnapshots() {
           'savingsRate',
         ),
         createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
       })
     }
 
@@ -331,6 +340,7 @@ export async function rolloverSnapshots() {
       )
       if (!hasFixed) {
         fixedToAdd.push({
+          cloudId: crypto.randomUUID(),
           fixedExpenseId: def.id,
           nameSnapshot: def.name,
           amountSnapshot: resolveScheduleValueForMonth(
@@ -344,6 +354,7 @@ export async function rolloverSnapshots() {
           year,
           month,
           createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
         })
       }
     }

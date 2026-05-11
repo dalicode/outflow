@@ -8,18 +8,21 @@
 
 export interface Expense {
   id?: number
+  cloudId?: string
   date: string
   amount: number
   categoryId?: number
   payeeId?: number
   description?: string
   createdAt?: string
+  updatedAt?: string
 }
 
 // ── Categories ──────────────────────────────────────────────────────────────
 
 export interface Category {
   id?: number
+  cloudId?: string
   name: string
   createdAt?: string
   updatedAt?: string
@@ -32,6 +35,7 @@ export interface Category {
 
 export interface Payee {
   id?: number
+  cloudId?: string
   name: string
   aliases?: string[]
   createdAt?: string
@@ -45,26 +49,31 @@ export interface Payee {
 
 export interface CategoryMergeHistory {
   id?: number
+  cloudId?: string
   sourceCategoryId: number
   targetCategoryId: number
   affectedExpenseIds: number[]
   createdAt: string
   revertedAt?: string | null
+  updatedAt?: string
 }
 
 export interface PayeeMergeHistory {
   id?: number
+  cloudId?: string
   sourcePayeeId: number
   targetPayeeId: number
   affectedExpenseIds: number[]
   createdAt: string
   revertedAt?: string | null
+  updatedAt?: string
 }
 
 // ── Fixed Expenses ──────────────────────────────────────────────────────────
 
 export interface FixedExpense {
   id?: number
+  cloudId?: string
   name: string
   amount: number
   isArchived?: boolean
@@ -74,28 +83,34 @@ export interface FixedExpense {
 
 export interface FixedExpenseSnapshot {
   id?: number
+  cloudId?: string
   fixedExpenseId: number
   nameSnapshot: string
   amountSnapshot: number
   year: number
   month: number
   createdAt?: string
+  updatedAt?: string
 }
 
 export interface IncomeSnapshot {
   id?: number
+  cloudId?: string
   year: number
   month: number
   amountSnapshot: number
   createdAt?: string
+  updatedAt?: string
 }
 
 export interface SavingsSnapshot {
   id?: number
+  cloudId?: string
   year: number
   month: number
   rateSnapshot: number
   createdAt?: string
+  updatedAt?: string
 }
 
 // ── Schedules ───────────────────────────────────────────────────────────────
@@ -104,6 +119,7 @@ export type ScheduleType = 'income' | 'savingsRate' | 'fixedExpense' | 'expense'
 
 export interface Schedule {
   id?: number
+  cloudId?: string
   type: ScheduleType
   targetId: number | null
   effectiveYear: number
@@ -114,6 +130,7 @@ export interface Schedule {
   isActive: number // IndexedDB cannot index booleans; stored as 1/0
   note?: string
   createdAt?: string
+  updatedAt?: string
   day?: number // 1–31, used by expense schedules
   categoryId?: number // used by expense schedules
   payeeId?: number // used by expense schedules

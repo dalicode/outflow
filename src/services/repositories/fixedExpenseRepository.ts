@@ -14,6 +14,7 @@ export async function addFixedExpense(item: Omit<FixedExpense, 'id'>): Promise<n
   const now = new Date().toISOString()
   const id = await db.fixedExpenses.add({
     ...item,
+    cloudId: crypto.randomUUID(),
     updatedAt: now,
   } as FixedExpense)
   const row = await db.fixedExpenses.get(id)
@@ -22,10 +23,13 @@ export async function addFixedExpense(item: Omit<FixedExpense, 'id'>): Promise<n
 }
 
 export async function addArchivedFixedExpense(item: Omit<FixedExpense, 'id'>): Promise<number> {
+  const now = new Date().toISOString()
   const payload = {
     ...item,
+    cloudId: crypto.randomUUID(),
     isArchived: true,
-    archivedAt: new Date().toISOString(),
+    archivedAt: now,
+    updatedAt: now,
   }
   const id = await db.fixedExpenses.add(payload as FixedExpense)
   const row = await db.fixedExpenses.get(id)

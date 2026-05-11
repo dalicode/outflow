@@ -19,6 +19,7 @@ import type {
   Schedule,
   SyncQueueItem,
 } from '../types'
+import db from './db/schema'
 import { StorageService } from './storageService'
 import { supabase } from './supabase'
 
@@ -49,22 +50,40 @@ function toNumberArray(value: unknown): number[] {
 }
 
 // Convert a local row to a Supabase-shaped row (snake_case + user_id)
+interface ToCloudMaps {
+  categoryIdToCloudId?: Map<number, string>
+  payeeIdToCloudId?: Map<number, string>
+  fixedExpenseIdToCloudId?: Map<number, string>
+  categoryCloudIdToMergeTarget?: Map<string, string>
+  payeeCloudIdToMergeTarget?: Map<string, string>
+}
+
 function toCloud(
   table: string,
   payload: Record<string, unknown>,
   userId: string,
+  maps?: ToCloudMaps,
 ): Record<string, unknown> {
   const now = new Date().toISOString()
   const base = { user_id: userId, updated_at: now }
+
+  function cat(id: number | undefined | null) {
+    if (id == null) return null
+    return maps?.categoryIdToCloudId?.get(id) ?? String(id)
+  }
+  function pay(id: number | undefined | null) {
+    if (id == null) return null
+    return maps?.payeeIdToCloudId?.get(id) ?? String(id)
+  }
 
   if (table === 'expenses') {
     const p = payload as unknown as Expense
     return {
       ...base,
-      id: String(p.id),
+      id: p.cloudId ?? String(p.id),
       date: p.date,
-      category_id: p.categoryId != null ? String(p.categoryId) : null,
-      payee_id: p.payeeId != null ? String(p.payeeId) : null,
+      category_id: cat(p.categoryId),
+      payee_id: pay(p.payeeId),
       description: p.description ?? '',
       amount: p.amount,
     }
@@ -73,32 +92,29 @@ function toCloud(
     const p = payload as unknown as Category
     return {
       ...base,
-      id: String(p.id),
+      id: p.cloudId ?? String(p.id),
       name: p.name,
       is_archived: p.isArchived ?? false,
       archived_at: p.archivedAt ?? null,
-      merged_into_category_id:
-        (p as unknown as Record<string, unknown>).mergedIntoCategoryId != null
-          ? String((p as unknown as Record<string, unknown>).mergedIntoCategoryId)
-          : null,
+      merged_into_category_id: cat(p.mergedIntoCategoryId),
     }
   }
   if (table === 'payees') {
     const p = payload as unknown as Payee
     return {
       ...base,
-      id: String(p.id),
+      id: p.cloudId ?? String(p.id),
       name: p.name,
       is_archived: p.isArchived ?? false,
       archived_at: p.archivedAt ?? null,
-      merged_into_payee_id: p.mergedIntoPayeeId != null ? String(p.mergedIntoPayeeId) : null,
+      merged_into_payee_id: pay(p.mergedIntoPayeeId),
     }
   }
   if (table === 'fixedExpenses') {
     const p = payload as unknown as FixedExpense
     return {
       ...base,
-      id: String(p.id),
+      id: p.cloudId ?? String(p.id),
       name: p.name,
       amount: p.amount,
       is_archived: p.isArchived ?? false,
@@ -109,8 +125,8 @@ function toCloud(
     const p = payload as unknown as FixedExpenseSnapshot
     return {
       ...base,
-      id: String(p.id),
-      fixed_expense_id: String(p.fixedExpenseId),
+      id: p.cloudId ?? String(p.id),
+      fixed_expense_id: maps?.fixedExpenseIdToCloudId?.get(p.fixedExpenseId) ?? String(p.fixedExpenseId),
       name_snapshot: p.nameSnapshot,
       amount_snapshot: p.amountSnapshot,
       month: p.month,
@@ -121,7 +137,7 @@ function toCloud(
     const p = payload as unknown as IncomeSnapshot
     return {
       ...base,
-      id: String(p.id ?? `${p.year}-${p.month}`),
+      id: p.cloudId ?? String(p.id ?? `${p.year}-${p.month}`),
       year: p.year,
       month: p.month,
       amount_snapshot: p.amountSnapshot,
@@ -132,7 +148,7 @@ function toCloud(
     const p = payload as unknown as SavingsSnapshot
     return {
       ...base,
-      id: String(p.id ?? `${p.year}-${p.month}`),
+      id: p.cloudId ?? String(p.id ?? `${p.year}-${p.month}`),
       year: p.year,
       month: p.month,
       rate_snapshot: p.rateSnapshot,
@@ -143,9 +159,9 @@ function toCloud(
     const p = payload as unknown as Schedule
     return {
       ...base,
-      id: String(p.id),
+      id: p.cloudId ?? String(p.id),
       type: p.type,
-      target_id: p.targetId != null ? String(p.targetId) : null,
+      target_id: maps?.fixedExpenseIdToCloudId?.get(p.targetId as number) ?? String(p.targetId),
       effective_year: p.effectiveYear,
       effective_month: p.effectiveMonth,
       new_value: p.newValue,
@@ -154,17 +170,17 @@ function toCloud(
       is_active: p.isActive,
       note: p.note ?? null,
       day: p.day ?? null,
-      category_id: p.categoryId != null ? String(p.categoryId) : null,
-      payee_id: p.payeeId != null ? String(p.payeeId) : null,
+      category_id: cat(p.categoryId),
+      payee_id: pay(p.payeeId),
     }
   }
   if (table === 'categoryMergeHistory') {
     const p = payload as unknown as CategoryMergeHistory
     return {
       ...base,
-      id: String(p.id ?? `${p.sourceCategoryId}-${p.targetCategoryId}-${p.createdAt}`),
-      source_category_id: String(p.sourceCategoryId),
-      target_category_id: String(p.targetCategoryId),
+      id: p.cloudId ?? String(p.id ?? `${p.sourceCategoryId}-${p.targetCategoryId}-${p.createdAt}`),
+      source_category_id: cat(p.sourceCategoryId),
+      target_category_id: cat(p.targetCategoryId),
       affected_expense_ids: p.affectedExpenseIds,
       created_at: p.createdAt,
       reverted_at: p.revertedAt ?? null,
@@ -174,9 +190,9 @@ function toCloud(
     const p = payload as unknown as PayeeMergeHistory
     return {
       ...base,
-      id: String(p.id ?? `${p.sourcePayeeId}-${p.targetPayeeId}-${p.createdAt}`),
-      source_payee_id: String(p.sourcePayeeId),
-      target_payee_id: String(p.targetPayeeId),
+      id: p.cloudId ?? String(p.id ?? `${p.sourcePayeeId}-${p.targetPayeeId}-${p.createdAt}`),
+      source_payee_id: pay(p.sourcePayeeId),
+      target_payee_id: pay(p.targetPayeeId),
       affected_expense_ids: p.affectedExpenseIds,
       created_at: p.createdAt,
       reverted_at: p.revertedAt ?? null,
@@ -193,82 +209,114 @@ function toCloud(
 }
 
 // Convert a Supabase row back to a local IndexedDB row
-function fromCloud(table: string, row: Record<string, unknown>): Record<string, unknown> {
+interface FromCloudMaps {
+  cloudIdToCategoryId?: Map<string, number>
+  cloudIdToPayeeId?: Map<string, number>
+  cloudIdToFixedExpenseId?: Map<string, number>
+}
+
+function fromCloud(
+  table: string,
+  row: Record<string, unknown>,
+  maps?: FromCloudMaps,
+): Record<string, unknown> {
+  const cid = String(row.id)
+
+  function resolveCat(cloudId: unknown) {
+    if (cloudId == null) return undefined
+    return maps?.cloudIdToCategoryId?.get(String(cloudId))
+  }
+  function resolvePay(cloudId: unknown) {
+    if (cloudId == null) return undefined
+    return maps?.cloudIdToPayeeId?.get(String(cloudId))
+  }
+  function resolveFixed(cloudId: unknown) {
+    if (cloudId == null) return undefined
+    return maps?.cloudIdToFixedExpenseId?.get(String(cloudId))
+  }
+
   if (table === 'expenses') {
     return {
-      id: toNumberOrUndefined(row.id),
+      cloudId: cid,
       date: row.date,
-      categoryId: toNumberOrUndefined(row.category_id),
-      payeeId: toNumberOrUndefined(row.payee_id),
+      categoryId: resolveCat(row.category_id),
+      payeeId: resolvePay(row.payee_id),
       description: row.description ?? '',
       amount: row.amount,
+      updatedAt: row.updated_at as string | undefined,
     }
   }
   if (table === 'categories') {
     return {
-      id: toNumberOrUndefined(row.id),
+      cloudId: cid,
       name: row.name,
       isArchived: row.is_archived,
       createdAt: row.created_at ?? new Date().toISOString(),
+      updatedAt: row.updated_at as string | undefined,
       archivedAt: row.archived_at ?? undefined,
-      mergedIntoCategoryId: toNumberOrUndefined(row.merged_into_category_id),
+      mergedIntoCategoryId: resolveCat(row.merged_into_category_id),
     }
   }
   if (table === 'payees') {
     return {
-      id: toNumberOrUndefined(row.id),
+      cloudId: cid,
       name: row.name,
       isArchived: row.is_archived,
       createdAt: row.created_at ?? new Date().toISOString(),
+      updatedAt: row.updated_at as string | undefined,
       aliases: Array.isArray(row.aliases) ? row.aliases : [],
       archivedAt: row.archived_at ?? undefined,
-      mergedIntoPayeeId: toNumberOrUndefined(row.merged_into_payee_id),
+      mergedIntoPayeeId: resolvePay(row.merged_into_payee_id),
     }
   }
   if (table === 'fixed_expenses') {
     return {
-      id: toNumberOrUndefined(row.id),
+      cloudId: cid,
       name: row.name,
       amount: row.amount,
       isArchived: row.is_archived,
+      updatedAt: row.updated_at as string | undefined,
       archivedAt: row.archived_at ?? undefined,
     }
   }
   if (table === 'fixed_expense_snapshots') {
     return {
-      id: toNumberOrUndefined(row.id),
-      fixedExpenseId: toNumberOrUndefined(row.fixed_expense_id),
+      cloudId: cid,
+      fixedExpenseId: resolveFixed(row.fixed_expense_id) ?? toNumberOrUndefined(row.fixed_expense_id),
       nameSnapshot: row.name_snapshot,
       amountSnapshot: row.amount_snapshot,
       month: row.month,
       year: row.year,
-      createdAt: row.created_at,
+      updatedAt: row.updated_at as string | undefined,
+      createdAt: row.created_at as string | undefined,
     }
   }
   if (table === 'income_snapshots') {
     return {
-      id: toNumberOrUndefined(row.id),
+      cloudId: cid,
       year: row.year,
       month: row.month,
       amountSnapshot: row.amount_snapshot,
-      createdAt: row.created_at,
+      updatedAt: row.updated_at as string | undefined,
+      createdAt: row.created_at as string | undefined,
     }
   }
   if (table === 'savings_snapshots') {
     return {
-      id: toNumberOrUndefined(row.id),
+      cloudId: cid,
       year: row.year,
       month: row.month,
       rateSnapshot: row.rate_snapshot,
-      createdAt: row.created_at,
+      updatedAt: row.updated_at as string | undefined,
+      createdAt: row.created_at as string | undefined,
     }
   }
   if (table === 'schedules') {
     const isActiveValue = row.is_active
     return {
-      id: toNumberOrUndefined(row.id),
+      cloudId: cid,
       type: row.type,
-      targetId: toNumberOrUndefined(row.target_id) ?? null,
+      targetId: resolveFixed(row.target_id) ?? toNumberOrUndefined(row.target_id) ?? null,
       effectiveYear: row.effective_year,
       effectiveMonth: row.effective_month,
       newValue: row.new_value,
@@ -276,29 +324,32 @@ function fromCloud(table: string, row: Record<string, unknown>): Record<string, 
       materializedAt: row.materialized_at ?? undefined,
       isActive: isActiveValue === true || Number(isActiveValue) === 1 ? 1 : 0,
       note: row.note ?? undefined,
-      createdAt: row.created_at,
+      updatedAt: row.updated_at as string | undefined,
+      createdAt: row.created_at as string | undefined,
       day: row.day ?? undefined,
-      categoryId: toNumberOrUndefined(row.category_id),
-      payeeId: toNumberOrUndefined(row.payee_id),
+      categoryId: resolveCat(row.category_id),
+      payeeId: resolvePay(row.payee_id),
     }
   }
   if (table === 'category_merge_history') {
     return {
-      id: toNumberOrUndefined(row.id),
-      sourceCategoryId: toNumberOrUndefined(row.source_category_id) ?? 0,
-      targetCategoryId: toNumberOrUndefined(row.target_category_id) ?? 0,
+      cloudId: cid,
+      sourceCategoryId: resolveCat(row.source_category_id) ?? 0,
+      targetCategoryId: resolveCat(row.target_category_id) ?? 0,
       affectedExpenseIds: toNumberArray(row.affected_expense_ids),
-      createdAt: row.created_at,
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string | undefined,
       revertedAt: row.reverted_at ?? null,
     }
   }
   if (table === 'payee_merge_history') {
     return {
-      id: toNumberOrUndefined(row.id),
-      sourcePayeeId: toNumberOrUndefined(row.source_payee_id) ?? 0,
-      targetPayeeId: toNumberOrUndefined(row.target_payee_id) ?? 0,
+      cloudId: cid,
+      sourcePayeeId: resolvePay(row.source_payee_id) ?? 0,
+      targetPayeeId: resolvePay(row.target_payee_id) ?? 0,
       affectedExpenseIds: toNumberArray(row.affected_expense_ids),
-      createdAt: row.created_at,
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string | undefined,
       revertedAt: row.reverted_at ?? null,
     }
   }
@@ -326,7 +377,8 @@ export async function flushSyncQueue(userId: string): Promise<void> {
       const row = toCloud(item.table, item.payload, userId)
       if (item.operation === 'delete') {
         const payload = item.payload as Record<string, unknown>
-        await supabase.from(cloudTable).delete().eq('id', String(payload.id)).eq('user_id', userId)
+        const cloudId = (payload.cloudId as string) || String(payload.id)
+        await supabase.from(cloudTable).delete().eq('id', cloudId).eq('user_id', userId)
       } else {
         // insert or update → upsert
         if (item.table === 'settings') {
@@ -339,6 +391,32 @@ export async function flushSyncQueue(userId: string): Promise<void> {
     } catch (err) {
       console.warn('Sync flush error:', err)
       break // stop on first error; retry next time
+    }
+  }
+}
+
+// ── Merge helper ──────────────────────────────────────────────────────────────
+async function mergeByCloudId(
+  tableName: string,
+  cloudRows: Record<string, unknown>[],
+): Promise<void> {
+  if (cloudRows.length === 0) return
+  const table = db.table<unknown, number>(tableName)
+  const existing = (await table.toArray()) as Array<Record<string, unknown>>
+  const localByCloudId = new Map(
+    existing.filter((r) => r.cloudId).map((r) => [r.cloudId as string, r]),
+  )
+  for (const row of cloudRows) {
+    const cid = row.cloudId as string | undefined
+    if (cid && localByCloudId.has(cid)) {
+      const local = localByCloudId.get(cid)!
+      const cloudTime = new Date((row.updatedAt as string) || 0).getTime()
+      const localTime = new Date((local.updatedAt as string) || 0).getTime()
+      if (cloudTime > localTime) {
+        await table.update(local.id as number, row)
+      }
+    } else {
+      await table.add(row)
     }
   }
 }
@@ -373,99 +451,103 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     supabase.from('settings').select('*').eq('user_id', userId),
   ])
 
-  if (expRes.data?.length) {
-    await StorageService.bulkUpsertExpenses(
-      expRes.data.map(
-        (r: unknown) => fromCloud('expenses', r as Record<string, unknown>) as unknown as Expense,
-      ),
-    )
+  // Build FK resolution maps from categories and payees (cloudId → local numeric ID)
+  const existingCats = await db.categories.toArray()
+  const existingPayees = await db.payees.toArray()
+  const existingFixed = await db.fixedExpenses.toArray()
+  const catMap: FromCloudMaps = {
+    cloudIdToCategoryId: new Map(existingCats.filter(c => c.cloudId).map(c => [c.cloudId!, c.id!])),
   }
+  const payeeMap: FromCloudMaps = {
+    cloudIdToPayeeId: new Map(existingPayees.filter(p => p.cloudId).map(p => [p.cloudId!, p.id!])),
+  }
+  const fixedMap: FromCloudMaps = {
+    cloudIdToFixedExpenseId: new Map(existingFixed.filter(f => f.cloudId).map(f => [f.cloudId!, f.id!])),
+  }
+  const combinedMaps: FromCloudMaps = { ...catMap, ...payeeMap, ...fixedMap }
+
+  // Merge each table by cloudId with timestamp comparison
   if (catRes.data?.length) {
-    await StorageService.bulkUpsertCategories(
-      catRes.data.map(
-        (r: unknown) =>
-          fromCloud('categories', r as Record<string, unknown>) as unknown as Category,
-      ),
+    const rows = catRes.data.map(
+      (r: unknown) => fromCloud('categories', r as Record<string, unknown>, combinedMaps),
     )
+    await mergeByCloudId('categories', rows)
   }
   if (payRes.data?.length) {
-    await StorageService.bulkUpsertPayees(
-      payRes.data.map(
-        (r: unknown) => fromCloud('payees', r as Record<string, unknown>) as unknown as Payee,
-      ),
+    const rows = payRes.data.map(
+      (r: unknown) => fromCloud('payees', r as Record<string, unknown>, combinedMaps),
     )
+    await mergeByCloudId('payees', rows)
+  }
+
+  // After merging cats/payees, rebuild maps to include newly inserted cloudIds
+  if (catRes.data?.length || payRes.data?.length) {
+    const updatedCats = await db.categories.toArray()
+    const updatedPays = await db.payees.toArray()
+    updatedCats.forEach((c) => { if (c.cloudId && c.id) catMap.cloudIdToCategoryId?.set(c.cloudId, c.id) })
+    updatedPays.forEach((p) => { if (p.cloudId && p.id) payeeMap.cloudIdToPayeeId?.set(p.cloudId, p.id) })
+  }
+
+  if (expRes.data?.length) {
+    const rows = expRes.data.map(
+      (r: unknown) => fromCloud('expenses', r as Record<string, unknown>, { ...catMap, ...payeeMap, ...fixedMap }),
+    )
+    await mergeByCloudId('expenses', rows)
   }
   if (fixRes.data?.length) {
-    await StorageService.bulkUpsertFixedExpenses(
-      fixRes.data.map(
-        (r: unknown) =>
-          fromCloud('fixed_expenses', r as Record<string, unknown>) as unknown as FixedExpense,
-      ),
+    const rows = fixRes.data.map(
+      (r: unknown) => fromCloud('fixed_expenses', r as Record<string, unknown>, combinedMaps),
     )
+    await mergeByCloudId('fixedExpenses', rows)
   }
+
+  // Rebuild fixed map after merging fixed expenses
+  if (fixRes.data?.length) {
+    const updatedFixed = await db.fixedExpenses.toArray()
+    updatedFixed.forEach((f) => { if (f.cloudId && f.id) fixedMap.cloudIdToFixedExpenseId?.set(f.cloudId, f.id) })
+  }
+  const finalMaps: FromCloudMaps = { ...catMap, ...payeeMap, ...fixedMap }
+
   if (snapRes.data?.length) {
-    await StorageService.bulkUpsertSnapshots(
-      snapRes.data.map(
-        (r: unknown) =>
-          fromCloud(
-            'fixed_expense_snapshots',
-            r as Record<string, unknown>,
-          ) as unknown as FixedExpenseSnapshot,
-      ),
+    const rows = snapRes.data.map(
+      (r: unknown) => fromCloud('fixed_expense_snapshots', r as Record<string, unknown>, finalMaps),
     )
+    await mergeByCloudId('fixedExpenseSnapshots', rows)
   }
   if (incomeSnapRes.data?.length) {
-    await StorageService.bulkUpsertIncomeSnapshots(
-      incomeSnapRes.data.map(
-        (r: unknown) =>
-          fromCloud('income_snapshots', r as Record<string, unknown>) as unknown as IncomeSnapshot,
-      ),
+    const rows = incomeSnapRes.data.map(
+      (r: unknown) => fromCloud('income_snapshots', r as Record<string, unknown>, finalMaps),
     )
+    await mergeByCloudId('incomeSnapshots', rows)
   }
   if (savingsSnapRes.data?.length) {
-    await StorageService.bulkUpsertSavingsSnapshots(
-      savingsSnapRes.data.map(
-        (r: unknown) =>
-          fromCloud(
-            'savings_snapshots',
-            r as Record<string, unknown>,
-          ) as unknown as SavingsSnapshot,
-      ),
+    const rows = savingsSnapRes.data.map(
+      (r: unknown) => fromCloud('savings_snapshots', r as Record<string, unknown>, finalMaps),
     )
+    await mergeByCloudId('savingsSnapshots', rows)
   }
   if (scheduleRes.data?.length) {
-    await StorageService.db.schedules.bulkPut(
-      scheduleRes.data.map(
-        (r: unknown) => fromCloud('schedules', r as Record<string, unknown>) as unknown as Schedule,
-      ),
+    const rows = scheduleRes.data.map(
+      (r: unknown) => fromCloud('schedules', r as Record<string, unknown>, finalMaps),
     )
+    await mergeByCloudId('schedules', rows)
   }
   if (categoryMergeRes.data?.length) {
-    await StorageService.db.categoryMergeHistory.bulkPut(
-      categoryMergeRes.data.map(
-        (r: unknown) =>
-          fromCloud(
-            'category_merge_history',
-            r as Record<string, unknown>,
-          ) as unknown as CategoryMergeHistory,
-      ),
+    const rows = categoryMergeRes.data.map(
+      (r: unknown) => fromCloud('category_merge_history', r as Record<string, unknown>, finalMaps),
     )
+    await mergeByCloudId('categoryMergeHistory', rows)
   }
   if (payeeMergeRes.data?.length) {
-    await StorageService.db.payeeMergeHistory.bulkPut(
-      payeeMergeRes.data.map(
-        (r: unknown) =>
-          fromCloud(
-            'payee_merge_history',
-            r as Record<string, unknown>,
-          ) as unknown as PayeeMergeHistory,
-      ),
+    const rows = payeeMergeRes.data.map(
+      (r: unknown) => fromCloud('payee_merge_history', r as Record<string, unknown>, finalMaps),
     )
+    await mergeByCloudId('payeeMergeHistory', rows)
   }
   if (setRes.data?.length) {
     for (const row of setRes.data) {
       const local = fromCloud('settings', row as Record<string, unknown>)
-      await StorageService.db.settings.put({ key: String(local.key), value: local.value })
+      await db.settings.put({ key: String(local.key), value: local.value })
     }
   }
 }
@@ -565,6 +647,18 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
     StorageService.db.payeeMergeHistory.toArray(),
   ])
 
+  // Build FK reference maps (local numeric ID → cloudId)
+  const categoryIdToCloudId = new Map(
+    categories.filter((c) => c.cloudId).map((c) => [c.id!, c.cloudId!]),
+  )
+  const payeeIdToCloudId = new Map(
+    payees.filter((p) => p.cloudId).map((p) => [p.id!, p.cloudId!]),
+  )
+  const fixedExpenseIdToCloudId = new Map(
+    fixedExpenses.filter((f) => f.cloudId).map((f) => [f.id!, f.cloudId!]),
+  )
+  const maps: ToCloudMaps = { categoryIdToCloudId, payeeIdToCloudId, fixedExpenseIdToCloudId }
+
   const client = supabase
   const upsert = async (
     table: string,
@@ -579,59 +673,59 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
   await Promise.all([
     upsert(
       'expenses',
-      expenses.map((r) => toCloud('expenses', r as unknown as Record<string, unknown>, userId)),
+      expenses.map((r) => toCloud('expenses', r as unknown as Record<string, unknown>, userId, maps)),
     ),
     upsert(
       'categories',
-      categories.map((r) => toCloud('categories', r as unknown as Record<string, unknown>, userId)),
+      categories.map((r) => toCloud('categories', r as unknown as Record<string, unknown>, userId, maps)),
     ),
     upsert(
       'payees',
-      payees.map((r) => toCloud('payees', r as unknown as Record<string, unknown>, userId)),
+      payees.map((r) => toCloud('payees', r as unknown as Record<string, unknown>, userId, maps)),
     ),
     upsert(
       'fixed_expenses',
       fixedExpenses.map((r) =>
-        toCloud('fixedExpenses', r as unknown as Record<string, unknown>, userId),
+        toCloud('fixedExpenses', r as unknown as Record<string, unknown>, userId, maps),
       ),
     ),
     upsert(
       'fixed_expense_snapshots',
       fixedExpenseSnapshots.map((r) =>
-        toCloud('fixedExpenseSnapshots', r as unknown as Record<string, unknown>, userId),
+        toCloud('fixedExpenseSnapshots', r as unknown as Record<string, unknown>, userId, maps),
       ),
     ),
     upsert(
       'income_snapshots',
       incomeSnapshots.map((r) =>
-        toCloud('incomeSnapshots', r as unknown as Record<string, unknown>, userId),
+        toCloud('incomeSnapshots', r as unknown as Record<string, unknown>, userId, maps),
       ),
     ),
     upsert(
       'savings_snapshots',
       savingsSnapshots.map((r) =>
-        toCloud('savingsSnapshots', r as unknown as Record<string, unknown>, userId),
+        toCloud('savingsSnapshots', r as unknown as Record<string, unknown>, userId, maps),
       ),
     ),
     upsert(
       'schedules',
-      schedules.map((r) => toCloud('schedules', r as unknown as Record<string, unknown>, userId)),
+      schedules.map((r) => toCloud('schedules', r as unknown as Record<string, unknown>, userId, maps)),
     ),
     upsert(
       'category_merge_history',
       categoryMergeHistory.map((r) =>
-        toCloud('categoryMergeHistory', r as unknown as Record<string, unknown>, userId),
+        toCloud('categoryMergeHistory', r as unknown as Record<string, unknown>, userId, maps),
       ),
     ),
     upsert(
       'payee_merge_history',
       payeeMergeHistory.map((r) =>
-        toCloud('payeeMergeHistory', r as unknown as Record<string, unknown>, userId),
+        toCloud('payeeMergeHistory', r as unknown as Record<string, unknown>, userId, maps),
       ),
     ),
     upsert(
       'settings',
-      settings.map((r) => toCloud('settings', r as unknown as Record<string, unknown>, userId)),
+      settings.map((r) => toCloud('settings', r as unknown as Record<string, unknown>, userId, maps)),
       'user_id,key',
     ),
   ])

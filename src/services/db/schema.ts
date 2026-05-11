@@ -230,6 +230,44 @@ class OutflowDB extends Dexie {
       payeeMergeHistory: '++id, sourcePayeeId, targetPayeeId',
     })
 
+    this.version(15).stores({
+      expenses: '++id, date, categoryId, payeeId',
+      settings: 'key',
+      fixedExpenses: '++id',
+      categories: '++id, name',
+      payees: '++id, name',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
+      schedules: '++id, type, effectiveYear, effectiveMonth, isActive, targetId, payeeId',
+      incomeSnapshots: '++id, [year+month], year, month',
+      savingsSnapshots: '++id, [year+month], year, month',
+      categoryMergeHistory: '++id, sourceCategoryId, targetCategoryId',
+      payeeMergeHistory: '++id, sourcePayeeId, targetPayeeId',
+    }).upgrade(async (tx) => {
+      const now = new Date().toISOString()
+      const tables = [
+        'expenses', 'categories', 'payees',
+        'fixedExpenses', 'fixedExpenseSnapshots',
+        'incomeSnapshots', 'savingsSnapshots',
+        'schedules', 'categoryMergeHistory', 'payeeMergeHistory',
+      ] as const
+      for (const tableName of tables) {
+        const rows = await tx.table(tableName).toArray() as Array<Record<string, unknown>>
+        for (const row of rows) {
+          const updates: Record<string, unknown> = {}
+          if (!row.cloudId) {
+            updates.cloudId = crypto.randomUUID()
+          }
+          if (!row.updatedAt) {
+            updates.updatedAt = (row.createdAt as string) || now
+          }
+          if (Object.keys(updates).length > 0) {
+            await tx.table(tableName).update(row.id as number, updates)
+          }
+        }
+      }
+    })
+
     this.on('populate', () => {
       const now = new Date().toISOString()
       this.table('categories').bulkAdd(buildDefaultCategories(now))
