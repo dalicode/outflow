@@ -55,11 +55,13 @@ interface SettingsPageProps {
   onImport?: () => Promise<void> | void
   onRefreshAll?: () => Promise<void> | void
   triggerSync?: () => void
+  showSignIn?: boolean
+  onSignIn?: () => void
 }
 
-export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: SettingsPageProps) {
+export default function SettingsPage({ expenses, onRefreshAll, triggerSync, showSignIn, onSignIn }: SettingsPageProps) {
   const { settings, save, formatDate, formatAmount, currentTheme } = useSettings()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const { showToast } = useToasts()
   const { payees } = usePayees()
 
@@ -310,6 +312,42 @@ export default function SettingsPage({ expenses, onRefreshAll, triggerSync }: Se
             >
               <span className="settings-toggle-thumb" />
             </button>
+          </div>
+        </Card>
+
+        {/* ── ACCOUNT ── */}
+        <Card title="Account">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
+                Cloud Sync
+              </p>
+              <p className="text-xs text-theme-muted mt-0.5">
+                {user
+                  ? `Syncing as ${user.email}`
+                  : 'Sync your data across devices by signing in.'}
+              </p>
+            </div>
+            {user ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  const { error } = await signOut()
+                  if (error) showToast({ message: error.message, tone: 'danger' })
+                }}
+                className="btn-cancel-sm shrink-0"
+              >
+                Sign out
+              </button>
+            ) : showSignIn && onSignIn && (
+              <button
+                type="button"
+                onClick={onSignIn}
+                className="btn-primary-sm shrink-0"
+              >
+                Sign in
+              </button>
+            )}
           </div>
         </Card>
 

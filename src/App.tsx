@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import SyncIndicator from './components/layout/SyncIndicator'
+import Modal from './components/ui/Modal'
 import OfflineStatusBadge from './components/pwa/OfflineStatusBadge'
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt'
 import PWAUpdatePrompt from './components/pwa/PWAUpdatePrompt'
@@ -141,6 +142,7 @@ function AppShell() {
     onScroll: handleScrollDirection,
     reset: resetScrollDirection,
   } = useScrollDirection()
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false)
   const [snapshotsReady, setSnapshotsReady] = useState(false)
   const [pendingExpenseDeleteIds, setPendingExpenseDeleteIds] = useState<number[]>([])
@@ -503,7 +505,9 @@ function AppShell() {
     [expenses, pendingExpenseDeleteIds],
   )
 
-  if (supabase && !loading && !user) return <AuthPage />
+  useEffect(() => {
+    if (user) setShowAuthModal(false)
+  }, [user])
 
   const isReady = !loading && settingsLoaded && snapshotsReady
 
@@ -530,6 +534,8 @@ function AppShell() {
             <Navbar
               onAddExpense={() => setShowForm(true)}
               onSignOut={supabase ? signOut : undefined}
+              onSignIn={() => setShowAuthModal(true)}
+              showSignIn={!!supabase && !user}
               userEmail={user?.email}
               scrollDirection={direction}
               isScrolling={isScrolling}
@@ -634,6 +640,8 @@ function AppShell() {
                           await refreshPayees()
                         }}
                         triggerSync={triggerSync}
+                        showSignIn={!!supabase && !user}
+                        onSignIn={() => setShowAuthModal(true)}
                       />
                     </ScrollablePage>
                   }
@@ -649,6 +657,11 @@ function AppShell() {
                 refreshPayees={refreshPayees}
                 refreshExpenses={refreshExpenses}
               />
+            )}
+            {showAuthModal && (
+              <Modal isOpen={true} onClose={() => setShowAuthModal(false)} title="" size="sm">
+                <AuthPage onClose={() => setShowAuthModal(false)} />
+              </Modal>
             )}
           </>
         )}

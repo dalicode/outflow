@@ -5,6 +5,8 @@ import type { SyncStatus } from '../../types'
 
 interface NavbarProps {
   onAddExpense: MouseEventHandler<HTMLButtonElement>
+  onSignIn?: () => void
+  showSignIn?: boolean
   onSignOut?: MouseEventHandler<HTMLButtonElement>
   userEmail?: string
   scrollDirection?: 'up' | 'down' | null
@@ -20,6 +22,8 @@ export default function Navbar(props: NavbarProps) {
       <DesktopSidebar
         onAddExpense={props.onAddExpense}
         syncStatus={props.syncStatus}
+        onSignIn={props.onSignIn}
+        showSignIn={props.showSignIn}
         onSignOut={props.onSignOut}
         userEmail={props.userEmail}
         onCycleDashboardView={props.onCycleDashboardView}

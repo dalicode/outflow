@@ -45,7 +45,7 @@ function PasswordField({
   )
 }
 
-export default function AuthPage() {
+export default function AuthPage({ onClose }: { onClose?: () => void }) {
   const [mode, setMode] = useState<AuthMode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -82,9 +82,19 @@ export default function AuthPage() {
     if (mode === 'signup') setMessage('Check your email to confirm your account.')
   }
 
-  return (
-    <div className="min-h-dvh bg-theme-background flex items-center justify-center px-4">
-      <div className="modal-theme p-8 w-full max-w-sm space-y-5 shadow-xl">
+  const card = (
+    <div className="modal-theme p-8 w-full max-w-sm space-y-5 shadow-xl">
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-theme-muted hover:text-theme-text transition-colors"
+          aria-label="Close"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
         <div className="text-center">
           <img src="/icon.svg" alt="" className="w-10 h-10 mx-auto mb-2" />
           <h1 className="text-xl font-bold text-theme-primary tracking-tight">Outflow</h1>
@@ -140,6 +150,15 @@ export default function AuthPage() {
           </button>
         </p>
       </div>
+  )
+
+  if (onClose) {
+    return card
+  }
+
+  return (
+    <div className="min-h-dvh bg-theme-background flex items-center justify-center px-4">
+      {card}
     </div>
   )
 }
