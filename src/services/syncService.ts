@@ -366,6 +366,18 @@ export async function flushSyncQueue(userId: string): Promise<void> {
   const queue = (await StorageService.getSyncQueue()) as SyncQueueItem[]
   if (queue.length === 0) return
 
+  // Build FK maps so cloud records use UUIDs for foreign keys, not numeric strings
+  const [categories, payees, fixedExpenses] = await Promise.all([
+    StorageService.getCategories() as Promise<Category[]>,
+    StorageService.getPayees() as Promise<Payee[]>,
+    StorageService.getFixedExpenses() as Promise<FixedExpense[]>,
+  ])
+  const maps: ToCloudMaps = {
+    categoryIdToCloudId: new Map(categories.filter((c) => c.cloudId).map((c) => [c.id!, c.cloudId!])),
+    payeeIdToCloudId: new Map(payees.filter((p) => p.cloudId).map((p) => [p.id!, p.cloudId!])),
+    fixedExpenseIdToCloudId: new Map(fixedExpenses.filter((f) => f.cloudId).map((f) => [f.id!, f.cloudId!])),
+  }
+
   for (const item of queue) {
     const cloudTable = TABLE_MAP[item.table]
     if (!cloudTable) {
@@ -374,7 +386,7 @@ export async function flushSyncQueue(userId: string): Promise<void> {
     }
 
     try {
-      const row = toCloud(item.table, item.payload, userId)
+      const row = toCloud(item.table, item.payload, userId, maps)
       if (item.operation === 'delete') {
         const payload = item.payload as Record<string, unknown>
         const cloudId = (payload.cloudId as string) || String(payload.id)
