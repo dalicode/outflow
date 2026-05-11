@@ -1,23 +1,36 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { useMemo, useState } from 'react'
-
 import { cn } from '../../utils/cn'
 
 export default function PWAUpdatePrompt() {
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(null)
+  const [updateDetected, setUpdateDetected] = useState(false)
+
   const {
     needRefresh: [needRefresh],
-    updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       registration?.update().catch(() => undefined)
     },
   })
 
+  // Detect SW lifecycle changes (fires even with skipWaiting: true)
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const handleControllerChange = () => {
+      setUpdateDetected(true)
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
+    }
+  }, [])
+
   const isVisible = useMemo(() => {
-    if (!needRefresh) return false
+    const detected = needRefresh || updateDetected
+    if (!detected) return false
     return dismissedVersion !== 'waiting'
-  }, [dismissedVersion, needRefresh])
+  }, [dismissedVersion, needRefresh, updateDetected])
 
   if (!isVisible) return null
 
@@ -36,7 +49,7 @@ export default function PWAUpdatePrompt() {
           <div className="min-w-0">
             <p className="text-sm font-semibold">A new version of Outflow is ready.</p>
             <p className="mt-1 text-xs leading-5 text-theme-muted">
-              Update when you are ready. Your data stays on this device.
+              Reload to apply the update. Your data stays on this device.
             </p>
           </div>
           <button
@@ -45,13 +58,7 @@ export default function PWAUpdatePrompt() {
             onClick={() => setDismissedVersion('waiting')}
             className="shrink-0 text-theme-muted transition-colors hover:text-theme-text"
           >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-            >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
             </svg>
           </button>
@@ -67,10 +74,10 @@ export default function PWAUpdatePrompt() {
           </button>
           <button
             type="button"
-            onClick={() => void updateServiceWorker(true)}
+            onClick={() => window.location.reload()}
             className="btn-modal-primary px-4"
           >
-            Update
+            Reload Now
           </button>
         </div>
       </section>
