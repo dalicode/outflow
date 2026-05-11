@@ -31,7 +31,7 @@ test.describe("Smoke tests", () => {
 
     await page.getByTestId("nav-settings").first().click();
     await expect(page).toHaveURL(/\/settings/);
-    await expect(page.getByTestId("settings-page")).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   });
 
   test("add expense button opens expense form", async ({ page }) => {

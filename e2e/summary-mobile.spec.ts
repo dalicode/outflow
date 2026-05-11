@@ -70,7 +70,9 @@ test("set income — modal opens and saves", async ({ page }) => {
     const dialog = page.getByRole("dialog", { name: "Edit Auto Savings" });
     await expect(dialog).toBeVisible();
 
-    await page.locator('#savings-modal-form input[type="number"]').fill("20");
+    await page.getByLabel('Savings rate percentage').click();
+    await page.getByLabel('Savings rate percentage').press('Backspace');
+    await page.getByLabel('Savings rate percentage').pressSequentially('2000');
     await page.getByTestId("btn-save-savings").click();
 
     await expect(dialog).not.toBeVisible({ timeout: 5000 });
@@ -132,7 +134,9 @@ test("set income — modal opens and saves", async ({ page }) => {
     const savingsDialog = page.getByRole("dialog", { name: "Edit Auto Savings" });
     await expect(savingsDialog).toBeVisible();
 
-    await page.locator('#savings-modal-form input[type="number"]').fill("20");
+    await page.getByLabel('Savings rate percentage').click();
+    await page.getByLabel('Savings rate percentage').press('Backspace');
+    await page.getByLabel('Savings rate percentage').pressSequentially('2000');
     await page.getByTestId("btn-save-savings").click();
     await expect(savingsDialog).not.toBeVisible({ timeout: 5000 });
 

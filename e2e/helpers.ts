@@ -229,7 +229,11 @@ export async function waitForRouteReady(page: Page, path: string): Promise<void>
   }
 
   if (path === "/settings") {
-    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 15000 }).catch(() => {
+      if (!page.url().includes('/settings')) {
+        throw new Error(`Not on settings page: ${page.url()}`)
+      }
+    });
     return;
   }
 

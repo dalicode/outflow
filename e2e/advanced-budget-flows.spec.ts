@@ -66,7 +66,7 @@ test.describe("Advanced budget flows", () => {
     await expect(page.getByTestId("payees-page")).toBeVisible();
 
     const alphaRow = page.locator("[data-testid^='payee-row-']").filter({
-      has: page.getByText("Alpha market"),
+      has: page.getByText("Alpha Market", { exact: false }),
     });
     await alphaRow.getByText("Merge").click();
 
@@ -76,7 +76,11 @@ test.describe("Advanced budget flows", () => {
     await mergeDialog.getByRole("button", { name: "Merge Payee" }).click();
     await expect(mergeDialog).not.toBeVisible();
 
-    await expect(page.getByText("Alpha market")).not.toBeVisible();
+    // Wait for the toast to appear and disappear, then verify no payee row exists
+    await page.waitForTimeout(5500);
+    await expect(page.locator("[data-testid^='payee-row-']").filter({
+      has: page.getByText("Alpha Market"),
+    })).toHaveCount(0);
 
     const payees = await getPayees(page);
     const alpha = payees.find((payee) => payee.id === alphaId);
@@ -105,7 +109,7 @@ test.describe("Advanced budget flows", () => {
     const dialog = page.getByRole("dialog", { name: "Edit Historical Data" });
     await expect(dialog).toBeVisible();
 
-    await dialog.getByRole("button", { name: /Use current: \$4000\.00/ }).click();
+    await dialog.getByRole("button", { name: /Use current: \$4,000\.00/ }).click();
     await dialog.getByRole("button", { name: /Use current: 15%/ }).click();
     await dialog.locator("button").filter({ hasText: /^Rent$/ }).click();
     await dialog.getByRole("button", { name: "Confirm Save" }).click();

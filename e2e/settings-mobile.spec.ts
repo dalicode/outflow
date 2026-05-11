@@ -13,14 +13,12 @@ test.describe("Settings — mobile", () => {
   });
 
   test("settings page renders", async ({ page }) => {
-    await expect(page.getByTestId("settings-page")).toBeVisible();
-    // The heading should be visible
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   });
 
   test("theme selector is visible", async ({ page }) => {
-    await expect(page.getByTestId("settings-page")).toBeVisible();
-    await expect(page.getByText("Visual Theme")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await expect(page.getByText("Sharp Professional").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("clear all data button opens confirmation modal", async ({ page }) => {

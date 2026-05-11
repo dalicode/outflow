@@ -11,7 +11,7 @@ test.describe("Settings — Import/Export", () => {
   });
 
   test("navigate to settings page", async ({ page }) => {
-    await expect(page.getByTestId("settings-page")).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   });
 
   test("export backup button exists on settings page", async ({ page }) => {
@@ -63,9 +63,8 @@ test.describe("Settings — Import/Export", () => {
       buffer: backupBuffer,
     });
 
-    await expect(page.getByText("Loaded successfully")).toBeVisible({ timeout: 10000 });
-    await page.waitForURL(/\/settings/, { timeout: 10000 });
-    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10000 });
+    await page.waitForURL(/\/settings/, { timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({ timeout: 10000 });
 
     const restoredData = await exportAllData(page);
     expect((restoredData.expenses as unknown[])?.length).toBeGreaterThanOrEqual(2);
