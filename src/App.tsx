@@ -130,7 +130,7 @@ function AppShell() {
   }, [])
 
   const { user, loading, syncStatus, triggerSync, signOut } = useAuth()
-  const { loaded: settingsLoaded, save: saveSettings } = useSettings()
+  const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
   const { payees, refresh: refreshPayees } = usePayees()
@@ -274,9 +274,10 @@ function AppShell() {
       refreshExpenses()
       refreshCategories()
       refreshPayees()
+      loadSettings()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncStatus, refreshPayees, refreshExpenses, refreshCategories])
+  }, [syncStatus, refreshPayees, refreshExpenses, refreshCategories, loadSettings])
 
   useEffect(() => {
     const init = async () => {

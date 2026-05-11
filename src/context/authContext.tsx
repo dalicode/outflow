@@ -37,40 +37,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    let mounted = true
+
     if (!supabase) {
       setLoading(false)
       return
     }
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        setUser(session?.user ?? null)
-        setLoading(false)
-        if (session?.user) runSync(session.user.id)
-      })
-      .catch((err: Error) => {
-        console.warn('Auth session error:', err)
-        setUser(null)
-        setLoading(false)
-      })
+    async function initAuth() {
+      try {
+        const { data, error } = await supabase.auth.getSession()
 
-    let subscription = { unsubscribe: () => {} }
-    try {
-      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        const u = session?.user ?? null
-        setUser(u)
-        if (event === 'SIGNED_IN' && u) {
-          await migrateLocalToSupabase(u.id)
-          await runSync(u.id)
+        if (error) {
+          console.warn('Auth session error:', error)
         }
-      })
-      subscription = data.subscription
-    } catch (err) {
-      console.warn('Auth state change subscription error:', err)
+
+        if (!mounted) return
+
+        setUser(data.session?.user ?? null)
+        if (data.session?.user) runSync(data.session.user.id)
+      } finally {
+        if (mounted) setLoading(false)
+      }
     }
 
+    initAuth()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const u = session?.user ?? null
+      setUser(u)
+      setLoading(false)
+      if (event === 'SIGNED_IN' && u) {
+        await migrateLocalToSupabase(u.id)
+        await runSync(u.id)
+      }
+    })
+
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
   }, [runSync])

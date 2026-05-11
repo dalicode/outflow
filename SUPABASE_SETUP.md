@@ -35,12 +35,14 @@ create policy "users own expenses" on expenses
 
 -- categories
 create table categories (
-  id          text primary key,
-  user_id     uuid references auth.users not null,
-  name        text not null,
-  is_archived boolean default false,
-  created_at  timestamptz default now(),
-  updated_at  timestamptz default now()
+  id                      text primary key,
+  user_id                 uuid references auth.users not null,
+  name                    text not null,
+  is_archived             boolean default false,
+  archived_at             timestamptz,
+  merged_into_category_id text,
+  created_at              timestamptz default now(),
+  updated_at              timestamptz default now()
 );
 alter table categories enable row level security;
 create policy "users own categories" on categories
@@ -48,12 +50,14 @@ create policy "users own categories" on categories
 
 -- payees
 create table payees (
-  id          text primary key,
-  user_id     uuid references auth.users not null,
-  name        text not null,
-  is_archived boolean default false,
-  created_at  timestamptz default now(),
-  updated_at  timestamptz default now()
+  id                   text primary key,
+  user_id              uuid references auth.users not null,
+  name                 text not null,
+  is_archived          boolean default false,
+  archived_at          timestamptz,
+  merged_into_payee_id text,
+  created_at           timestamptz default now(),
+  updated_at           timestamptz default now()
 );
 alter table payees enable row level security;
 create policy "users own payees" on payees

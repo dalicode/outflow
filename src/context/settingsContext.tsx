@@ -44,6 +44,7 @@ const FONT_MAP: Record<string, string> = {
 interface SettingsContextValue {
   settings: AppSettings
   save: (patch: Partial<AppSettings>) => Promise<void>
+  loadSettings: () => Promise<void>
   currentTheme: ThemeConfig
   themeColors: ThemeConfig['colors']
   currency: (n: number | null | undefined) => string
@@ -160,6 +161,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     root.setAttribute('data-theme-mode', theme.isDark ? 'dark' : 'light')
   }, [settings.visualTheme, loaded])
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const saved = await StorageService.getSetting('uiSettings', null)
+      const next = saved
+        ? { ...DEFAULTS, ...(saved as Record<string, unknown>) }
+        : { ...DEFAULTS }
+      setSettings(next as AppSettings)
+    } catch (err) {
+      console.warn('Settings reload error:', err)
+    }
+  }, [])
+
   const save = useCallback(
     async (patch: Partial<AppSettings>) => {
       const next = { ...settings, ...patch }
@@ -264,6 +277,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     () => ({
       settings,
       save,
+      loadSettings,
       currentTheme,
       themeColors: currentTheme.colors,
       currency,
@@ -279,6 +293,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [
       settings,
       save,
+      loadSettings,
       currentTheme,
       currency,
       formatAmount,

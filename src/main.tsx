@@ -5,6 +5,13 @@ import { SettingsProvider } from './context/settingsContext'
 import { applyDisplayModeClasses } from './utils/displayModeClasses'
 import './index.css'
 
+// Suppress Chrome service worker "message channel closed" noise on refresh
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason?.message?.includes('message channel closed')) {
+    event.preventDefault()
+  }
+})
+
 const errorDiv = document.getElementById('boot-error')
 const showError = (msg: string) => {
   if (errorDiv) {
