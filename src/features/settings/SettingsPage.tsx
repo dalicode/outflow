@@ -23,6 +23,7 @@ import EditHistoricalDataModal from './EditHistoricalDataModal'
 import ScheduleList from './ScheduleList'
 import ScheduleModal from './ScheduleModal'
 import ThemeSelector from './ThemeSelector'
+import AboutSection from './AboutSection'
 
 interface RowProps {
   label: string
@@ -555,6 +556,9 @@ export default function SettingsPage({
             </button>
           </div>
         </Card>
+
+        {/* ── ABOUT ── */}
+        <AboutSection />
 
         {/* ── MODALS ── */}
 
