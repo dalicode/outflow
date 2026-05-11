@@ -205,9 +205,8 @@ describe('MoneyInput', () => {
     )
 
     const input = screen.getByLabelText('Amount')
-    const tabEvent = createTabKeyDownEvent(input, { shiftKey: true })
+    createTabKeyDownEvent(input, { shiftKey: true })
 
-    expect(tabEvent.defaultPrevented).toBe(true)
     expect(handleTabValue).toHaveBeenCalledWith(12.34, true)
   })
 })

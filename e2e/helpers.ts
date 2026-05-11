@@ -300,4 +300,67 @@ export async function longPressElement(
   });
 }
 
+export async function getSchedules(
+  page: Page,
+): Promise<Array<{ id?: number; type: string; effectiveYear: number; effectiveMonth: number; newValue: number; isActive: number; note?: string }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getSchedules();
+  });
+}
+
+export async function addSchedule(
+  page: Page,
+  schedule: Record<string, unknown>,
+): Promise<void> {
+  await page.evaluate(async (data) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.addSchedule(data);
+  }, schedule);
+}
+
+export async function deleteSchedule(page: Page, id: number): Promise<void> {
+  await page.evaluate(async (scheduleId) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.deleteSchedule(scheduleId);
+  }, id);
+}
+
+export async function materializePendingSnapshots(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.materializePendingSnapshots();
+  });
+}
+
+export async function getSetting(
+  page: Page,
+  key: string,
+): Promise<unknown> {
+  return page.evaluate(async (settingKey) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getSetting(settingKey);
+  }, key);
+}
+
+export async function getFirstExpenseId(page: Page): Promise<number> {
+  const expenses = await getAllExpenses(page);
+  return expenses[0]?.id ?? 0;
+}
+
 export { expect };

@@ -257,6 +257,7 @@ export default function ScheduleModal({
             onChange={(e) => setType(e.target.value as Schedule['type'])}
             className={cn(selectCls, isReadOnly && disabledCls)}
             disabled={isReadOnly}
+            data-testid="schedule-type-select"
           >
             {SCHEDULE_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -465,6 +466,7 @@ export default function ScheduleModal({
                 step={type === 'savingsRate' ? '0.1' : '0.01'}
                 className={cn(inputCls, isReadOnly && disabledCls)}
                 disabled={isReadOnly}
+                data-testid="schedule-value-input"
               />
             </div>
 
@@ -479,6 +481,7 @@ export default function ScheduleModal({
                 placeholder="e.g. Annual salary review"
                 className={cn(inputCls, isReadOnly && disabledCls)}
                 disabled={isReadOnly}
+                data-testid="schedule-note-input"
               />
             </div>
           </>
@@ -518,7 +521,7 @@ function ScheduleModalFooter({
         {isReadOnly ? 'Close' : 'Cancel'}
       </button>
       {!isReadOnly && (
-        <button onClick={onSave} className="btn-modal-primary flex-1" disabled={saving}>
+        <button onClick={onSave} className="btn-modal-primary flex-1" disabled={saving} data-testid="btn-save-schedule">
           {saving ? 'Saving…' : editSchedule ? 'Update' : 'Save Schedule'}
         </button>
       )}

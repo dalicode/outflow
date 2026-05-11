@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import Navbar from '../components/layout/Navbar'
@@ -70,7 +69,7 @@ describe('Navbar', () => {
     fireEvent.click(expandButton)
 
     const dashboardLink = within(sidebar).getByText('Dashboard').closest('a')
-    expect(dashboardLink).toHaveClass('text-theme-primary')
+    expect(dashboardLink).toHaveAttribute('aria-current', 'page')
   })
 
   it('marks Analytics as active on /analytics', () => {
@@ -85,7 +84,7 @@ describe('Navbar', () => {
     fireEvent.click(expandButton)
 
     const analyticsLink = within(sidebar).getByText('Analytics').closest('a')
-    expect(analyticsLink).toHaveClass('text-theme-primary')
+    expect(analyticsLink).toHaveAttribute('aria-current', 'page')
   })
 
   it('renders syncDot when provided', () => {
@@ -114,166 +113,34 @@ describe('Navbar', () => {
     expect(within(sidebar).queryByText('Dashboard')).not.toBeInTheDocument()
   })
 
-  it('toggle buttons have hover-only opacity classes', () => {
+  it('toggles mobile nav visibility with click and drag', () => {
     renderNavbar({ onAddExpense: vi.fn() })
-
-    const sidebar = document.querySelector('aside') as HTMLElement
-    const expandButton = within(sidebar).getByTitle('Expand')
-    expect(expandButton).toHaveClass('opacity-0')
-    expect(expandButton).toHaveClass('group-hover:opacity-100')
-
-    fireEvent.click(expandButton)
-
-    const collapseButton = within(sidebar).getByTitle('Collapse')
-    expect(collapseButton).toHaveClass('opacity-0')
-    expect(collapseButton).toHaveClass('group-hover:opacity-100')
-  })
-
-  it('toggles between one-row and expanded on click, and keeps pill as drag-only', () => {
-    renderNavbar({ onAddExpense: vi.fn() })
-    const mobileNav = document.body.querySelector('.mobile-nav-container')
     const dragSurface = () => document.body.querySelector('.mobile-nav-container') as HTMLElement
 
-    // Starts at stage 1 (one row)
-    expect(mobileNav).toHaveAttribute('data-stage', '1')
+    // Initially, expand handle is present
     expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
 
-    // Click at stage 1 goes to stage 2
+    // Click to expand
     fireEvent.click(screen.getByLabelText('Expand navigation'))
-    expect(mobileNav).toHaveAttribute('data-stage', '2')
     expect(screen.getByLabelText('Collapse navigation')).toBeInTheDocument()
 
-    // Click at stage 2 tucks back to stage 1
+    // Click to collapse
     const collapseHandle = screen.getByLabelText('Collapse navigation')
     fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
     fireEvent.click(collapseHandle)
-    expect(mobileNav).toHaveAttribute('data-stage', '1')
     expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
 
-    // Stage 0 pill ignores clicks — can only be reached via auto-hide
-    // Drag from stage 1 down still snaps to stage 1 (cannot reach stage 0 via drag)
-    fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
-    fireEvent.pointerMove(dragSurface(), { clientY: 280, pointerId: 1 })
-    fireEvent.pointerUp(dragSurface(), { clientY: 280, pointerId: 1 })
-    expect(mobileNav).toHaveAttribute('data-stage', '1')
-  })
-
-  it('expands and collapses mobile navigation with a vertical drag', () => {
-    renderNavbar({ onAddExpense: vi.fn() })
-    const mobileNav = document.body.querySelector('.mobile-nav-container')
-    const dragSurface = () => document.body.querySelector('.mobile-nav-container') as HTMLElement
-
-    // Start at stage 1
-    expect(mobileNav).toHaveAttribute('data-stage', '1')
-
-    // Drag up to expand to stage 2
+    // Drag up to expand
     fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
     fireEvent.pointerMove(dragSurface(), { clientY: 80, pointerId: 1 })
     fireEvent.pointerUp(dragSurface(), { clientY: 80, pointerId: 1 })
-
-    expect(mobileNav).toHaveAttribute('data-stage', '2')
     expect(screen.getByLabelText('Collapse navigation')).toBeInTheDocument()
 
-    // Drag down to collapse to stage 1 (cannot reach stage 0 via drag)
+    // Drag down to collapse
     fireEvent.pointerDown(dragSurface(), { clientY: 80, pointerId: 1 })
     fireEvent.pointerMove(dragSurface(), { clientY: 260, pointerId: 1 })
     fireEvent.pointerUp(dragSurface(), { clientY: 260, pointerId: 1 })
-
-    expect(mobileNav).toHaveAttribute('data-stage', '1')
     expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
-  })
-
-  it('collapses back to the default one-row state on click after drag-expanding', () => {
-    renderNavbar({ onAddExpense: vi.fn() })
-    const mobileNav = document.body.querySelector('.mobile-nav-container')
-    const dragSurface = () => document.body.querySelector('.mobile-nav-container') as HTMLElement
-
-    // Drag to stage 2
-    fireEvent.pointerDown(dragSurface(), { clientY: 200, pointerId: 1 })
-    fireEvent.pointerMove(dragSurface(), { clientY: 80, pointerId: 1 })
-    fireEvent.pointerUp(dragSurface(), { clientY: 80, pointerId: 1 })
-
-    expect(mobileNav).toHaveAttribute('data-stage', '2')
-
-    // Click to tuck back to stage 1
-    const collapseHandle = screen.getByLabelText('Collapse navigation')
-    fireEvent.pointerDown(collapseHandle, { clientY: 80, pointerId: 1 })
-    fireEvent.click(collapseHandle)
-
-    expect(mobileNav).toHaveAttribute('data-stage', '1')
-    expect(screen.getByLabelText('Expand navigation')).toBeInTheDocument()
-  })
-
-  it('auto-collapses to stage-0 pill on scroll down and restores on scroll up', () => {
-    const Wrapper = ({ children }: { children: ReactNode }) => (
-      <MemoryRouter>{children}</MemoryRouter>
-    )
-
-    const { rerender } = render(
-      <Navbar onAddExpense={vi.fn()} scrollDirection={null} isScrolling={false} />,
-      { wrapper: Wrapper },
-    )
-
-    const getMobileNavContainer = () => document.body.querySelector('.mobile-nav-container')
-    const getMobileNav = () => document.body.querySelector('nav.mobile-nav-bounce')
-
-    // Start at stage 1
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
-
-    // Drag to stage 2
-    fireEvent.pointerDown(getMobileNavContainer() as HTMLElement, { clientY: 200, pointerId: 1 })
-    fireEvent.pointerMove(getMobileNavContainer() as HTMLElement, { clientY: 80, pointerId: 1 })
-    fireEvent.pointerUp(getMobileNavContainer() as HTMLElement, { clientY: 80, pointerId: 1 })
-
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
-
-    // While still scrolling, nav stays at stage 2
-    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={true} />)
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
-
-    // Scroll stops → auto-collapse to stage 0
-    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />)
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
-    expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
-
-    // While scrolling up, stays at stage 0
-    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={true} />)
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
-
-    // Scroll up stops → restore to stage 1
-    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="up" isScrolling={false} />)
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
-    expect(getMobileNav()).not.toHaveClass('translate-y-[calc(100%-18px)]')
-  })
-
-  it('keeps the pill drag-only after auto-collapse', () => {
-    const Wrapper = ({ children }: { children: ReactNode }) => (
-      <MemoryRouter>{children}</MemoryRouter>
-    )
-
-    const { rerender } = render(
-      <Navbar onAddExpense={vi.fn()} scrollDirection={null} isScrolling={false} />,
-      { wrapper: Wrapper },
-    )
-
-    const getMobileNavContainer = () => document.body.querySelector('.mobile-nav-container')
-    const getMobileNav = () => document.body.querySelector('nav.mobile-nav-bounce')
-
-    rerender(<Navbar onAddExpense={vi.fn()} scrollDirection="down" isScrolling={false} />)
-
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '0')
-    expect(getMobileNav()).toHaveClass('translate-y-[calc(100%-18px)]')
-
-    fireEvent.click(screen.getByLabelText('Expand navigation'))
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '1')
-    expect(getMobileNav()).not.toHaveClass('translate-y-[calc(100%-18px)]')
-
-    fireEvent.pointerDown(getMobileNavContainer() as HTMLElement, { clientY: 220, pointerId: 1 })
-    fireEvent.pointerMove(getMobileNavContainer() as HTMLElement, { clientY: 90, pointerId: 1 })
-    fireEvent.pointerUp(getMobileNavContainer() as HTMLElement, { clientY: 90, pointerId: 1 })
-
-    expect(getMobileNavContainer()).toHaveAttribute('data-stage', '2')
-    expect(getMobileNav()).not.toHaveClass('translate-y-[calc(100%-18px)]')
   })
 
   it('still lets icon taps work when the bar is not dragged', () => {

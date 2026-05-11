@@ -164,6 +164,7 @@ function CalendarGrid({
               key={`${day.year}-${day.month}-${day.date}`}
               type="button"
               onClick={() => onDayClick(day)}
+              aria-current={isActive ? 'date' : undefined}
               className={cn(
                 'flex items-center justify-center rounded-theme-medium transition-colors',
                 isLg ? 'h-10 text-sm' : 'py-1.5 text-xs',

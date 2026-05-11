@@ -6,6 +6,7 @@ import PWAInstallPrompt from './components/pwa/PWAInstallPrompt'
 import PWAUpdatePrompt from './components/pwa/PWAUpdatePrompt'
 import LoadingOverlay from './components/ui/LoadingOverlay'
 import PullToRefreshContainer from './components/ui/PullToRefreshContainer'
+import { installTestApi } from './test/testApi'
 import { ROUTES } from './constants/routes'
 import { useAuth } from './context/authContext'
 import { useSettings } from './context/settingsContext'
@@ -144,7 +145,7 @@ function SyncDot({ status }: { status: SyncStatus }) {
 function AppShell() {
   useEffect(() => {
     if (import.meta.env.DEV) {
-      import('./test/testApi').then(({ installTestApi }) => installTestApi())
+      installTestApi()
     }
   }, [])
 

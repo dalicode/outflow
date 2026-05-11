@@ -1,5 +1,5 @@
-import { test } from "@playwright/test";
-import { expect, resetAppState } from "./helpers";
+import { test, expect } from "@playwright/test";
+import { resetAppState } from "./helpers";
 
 test.describe("Expense deletion flows (desktop)", () => {
   test.beforeEach(async ({ page }) => {
@@ -15,11 +15,11 @@ test.describe("Expense deletion flows (desktop)", () => {
     await expect(page.getByTestId("expense-table")).toBeVisible();
   });
 
-  test("single delete can be undone from the toast", async ({ page }) => {
+  test("single and bulk delete with undo", async ({ page }) => {
     const rows = page.locator("[data-testid^='expense-row-']");
-    const firstRow = rows.first();
 
-    await firstRow.click({ button: "right" });
+    // ── Single delete ──
+    await rows.first().click({ button: "right" });
     await page.getByText("Delete").click();
 
     const confirmDialog = page.getByRole("dialog", { name: "Confirm Delete" });
@@ -30,21 +30,16 @@ test.describe("Expense deletion flows (desktop)", () => {
     await expect(page.getByText("Deleted Lunch.")).toBeVisible();
 
     await page.getByRole("button", { name: "Undo" }).click();
-
     await expect(rows).toHaveCount(3);
     await expect(page.getByText("Lunch")).toBeVisible();
-  });
 
-  test("bulk delete can be undone from the toast", async ({ page }) => {
-    const rows = page.locator("[data-testid^='expense-row-']");
-
+    // ── Bulk delete ──
     await rows.nth(0).locator(".expense-checkbox-wrapper").first().click({ force: true });
     await rows.nth(1).locator(".expense-checkbox-wrapper").first().click({ force: true });
 
     await rows.nth(0).click({ button: "right" });
     await page.getByText("Delete 2 rows").click();
 
-    const confirmDialog = page.getByRole("dialog", { name: "Confirm Delete" });
     await expect(confirmDialog).toBeVisible();
     await confirmDialog.getByRole("button", { name: "Delete" }).click();
 

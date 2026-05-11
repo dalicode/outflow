@@ -165,7 +165,7 @@ export default function CategoryModal({
           ) : (
             <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
               {filteredCategories.map((cat) => (
-                <li key={cat.id} className="border-b border-theme-border p-3 last:border-b-0">
+                <li key={cat.id} className="border-b border-theme-border p-3 last:border-b-0" data-testid={`category-row-${cat.id}`}>
                   {editId === cat.id ? (
                     <form
                       onSubmit={saveEdit}

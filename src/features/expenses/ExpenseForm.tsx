@@ -249,6 +249,7 @@ export default function ExpenseForm({
     if (isEdit && initialExpense) {
       haptics.success()
       onUpdate?.(initialExpense.id as number, payload)
+      onClose()
     } else {
       haptics.success()
       onAdd?.(payload)
@@ -311,7 +312,7 @@ export default function ExpenseForm({
               </button>
             </div>
             {/* Desktop */}
-            <div className="hidden sm:block">
+            <div className="hidden sm:block" data-testid="desktop-payee-dropdown">
               <DesktopDropdown
                 value={form.payeeId ? Number(form.payeeId) : undefined}
                 options={payeeOptions}
@@ -375,7 +376,7 @@ export default function ExpenseForm({
               </button>
             </div>
             {/* Desktop */}
-            <div className="hidden sm:block">
+            <div className="hidden sm:block" data-testid="desktop-category-dropdown">
               <DesktopDropdown
                 value={form.categoryId ? Number(form.categoryId) : undefined}
                 options={categoryOptions}

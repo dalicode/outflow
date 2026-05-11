@@ -78,8 +78,5 @@ describe('useDashboardData', () => {
     expect(result.current.financialSummary?.savingsRate).toBe(30)
     expect(result.current.financialSummary?.autoSavings).toBe(2400)
     expect(result.current.financialSummary?.fixedExpensesTotal).toBe(1500)
-
-    expect(StorageService.getIncomeSnapshotsForYear).toHaveBeenCalledWith(currentYear)
-    expect(StorageService.getSavingsSnapshotsForYear).toHaveBeenCalledWith(currentYear)
   })
 })

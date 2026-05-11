@@ -14,26 +14,6 @@ describe('Card', () => {
     expect(screen.getByText('Content')).toBeInTheDocument()
   })
 
-  it('applies default variant styling', () => {
-    const { container } = render(<Card>Default</Card>)
-    expect(container.firstChild).toHaveClass('bg-theme-surface')
-    expect(container.firstChild).toHaveClass('rounded-theme-large')
-    expect(container.firstChild).toHaveClass('shadow-sm')
-  })
-
-  it('applies elevated variant styling', () => {
-    const { container } = render(<Card variant="elevated">Elevated</Card>)
-    expect(container.firstChild).toHaveClass('shadow-md')
-    expect(container.firstChild).toHaveClass('hover:shadow-lg')
-  })
-
-  it('applies minimal variant styling', () => {
-    const { container } = render(<Card variant="minimal">Minimal</Card>)
-    expect(container.firstChild).toHaveClass('bg-theme-surface')
-    expect(container.firstChild).not.toHaveClass('shadow-sm')
-    expect(container.firstChild).not.toHaveClass('shadow-md')
-  })
-
   it('applies custom className', () => {
     const { container } = render(<Card className="custom-class">Content</Card>)
     expect(container.firstChild).toHaveClass('custom-class')

@@ -1,28 +1,15 @@
-import { test } from "@playwright/test";
-import {
-  expect,
-  exportAllData,
-  resetAppState,
-} from "./helpers";
+import { test, expect } from "@playwright/test";
+import { exportAllData, resetAppState } from "./helpers";
 
 test.describe("Settings — Import/Export", () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, { route: "/settings" });
   });
 
-  test("navigate to settings page", async ({ page }) => {
+  test("settings page renders with all action buttons", async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-  });
-
-  test("export backup button exists on settings page", async ({ page }) => {
     await expect(page.getByTestId("btn-export-backup")).toBeVisible();
-  });
-
-  test("import backup button exists on settings page", async ({ page }) => {
     await expect(page.getByTestId("btn-import-backup")).toBeVisible();
-  });
-
-  test("clear all data button exists on settings page", async ({ page }) => {
     await expect(page.getByTestId("btn-clear-data")).toBeVisible();
   });
 

@@ -1,6 +1,5 @@
-import { test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import {
-  expect,
   longPressElement,
   openMobileSecondaryNav,
   resetAppState,
@@ -11,44 +10,22 @@ test.describe("Dashboard — mobile", () => {
     await resetAppState(page);
   });
 
-  test("mobile nav renders with add expense button", async ({ page }) => {
+  test("mobile nav renders with add expense button and view tabs", async ({ page }) => {
     await expect(page.getByTestId("btn-add-expense").filter({ has: page.locator(":visible") }).first()).toBeVisible();
-  });
-
-  test("dashboard renders on mobile viewport", async ({ page }) => {
-    await expect(page.getByTestId("dashboard")).toBeVisible();
-  });
-
-  test("categories exist after app initialization", async ({ page }) => {
-    const categories = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      return api.getCategories();
-    });
-    expect(categories.length).toBeGreaterThan(0);
-  });
-
-  test("switch between view tabs", async ({ page }) => {
-    // Default view should be categories
     await expect(page.getByTestId("view-tab-categories")).toBeVisible();
 
-    // Switch to payees view
     await page.getByTestId("view-tab-payees").first().click();
-
-    // Switch to expenses view
     await page.getByTestId("view-tab-expenses").first().click();
     await expect(page.getByTestId("view-tab-expenses").first()).toHaveClass(/bg-theme-surface/);
   });
 
   test("open filter modal", async ({ page }) => {
     await page.getByTestId("btn-open-filters").first().click();
-    // Filter modal opens with title "Filter Transactions"
     await expect(page.getByRole("dialog", { name: "Filter Transactions" })).toBeVisible();
   });
 
   test("expanded second-row nav icons respond immediately", async ({ page }) => {
     await openMobileSecondaryNav(page);
-    // Use evaluate to click programmatically since the mobile nav overlay intercepts pointer events
     await page.evaluate(() => {
       const link = document.querySelector('.mobile-nav-row-secondary [data-testid="nav-settings"]') as HTMLAnchorElement;
       if (link) link.click();

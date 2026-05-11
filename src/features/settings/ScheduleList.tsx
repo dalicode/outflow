@@ -101,6 +101,7 @@ function ScheduleItem({
   return (
     <div
       className={cn('schedule-row', isArchived ? 'schedule-row-archived' : 'schedule-row-upcoming')}
+      data-testid={`schedule-item-${schedule.id}`}
     >
       <div>
         <span className="font-medium text-theme-text">{typeLabel}</span>

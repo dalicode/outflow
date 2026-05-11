@@ -1,5 +1,5 @@
 import { StorageService } from '../services/storageService'
-import type { Expense } from '../types'
+import type { Expense, Schedule } from '../types'
 
 declare global {
   interface Window {
@@ -7,7 +7,7 @@ declare global {
   }
 }
 
-const testApi = {
+export const testApi = {
   clearAllData: () => StorageService.clearAllData(),
 
   seedExpenses: async (
@@ -45,6 +45,13 @@ const testApi = {
   exportAllData: () => StorageService.exportAllData(),
   importAllData: (data: Record<string, unknown>, opts?: { replace?: boolean }) =>
     StorageService.importAllData(data, opts),
+
+  getSchedules: () => StorageService.getSchedules(),
+  addSchedule: (schedule: Omit<Schedule, 'id' | 'isActive' | 'createdAt'>) =>
+    StorageService.addSchedule(schedule),
+  deleteSchedule: (id: number) => StorageService.deleteSchedule(id),
+
+  materializePendingSnapshots: () => StorageService.materializePendingSnapshots(),
 }
 
 export function installTestApi(): void {

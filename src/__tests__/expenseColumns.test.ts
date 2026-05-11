@@ -1,77 +1,69 @@
-import type React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { editableCellActivate } from '../features/dashboard/expenseColumns'
-import type { CellEditingAPI } from '../features/dashboard/useExpenseCellEditing'
-import type { Expense } from '../types'
-
-function createEditingMock(): CellEditingAPI {
-  return {
-    editingCell: null,
-    validationError: null,
-    switchCellEdit: vi.fn(),
-    startCellEdit: vi.fn(),
-    cancelCurrentCellEdit: vi.fn(),
-    isCellEditing: vi.fn(),
-    createOnCommit: vi.fn(),
-    createOnCancel: vi.fn(),
-    handleTabNavigation: vi.fn(),
-    validateField: vi.fn(),
-    setPendingName: vi.fn(),
-    getPendingName: vi.fn(),
-    shouldAutoOpenEditor: vi.fn(),
-  }
-}
-
-function createExpense(): Expense {
-  return {
-    id: 1,
-    date: '2026-05-05',
-    amount: 1,
-    description: 'test',
-    categoryId: 1,
-    payeeId: 1,
-  } as unknown as Expense
-}
 
 describe('editableCellActivate', () => {
-  it('activates only from pointer down and does not expose a click handler', () => {
-    const editing = createEditingMock()
-    const handlers = editableCellActivate(editing, createExpense(), 'date')
+  it('returns pointer down handler that triggers edit on left-click', () => {
+    const switchCellEdit = vi.fn()
+    const editing = {
+      switchCellEdit,
+    } as unknown as Parameters<typeof editableCellActivate>[0]
 
-    expect('onClick' in handlers).toBe(false)
+    const handlers = editableCellActivate(editing, { id: 1 } as Parameters<typeof editableCellActivate>[1], 'description')
 
-    handlers.onPointerDown({
+    // The returned handler set should include onPointerDown but NOT onClick
+    expect(typeof handlers.onPointerDown).toBe('function')
+    expect((handlers as Record<string, unknown>).onClick).toBeUndefined()
+
+    // Simulate a primary pointer down on a cell element
+    handlers.onPointerDown!({
       button: 0,
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
       target: document.createElement('span'),
     } as unknown as React.PointerEvent<HTMLElement>)
 
-    expect(editing.switchCellEdit).toHaveBeenCalledTimes(1)
-    expect(editing.switchCellEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), 'date')
+    expect(switchCellEdit).toHaveBeenCalledTimes(1)
+    expect(switchCellEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), 'description')
   })
 
-  it('ignores non-primary clicks and no-cell-switch targets', () => {
-    const editing = createEditingMock()
-    const handlers = editableCellActivate(editing, createExpense(), 'payeeId')
+  it('ignores right-clicks and cells inside no-cell-switch containers', () => {
+    const switchCellEdit = vi.fn()
+    const editing = {
+      switchCellEdit,
+    } as unknown as Parameters<typeof editableCellActivate>[0]
 
-    const noSwitchTarget = document.createElement('span')
-    vi.spyOn(noSwitchTarget, 'closest').mockReturnValue(document.createElement('div'))
+    const handlers = editableCellActivate(editing, { id: 1 } as Parameters<typeof editableCellActivate>[1], 'payeeId')
 
-    handlers.onPointerDown({
+    // Right-click does NOT trigger
+    handlers.onPointerDown!({
       button: 2,
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
       target: document.createElement('span'),
     } as unknown as React.PointerEvent<HTMLElement>)
+    expect(switchCellEdit).not.toHaveBeenCalled()
 
-    handlers.onPointerDown({
+    // Left-click inside a [data-no-cell-switch] container does NOT trigger
+    const container = document.createElement('div')
+    container.setAttribute('data-no-cell-switch', '')
+    const nestedSpan = document.createElement('span')
+    container.appendChild(nestedSpan)
+
+    handlers.onPointerDown!({
       button: 0,
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
-      target: noSwitchTarget,
+      target: nestedSpan,
     } as unknown as React.PointerEvent<HTMLElement>)
+    expect(switchCellEdit).not.toHaveBeenCalled()
 
-    expect(editing.switchCellEdit).not.toHaveBeenCalled()
+    // Left-click on a normal element DOES trigger
+    handlers.onPointerDown!({
+      button: 0,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      target: document.createElement('span'),
+    } as unknown as React.PointerEvent<HTMLElement>)
+    expect(switchCellEdit).toHaveBeenCalledTimes(1)
   })
 })
