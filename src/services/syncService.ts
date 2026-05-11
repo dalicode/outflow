@@ -49,6 +49,38 @@ function toNumberArray(value: unknown): number[] {
   return value.map((item) => Number(item)).filter((item) => Number.isFinite(item))
 }
 
+const CLOUD_ID_TABLES = [
+  'expenses',
+  'categories',
+  'payees',
+  'fixedExpenses',
+  'fixedExpenseSnapshots',
+  'incomeSnapshots',
+  'savingsSnapshots',
+  'schedules',
+  'categoryMergeHistory',
+  'payeeMergeHistory',
+] as const
+
+async function ensureCloudIdsForSync(): Promise<void> {
+  const now = new Date().toISOString()
+
+  for (const tableName of CLOUD_ID_TABLES) {
+    const table = db.table<Record<string, unknown>, number>(tableName)
+    const rows = await table.toArray()
+
+    for (const row of rows) {
+      const updates: Record<string, unknown> = {}
+      if (!row.cloudId) updates.cloudId = crypto.randomUUID()
+      if (!row.updatedAt) updates.updatedAt = (row.createdAt as string | undefined) ?? now
+
+      if (Object.keys(updates).length > 0) {
+        await table.update(row.id as number, updates)
+      }
+    }
+  }
+}
+
 // Convert a local row to a Supabase-shaped row (snake_case + user_id)
 interface ToCloudMaps {
   categoryIdToCloudId?: Map<number, string>
@@ -75,6 +107,21 @@ function toCloud(
     if (id == null) return null
     return maps?.payeeIdToCloudId?.get(id) ?? String(id)
   }
+  function categoryCloudId(p: Category) {
+    if (p.cloudId) return p.cloudId
+    if (p.id != null) return maps?.categoryIdToCloudId?.get(p.id) ?? String(p.id)
+    return crypto.randomUUID()
+  }
+  function payeeCloudId(p: Payee) {
+    if (p.cloudId) return p.cloudId
+    if (p.id != null) return maps?.payeeIdToCloudId?.get(p.id) ?? String(p.id)
+    return crypto.randomUUID()
+  }
+  function fixedExpenseCloudId(p: FixedExpense) {
+    if (p.cloudId) return p.cloudId
+    if (p.id != null) return maps?.fixedExpenseIdToCloudId?.get(p.id) ?? String(p.id)
+    return crypto.randomUUID()
+  }
 
   if (table === 'expenses') {
     const p = payload as unknown as Expense
@@ -92,7 +139,7 @@ function toCloud(
     const p = payload as unknown as Category
     return {
       ...base,
-      id: p.cloudId ?? String(p.id),
+      id: categoryCloudId(p),
       name: p.name,
       is_archived: p.isArchived ?? false,
       archived_at: p.archivedAt ?? null,
@@ -103,7 +150,7 @@ function toCloud(
     const p = payload as unknown as Payee
     return {
       ...base,
-      id: p.cloudId ?? String(p.id),
+      id: payeeCloudId(p),
       name: p.name,
       is_archived: p.isArchived ?? false,
       archived_at: p.archivedAt ?? null,
@@ -114,7 +161,7 @@ function toCloud(
     const p = payload as unknown as FixedExpense
     return {
       ...base,
-      id: p.cloudId ?? String(p.id),
+      id: fixedExpenseCloudId(p),
       name: p.name,
       amount: p.amount,
       is_archived: p.isArchived ?? false,
@@ -362,6 +409,8 @@ function fromCloud(
 // ── Outgoing sync ─────────────────────────────────────────────────────────────
 export async function flushSyncQueue(userId: string): Promise<void> {
   if (!supabase || !userId) return
+
+  await ensureCloudIdsForSync()
 
   const queue = (await StorageService.getSyncQueue()) as SyncQueueItem[]
   if (queue.length === 0) return
@@ -633,6 +682,8 @@ export async function fetchBackupPasswordFromProfile(userId: string): Promise<st
 export async function migrateLocalToSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
+  await ensureCloudIdsForSync()
+
   const [
     expenses,
     categories,
@@ -684,10 +735,6 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
 
   await Promise.all([
     upsert(
-      'expenses',
-      expenses.map((r) => toCloud('expenses', r as unknown as Record<string, unknown>, userId, maps)),
-    ),
-    upsert(
       'categories',
       categories.map((r) => toCloud('categories', r as unknown as Record<string, unknown>, userId, maps)),
     ),
@@ -700,6 +747,13 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
       fixedExpenses.map((r) =>
         toCloud('fixedExpenses', r as unknown as Record<string, unknown>, userId, maps),
       ),
+    ),
+  ])
+
+  await Promise.all([
+    upsert(
+      'expenses',
+      expenses.map((r) => toCloud('expenses', r as unknown as Record<string, unknown>, userId, maps)),
     ),
     upsert(
       'fixed_expense_snapshots',

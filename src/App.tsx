@@ -281,11 +281,11 @@ function AppShell() {
   useEffect(() => {
     const init = async () => {
       const hasVisited = localStorage.getItem('outflow:hasVisited') === 'true'
-      const minLoadTime = (window as unknown as { outflowTestApi?: unknown }).outflowTestApi
+      const fakeDelay = (window as unknown as { outflowTestApi?: unknown }).outflowTestApi
         ? 0
         : hasVisited
-          ? 1500
-          : 3000
+          ? 0 // returning user: no delay needed
+          : 800 // first visit: brief animation
       const startTime = Date.now()
 
       const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(
@@ -293,8 +293,7 @@ function AppShell() {
       )
       await StorageService.rolloverSnapshots?.().catch(console.error)
 
-      const elapsed = Date.now() - startTime
-      const remaining = Math.max(0, minLoadTime - elapsed)
+      const remaining = Math.max(0, fakeDelay - (Date.now() - startTime))
       if (remaining > 0) {
         await new Promise((r) => setTimeout(r, remaining))
       }

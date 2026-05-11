@@ -7,6 +7,7 @@ import type { Expense } from '../types'
 vi.mock('../services/storageService', () => ({
   StorageService: {
     getFixedExpenses: vi.fn(),
+    getSnapshotsForYear: vi.fn(),
     getSetting: vi.fn(),
     getActiveSchedules: vi.fn(),
     getIncomeSnapshotsForYear: vi.fn(),
@@ -23,6 +24,7 @@ describe('useDashboardData', () => {
     vi.mocked(StorageService.getFixedExpenses).mockResolvedValue([
       { id: 1, name: 'Rent', amount: 1500 },
     ])
+    vi.mocked(StorageService.getSnapshotsForYear).mockResolvedValue([])
     vi.mocked(StorageService.getSetting).mockImplementation(
       async (key: string, fallback: unknown) => {
         if (key === 'monthlyIncome') return 5000
