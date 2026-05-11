@@ -533,7 +533,7 @@ function AppShell() {
             <OfflineStatusBadge />
             <Navbar
               onAddExpense={() => setShowForm(true)}
-              onSignOut={supabase ? signOut : undefined}
+              onSignOut={supabase && user ? signOut : undefined}
               onSignIn={() => setShowAuthModal(true)}
               showSignIn={!!supabase && !user}
               userEmail={user?.email}
