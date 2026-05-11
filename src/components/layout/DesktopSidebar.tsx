@@ -163,7 +163,7 @@ export default function DesktopSidebar({
             }}
             className={cn(
               'w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger-subtle',
-              collapsed ? 'justify-center py-2.5 px-2 mx-1' : 'gap-3 py-2.5 px-3 mx-2',
+              collapsed ? 'justify-center py-2.5 px-2' : 'gap-3 py-2.5 px-3 mx-2',
             )}
             title={userEmail}
           >
@@ -184,7 +184,7 @@ export default function DesktopSidebar({
             onClick={() => { haptics.selection(); onSignIn() }}
             className={cn(
               'w-full flex items-center rounded-theme-medium nav-item-hover text-theme-primary hover:bg-theme-primary-subtle',
-              collapsed ? 'justify-center py-2.5 px-2 mx-1' : 'gap-3 py-2.5 px-3 mx-2',
+              collapsed ? 'justify-center py-2.5 px-2' : 'gap-3 py-2.5 px-3 mx-2',
             )}
             title="Sign in to sync data across devices"
           >
