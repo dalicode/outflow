@@ -263,7 +263,12 @@ export default function MobileBottomNav({
     if (isScrolling) return
     if (scrollDirection !== 'down' && !hidden) return
 
-    setMobileAutoHidden(shouldAutoHideAfterScroll)
+    // When the selection banner is visible, don't collapse the nav
+    if (hidden) return
+
+    if (!shouldAutoHideAfterScroll) return
+
+    setMobileAutoHidden(true)
     setMobileStage(0)
     setMobileNavHeight(stageHeights[0])
   }, [hidden, isScrolling, scrollDirection, shouldAutoHideAfterScroll, stageHeights[1]])
