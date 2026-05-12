@@ -13,6 +13,7 @@ interface FixedExpensesListProps {
   onAdd: (item: Omit<FixedExpense, 'id'>) => void
   onUpdate: (id: number, changes: Partial<FixedExpense>) => void
   onDelete: (id: number) => void
+  compact?: boolean
 }
 
 export default function FixedExpensesList({
@@ -20,10 +21,12 @@ export default function FixedExpensesList({
   onAdd,
   onUpdate,
   onDelete,
+  compact = false,
 }: FixedExpensesListProps) {
   const { formatAmount, settings } = useSettings()
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
   const [showModal, setShowModal] = useState(false)
+  const [showManageModal, setShowManageModal] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(EMPTY)
@@ -41,6 +44,7 @@ export default function FixedExpensesList({
   }
 
   const openAdd = () => {
+    setShowManageModal(false)
     setModalMode('add')
     setEditId(null)
     setForm(EMPTY)
@@ -49,6 +53,7 @@ export default function FixedExpensesList({
   }
 
   const openEdit = (item: FixedExpense) => {
+    setShowManageModal(false)
     setModalMode('edit')
     setEditId(item.id as number)
     setForm({ name: item.name, amount: String(item.amount) })
@@ -78,6 +83,98 @@ export default function FixedExpensesList({
       })
     }
     closeModal()
+  }
+
+  if (compact) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setShowManageModal(true)}
+          className="w-full text-left group"
+          aria-label="Edit fixed expenses"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="text-xs text-theme-muted uppercase tracking-wider">Fixed Expenses</p>
+              {activeItems.length > 0 ? (
+                <>
+                  <p className="text-base font-semibold text-theme-text tabular-nums">
+                    {formatAmount(total)}
+                    <span className="ml-1 text-xs font-normal text-theme-muted">/mo</span>
+                  </p>
+                  <p className="text-xs text-theme-muted">
+                    {activeItems.length} item{activeItems.length === 1 ? '' : 's'}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-theme-muted">None set — tap to add</p>
+              )}
+            </div>
+            <span className="mt-0.5 shrink-0 text-[0.6875rem] font-medium text-theme-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              Edit
+            </span>
+          </div>
+        </button>
+
+        <Modal
+          isOpen={showManageModal}
+          onClose={() => setShowManageModal(false)}
+          title="Fixed Expenses"
+          size="sm"
+          footer={
+            <ModalFooter>
+              <button
+                type="button"
+                onClick={() => setShowManageModal(false)}
+                className="btn-cancel-sm flex-1"
+              >
+                Close
+              </button>
+              <button type="button" onClick={openAdd} className="btn-modal-primary flex-1">
+                Add
+              </button>
+            </ModalFooter>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-xs text-theme-muted">
+              Recurring monthly expenses like rent, utilities, and subscriptions.
+            </p>
+            {activeItems.length === 0 ? (
+              <button
+                type="button"
+                onClick={openAdd}
+                className="w-full rounded-theme-medium border border-dashed border-theme-border py-4 text-sm text-theme-muted hover:border-theme-primary hover:text-theme-primary transition-colors"
+              >
+                Add rent, utilities, subscriptions...
+              </button>
+            ) : (
+              <ul className="space-y-1.5">
+                {activeItems.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(item)}
+                      data-testid={`btn-edit-fixed-expense-${item.id}`}
+                      className="flex w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2.5 text-left transition-colors hover:border-theme-primary/40"
+                      aria-label={`Edit ${item.name}`}
+                    >
+                      <span className="truncate text-sm font-medium text-theme-text">
+                        {item.name}
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold text-theme-text tabular-nums">
+                        {formatAmount(item.amount)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Modal>
+      </>
+    )
   }
 
   return (

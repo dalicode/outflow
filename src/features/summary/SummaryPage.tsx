@@ -29,6 +29,9 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
   } = useSummary({ expenses })
 
   const incomeIsSet = parseFloat(String(incomeRaw || 0)) > 0
+  const hasFixedExpenses = fixedExpenses.some((item) => !item.isArchived)
+  const hasSavingsGoal = Number(savingsRate || 0) > 0
+  const hasBudgetSetup = incomeIsSet || hasSavingsGoal || hasFixedExpenses
 
   return (
     <main className="max-w-4xl w-full mx-auto px-4 py-6 space-y-6" data-testid="summary-page">
@@ -43,26 +46,60 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
           </div>
         )}
 
-        <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
-          <IncomeForm income={incomeRaw} frequency={incomeFreq} onSave={handleIncomeSave} />
-        </div>
+        {hasBudgetSetup ? (
+          <section className="rounded-theme-large border border-theme-border bg-theme-surface p-3 md:p-4">
+            <div className="grid gap-2.5 md:grid-cols-3">
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
+                <IncomeForm
+                  income={incomeRaw}
+                  frequency={incomeFreq}
+                  onSave={handleIncomeSave}
+                  compact
+                />
+              </div>
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
+                <SavingsForm
+                  savingsRate={savingsRate}
+                  monthlyIncome={monthlyIncome}
+                  onSave={handleSavingsRateSave}
+                  compact
+                />
+              </div>
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
+                <FixedExpensesList
+                  items={fixedExpenses}
+                  onAdd={handleAddFixed}
+                  onUpdate={handleUpdateFixed}
+                  onDelete={handleDeleteFixed}
+                  compact
+                />
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+            <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+              <IncomeForm income={incomeRaw} frequency={incomeFreq} onSave={handleIncomeSave} />
+            </div>
 
-        <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
-          <SavingsForm
-            savingsRate={savingsRate}
-            monthlyIncome={monthlyIncome}
-            onSave={handleSavingsRateSave}
-          />
-        </div>
+            <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+              <SavingsForm
+                savingsRate={savingsRate}
+                monthlyIncome={monthlyIncome}
+                onSave={handleSavingsRateSave}
+              />
+            </div>
 
-        <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
-          <FixedExpensesList
-            items={fixedExpenses}
-            onAdd={handleAddFixed}
-            onUpdate={handleUpdateFixed}
-            onDelete={handleDeleteFixed}
-          />
-        </div>
+            <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
+              <FixedExpensesList
+                items={fixedExpenses}
+                onAdd={handleAddFixed}
+                onUpdate={handleUpdateFixed}
+                onDelete={handleDeleteFixed}
+              />
+            </div>
+          </>
+        )}
 
         {financialSummary && incomeIsSet && (
           <BudgetFlow summary={financialSummary} variableBreakdown={variableBreakdown} />
