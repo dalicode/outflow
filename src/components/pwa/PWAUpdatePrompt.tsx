@@ -16,23 +16,11 @@ export default function PWAUpdatePrompt() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onNeedRefresh() {
-      setDismissed(false)
-    },
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return
       setRegistration(registration)
     },
   })
-
-  useEffect(() => {
-    if (registration || !('serviceWorker' in navigator)) return
-    navigator.serviceWorker.getRegistration().then((existingRegistration) => {
-      if (existingRegistration) {
-        setRegistration(existingRegistration)
-      }
-    })
-  }, [registration])
 
   useEffect(() => {
     if (!registration) return
@@ -55,7 +43,7 @@ export default function PWAUpdatePrompt() {
 
       const handleStateChange = () => {
         if (worker.state === 'installed') {
-          window.setTimeout(showPromptIfWaiting, 250)
+          showPromptIfWaiting()
         }
       }
       worker.addEventListener('statechange', handleStateChange)
