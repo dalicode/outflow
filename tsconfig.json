@@ -13,6 +13,7 @@
     "jsx": "react-jsx",
     "ignoreDeprecations": "6.0",
     "strict": true,
+    "types": ["vite/client"],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,

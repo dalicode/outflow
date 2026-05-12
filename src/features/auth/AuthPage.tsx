@@ -150,7 +150,7 @@ export default function AuthPage({ onClose }: { onClose?: () => void }) {
         </p>
       </div>
 
-      {error && <p className="text-theme-danger text-sm text-center">{error}</p>}
+      {error && <p className="text-theme-danger text-sm text-center pb-3">{error}</p>}
       {message && <p className="text-theme-success text-sm text-center">{message}</p>}
 
       <form onSubmit={submit} className="space-y-3">
