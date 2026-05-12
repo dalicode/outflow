@@ -50,9 +50,16 @@ import { StorageService } from '../services/storageService'
 import { flushSyncQueue, pullFromSupabase } from '../services/syncService'
 
 function makeQuery(data: unknown[]) {
+  const page = (from = 0, to = data.length - 1) =>
+    Promise.resolve({ data: data.slice(from, to + 1), error: null })
+
   return {
     select: () => ({
-      eq: () => Promise.resolve({ data, error: null }),
+      eq: () => ({
+        order: () => ({
+          range: (from: number, to: number) => page(from, to),
+        }),
+      }),
     }),
   }
 }
@@ -194,6 +201,38 @@ describe('pullFromSupabase', () => {
       key: 'monthlyIncome',
       value: 5000,
     })
+  })
+
+  it('pulls more than 1000 cloud expenses across multiple pages', async () => {
+    const expenseRows = Array.from({ length: 1001 }, (_, index) => ({
+      id: String(1000 + index),
+      date: '2026-05-05',
+      category_id: '12',
+      payee_id: '42',
+      description: `Expense ${index + 1}`,
+      amount: index + 1,
+      updated_at: '2026-05-05T00:00:00.000Z',
+    }))
+
+    supabaseSelect.mockImplementation((table: string) => {
+      if (table === 'expenses') return makeQuery(expenseRows)
+      if (table === 'categories') {
+        return makeQuery([
+          { id: '12', name: 'Food', is_archived: false, updated_at: '2026-01-01T00:00:00.000Z' },
+        ])
+      }
+      if (table === 'payees') {
+        return makeQuery([
+          { id: '42', name: 'Cafe', is_archived: false, updated_at: '2026-01-01T00:00:00.000Z' },
+        ])
+      }
+      return makeQuery([])
+    })
+
+    await pullFromSupabase('user-1')
+
+    const expenseAdds = addCalls.filter(({ row }) => row.description != null)
+    expect(expenseAdds).toHaveLength(1001)
   })
 })
 

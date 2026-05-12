@@ -12,6 +12,7 @@ import { useToasts } from '../../context/toastContext'
 import { usePayees } from '../../hooks/useLocalData'
 import { useScheduleList } from './hooks/useScheduleList'
 import { StorageService } from '../../services/storageService'
+import { clearUserCloudData } from '../../services/syncService'
 import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { useBackup } from '../importExport/hooks/useBackup'
@@ -172,9 +173,27 @@ export default function SettingsPage({
   }
 
   const handleClearAll = async () => {
-    await StorageService.clearAllData()
-    setImportStatus('All data cleared successfully.')
-    onRefreshAll?.()
+    try {
+      if (user?.id) {
+        await clearUserCloudData(user.id)
+      }
+      await StorageService.clearAllData()
+      setImportStatus(
+        user?.id
+          ? 'All local and cloud data cleared successfully.'
+          : 'All local data cleared successfully.',
+      )
+      await onRefreshAll?.()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      showToast({
+        message: user?.id
+          ? `Failed to clear all data: ${message}`
+          : `Failed to clear local data: ${message}`,
+        tone: 'danger',
+      })
+      throw error
+    }
   }
 
   const triggerClearReload = useCallback(() => {

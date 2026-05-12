@@ -110,12 +110,44 @@ interface SupabaseResult {
   error?: { message?: string; code?: string; details?: string } | null
 }
 
+const CLOUD_FETCH_PAGE_SIZE = 1000
+
 function assertNoSupabaseError(result: SupabaseResult, context: string): void {
   if (!result.error) return
   const detail = [result.error.message, result.error.code, result.error.details]
     .filter(Boolean)
     .join(' ')
   throw new Error(`${context} failed${detail ? `: ${detail}` : ''}`)
+}
+
+async function fetchAllRowsForUser(
+  table: string,
+  userId: string,
+): Promise<Record<string, unknown>[]> {
+  if (!supabase) return []
+
+  const rows: Record<string, unknown>[] = []
+  let from = 0
+
+  while (true) {
+    const to = from + CLOUD_FETCH_PAGE_SIZE - 1
+    const result = await supabase
+      .from(table)
+      .select('*')
+      .eq('user_id', userId)
+      .order('id', { ascending: true })
+      .range(from, to)
+    assertNoSupabaseError(result, `Fetch ${table} rows ${from}-${to}`)
+
+    const page = (result.data ?? []) as Record<string, unknown>[]
+    if (page.length === 0) break
+    rows.push(...page)
+
+    if (page.length < CLOUD_FETCH_PAGE_SIZE) break
+    from += CLOUD_FETCH_PAGE_SIZE
+  }
+
+  return rows
 }
 
 function chunkArray<T>(items: T[], size: number): T[][]
@@ -236,6 +268,11 @@ async function replaceSupabaseData(
   for (const table of tables) {
     await deleteUserRowsForReplace(table, userId)
   }
+}
+
+export async function clearUserCloudData(userId: string): Promise<void> {
+  if (!supabase || !userId) return
+  await replaceSupabaseData(userId)
 }
 
 async function runFullSyncUpload(
@@ -747,48 +784,30 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
   const [
-    expRes,
-    catRes,
-    payRes,
-    fixRes,
-    snapRes,
-    incomeSnapRes,
-    savingsSnapRes,
-    scheduleRes,
-    categoryMergeRes,
-    payeeMergeRes,
-    setRes,
+    expRows,
+    catRows,
+    payRows,
+    fixRows,
+    snapRows,
+    incomeSnapRows,
+    savingsSnapRows,
+    scheduleRows,
+    categoryMergeRows,
+    payeeMergeRows,
+    setRows,
   ] = await Promise.all([
-    supabase.from('expenses').select('*').eq('user_id', userId),
-    supabase.from('categories').select('*').eq('user_id', userId),
-    supabase.from('payees').select('*').eq('user_id', userId),
-    supabase.from('fixed_expenses').select('*').eq('user_id', userId),
-    supabase.from('fixed_expense_snapshots').select('*').eq('user_id', userId),
-    supabase.from('income_snapshots').select('*').eq('user_id', userId),
-    supabase.from('savings_snapshots').select('*').eq('user_id', userId),
-    supabase.from('schedules').select('*').eq('user_id', userId),
-    supabase.from('category_merge_history').select('*').eq('user_id', userId),
-    supabase.from('payee_merge_history').select('*').eq('user_id', userId),
-    supabase.from('settings').select('*').eq('user_id', userId),
+    fetchAllRowsForUser('expenses', userId),
+    fetchAllRowsForUser('categories', userId),
+    fetchAllRowsForUser('payees', userId),
+    fetchAllRowsForUser('fixed_expenses', userId),
+    fetchAllRowsForUser('fixed_expense_snapshots', userId),
+    fetchAllRowsForUser('income_snapshots', userId),
+    fetchAllRowsForUser('savings_snapshots', userId),
+    fetchAllRowsForUser('schedules', userId),
+    fetchAllRowsForUser('category_merge_history', userId),
+    fetchAllRowsForUser('payee_merge_history', userId),
+    fetchAllRowsForUser('settings', userId),
   ])
-
-  const results = [
-    ['expenses', expRes],
-    ['categories', catRes],
-    ['payees', payRes],
-    ['fixed_expenses', fixRes],
-    ['fixed_expense_snapshots', snapRes],
-    ['income_snapshots', incomeSnapRes],
-    ['savings_snapshots', savingsSnapRes],
-    ['schedules', scheduleRes],
-    ['category_merge_history', categoryMergeRes],
-    ['payee_merge_history', payeeMergeRes],
-    ['settings', setRes],
-  ] as const
-
-  for (const [table, result] of results) {
-    assertNoSupabaseError(result, `Fetch ${table}`)
-  }
 
   // Build FK resolution maps from categories and payees (cloudId → local numeric ID)
   const existingCats = await db.categories.toArray()
@@ -812,21 +831,21 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   const combinedMaps: FromCloudMaps = { ...catMap, ...payeeMap, ...fixedMap }
 
   // Merge each table by cloudId with timestamp comparison
-  if (catRes.data?.length) {
-    const rows = catRes.data.map((r: unknown) =>
+  if (catRows.length) {
+    const rows = catRows.map((r: unknown) =>
       fromCloud('categories', r as Record<string, unknown>, combinedMaps),
     )
     await mergeByCloudId('categories', rows)
   }
-  if (payRes.data?.length) {
-    const rows = payRes.data.map((r: unknown) =>
+  if (payRows.length) {
+    const rows = payRows.map((r: unknown) =>
       fromCloud('payees', r as Record<string, unknown>, combinedMaps),
     )
     await mergeByCloudId('payees', rows)
   }
 
   // After merging cats/payees, rebuild maps to include newly inserted cloudIds
-  if (catRes.data?.length || payRes.data?.length) {
+  if (catRows.length || payRows.length) {
     const updatedCats = await db.categories.toArray()
     const updatedPays = await db.payees.toArray()
     updatedCats.forEach((c) => {
@@ -849,14 +868,14 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     payeeMap.cloudIdToPayeeId?.size ?? 0,
   )
 
-  if (expRes.data?.length) {
-    debugLog('[sync] resolving', expRes.data.length, 'cloud expenses')
+  if (expRows.length) {
+    debugLog('[sync] resolving', expRows.length, 'cloud expenses')
     const unresolvedCats = new Set<string>()
     const unresolvedPayees = new Set<string>()
     let resolvedViaInitialMap = 0
     let resolvedViaFallback = 0
     const resolvedRows = await Promise.all(
-      expRes.data.map(async (r: unknown) => {
+      expRows.map(async (r: unknown) => {
         const raw = r as Record<string, unknown>
         const local = fromCloud('expenses', raw, { ...catMap, ...payeeMap })
 
@@ -906,15 +925,15 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     )
     await mergeByCloudId('expenses', resolvedRows)
   }
-  if (fixRes.data?.length) {
-    const rows = fixRes.data.map((r: unknown) =>
+  if (fixRows.length) {
+    const rows = fixRows.map((r: unknown) =>
       fromCloud('fixed_expenses', r as Record<string, unknown>, combinedMaps),
     )
     await mergeByCloudId('fixedExpenses', rows)
   }
 
   // Rebuild fixed map after merging fixed expenses
-  if (fixRes.data?.length) {
+  if (fixRows.length) {
     const updatedFixed = await db.fixedExpenses.toArray()
     updatedFixed.forEach((f) => {
       if (f.cloudId && f.id) fixedMap.cloudIdToFixedExpenseId?.set(f.cloudId, f.id)
@@ -922,44 +941,44 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   }
   const finalMaps: FromCloudMaps = { ...catMap, ...payeeMap, ...fixedMap }
 
-  if (snapRes.data?.length) {
-    const rows = snapRes.data.map((r: unknown) =>
+  if (snapRows.length) {
+    const rows = snapRows.map((r: unknown) =>
       fromCloud('fixed_expense_snapshots', r as Record<string, unknown>, finalMaps),
     )
     await mergeByCloudId('fixedExpenseSnapshots', rows)
   }
-  if (incomeSnapRes.data?.length) {
-    const rows = incomeSnapRes.data.map((r: unknown) =>
+  if (incomeSnapRows.length) {
+    const rows = incomeSnapRows.map((r: unknown) =>
       fromCloud('income_snapshots', r as Record<string, unknown>, finalMaps),
     )
     await mergeByCloudId('incomeSnapshots', rows)
   }
-  if (savingsSnapRes.data?.length) {
-    const rows = savingsSnapRes.data.map((r: unknown) =>
+  if (savingsSnapRows.length) {
+    const rows = savingsSnapRows.map((r: unknown) =>
       fromCloud('savings_snapshots', r as Record<string, unknown>, finalMaps),
     )
     await mergeByCloudId('savingsSnapshots', rows)
   }
-  if (scheduleRes.data?.length) {
-    const rows = scheduleRes.data.map((r: unknown) =>
+  if (scheduleRows.length) {
+    const rows = scheduleRows.map((r: unknown) =>
       fromCloud('schedules', r as Record<string, unknown>, finalMaps),
     )
     await mergeByCloudId('schedules', rows)
   }
-  if (categoryMergeRes.data?.length) {
-    const rows = categoryMergeRes.data.map((r: unknown) =>
+  if (categoryMergeRows.length) {
+    const rows = categoryMergeRows.map((r: unknown) =>
       fromCloud('category_merge_history', r as Record<string, unknown>, finalMaps),
     )
     await mergeByCloudId('categoryMergeHistory', rows)
   }
-  if (payeeMergeRes.data?.length) {
-    const rows = payeeMergeRes.data.map((r: unknown) =>
+  if (payeeMergeRows.length) {
+    const rows = payeeMergeRows.map((r: unknown) =>
       fromCloud('payee_merge_history', r as Record<string, unknown>, finalMaps),
     )
     await mergeByCloudId('payeeMergeHistory', rows)
   }
-  if (setRes.data?.length) {
-    for (const row of setRes.data) {
+  if (setRows.length) {
+    for (const row of setRows) {
       const local = fromCloud('settings', row as Record<string, unknown>)
       await db.settings.put({ key: String(local.key), value: local.value })
     }
