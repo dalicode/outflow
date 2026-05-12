@@ -7,6 +7,7 @@ interface SavingsFormProps {
   monthlyIncome: number
   onSave: (rate: number) => void
   compact?: boolean
+  mobileList?: boolean
 }
 
 export default function SavingsForm({
@@ -14,6 +15,7 @@ export default function SavingsForm({
   monthlyIncome,
   onSave,
   compact = false,
+  mobileList = false,
 }: SavingsFormProps) {
   const { formatAmount } = useSettings()
   const [showModal, setShowModal] = useState(false)
@@ -28,17 +30,27 @@ export default function SavingsForm({
         type="button"
         onClick={() => setShowModal(true)}
         data-testid="btn-open-savings-modal"
-        className="w-full text-left group"
+        className={mobileList ? 'w-full text-left' : 'w-full text-left group'}
         aria-label="Edit savings goal"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-0.5">
-            <p className="text-xs text-theme-muted uppercase tracking-wider">Auto Savings</p>
+        <div
+          className={
+            mobileList
+              ? 'flex items-center justify-between gap-3 py-1'
+              : 'flex items-start justify-between gap-3'
+          }
+        >
+          <div className={mobileList ? 'min-w-0 flex-1 space-y-0.5' : 'space-y-0.5'}>
+            <p className={mobileList ? 'text-sm font-medium text-theme-text' : 'text-xs text-theme-muted uppercase tracking-wider'}>
+              Auto Savings
+            </p>
             {isSet ? (
               <>
                 <p
                   className={
-                    compact
+                    mobileList
+                      ? 'text-sm font-semibold text-theme-text tabular-nums'
+                      : compact
                       ? 'text-base font-semibold text-theme-text tabular-nums'
                       : 'text-xl font-bold text-theme-text tabular-nums'
                   }
@@ -46,7 +58,9 @@ export default function SavingsForm({
                   {formatAmount(amount)}
                   <span
                     className={
-                      compact
+                      mobileList
+                        ? 'ml-1 text-xs font-normal text-theme-muted'
+                        : compact
                         ? 'ml-1 text-xs font-normal text-theme-muted'
                         : 'ml-1 text-sm font-normal text-theme-muted'
                     }
@@ -54,21 +68,29 @@ export default function SavingsForm({
                     /mo
                   </span>
                 </p>
-                <p className="text-xs text-theme-muted">{rate.toFixed(1)}% of income</p>
+                <p className="text-xs text-theme-muted">
+                  {mobileList ? `${rate.toFixed(1)}% of income` : `${rate.toFixed(1)}% of income`}
+                </p>
               </>
             ) : (
               <p className="text-sm text-theme-muted">Not set — tap to add</p>
             )}
           </div>
-          <span
-            className={
-              compact
-                ? 'mt-0.5 shrink-0 text-[0.6875rem] font-medium text-theme-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'
-                : 'mt-0.5 shrink-0 text-xs font-medium text-theme-primary opacity-0 group-hover:opacity-100 transition-opacity'
-            }
-          >
-            Edit
-          </span>
+          {mobileList ? (
+            <span className="shrink-0 text-base text-theme-muted" aria-hidden="true">
+              ›
+            </span>
+          ) : (
+            <span
+              className={
+                compact
+                  ? 'mt-0.5 shrink-0 text-[0.6875rem] font-medium text-theme-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'
+                  : 'mt-0.5 shrink-0 text-xs font-medium text-theme-primary opacity-0 group-hover:opacity-100 transition-opacity'
+              }
+            >
+              Edit
+            </span>
+          )}
         </div>
       </button>
 

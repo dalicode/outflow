@@ -9,33 +9,7 @@ test.describe("Summary/Budget — mobile", () => {
   test("income, savings, and fixed expense update the budget breakdown correctly", async ({ page }) => {
     await expect(page.getByTestId("summary-page")).toBeVisible();
 
-    // Set income
-    await page.getByTestId("btn-open-income-modal").click();
-    const incomeDialog = page.getByRole("dialog", { name: "Edit Income" });
-    await expect(incomeDialog).toBeVisible();
-
-    const incomeAmountInput = page.locator("#income-modal-form [aria-label='Amount']");
-    await incomeAmountInput.click();
-    await incomeAmountInput.pressSequentially("500000");
-    await page.getByTestId("btn-save-income").click();
-    await expect(incomeDialog).not.toBeVisible({ timeout: 5000 });
-    const incomeButton = page.getByTestId("btn-open-income-modal");
-    await expect(incomeButton).not.toContainText("Not set");
-
-    // Set savings rate
-    await page.getByTestId("btn-open-savings-modal").click();
-    const savingsDialog = page.getByRole("dialog", { name: "Edit Auto Savings" });
-    await expect(savingsDialog).toBeVisible();
-
-    await page.getByLabel('Savings rate percentage').click();
-    await page.getByLabel('Savings rate percentage').press('Backspace');
-    await page.getByLabel('Savings rate percentage').pressSequentially('2000');
-    await page.getByTestId("btn-save-savings").click();
-    await expect(savingsDialog).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId("btn-open-savings-modal")).toContainText(/20\.0+%/);
-    await expect(page.getByTestId("btn-open-savings-modal")).toContainText("$1,000.00");
-
-    // Add a fixed expense
+    // Add a fixed expense first (before budget setup switches to compact mode)
     await page.getByTestId("btn-add-fixed-expense").click();
     const fixedDialog = page.getByRole("dialog", { name: "Add Fixed Expense" });
     await expect(fixedDialog).toBeVisible();
@@ -49,9 +23,43 @@ test.describe("Summary/Budget — mobile", () => {
     await expect(fixedAmountInput).toHaveValue(/\$1,200\.00/);
     await fixedDialog.getByRole("button", { name: "Add" }).click();
 
-    const fixedExpenseRow = page.locator("li").filter({ hasText: "Rent" });
-    await expect(fixedExpenseRow).toBeVisible();
-    await expect(fixedExpenseRow.getByText("$1,200.00")).toBeVisible();
+    const planButton = page.getByLabel("Edit monthly plan");
+    await expect(planButton).toContainText("Plan");
+    await expect(planButton).toContainText("$1,200.00 fixed");
+
+    await planButton.click();
+    const planDialog = page.getByRole("dialog", { name: "Monthly Plan" });
+    await expect(planDialog).toBeVisible();
+
+    // Set income
+    await planDialog.getByTestId("btn-open-income-modal").click();
+    const incomeAmountInput = page.locator("#income-modal-form [aria-label='Amount']");
+    await expect(incomeAmountInput).toBeVisible();
+    await incomeAmountInput.click();
+    await incomeAmountInput.pressSequentially("500000");
+    await page.getByTestId("btn-save-income").click();
+    await expect(page.locator("#income-modal-form")).not.toBeVisible({ timeout: 5000 });
+    const incomeButton = planDialog.getByTestId("btn-open-income-modal");
+    await expect(incomeButton).not.toContainText("Not set");
+
+    // Set savings rate
+    await planDialog.getByTestId("btn-open-savings-modal").click();
+    const savingsRateInput = page.getByLabel('Savings rate percentage');
+    await expect(savingsRateInput).toBeVisible();
+    await savingsRateInput.click();
+    await savingsRateInput.press('Backspace');
+    await savingsRateInput.pressSequentially('2000');
+    await page.getByTestId("btn-save-savings").click();
+    await expect(page.getByTestId("savings-form")).not.toBeVisible({ timeout: 5000 });
+    const savingsButton = planDialog.getByTestId("btn-open-savings-modal");
+    await expect(savingsButton).toContainText(/20\.0+%/);
+    await expect(savingsButton).toContainText("$1,000.00");
+
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(planDialog).not.toBeVisible({ timeout: 5000 });
+    await expect(planButton).toContainText("$5,000.00 in");
+    await expect(planButton).toContainText("$1,000.00 save");
+    await expect(planButton).toContainText("$1,200.00 fixed");
 
     // Verify budget breakdown
     const budgetCard = page.locator("div").filter({

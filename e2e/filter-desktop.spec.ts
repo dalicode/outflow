@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 import { resetAppState } from "./helpers";
 
 test.describe("Filter modal (desktop)", () => {
+  const visibleFiltersButton = (page: import("@playwright/test").Page) =>
+    page.getByTestId("btn-open-filters").filter({ visible: true }).first();
+
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
@@ -12,7 +15,7 @@ test.describe("Filter modal (desktop)", () => {
   });
 
   test("filter modal opens, closes, and reset works", async ({ page }) => {
-    await page.getByTestId("btn-open-filters").first().click();
+    await visibleFiltersButton(page).click();
     await expect(page.getByRole("dialog", { name: "Filter Transactions" })).toBeVisible();
 
     const searchInput = page.getByPlaceholder("Description, category, or amount...");
@@ -30,7 +33,7 @@ test.describe("Filter modal (desktop)", () => {
     await page.getByTestId("view-tab-expenses").first().click();
     await expect(page.getByTestId("expense-table")).toBeVisible({ timeout: 5000 });
 
-    await page.getByTestId("btn-open-filters").first().click();
+    await visibleFiltersButton(page).click();
     await expect(page.getByRole("dialog", { name: "Filter Transactions" })).toBeVisible();
 
     const searchInput = page.getByPlaceholder("Description, category, or amount...");
@@ -39,9 +42,12 @@ test.describe("Filter modal (desktop)", () => {
     await page.getByTestId("btn-apply-filters").click();
     await expect(page.getByRole("dialog", { name: "Filter Transactions" })).not.toBeVisible({ timeout: 5000 });
 
-    const filterButton = page.getByTestId("btn-open-filters").first();
+    const filterButton = visibleFiltersButton(page);
     await expect(filterButton).toBeVisible();
-    const countBadge = filterButton.locator("span");
+    const countBadge = filterButton.locator("span").last();
     await expect(countBadge).toContainText("1");
+
+    await expect(page.getByText("Lunch")).toBeVisible();
+    await expect(page.getByText("Groceries")).toHaveCount(0);
   });
 });

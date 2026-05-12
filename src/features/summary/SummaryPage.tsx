@@ -1,5 +1,9 @@
 import { useSummary } from './hooks/useSummary'
+import { useState } from 'react'
+import { useSettings } from '../../context/settingsContext'
 import type { Expense } from '../../types'
+import Modal from '../../components/ui/Modal'
+import ModalFooter from '../../components/ui/ModalFooter'
 import FixedExpensesList from '../fixedExpenses/FixedExpensesList'
 import BudgetFlow from './BudgetFlow'
 import BudgetPaceSection from './BudgetPaceSection'
@@ -13,6 +17,8 @@ interface SummaryPageProps {
 }
 
 export default function SummaryPage({ expenses }: SummaryPageProps) {
+  const { formatAmount } = useSettings()
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
   const {
     incomeRaw,
     incomeFreq,
@@ -32,6 +38,16 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
   const hasFixedExpenses = fixedExpenses.some((item) => !item.isArchived)
   const hasSavingsGoal = Number(savingsRate || 0) > 0
   const hasBudgetSetup = incomeIsSet || hasSavingsGoal || hasFixedExpenses
+  const fixedExpenseTotal = fixedExpenses
+    .filter((item) => !item.isArchived)
+    .reduce((sum, item) => sum + item.amount, 0)
+  const savingsAmount = (Number(savingsRate || 0) / 100) * monthlyIncome
+  const allocatedTotal = fixedExpenseTotal + savingsAmount
+  const planSummaryParts = [
+    incomeIsSet ? `${formatAmount(monthlyIncome)} inc` : null,
+    hasSavingsGoal ? `${formatAmount(savingsAmount)} savings` : null,
+    hasFixedExpenses ? `${formatAmount(fixedExpenseTotal)} fixed` : null,
+  ].filter(Boolean)
 
   return (
     <main className="max-w-4xl w-full mx-auto px-4 py-6 space-y-6" data-testid="summary-page">
@@ -47,35 +63,114 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
         )}
 
         {hasBudgetSetup ? (
-          <section className="rounded-theme-large border border-theme-border bg-theme-surface p-3 md:p-4">
-            <div className="grid gap-2.5 md:grid-cols-3">
-              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
-                <IncomeForm
-                  income={incomeRaw}
-                  frequency={incomeFreq}
-                  onSave={handleIncomeSave}
-                  compact
-                />
+          <>
+            <section className="md:hidden">
+              <button
+                type="button"
+                onClick={() => setIsPlanModalOpen(true)}
+                className="flex w-full items-center justify-between gap-3 rounded-theme-large border border-theme-border bg-theme-surface px-4 py-3 text-left"
+                aria-label="Edit monthly plan"
+              >
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-sm font-semibold text-theme-text">Plan</p>
+                  <p className="truncate text-xs text-theme-muted">
+                    {planSummaryParts.length > 0
+                      ? planSummaryParts.join(' · ')
+                      : 'Tap to configure your monthly plan'}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  {allocatedTotal > 0 && (
+                    <p className="text-xs font-medium text-theme-text">
+                      {formatAmount(allocatedTotal)} allocated
+                    </p>
+                  )}
+                  <span className="text-base text-theme-muted" aria-hidden="true">
+                    ›
+                  </span>
+                </div>
+              </button>
+            </section>
+
+            <Modal
+              isOpen={isPlanModalOpen}
+              onClose={() => setIsPlanModalOpen(false)}
+              title="Monthly Plan"
+              size="sm"
+              footer={
+                <ModalFooter>
+                  <button
+                    type="button"
+                    onClick={() => setIsPlanModalOpen(false)}
+                    className="btn-modal-primary flex-1"
+                  >
+                    Done
+                  </button>
+                </ModalFooter>
+              }
+            >
+              <div className="divide-y divide-theme-border">
+                <div className="py-2.5">
+                  <IncomeForm
+                    income={incomeRaw}
+                    frequency={incomeFreq}
+                    onSave={handleIncomeSave}
+                    compact
+                    mobileList
+                  />
+                </div>
+                <div className="py-2.5">
+                  <SavingsForm
+                    savingsRate={savingsRate}
+                    monthlyIncome={monthlyIncome}
+                    onSave={handleSavingsRateSave}
+                    compact
+                    mobileList
+                  />
+                </div>
+                <div className="py-2.5">
+                  <FixedExpensesList
+                    items={fixedExpenses}
+                    onAdd={handleAddFixed}
+                    onUpdate={handleUpdateFixed}
+                    onDelete={handleDeleteFixed}
+                    compact
+                    mobileList
+                  />
+                </div>
               </div>
-              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
-                <SavingsForm
-                  savingsRate={savingsRate}
-                  monthlyIncome={monthlyIncome}
-                  onSave={handleSavingsRateSave}
-                  compact
-                />
+            </Modal>
+
+            <section className="hidden md:block rounded-theme-large border border-theme-border bg-theme-surface p-3 md:p-4">
+              <div className="grid gap-2.5 md:grid-cols-3">
+                <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
+                  <IncomeForm
+                    income={incomeRaw}
+                    frequency={incomeFreq}
+                    onSave={handleIncomeSave}
+                    compact
+                  />
+                </div>
+                <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
+                  <SavingsForm
+                    savingsRate={savingsRate}
+                    monthlyIncome={monthlyIncome}
+                    onSave={handleSavingsRateSave}
+                    compact
+                  />
+                </div>
+                <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
+                  <FixedExpensesList
+                    items={fixedExpenses}
+                    onAdd={handleAddFixed}
+                    onUpdate={handleUpdateFixed}
+                    onDelete={handleDeleteFixed}
+                    compact
+                  />
+                </div>
               </div>
-              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
-                <FixedExpensesList
-                  items={fixedExpenses}
-                  onAdd={handleAddFixed}
-                  onUpdate={handleUpdateFixed}
-                  onDelete={handleDeleteFixed}
-                  compact
-                />
-              </div>
-            </div>
-          </section>
+            </section>
+          </>
         ) : (
           <>
             <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">

@@ -14,6 +14,7 @@ interface FixedExpensesListProps {
   onUpdate: (id: number, changes: Partial<FixedExpense>) => void
   onDelete: (id: number) => void
   compact?: boolean
+  mobileList?: boolean
 }
 
 export default function FixedExpensesList({
@@ -22,6 +23,7 @@ export default function FixedExpensesList({
   onUpdate,
   onDelete,
   compact = false,
+  mobileList = false,
 }: FixedExpensesListProps) {
   const { formatAmount, settings } = useSettings()
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
@@ -91,15 +93,29 @@ export default function FixedExpensesList({
         <button
           type="button"
           onClick={() => setShowManageModal(true)}
-          className="w-full text-left group"
+          className={mobileList ? 'w-full text-left' : 'w-full text-left group'}
           aria-label="Edit fixed expenses"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-0.5">
-              <p className="text-xs text-theme-muted uppercase tracking-wider">Fixed Expenses</p>
+          <div
+            className={
+              mobileList
+                ? 'flex items-center justify-between gap-3 py-1'
+                : 'flex items-start justify-between gap-3'
+            }
+          >
+            <div className={mobileList ? 'min-w-0 flex-1 space-y-0.5' : 'space-y-0.5'}>
+              <p className={mobileList ? 'text-sm font-medium text-theme-text' : 'text-xs text-theme-muted uppercase tracking-wider'}>
+                Fixed Expenses
+              </p>
               {activeItems.length > 0 ? (
                 <>
-                  <p className="text-base font-semibold text-theme-text tabular-nums">
+                  <p
+                    className={
+                      mobileList
+                        ? 'text-sm font-semibold text-theme-text tabular-nums'
+                        : 'text-base font-semibold text-theme-text tabular-nums'
+                    }
+                  >
                     {formatAmount(total)}
                     <span className="ml-1 text-xs font-normal text-theme-muted">/mo</span>
                   </p>
@@ -111,9 +127,15 @@ export default function FixedExpensesList({
                 <p className="text-sm text-theme-muted">None set — tap to add</p>
               )}
             </div>
-            <span className="mt-0.5 shrink-0 text-[0.6875rem] font-medium text-theme-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-              Edit
-            </span>
+            {mobileList ? (
+              <span className="shrink-0 text-base text-theme-muted" aria-hidden="true">
+                ›
+              </span>
+            ) : (
+              <span className="mt-0.5 shrink-0 text-[0.6875rem] font-medium text-theme-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                Edit
+              </span>
+            )}
           </div>
         </button>
 

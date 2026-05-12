@@ -19,9 +19,16 @@ interface IncomeFormProps {
   frequency: string | null | undefined
   onSave: (data: { income: number; frequency: string; monthlyIncome: number }) => void
   compact?: boolean
+  mobileList?: boolean
 }
 
-export default function IncomeForm({ income, frequency, onSave, compact = false }: IncomeFormProps) {
+export default function IncomeForm({
+  income,
+  frequency,
+  onSave,
+  compact = false,
+  mobileList = false,
+}: IncomeFormProps) {
   const { formatAmount } = useSettings()
   const [showModal, setShowModal] = useState(false)
 
@@ -36,17 +43,27 @@ export default function IncomeForm({ income, frequency, onSave, compact = false 
         type="button"
         onClick={() => setShowModal(true)}
         data-testid="btn-open-income-modal"
-        className="w-full text-left group"
+        className={mobileList ? 'w-full text-left' : 'w-full text-left group'}
         aria-label="Edit income"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-0.5">
-            <p className="text-xs text-theme-muted uppercase tracking-wider">Income</p>
+        <div
+          className={
+            mobileList
+              ? 'flex items-center justify-between gap-3 py-1'
+              : 'flex items-start justify-between gap-3'
+          }
+        >
+          <div className={mobileList ? 'min-w-0 flex-1 space-y-0.5' : 'space-y-0.5'}>
+            <p className={mobileList ? 'text-sm font-medium text-theme-text' : 'text-xs text-theme-muted uppercase tracking-wider'}>
+              Income
+            </p>
             {isSet ? (
               <>
                 <p
                   className={
-                    compact
+                    mobileList
+                      ? 'text-sm font-semibold text-theme-text tabular-nums'
+                      : compact
                       ? 'text-base font-semibold text-theme-text tabular-nums'
                       : 'text-xl font-bold text-theme-text tabular-nums'
                   }
@@ -54,7 +71,9 @@ export default function IncomeForm({ income, frequency, onSave, compact = false 
                   {formatAmount(monthly)}
                   <span
                     className={
-                      compact
+                      mobileList
+                        ? 'ml-1 text-xs font-normal text-theme-muted'
+                        : compact
                         ? 'ml-1 text-xs font-normal text-theme-muted'
                         : 'ml-1 text-sm font-normal text-theme-muted'
                     }
@@ -62,7 +81,7 @@ export default function IncomeForm({ income, frequency, onSave, compact = false 
                     /mo
                   </span>
                 </p>
-                {freq !== 'monthly' && (
+                {!mobileList && freq !== 'monthly' && (
                   <p className="text-xs text-theme-muted">
                     {formatAmount(raw)} {FREQ_LABEL[freq]}
                   </p>
@@ -72,15 +91,21 @@ export default function IncomeForm({ income, frequency, onSave, compact = false 
               <p className="text-sm text-theme-muted">Not set — tap to add</p>
             )}
           </div>
-          <span
-            className={
-              compact
-                ? 'mt-0.5 shrink-0 text-[0.6875rem] font-medium text-theme-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'
-                : 'mt-0.5 shrink-0 text-xs font-medium text-theme-primary opacity-0 group-hover:opacity-100 transition-opacity'
-            }
-          >
-            Edit
-          </span>
+          {mobileList ? (
+            <span className="shrink-0 text-base text-theme-muted" aria-hidden="true">
+              ›
+            </span>
+          ) : (
+            <span
+              className={
+                compact
+                  ? 'mt-0.5 shrink-0 text-[0.6875rem] font-medium text-theme-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'
+                  : 'mt-0.5 shrink-0 text-xs font-medium text-theme-primary opacity-0 group-hover:opacity-100 transition-opacity'
+              }
+            >
+              Edit
+            </span>
+          )}
         </div>
       </button>
 
