@@ -1,20 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../services/supabase'
+import { withTimeout } from '../../utils/withTimeout'
 import './auth.css'
 
 type AuthMode = 'login' | 'signup'
-
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('Authentication timed out. Please try again.')), ms)
-  })
-
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer) clearTimeout(timer)
-  })
-}
 
 function PasswordField({
   value,
@@ -110,7 +99,11 @@ export default function AuthPage({ onClose }: { onClose?: () => void }) {
         ? supabase.auth.signInWithPassword({ email, password })
         : supabase.auth.signUp({ email, password })
     try {
-      const { error: err } = await withTimeout(fn, 20000)
+      const { error: err } = await withTimeout(
+        fn,
+        20000,
+        'Authentication timed out. Please try again.',
+      )
       if (err) {
         setError(err.message)
         return
