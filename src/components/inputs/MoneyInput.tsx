@@ -311,9 +311,6 @@ export default function MoneyInput({
           value={formattedValue || placeholder}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          onFocus={(event) => {
-            event.currentTarget.select()
-          }}
           onBlur={() => {
             onBlurValue?.(centsToSignedDollars(absoluteCents, isNegativeMode))
           }}

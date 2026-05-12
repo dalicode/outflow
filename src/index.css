@@ -5,3 +5,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html, body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input, textarea, [contenteditable] {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
