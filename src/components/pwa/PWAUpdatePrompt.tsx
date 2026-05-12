@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { cn } from '../../utils/cn'
 
 const SW_UPDATE_KEY = 'sw:updateApplied'
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
+const UPDATE_ACK_DELAY_MS = 350
 
 export default function PWAUpdatePrompt() {
   const [dismissed, setDismissed] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null)
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -44,12 +46,24 @@ export default function PWAUpdatePrompt() {
   const handleUpdate = useCallback(() => {
     setUpdating(true)
     sessionStorage.setItem(SW_UPDATE_KEY, 'true')
-    updateServiceWorker(true).catch(() => {
-      sessionStorage.removeItem(SW_UPDATE_KEY)
-      setUpdating(false)
-      setNeedRefresh(true)
-    })
+    if (updateTimerRef.current) window.clearTimeout(updateTimerRef.current)
+    updateTimerRef.current = window.setTimeout(() => {
+      updateTimerRef.current = null
+      updateServiceWorker(true).catch(() => {
+        sessionStorage.removeItem(SW_UPDATE_KEY)
+        setUpdating(false)
+        setNeedRefresh(true)
+      })
+    }, UPDATE_ACK_DELAY_MS)
   }, [setNeedRefresh, updateServiceWorker])
+
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        window.clearTimeout(updateTimerRef.current)
+      }
+    }
+  }, [])
 
   // Ignore controllerchange when it's from our own intentional update
   useEffect(() => {
@@ -95,8 +109,11 @@ export default function PWAUpdatePrompt() {
           <button
             type="button"
             aria-label="Dismiss update prompt"
-            onClick={() => setDismissed(true)}
-            className="shrink-0 text-theme-muted transition-colors hover:text-theme-text"
+            onClick={() => {
+              if (!updating) setDismissed(true)
+            }}
+            disabled={updating}
+            className="shrink-0 text-theme-muted transition-colors hover:text-theme-text disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
@@ -117,9 +134,15 @@ export default function PWAUpdatePrompt() {
             type="button"
             onClick={handleUpdate}
             disabled={updating}
-            className="btn-modal-primary px-4"
+            className="btn-modal-primary inline-flex items-center gap-2 px-4"
           >
-            {updating ? 'Updating…' : 'Update'}
+            {updating && (
+              <span
+                className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent motion-safe:animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            <span>{updating ? 'Updating…' : 'Update'}</span>
           </button>
         </div>
       </section>

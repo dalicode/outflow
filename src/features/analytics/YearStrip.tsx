@@ -62,7 +62,6 @@ export default function YearStrip({
       stepForwardLabel="Next year"
       jumpForwardLabel="Current year"
       spanSelector={multipleActive ? '.year-pill-selected' : undefined}
-      spanDeps={[activeYears]}
     >
       {sorted.map((y) => {
         const isActive = activeYears ? activeYears.has(y) : y === year

@@ -32,12 +32,6 @@ interface StripProps {
    * e.g. ".month-pill-selected" or ".year-pill-selected".
    */
   spanSelector?: string
-  /**
-   * Extra dependencies that should trigger a re-measurement of the span rect.
-   * Pass any values that change when the set of selected pills changes.
-   */
-  // biome-ignore lint/suspicious/noExplicitAny: extra deps that trigger re-measurement
-  spanDeps?: any[]
   /** Width per item in px, used to compute maxWidth of the scroll container. Default 36. */
   itemWidth?: number
   children: ReactNode
@@ -138,6 +132,7 @@ export default function Strip({
   const hasCenteredRef = useRef(false)
   const haptics = useHaptics()
   const [spanRect, setSpanRect] = useState<SpanRect | null>(null)
+  const alignmentClass = align === 'end' ? 'items-end' : 'items-center'
 
   // ── Auto-scroll to selected item ──────────────────────────────────────────
   useLayoutEffect(() => {
@@ -177,13 +172,11 @@ export default function Strip({
       })
       hasCenteredRef.current = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollSelector, containerRef.current, smoothScrollThreshold, scrollMode])
+  }, [containerRef, scrollMode, scrollSelector, selectedKey, smoothScrollThreshold])
 
   // ── Span highlight measurement ────────────────────────────────────────────
   // Measures all elements matching spanSelector and computes a single rect
   // that covers all of them, accounting for scroll offset.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     if (!spanSelector) {
       setSpanRect(null)
@@ -223,9 +216,7 @@ export default function Strip({
       }
       return next
     })
-    // spanDeps is intentionally spread — callers control re-measurement
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spanSelector, containerRef.current])
+  })
 
   const hasNav = onJumpBack || onStepBack || onStepForward || onJumpForward
 
@@ -247,7 +238,7 @@ export default function Strip({
   }
 
   return (
-    <div className={`flex items-${align} justify-center`}>
+    <div className={cn('flex justify-center', alignmentClass)}>
       {hasNav && (
         <>
           {onJumpBack && (
@@ -280,13 +271,15 @@ export default function Strip({
       >
         {spanRect && (
           <div
+            className="strip-span-highlight"
             aria-hidden="true"
             style={{
               position: 'absolute',
-              left: spanRect.left,
-              top: spanRect.top,
+              left: 0,
+              top: 0,
               width: spanRect.width,
               height: spanRect.height,
+              transform: `translate3d(${spanRect.left}px, ${spanRect.top}px, 0)`,
               backgroundColor: 'var(--theme-primary)',
               borderRadius: 'var(--radius-small)',
               pointerEvents: 'none',

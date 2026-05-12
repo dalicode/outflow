@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import type { SyncStatus } from '../../types'
 import { cn } from '../../utils/cn'
 
@@ -123,28 +122,6 @@ function CloudStatusIcon({
 }
 
 export default function SyncIndicator({ syncStatus, compact = false }: SyncIndicatorProps) {
-  const [errorVisible, setErrorVisible] = useState(true)
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (syncStatus === 'error') {
-      setErrorVisible(true)
-      errorTimerRef.current = setTimeout(() => setErrorVisible(false), 4000)
-    } else {
-      setErrorVisible(true)
-      if (errorTimerRef.current) {
-        clearTimeout(errorTimerRef.current)
-        errorTimerRef.current = null
-      }
-    }
-
-    return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-    }
-  }, [syncStatus])
-
-  if (syncStatus === 'error' && !errorVisible) return null
-
   return (
     <div
       className={cn(

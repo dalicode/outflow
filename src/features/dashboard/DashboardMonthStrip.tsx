@@ -60,7 +60,6 @@ export default function DashboardMonthStrip({
       stepForwardLabel="Next month"
       jumpForwardLabel="Current month"
       spanSelector={monthSpan > 1 ? '.month-pill-selected' : undefined}
-      spanDeps={[selectedYear, selectedMonth, monthSpan, monthKeys]}
     >
       {monthStrip.map(({ year, month }, index) => {
         const isSelected = year === selectedYear && month === selectedMonth
