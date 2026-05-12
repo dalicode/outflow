@@ -7,7 +7,11 @@ import './index.css'
 
 // Suppress Chrome service worker "message channel closed" noise on refresh
 window.addEventListener('unhandledrejection', (event) => {
-  if (event.reason?.message?.includes('message channel closed')) {
+  const msg =
+    typeof event.reason === 'string'
+      ? event.reason
+      : event.reason?.message ?? ''
+  if (msg.toLowerCase().includes('message channel closed')) {
     event.preventDefault()
   }
 })

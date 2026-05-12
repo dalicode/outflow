@@ -4,7 +4,6 @@ import { cn } from '../../utils/cn'
 
 const SW_UPDATE_KEY = 'sw:updateApplied'
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
-const UPDATE_FALLBACK_TIMEOUT_MS = 3000
 
 export default function PWAUpdatePrompt() {
   const [dismissed, setDismissed] = useState(false)
@@ -13,7 +12,6 @@ export default function PWAUpdatePrompt() {
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return
@@ -88,18 +86,16 @@ export default function PWAUpdatePrompt() {
     setUpdating(true)
     sessionStorage.setItem(SW_UPDATE_KEY, 'true')
 
-    // Fallback: force reload if updateServiceWorker doesn't trigger one within 3s
-    const fallbackTimer = window.setTimeout(() => {
-      window.location.reload()
-    }, UPDATE_FALLBACK_TIMEOUT_MS)
+    // Manually send SKIP_WAITING to the waiting SW instead of using
+    // updateServiceWorker(true), which reloads while the message channel is
+    // still active, causing "message channel closed" errors.
+    if (registration?.waiting) {
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+    }
 
-    updateServiceWorker(true).catch(() => {
-      window.clearTimeout(fallbackTimer)
-      sessionStorage.removeItem(SW_UPDATE_KEY)
-      setUpdating(false)
-      setNeedRefresh(true)
-    })
-  }, [setNeedRefresh, updateServiceWorker])
+    // Short delay to let the SW message channel close cleanly before reload
+    setTimeout(() => window.location.reload(), 50)
+  }, [registration])
 
   // Ignore controllerchange when it's from our own intentional update
   useEffect(() => {
