@@ -150,6 +150,8 @@ export default function Modal({
   const myDepthRef = useRef(0)
   // Whether we're currently closing via history.back() to avoid double-close
   const closingViaBackRef = useRef(false)
+  // Track whether pointer down started on the backdrop — only close if both down and up happened on it
+  const backdropPointerDownRef = useRef(false)
   // Whether this modal is the first one (no ancestor modals) — controls backdrop visibility
   const [isTopLevel, setIsTopLevel] = useState(false)
 
@@ -235,11 +237,22 @@ export default function Modal({
     }
   }, [isOpen])
 
+  const handleBackdropPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      backdropPointerDownRef.current = true
+    }
+  }, [])
+
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (closeOnBackdropClick && e.target === e.currentTarget) {
+      if (
+        closeOnBackdropClick &&
+        e.target === e.currentTarget &&
+        backdropPointerDownRef.current
+      ) {
         closeModal()
       }
+      backdropPointerDownRef.current = false
     },
     [closeModal, closeOnBackdropClick],
   )
@@ -315,6 +328,7 @@ export default function Modal({
         desktopPlacementClass,
       )}
       onClick={handleBackdropClick}
+      onPointerDown={handleBackdropPointerDown}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
