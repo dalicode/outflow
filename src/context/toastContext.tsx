@@ -302,17 +302,17 @@ function ToastViewport({
                 })
               }}
             >
-              <div className="flex items-start gap-3 px-3 py-3">
-                <div className="toast-icon-shell mt-0.5 shrink-0">
+              <div className="flex items-center gap-2.5 px-3 py-2">
+                <div className="toast-icon-shell shrink-0">
                   <ToastToneIcon
                     tone={toast.tone}
-                    className={cn('h-[18px] w-[18px]', toneStyle.iconClassName)}
+                    className={cn('h-4 w-4', toneStyle.iconClassName)}
                   />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="min-w-0 text-sm leading-5">{toast.message}</p>
                   {toast.onAction && (
-                    <div className="mt-2 flex items-center gap-3">
+                    <div className="mt-1 flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => {
@@ -329,7 +329,7 @@ function ToastViewport({
                 <button
                   type="button"
                   onClick={() => onDismiss(toast.id)}
-                  className="mt-0.5 shrink-0 text-theme-muted transition-colors hover:text-theme-text"
+                  className="shrink-0 self-center text-theme-muted transition-colors hover:text-theme-text"
                   aria-label="Dismiss notification"
                 >
                   <svg
