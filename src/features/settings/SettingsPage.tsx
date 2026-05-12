@@ -57,6 +57,7 @@ interface SettingsPageProps {
   onImport?: () => Promise<void> | void
   onRefreshAll?: () => Promise<void> | void
   triggerSync?: () => void
+  syncNow?: () => Promise<void>
   showSignIn?: boolean
   onSignIn?: () => void
 }
@@ -65,6 +66,7 @@ export default function SettingsPage({
   expenses,
   onRefreshAll,
   triggerSync,
+  syncNow,
   showSignIn,
   onSignIn,
 }: SettingsPageProps) {
@@ -962,7 +964,7 @@ export default function SettingsPage({
             setEditHistoricalDataYears([])
             setShowHistoricalCompletionPrompt(false)
             onRefreshAll?.()
-            triggerSync?.()
+            void syncNow?.()
           }}
         />
 

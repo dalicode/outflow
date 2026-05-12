@@ -137,7 +137,7 @@ function AppShell() {
     }
   }, [])
 
-  const { user, loading, syncStatus, syncCount, triggerSync, signOut } = useAuth()
+  const { user, loading, syncStatus, syncCount, syncNow, triggerSync, signOut } = useAuth()
   const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
@@ -328,7 +328,7 @@ function AppShell() {
       announceAppliedScheduleUpdates(appliedNotices ?? [])
 
       if (navigator.onLine && supabase && user) {
-        triggerSync?.()
+        await syncNow()
       }
     } catch (error) {
       console.error('Pull refresh failed:', error)
@@ -344,7 +344,7 @@ function AppShell() {
     refreshPayees,
     announceAppliedScheduleUpdates,
     showToast,
-    triggerSync,
+    syncNow,
     user,
   ])
 
@@ -683,6 +683,7 @@ function AppShell() {
                           await refreshPayees()
                         }}
                         triggerSync={triggerSync}
+                        syncNow={syncNow}
                         showSignIn={!!supabase && !user}
                         onSignIn={() => setShowAuthModal(true)}
                       />
