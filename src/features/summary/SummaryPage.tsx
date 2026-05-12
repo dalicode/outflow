@@ -43,10 +43,11 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
     .reduce((sum, item) => sum + item.amount, 0)
   const savingsAmount = (Number(savingsRate || 0) / 100) * monthlyIncome
   const allocatedTotal = fixedExpenseTotal + savingsAmount
+  const formatSummaryAmount = (amount: number) => formatAmount(amount).replace(/\.00$/, '')
   const planSummaryParts = [
-    incomeIsSet ? `${formatAmount(monthlyIncome)} inc` : null,
-    hasSavingsGoal ? `${formatAmount(savingsAmount)} savings` : null,
-    hasFixedExpenses ? `${formatAmount(fixedExpenseTotal)} fixed` : null,
+    incomeIsSet ? `Inc. ${formatSummaryAmount(monthlyIncome)}` : null,
+    hasSavingsGoal ? `Sav. ${formatSummaryAmount(savingsAmount)}` : null,
+    hasFixedExpenses ? `Fixed ${formatSummaryAmount(fixedExpenseTotal)}` : null,
   ].filter(Boolean)
 
   return (

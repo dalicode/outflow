@@ -25,7 +25,7 @@ test.describe("Summary/Budget — mobile", () => {
 
     const planButton = page.getByLabel("Edit monthly plan");
     await expect(planButton).toContainText("Plan");
-    await expect(planButton).toContainText("$1,200.00 fixed");
+    await expect(planButton).toContainText("Fixed $1,200");
 
     await planButton.click();
     const planDialog = page.getByRole("dialog", { name: "Monthly Plan" });
@@ -57,9 +57,9 @@ test.describe("Summary/Budget — mobile", () => {
 
     await page.getByRole("button", { name: "Done" }).click();
     await expect(planDialog).not.toBeVisible({ timeout: 5000 });
-    await expect(planButton).toContainText("$5,000.00 in");
-    await expect(planButton).toContainText("$1,000.00 save");
-    await expect(planButton).toContainText("$1,200.00 fixed");
+    await expect(planButton).toContainText("Inc. $5,000");
+    await expect(planButton).toContainText("Sav. $1,000");
+    await expect(planButton).toContainText("Fixed $1,200");
 
     // Verify budget breakdown
     const budgetCard = page.locator("div").filter({
