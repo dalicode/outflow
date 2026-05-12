@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Brush, ComposedChart, ResponsiveContainer } from 'recharts'
 import { useViewportWidth } from '../../../hooks/useViewportWidth'
 import type { AllTimeRow } from '../../../utils/analyticsTrendUtils'
@@ -20,6 +20,7 @@ export default function BrushOverview({
   colors,
   onBrushChange,
 }: BrushOverviewProps) {
+  const gradientId = useId()
   const isMobile = useViewportWidth() < 640
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -99,16 +100,21 @@ export default function BrushOverview({
           aria-hidden="true"
         >
           <defs>
-            <linearGradient id="spark-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              {sparkPath.stops.map((s) => (
-                <stop key={s.offset} offset={s.offset} stopColor={s.color} stopOpacity={0.85} />
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+              {sparkPath.stops.map((s, index) => (
+                <stop
+                  key={`${s.offset}-${s.color}-${index}`}
+                  offset={s.offset}
+                  stopColor={s.color}
+                  stopOpacity={0.85}
+                />
               ))}
             </linearGradient>
           </defs>
           <path
             d={sparkPath.path}
             fill="none"
-            stroke="url(#spark-grad)"
+            stroke={`url(#${gradientId})`}
             strokeWidth={1.5}
             strokeLinecap="round"
             strokeLinejoin="round"

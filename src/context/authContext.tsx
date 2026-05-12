@@ -12,7 +12,7 @@ import { StorageService } from '../services/storageService'
 import { supabase } from '../services/supabase'
 import { flushSyncQueue, migrateLocalToSupabase, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
-import { debugLog } from '../utils/debug'
+import { debugLog, debugWarn } from '../utils/debug'
 
 interface AuthContextValue {
   user: User | null
@@ -93,11 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSyncStatus('idle')
         setHasSynced(true)
         setSyncCount((c) => c + 1)
-        console.log('[sync] complete')
+        debugLog('[sync] complete')
       } catch {
         if (pulled) setSyncCount((c) => c + 1)
         setSyncStatus('error')
-        console.warn('[sync] failed, will retry in 30s')
+        debugWarn('[sync] failed, will retry in 30s')
         scheduleRetry(() => {
           if (supabase && userId) void doPullAndFlush(userId)
         })
