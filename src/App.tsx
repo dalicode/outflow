@@ -12,6 +12,11 @@ import { ROUTES } from './constants/routes'
 import { useAuth } from './context/authContext'
 import { useSettings } from './context/settingsContext'
 import { ToastProvider, useToasts } from './context/toastContext'
+import AnalyticsPage from './features/analytics/AnalyticsPage'
+import Dashboard from './features/dashboard/Dashboard'
+import PayeesPage from './features/payees/PayeesPage'
+import SettingsPage from './features/settings/SettingsPage'
+import SummaryPage from './features/summary/SummaryPage'
 import { DASHBOARD_VIEWS } from './features/dashboard/constants'
 import type { AnalyticsSessionState } from './features/analytics/hooks/useAnalytics'
 import type { DashboardSessionState } from './features/dashboard/hooks/useDashboard'
@@ -23,13 +28,8 @@ import { cn } from './utils/cn'
 import { summarizeScheduleMaterializationNotices } from './utils/scheduleNotificationUtils'
 import { parseTrendDrilldownParam, parseTrendMonthParam, parseYearParam } from './utils/urlParams'
 
-const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'))
 const AuthPage = lazy(() => import('./features/auth/AuthPage'))
-const Dashboard = lazy(() => import('./features/dashboard/Dashboard'))
 const ExpenseForm = lazy(() => import('./features/expenses/ExpenseForm'))
-const PayeesPage = lazy(() => import('./features/payees/PayeesPage'))
-const SettingsPage = lazy(() => import('./features/settings/SettingsPage'))
-const SummaryPage = lazy(() => import('./features/summary/SummaryPage'))
 
 function useScrollVisibility() {
   const [isScrolling, setIsScrolling] = useState(false)
@@ -127,22 +127,6 @@ function ScrollablePage({
         />
       )}
     </PullToRefreshContainer>
-  )
-}
-
-function RouteLoadingFallback() {
-  return (
-    <div className="flex h-full items-start justify-center bg-theme-background px-4 pt-8 sm:pt-10">
-      <div className="flex min-h-24 w-full max-w-3xl items-center justify-center rounded-theme-medium border border-theme-border bg-theme-surface px-4 py-5 shadow-sm">
-        <div className="flex items-center gap-3 text-sm font-medium text-theme-muted">
-          <span
-            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-theme-primary border-t-transparent"
-            aria-hidden="true"
-          />
-          <span>Loading view</span>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -611,103 +595,101 @@ function AppShell() {
                 isScrolling && 'is-scrolling',
               )}
             >
-              <Suspense fallback={<RouteLoadingFallback />}>
-                <Routes>
-                  <Route
-                    path={ROUTES.DASHBOARD}
-                    element={
-                      <Dashboard
+              <Routes>
+                <Route
+                  path={ROUTES.DASHBOARD}
+                  element={
+                    <Dashboard
+                      expenses={visibleExpenses}
+                      categories={categories}
+                      payees={payees}
+                      onUpdate={handleUpdate}
+                      onDelete={handleDelete}
+                      onBulkDelete={handleBulkDelete}
+                      onAddExpense={() => setShowForm(true)}
+                      onSelectionChange={setMobileSelectionActive}
+                      onScroll={handlePageScroll}
+                      refreshCategories={refreshCategories}
+                      refreshPayees={refreshPayees}
+                      registerCycleView={(fn) => {
+                        cycleDashboardViewRef.current = fn
+                      }}
+                      sessionState={dashboardSession}
+                      onSessionStateChange={handleDashboardSessionChange}
+                      onRefresh={handlePullRefresh}
+                    />
+                  }
+                />
+                <Route
+                  path={ROUTES.SUMMARY}
+                  element={
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
+                      onRefresh={handlePullRefresh}
+                    >
+                      <SummaryPage expenses={visibleExpenses} />
+                    </ScrollablePage>
+                  }
+                />
+                <Route
+                  path={ROUTES.ANALYTICS}
+                  element={
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      onRefresh={handlePullRefresh}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
+                    >
+                      <AnalyticsPage
                         expenses={visibleExpenses}
                         categories={categories}
                         payees={payees}
-                        onUpdate={handleUpdate}
-                        onDelete={handleDelete}
-                        onBulkDelete={handleBulkDelete}
-                        onAddExpense={() => setShowForm(true)}
-                        onSelectionChange={setMobileSelectionActive}
-                        onScroll={handlePageScroll}
-                        refreshCategories={refreshCategories}
-                        refreshPayees={refreshPayees}
-                        registerCycleView={(fn) => {
-                          cycleDashboardViewRef.current = fn
-                        }}
-                        sessionState={dashboardSession}
-                        onSessionStateChange={handleDashboardSessionChange}
-                        onRefresh={handlePullRefresh}
+                        sessionState={analyticsSession}
+                        onSessionStateChange={handleAnalyticsSessionChange}
                       />
-                    }
-                  />
-                  <Route
-                    path={ROUTES.SUMMARY}
-                    element={
-                      <ScrollablePage
-                        onScroll={handlePageScroll}
-                        onRouteChange={resetScrollDirection}
-                        bottomSpacerClassName="mobile-bottom-spacer-sm"
-                        onRefresh={handlePullRefresh}
-                      >
-                        <SummaryPage expenses={visibleExpenses} />
-                      </ScrollablePage>
-                    }
-                  />
-                  <Route
-                    path={ROUTES.ANALYTICS}
-                    element={
-                      <ScrollablePage
-                        onScroll={handlePageScroll}
-                        onRouteChange={resetScrollDirection}
-                        onRefresh={handlePullRefresh}
-                        bottomSpacerClassName="mobile-bottom-spacer-sm"
-                      >
-                        <AnalyticsPage
-                          expenses={visibleExpenses}
-                          categories={categories}
-                          payees={payees}
-                          sessionState={analyticsSession}
-                          onSessionStateChange={handleAnalyticsSessionChange}
-                        />
-                      </ScrollablePage>
-                    }
-                  />
-                  <Route
-                    path={ROUTES.PAYEES}
-                    element={
-                      <ScrollablePage
-                        onScroll={handlePageScroll}
-                        onRouteChange={resetScrollDirection}
-                        onRefresh={handlePullRefresh}
-                        bottomSpacerClassName="mobile-bottom-spacer-sm"
-                      >
-                        <PayeesPage refreshExpenses={refreshExpenses} />
-                      </ScrollablePage>
-                    }
-                  />
-                  <Route
-                    path={ROUTES.SETTINGS}
-                    element={
-                      <ScrollablePage
-                        onScroll={handlePageScroll}
-                        onRouteChange={resetScrollDirection}
-                        onRefresh={handlePullRefresh}
-                        bottomSpacerClassName="mobile-bottom-spacer-sm"
-                      >
-                        <SettingsPage
-                          expenses={visibleExpenses}
-                          onImport={async () => setExpenses(await StorageService.getAll())}
-                          onRefreshAll={async () => {
-                            await refreshExpenses()
-                            await refreshCategories()
-                            await refreshPayees()
-                          }}
-                          triggerSync={triggerSync}
-                          showSignIn={!!supabase && !user}
-                          onSignIn={() => setShowAuthModal(true)}
-                        />
-                      </ScrollablePage>
-                    }
-                  />
-                </Routes>
-              </Suspense>
+                    </ScrollablePage>
+                  }
+                />
+                <Route
+                  path={ROUTES.PAYEES}
+                  element={
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      onRefresh={handlePullRefresh}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
+                    >
+                      <PayeesPage refreshExpenses={refreshExpenses} />
+                    </ScrollablePage>
+                  }
+                />
+                <Route
+                  path={ROUTES.SETTINGS}
+                  element={
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      onRefresh={handlePullRefresh}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
+                    >
+                      <SettingsPage
+                        expenses={visibleExpenses}
+                        onImport={async () => setExpenses(await StorageService.getAll())}
+                        onRefreshAll={async () => {
+                          await refreshExpenses()
+                          await refreshCategories()
+                          await refreshPayees()
+                        }}
+                        triggerSync={triggerSync}
+                        showSignIn={!!supabase && !user}
+                        onSignIn={() => setShowAuthModal(true)}
+                      />
+                    </ScrollablePage>
+                  }
+                />
+              </Routes>
             </main>
             {showForm && (
               <Suspense fallback={<LoadingOverlay isOpen={true} message="Loading form..." />}>
