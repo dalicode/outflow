@@ -46,12 +46,26 @@ function getToastToneStyle(tone: ToastTone | undefined): {
   borderColor: string
   backgroundColor: string
   boxShadow: string
+  iconClassName: string
+  actionClassName: string
 } {
   if (tone === 'success') {
     return {
       borderColor: 'color-mix(in srgb, var(--theme-success) 32%, var(--theme-border))',
       backgroundColor: 'color-mix(in srgb, var(--theme-success) 8%, var(--theme-surface))',
       boxShadow: '0 14px 32px color-mix(in srgb, var(--theme-success) 10%, transparent)',
+      iconClassName: 'text-theme-success',
+      actionClassName: 'text-theme-success',
+    }
+  }
+
+  if (tone === 'warning') {
+    return {
+      borderColor: 'color-mix(in srgb, var(--theme-secondary) 34%, var(--theme-border))',
+      backgroundColor: 'color-mix(in srgb, var(--theme-secondary) 10%, var(--theme-surface))',
+      boxShadow: '0 14px 32px color-mix(in srgb, var(--theme-secondary) 12%, transparent)',
+      iconClassName: 'text-theme-secondary',
+      actionClassName: 'text-theme-secondary',
     }
   }
 
@@ -60,14 +74,65 @@ function getToastToneStyle(tone: ToastTone | undefined): {
       borderColor: 'color-mix(in srgb, var(--theme-danger) 32%, var(--theme-border))',
       backgroundColor: 'color-mix(in srgb, var(--theme-danger) 8%, var(--theme-surface))',
       boxShadow: '0 14px 32px color-mix(in srgb, var(--theme-danger) 10%, transparent)',
+      iconClassName: 'text-theme-danger',
+      actionClassName: 'text-theme-danger',
     }
   }
 
   return {
     borderColor: 'var(--theme-border)',
-    backgroundColor: 'var(--theme-surface)',
+    backgroundColor: 'color-mix(in srgb, var(--theme-surface) 94%, var(--theme-background))',
     boxShadow: '0 14px 32px color-mix(in srgb, var(--theme-border) 28%, transparent)',
+    iconClassName: 'text-theme-primary',
+    actionClassName: 'text-theme-primary',
   }
+}
+
+function ToastToneIcon({
+  tone,
+  className,
+}: {
+  tone: ToastTone | undefined
+  className: string
+}) {
+  if (tone === 'success') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7 9 18l-5-5" />
+      </svg>
+    )
+  }
+
+  if (tone === 'warning') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 9v4m0 4h.01M10.29 3.86l-7.4 12.84A2 2 0 0 0 4.62 20h14.76a2 2 0 0 0 1.73-3.3L13.71 3.86a2 2 0 0 0-3.42 0Z"
+        />
+      </svg>
+    )
+  }
+
+  if (tone === 'danger') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="9" />
+        <path strokeLinecap="round" d="M12 8v5m0 3h.01" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M18 10a6 6 0 0 0-11.49-2H6a4 4 0 0 0 0 8h12a3 3 0 0 0 0-6Z"
+      />
+    </svg>
+  )
 }
 
 function makeId(): string {
@@ -183,8 +248,9 @@ function ToastViewport({
                 transition: delta ? 'none' : 'transform 0.15s ease',
               }}
               className={cn(
-                'pointer-events-auto flex items-center justify-between gap-3 rounded-theme-medium border px-3 py-2.5 text-theme-text backdrop-blur-sm',
-                'animate-slide-down',
+                'pointer-events-auto rounded-theme-medium border text-theme-text backdrop-blur-md',
+                toast.isUndo ? 'toast-card toast-card-action' : 'toast-card',
+                isMobile ? 'toast-enter-mobile' : 'toast-enter-desktop',
               )}
               onMouseEnter={() => {
                 const inst = instancesRef.current.get(id)
@@ -236,27 +302,34 @@ function ToastViewport({
                 })
               }}
             >
-              <p className="min-w-0 flex-1 text-sm leading-5">{toast.message}</p>
-              <div className="flex items-center gap-2 shrink-0">
-                {toast.onAction && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onDismiss(toast.id)
-                      void Promise.resolve(toast.onAction?.())
-                    }}
-                    className={cn(
-                      'text-sm font-semibold',
-                      toast.tone === 'danger' ? 'text-theme-danger' : 'text-theme-primary',
-                    )}
-                  >
-                    {toast.actionLabel ?? 'Undo'}
-                  </button>
-                )}
+              <div className="flex items-start gap-3 px-3 py-3">
+                <div className="toast-icon-shell mt-0.5 shrink-0">
+                  <ToastToneIcon
+                    tone={toast.tone}
+                    className={cn('h-[18px] w-[18px]', toneStyle.iconClassName)}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="min-w-0 text-sm leading-5">{toast.message}</p>
+                  {toast.onAction && (
+                    <div className="mt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onDismiss(toast.id)
+                          void Promise.resolve(toast.onAction?.())
+                        }}
+                        className={cn('text-sm font-semibold', toneStyle.actionClassName)}
+                      >
+                        {toast.actionLabel ?? 'Undo'}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => onDismiss(toast.id)}
-                  className="text-theme-muted hover:text-theme-text"
+                  className="mt-0.5 shrink-0 text-theme-muted transition-colors hover:text-theme-text"
                   aria-label="Dismiss notification"
                 >
                   <svg
