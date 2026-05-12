@@ -25,23 +25,65 @@ export default function PWAUpdatePrompt() {
   useEffect(() => {
     if (!registration) return
 
+    let observedInstallingWorker: ServiceWorker | null = null
+    let removeInstallingListener: (() => void) | null = null
+
+    const showPromptIfWaiting = () => {
+      if (registration.waiting) {
+        setDismissed(false)
+        setNeedRefresh(true)
+      }
+    }
+
+    const handleInstallingWorker = (worker: ServiceWorker | null) => {
+      if (observedInstallingWorker === worker) return
+      removeInstallingListener?.()
+      observedInstallingWorker = worker
+      if (!worker) return
+
+      const handleStateChange = () => {
+        if (worker.state === 'installed') {
+          showPromptIfWaiting()
+        }
+      }
+      worker.addEventListener('statechange', handleStateChange)
+      removeInstallingListener = () => {
+        worker.removeEventListener('statechange', handleStateChange)
+      }
+    }
+
+    const handleUpdateFound = () => {
+      handleInstallingWorker(registration.installing)
+    }
+
     const checkForUpdate = () => {
       if (document.visibilityState !== 'visible') return
       if (!navigator.onLine) return
-      registration.update().catch(() => undefined)
+      registration
+        .update()
+        .then(() => {
+          showPromptIfWaiting()
+          handleInstallingWorker(registration.installing)
+        })
+        .catch(() => undefined)
     }
 
+    showPromptIfWaiting()
+    handleInstallingWorker(registration.installing)
+    registration.addEventListener('updatefound', handleUpdateFound)
     checkForUpdate()
     const intervalId = window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS)
     window.addEventListener('online', checkForUpdate)
     document.addEventListener('visibilitychange', checkForUpdate)
 
     return () => {
+      removeInstallingListener?.()
+      registration.removeEventListener('updatefound', handleUpdateFound)
       window.clearInterval(intervalId)
       window.removeEventListener('online', checkForUpdate)
       document.removeEventListener('visibilitychange', checkForUpdate)
     }
-  }, [registration])
+  }, [registration, setNeedRefresh])
 
   const handleUpdate = useCallback(() => {
     setUpdating(true)
@@ -91,7 +133,8 @@ export default function PWAUpdatePrompt() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 top-3 z-[85] flex justify-center px-3 sm:justify-end sm:px-6"
+      className="pointer-events-none fixed inset-x-0 z-[85] flex justify-center px-3 sm:justify-end sm:px-6"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
     >
       <section
         className={cn(
