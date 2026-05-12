@@ -35,6 +35,41 @@ export async function addCategory(name: string): Promise<number> {
   return id
 }
 
+export async function ensureForImport(names: string[]): Promise<Record<string, number>> {
+  const trimmedNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))]
+  const categoryMap: Record<string, number> = {}
+  if (trimmedNames.length === 0) return categoryMap
+
+  await db.transaction('rw', db.categories, async () => {
+    for (const name of trimmedNames) {
+      const existing = await db.categories.where('name').equalsIgnoreCase(name).first()
+      if (existing) {
+        if (existing.isArchived) {
+          await db.categories.update(existing.id as number, {
+            name,
+            isArchived: false,
+            updatedAt: new Date().toISOString(),
+          })
+        }
+        categoryMap[name] = existing.id as number
+        continue
+      }
+
+      const now = new Date().toISOString()
+      const id = await db.categories.add({
+        name,
+        cloudId: crypto.randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        isArchived: false,
+      } as Category)
+      categoryMap[name] = id
+    }
+  })
+
+  return categoryMap
+}
+
 export async function updateCategory(id: number, changes: Partial<Category>): Promise<void> {
   if (changes.name) {
     changes.name = changes.name.trim()

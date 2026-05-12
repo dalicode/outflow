@@ -111,17 +111,11 @@ export function normalizePayeeText(value: string): string {
 // ── Search terms for a payee ─────────────────────────────────────────────────
 
 /**
- * Returns all normalized search terms for a payee:
- * the normalized name + all normalized aliases.
+ * Returns the normalized search term for a payee name.
  */
 export function getPayeeSearchTerms(payee: Payee): string[] {
   const name = typeof payee.name === 'string' ? payee.name : String(payee.name ?? '')
-  const terms: string[] = [normalizePayeeText(name)]
-  for (const alias of payee.aliases ?? []) {
-    const n = normalizePayeeText(alias)
-    if (n && !terms.includes(n)) terms.push(n)
-  }
-  return terms.filter(Boolean)
+  return [normalizePayeeText(name)].filter(Boolean)
 }
 
 // ── Token overlap score ──────────────────────────────────────────────────────
@@ -238,7 +232,7 @@ export interface PayeeMatchResult {
  * Find the best payee match for a raw transaction description.
  *
  * @param description  Raw description string (e.g. "AMZN MKTP CA*1A2B TORONTO")
- * @param payees       Active (non-archived) payees with optional aliases
+ * @param payees       Active (non-archived) payees
  * @returns            Best match with confidence level, or null if no match
  */
 export function findBestPayeeMatch(description: string, payees: Payee[]): PayeeMatchResult | null {

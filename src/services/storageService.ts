@@ -18,6 +18,8 @@ export const StorageService = {
   update: expenseRepo.update,
   remove: expenseRepo.remove,
   removeMany: expenseRepo.removeMany,
+  bulkAddExpensesForImport: expenseRepo.bulkAddForImport,
+  replaceAllExpenses: expenseRepo.replaceAll,
   getExpenseCountForCategory: expenseRepo.getExpenseCountForCategory,
   getExpenseCountForPayee: expenseRepo.getExpenseCountForPayee,
 
@@ -69,6 +71,7 @@ export const StorageService = {
   // ── Categories ────────────────────────────────────────────
   getCategories: categoryRepo.getCategories,
   addCategory: categoryRepo.addCategory,
+  ensureCategoriesForImport: categoryRepo.ensureForImport,
   updateCategory: categoryRepo.updateCategory,
   deleteCategory: categoryRepo.deleteCategory,
   mergeCategory: categoryRepo.mergeCategory,
@@ -79,7 +82,7 @@ export const StorageService = {
   getActivePayees: payeeRepo.getActivePayees,
   addPayee: payeeRepo.addPayee,
   updatePayee: payeeRepo.updatePayee,
-  addPayeeAlias: payeeRepo.addPayeeAlias,
+  ensurePayeesForImport: payeeRepo.ensureForImport,
   archivePayee: payeeRepo.archivePayee,
   unarchivePayee: payeeRepo.unarchivePayee,
   mergePayee: payeeRepo.mergePayee,

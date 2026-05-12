@@ -13,7 +13,7 @@ import type { ComboboxOption } from '../../components/inputs/comboboxUtils'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 import type { MatchConfidence } from '../../utils/payeeMatching'
-import { findBestPayeeMatch, normalizePayeeText } from '../../utils/payeeMatching'
+import { findBestPayeeMatch } from '../../utils/payeeMatching'
 import CategoryModal from './CategoryModal'
 import PayeeModal from './PayeeModal'
 import './expenses.css'
@@ -89,8 +89,6 @@ export default function ExpenseForm({
   const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] =
     useState<MatchConfidence | null>(null)
   const haptics = useHaptics()
-  const [showAliasOffer, setShowAliasOffer] = useState(false)
-  const [aliasSaved, setAliasSaved] = useState(false)
 
   const activeCategories = useMemo(
     () => categories.filter((c): c is Category & { id: number } => !c.isArchived && c.id != null),
@@ -185,14 +183,11 @@ export default function ExpenseForm({
     setPayeeSuggestionConfidence(null)
   }
 
-  // When user manually picks a payee while description is filled,
-  // offer to save the normalized description as an alias
   const handlePayeeManualSelect = useCallback(
     (id: string | number | undefined) => {
       setForm((f) => ({ ...f, payeeId: id != null ? String(id) : '' }))
       setPayeeSuggestion(null)
       setPayeeSuggestionConfidence(null)
-      setAliasSaved(false)
       if (id != null) {
         const likelyCategoryId = getMostLikelyRelatedEntityId(
           expenses,
@@ -207,25 +202,9 @@ export default function ExpenseForm({
           )
         }
       }
-      // Offer alias if description is set and payee was manually chosen
-      if (id != null && form.description.trim()) {
-        const normalized = normalizePayeeText(form.description)
-        if (normalized) setShowAliasOffer(true)
-      } else {
-        setShowAliasOffer(false)
-      }
     },
-    [activeCategoryIds, expenses, form.description],
+    [activeCategoryIds, expenses],
   )
-
-  const saveAlias = async () => {
-    if (!form.payeeId || !form.description.trim()) return
-    const normalized = normalizePayeeText(form.description)
-    if (!normalized) return
-    await StorageService.addPayeeAlias(Number(form.payeeId), normalized)
-    setShowAliasOffer(false)
-    setAliasSaved(true)
-  }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -480,35 +459,6 @@ export default function ExpenseForm({
             </div>
           )}
 
-          {/* Alias offer banner */}
-          {showAliasOffer && !aliasSaved && (
-            <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
-              <span className="text-theme-muted">
-                Save{' '}
-                <span className="font-medium text-theme-text">
-                  "{normalizePayeeText(form.description)}"
-                </span>{' '}
-                as an alias for faster matching next time?
-              </span>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={saveAlias}
-                  className="font-medium text-theme-primary hover:opacity-80"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAliasOffer(false)}
-                  className="text-theme-muted hover:text-theme-text"
-                >
-                  No
-                </button>
-              </div>
-            </div>
-          )}
-          {aliasSaved && <p className="text-xs text-theme-success">Alias saved.</p>}
           <MoneyInput
             label="Amount"
             value={Number.parseFloat(form.amount || '0')}

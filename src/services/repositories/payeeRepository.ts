@@ -39,7 +39,42 @@ export async function addPayee(name: string): Promise<number> {
   return id
 }
 
-export async function updatePayee(id: number, name: string, aliases?: string[]): Promise<void> {
+export async function ensureForImport(names: string[]): Promise<Record<string, number>> {
+  const trimmedNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))]
+  const payeeMap: Record<string, number> = {}
+  if (trimmedNames.length === 0) return payeeMap
+
+  await db.transaction('rw', db.payees, async () => {
+    for (const name of trimmedNames) {
+      const existing = await db.payees.where('name').equalsIgnoreCase(name).first()
+      if (existing) {
+        if (existing.isArchived) {
+          await db.payees.update(existing.id as number, {
+            name,
+            isArchived: false,
+            updatedAt: new Date().toISOString(),
+          })
+        }
+        payeeMap[name] = existing.id as number
+        continue
+      }
+
+      const now = new Date().toISOString()
+      const id = await db.payees.add({
+        name,
+        cloudId: crypto.randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        isArchived: false,
+      } as Payee)
+      payeeMap[name] = id
+    }
+  })
+
+  return payeeMap
+}
+
+export async function updatePayee(id: number, name: string): Promise<void> {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Payee name is required')
   const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
@@ -48,24 +83,7 @@ export async function updatePayee(id: number, name: string, aliases?: string[]):
     name: trimmed,
     updatedAt: new Date().toISOString(),
   }
-  if (aliases !== undefined) updates.aliases = aliases
   await db.payees.update(id, updates)
-  const row = await db.payees.get(id)
-  await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
-}
-
-export async function addPayeeAlias(id: number, alias: string): Promise<void> {
-  const payee = await db.payees.get(id)
-  if (!payee) throw new Error('Payee not found')
-  const existing = payee.aliases ?? []
-  const trimmed = alias.trim()
-  if (!trimmed || existing.some((item) => item.trim().toLowerCase() === trimmed.toLowerCase()))
-    return
-  const updated = [...existing, trimmed]
-  await db.payees.update(id, {
-    aliases: updated,
-    updatedAt: new Date().toISOString(),
-  })
   const row = await db.payees.get(id)
   await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
 }

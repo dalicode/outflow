@@ -1,6 +1,11 @@
 import type { Expense } from '../../types'
 import db from '../db/schema'
 import { enqueue } from './common'
+import { queueImportSyncMarker } from '../importService'
+import {
+  CSV_IMPORT_QUEUE_REASON,
+  CSV_REPLACE_QUEUE_REASON,
+} from '../syncRuntime'
 
 export async function getAll(): Promise<Expense[]> {
   return db.expenses.orderBy('date').toArray()
@@ -38,6 +43,63 @@ export async function removeMany(ids: number[]): Promise<void> {
       await enqueue('expenses', 'delete', { id: ids[i], cloudId: expenses[i]?.cloudId })
     }
   })
+}
+
+export async function replaceAll(
+  expenses: Array<Omit<Expense, 'id'>>,
+  queueCloudReplace = false,
+): Promise<void> {
+  const now = new Date().toISOString()
+  const records: Expense[] = expenses.map((expense) => ({
+    ...expense,
+    cloudId: expense.cloudId ?? crypto.randomUUID(),
+    updatedAt: expense.updatedAt ?? now,
+  }))
+
+  await db.transaction('rw', db.expenses, async () => {
+    await db.expenses.clear()
+    if (records.length > 0) {
+      await db.expenses.bulkAdd(records)
+    }
+  })
+
+  if (queueCloudReplace) {
+    await queueImportSyncMarker(
+      { reason: CSV_REPLACE_QUEUE_REASON, replaceTables: ['expenses'] },
+      {
+        clearTables: ['expenses'],
+        clearReasons: [CSV_IMPORT_QUEUE_REASON, CSV_REPLACE_QUEUE_REASON],
+      },
+    )
+  }
+}
+
+export async function bulkAddForImport(
+  expenses: Array<Omit<Expense, 'id'>>,
+  queueFullSync = false,
+): Promise<void> {
+  const now = new Date().toISOString()
+  const records: Expense[] = expenses.map((expense) => ({
+    ...expense,
+    cloudId: expense.cloudId ?? crypto.randomUUID(),
+    updatedAt: expense.updatedAt ?? now,
+  }))
+
+  await db.transaction('rw', db.expenses, async () => {
+    if (records.length > 0) {
+      await db.expenses.bulkAdd(records)
+    }
+  })
+
+  if (queueFullSync) {
+    await queueImportSyncMarker(
+      { reason: CSV_IMPORT_QUEUE_REASON, replace: false },
+      {
+        clearTables: ['expenses'],
+        clearReasons: [CSV_IMPORT_QUEUE_REASON, CSV_REPLACE_QUEUE_REASON],
+      },
+    )
+  }
 }
 
 export async function getExpenseCountForCategory(categoryId: number): Promise<number> {

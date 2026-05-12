@@ -278,7 +278,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   }
 
   return (
-    <div className="space-y-3" data-testid="expense-table">
+    <div className="min-w-0 space-y-3" data-testid="expense-table">
       {isMobile ? (
         <ExpenseTableMobile
           expenses={expenses}
@@ -297,7 +297,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         <DataTable
           data={expenses}
           columns={columns}
-          fixedLayout={false}
+          fixedLayout
           getRowClassName={getRowClassName}
           getRowId={(exp) => `expense-row-${exp.id}`}
           onRowContextMenu={handleContextMenu}

@@ -10,8 +10,8 @@ import {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function makePayee(id: number, name: string, aliases?: string[], isArchived = false): Payee {
-  return { id, name, aliases, isArchived, createdAt: '' }
+function makePayee(id: number, name: string, isArchived = false): Payee {
+  return { id, name, isArchived, createdAt: '' }
 }
 
 // ── normalizePayeeText ───────────────────────────────────────────────────────
@@ -59,16 +59,8 @@ describe('getPayeeSearchTerms', () => {
     expect(getPayeeSearchTerms(p)).toEqual(['starbucks'])
   })
 
-  it('includes normalized aliases', () => {
-    const p = makePayee(1, 'Amazon', ['AMZN', 'AMZN MKTP'])
-    const terms = getPayeeSearchTerms(p)
-    expect(terms).toContain('amazon')
-    expect(terms).toContain('amzn')
-    expect(terms).toContain('amzn mktp')
-  })
-
-  it('deduplicates terms', () => {
-    const p = makePayee(1, 'Amazon', ['Amazon'])
+  it('returns only the normalized payee name', () => {
+    const p = makePayee(1, 'Amazon')
     expect(getPayeeSearchTerms(p)).toEqual(['amazon'])
   })
 })
@@ -113,16 +105,16 @@ describe('fuzzySimilarity', () => {
 
 describe('findBestPayeeMatch', () => {
   const payees: Payee[] = [
-    makePayee(1, 'Amazon', ['AMZN', 'AMZN MKTP']),
+    makePayee(1, 'Amazon'),
     makePayee(2, 'Starbucks'),
     makePayee(3, 'Uber'),
-    makePayee(4, 'Netflix', ['PAYPAL NETFLIX', 'PAYPAL *NETFLIX']),
+    makePayee(4, 'Netflix'),
     makePayee(5, 'Tim Hortons'),
-    makePayee(6, 'Archived Payee', [], true),
+    makePayee(6, 'Archived Payee', true),
   ]
 
-  it('matches Amazon via AMZN MKTP alias', () => {
-    const result = findBestPayeeMatch('AMZN MKTP CA*123 TORONTO', payees)
+  it('matches Amazon by name', () => {
+    const result = findBestPayeeMatch('AMAZON CA*123 TORONTO', payees)
     expect(result).not.toBeNull()
     expect(result?.payee.id).toBe(1)
     expect(result?.score).toBeGreaterThanOrEqual(0.7)
@@ -141,8 +133,8 @@ describe('findBestPayeeMatch', () => {
     expect(result?.payee.id).toBe(3)
   })
 
-  it('matches Netflix via PAYPAL alias', () => {
-    const result = findBestPayeeMatch('PAYPAL *NETFLIX', payees)
+  it('matches Netflix by name', () => {
+    const result = findBestPayeeMatch('NETFLIX.COM', payees)
     expect(result).not.toBeNull()
     expect(result?.payee.id).toBe(4)
   })

@@ -37,7 +37,6 @@ export interface Payee {
   id?: number
   cloudId?: string
   name: string
-  aliases?: string[]
   createdAt?: string
   updatedAt?: string
   isArchived?: boolean

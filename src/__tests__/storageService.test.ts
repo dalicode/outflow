@@ -47,13 +47,10 @@ describe('storageService seeded reference data', () => {
     expect(rows.every((row) => row.isArchived === false)).toBe(true)
   })
 
-  it('builds the default payees with aliases intact', () => {
+  it('builds the default payees with the expected names', () => {
     const rows = buildDefaultPayees('2026-05-05T00:00:00.000Z')
     expect(rows.map((row) => row.name)).toEqual(DEFAULT_PAYEES.map((payee) => payee.name))
     expect(rows.every((row) => row.createdAt === '2026-05-05T00:00:00.000Z')).toBe(true)
     expect(rows.every((row) => row.isArchived === false)).toBe(true)
-    expect(rows.map((row) => row.aliases)).toEqual(
-      DEFAULT_PAYEES.map((payee) => payee.aliases ?? []),
-    )
   })
 })

@@ -15,7 +15,6 @@ import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
 export interface ImportReviewSelection {
   rowId: string
   payeeId: number | null | undefined
-  saveAlias: boolean
 }
 
 interface ImportReviewModalProps {
@@ -63,7 +62,6 @@ export default function ImportReviewModal({
       next[row.rowId] = {
         rowId: row.rowId,
         payeeId: row.confidence === 'confident' ? (row.suggestedPayeeId ?? null) : undefined,
-        saveAlias: false,
       }
     }
     setSelections(next)
@@ -199,7 +197,6 @@ export default function ImportReviewModal({
                             onClick={() => {
                               setSelection(row.rowId, {
                                 payeeId: row.suggestedPayeeId,
-                                saveAlias: false,
                               })
                               setChooserRowId(null)
                             }}
@@ -228,7 +225,6 @@ export default function ImportReviewModal({
                           onClick={() => {
                             setSelection(row.rowId, {
                               payeeId: null,
-                              saveAlias: false,
                             })
                             setChooserRowId(null)
                           }}
@@ -266,7 +262,6 @@ export default function ImportReviewModal({
                               onChange={(id) => {
                                 setSelection(row.rowId, {
                                   payeeId: typeof id === 'number' ? id : undefined,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
                                 })
                                 setChooserRowId(null)
                               }}
@@ -274,7 +269,6 @@ export default function ImportReviewModal({
                                 const newId = await StorageService.addPayee(name)
                                 setSelection(row.rowId, {
                                   payeeId: newId,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
                                 })
                                 setChooserRowId(null)
                                 return newId
@@ -304,7 +298,6 @@ export default function ImportReviewModal({
                               onChange={(id) => {
                                 setSelection(row.rowId, {
                                   payeeId: typeof id === 'number' ? id : null,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
                                 })
                                 setMobilePickerRowId(null)
                                 setChooserRowId(null)
@@ -313,7 +306,6 @@ export default function ImportReviewModal({
                                 const newId = await StorageService.addPayee(name)
                                 setSelection(row.rowId, {
                                   payeeId: newId,
-                                  saveAlias: currentSelection?.saveAlias ?? false,
                                 })
                                 setMobilePickerRowId(null)
                                 setChooserRowId(null)
@@ -322,20 +314,6 @@ export default function ImportReviewModal({
                               onClose={() => setMobilePickerRowId(null)}
                             />
                           </div>
-                          <label className="flex items-center gap-2 text-xs text-theme-text">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(currentSelection?.saveAlias)}
-                              onChange={(e) =>
-                                setSelection(row.rowId, {
-                                  saveAlias: e.target.checked,
-                                })
-                              }
-                              className="rounded-theme-small"
-                              disabled={!selectedPayee}
-                            />
-                            Save &ldquo;{row.description}&rdquo; as an alias for next time
-                          </label>
                           <p className="text-[11px] text-theme-muted">
                             Choosing a payee here does not change the original imported description.
                           </p>

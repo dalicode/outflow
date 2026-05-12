@@ -22,6 +22,13 @@ import type {
 import db from './db/schema'
 import { StorageService } from './storageService'
 import { supabase } from './supabase'
+import {
+  CSV_IMPORT_QUEUE_REASON,
+  CSV_REPLACE_QUEUE_REASON,
+  FULL_SYNC_QUEUE_REASON,
+  FULL_SYNC_QUEUE_TABLE,
+  isSyncPaused,
+} from './syncRuntime'
 import { debugLog, debugWarn } from '../utils/debug'
 
 // Map local table names → Supabase table names
@@ -37,6 +44,42 @@ const TABLE_MAP: Record<string, string> = {
   categoryMergeHistory: 'category_merge_history',
   payeeMergeHistory: 'payee_merge_history',
   settings: 'settings',
+}
+
+const SYNC_BATCH_SIZE = 250
+const FULL_SYNC_ORDER = [
+  'categories',
+  'payees',
+  'fixed_expenses',
+  'fixed_expense_snapshots',
+  'income_snapshots',
+  'savings_snapshots',
+  'schedules',
+  'category_merge_history',
+  'payee_merge_history',
+  'settings',
+  'expenses',
+] as const
+
+const FULL_SYNC_DELETE_ORDER = [
+  'expenses',
+  'category_merge_history',
+  'payee_merge_history',
+  'schedules',
+  'fixed_expense_snapshots',
+  'income_snapshots',
+  'savings_snapshots',
+  'fixed_expenses',
+  'categories',
+  'payees',
+  'settings',
+] as const
+
+const UPSERT_CONFLICT_MAP: Partial<Record<string, string>> = {
+  settings: 'user_id,key',
+  income_snapshots: 'user_id,year,month',
+  savings_snapshots: 'user_id,year,month',
+  fixed_expense_snapshots: 'user_id,fixed_expense_id,year,month',
 }
 
 function toNumberOrUndefined(value: unknown): number | undefined {
@@ -75,6 +118,15 @@ function assertNoSupabaseError(result: SupabaseResult, context: string): void {
   throw new Error(`${context} failed${detail ? `: ${detail}` : ''}`)
 }
 
+function chunkArray<T>(items: T[], size: number): T[][]
+{
+  const chunks: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+  return chunks
+}
+
 async function ensureCloudIdsForSync(): Promise<void> {
   const now = new Date().toISOString()
 
@@ -92,6 +144,109 @@ async function ensureCloudIdsForSync(): Promise<void> {
       }
     }
   }
+}
+
+async function upsertRowsInBatches(
+  table: string,
+  rows: Record<string, unknown>[],
+  onConflict = UPSERT_CONFLICT_MAP[table] ?? 'id',
+): Promise<void> {
+  if (!supabase || rows.length === 0) return
+
+  const dedupedRows = dedupeRowsByConflictKey(rows, onConflict)
+
+  const batches = chunkArray(dedupedRows, SYNC_BATCH_SIZE)
+  for (let index = 0; index < batches.length; index += 1) {
+    const result = await supabase.from(table).upsert(batches[index], { onConflict })
+    assertNoSupabaseError(
+      result,
+      `Upsert ${table} batch ${index + 1}/${batches.length}`,
+    )
+  }
+}
+
+function parseConflictColumns(onConflict: string): string[] {
+  return onConflict
+    .split(',')
+    .map((column) => column.trim())
+    .filter((column) => column.length > 0)
+}
+
+function getConflictKey(
+  row: Record<string, unknown>,
+  columns: string[],
+): string | null {
+  const values: string[] = []
+  for (const column of columns) {
+    const value = row[column]
+    if (value == null) return null
+    values.push(String(value))
+  }
+  return values.join('||')
+}
+
+function getUpdatedAtMs(row: Record<string, unknown>): number {
+  const value = row.updated_at
+  if (typeof value !== 'string' || value.length === 0) return 0
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function dedupeRowsByConflictKey(
+  rows: Record<string, unknown>[],
+  onConflict: string,
+): Record<string, unknown>[] {
+  const columns = parseConflictColumns(onConflict)
+  if (columns.length === 0) return rows
+
+  const deduped = new Map<string, Record<string, unknown>>()
+  const passthrough: Record<string, unknown>[] = []
+
+  for (const row of rows) {
+    const key = getConflictKey(row, columns)
+    if (!key) {
+      passthrough.push(row)
+      continue
+    }
+
+    const existing = deduped.get(key)
+    if (!existing) {
+      deduped.set(key, row)
+      continue
+    }
+
+    if (getUpdatedAtMs(row) >= getUpdatedAtMs(existing)) {
+      deduped.set(key, row)
+    }
+  }
+
+  return [...deduped.values(), ...passthrough]
+}
+
+async function deleteUserRowsForReplace(table: string, userId: string): Promise<void> {
+  if (!supabase) return
+  const deleteResult = await supabase.from(table).delete().eq('user_id', userId)
+  assertNoSupabaseError(deleteResult, `Delete ${table} rows for replace`)
+}
+
+async function replaceSupabaseData(
+  userId: string,
+  tables: readonly string[] = FULL_SYNC_DELETE_ORDER,
+): Promise<void> {
+  for (const table of tables) {
+    await deleteUserRowsForReplace(table, userId)
+  }
+}
+
+async function runFullSyncUpload(
+  userId: string,
+  replaceCloud = false,
+  replaceTables?: readonly string[],
+): Promise<void> {
+  if (replaceCloud) {
+    await replaceSupabaseData(userId, replaceTables)
+  }
+  await migrateLocalToSupabase(userId)
 }
 
 // Convert a local row to a Supabase-shaped row (snake_case + user_id)
@@ -272,17 +427,10 @@ interface FromCloudMaps {
   cloudIdToCategoryId?: Map<string, number>
   cloudIdToPayeeId?: Map<string, number>
   cloudIdToFixedExpenseId?: Map<string, number>
-  categoryNameToLocalId?: Map<string, number>
-  payeeNameToLocalId?: Map<string, number>
-}
-
-function normalizeEntityName(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 async function resolveLocalCategoryId(
   cloudCategoryId: unknown,
-  cloudCategoryName: unknown,
   maps: FromCloudMaps,
 ): Promise<number | undefined> {
   if (cloudCategoryId != null) {
@@ -293,63 +441,11 @@ async function resolveLocalCategoryId(
     if (numId !== undefined) return numId
   }
 
-  if (cloudCategoryName) {
-    const normalized = normalizeEntityName(String(cloudCategoryName))
-    // Try cloudCategory_name lookup first (from cloud payload)
-    if (maps.categoryNameToLocalId?.has(normalized)) {
-      const localId = maps.categoryNameToLocalId.get(normalized)!
-      // If we also have a cloudId, update the local category record
-      if (cloudCategoryId != null && maps.cloudIdToCategoryId) {
-        maps.cloudIdToCategoryId.set(String(cloudCategoryId), localId)
-        await db.categories.update(localId, { cloudId: String(cloudCategoryId) })
-      }
-      return localId
-    }
-    // Try numeric fallback for the name-based lookup
-    const existing = await db.categories.toArray()
-    const match = existing.find((c) => normalizeEntityName(c.name ?? '') === normalized)
-    if (match?.id) {
-      if (cloudCategoryId != null && maps.cloudIdToCategoryId) {
-        maps.cloudIdToCategoryId.set(String(cloudCategoryId), match.id)
-        await db.categories.update(match.id, { cloudId: String(cloudCategoryId) })
-      }
-      if (maps.categoryNameToLocalId) {
-        maps.categoryNameToLocalId.set(normalized, match.id)
-      }
-      return match.id
-    }
-    // Auto-create the category from cloud name
-    const now = new Date().toISOString()
-    const newId = await db.categories.add({
-      cloudId: cloudCategoryId != null ? String(cloudCategoryId) : crypto.randomUUID(),
-      name: String(cloudCategoryName),
-      createdAt: now,
-      updatedAt: now,
-      isArchived: false,
-    } as unknown as Category)
-    debugLog(
-      '[sync] auto-created category:',
-      String(cloudCategoryName),
-      'id:',
-      newId,
-      'cloudId:',
-      cloudCategoryId,
-    )
-    if (maps.cloudIdToCategoryId && cloudCategoryId != null) {
-      maps.cloudIdToCategoryId.set(String(cloudCategoryId), newId)
-    }
-    if (maps.categoryNameToLocalId) {
-      maps.categoryNameToLocalId.set(normalized, newId)
-    }
-    return newId
-  }
-
   return undefined
 }
 
 async function resolveLocalPayeeId(
   cloudPayeeId: unknown,
-  cloudPayeeName: unknown,
   maps: FromCloudMaps,
 ): Promise<number | undefined> {
   if (cloudPayeeId != null) {
@@ -358,54 +454,6 @@ async function resolveLocalPayeeId(
     if (byCloud !== undefined) return byCloud
     const numId = toNumberOrUndefined(cloudPayeeId)
     if (numId !== undefined) return numId
-  }
-
-  if (cloudPayeeName) {
-    const normalized = normalizeEntityName(String(cloudPayeeName))
-    if (maps.payeeNameToLocalId?.has(normalized)) {
-      const localId = maps.payeeNameToLocalId.get(normalized)!
-      if (cloudPayeeId != null && maps.cloudIdToPayeeId) {
-        maps.cloudIdToPayeeId.set(String(cloudPayeeId), localId)
-        await db.payees.update(localId, { cloudId: String(cloudPayeeId) })
-      }
-      return localId
-    }
-    const existing = await db.payees.toArray()
-    const match = existing.find((p) => normalizeEntityName(p.name ?? '') === normalized)
-    if (match?.id) {
-      if (cloudPayeeId != null && maps.cloudIdToPayeeId) {
-        maps.cloudIdToPayeeId.set(String(cloudPayeeId), match.id)
-        await db.payees.update(match.id, { cloudId: String(cloudPayeeId) })
-      }
-      if (maps.payeeNameToLocalId) {
-        maps.payeeNameToLocalId.set(normalized, match.id)
-      }
-      return match.id
-    }
-    // Auto-create payee from cloud name
-    const now = new Date().toISOString()
-    const newId = await db.payees.add({
-      cloudId: cloudPayeeId != null ? String(cloudPayeeId) : crypto.randomUUID(),
-      name: String(cloudPayeeName),
-      createdAt: now,
-      updatedAt: now,
-      isArchived: false,
-    } as unknown as Payee)
-    debugLog(
-      '[sync] auto-created payee:',
-      String(cloudPayeeName),
-      'id:',
-      newId,
-      'cloudId:',
-      cloudPayeeId,
-    )
-    if (maps.cloudIdToPayeeId && cloudPayeeId != null) {
-      maps.cloudIdToPayeeId.set(String(cloudPayeeId), newId)
-    }
-    if (maps.payeeNameToLocalId) {
-      maps.payeeNameToLocalId.set(normalized, newId)
-    }
-    return newId
   }
 
   return undefined
@@ -460,10 +508,8 @@ function fromCloud(
       cloudId: cid,
       date: row.date,
       cloudCategoryId: row.category_id != null ? String(row.category_id) : undefined,
-      cloudCategoryName: row.category_name != null ? String(row.category_name) : undefined,
       categoryId: resolveCat(row.category_id),
       cloudPayeeId: row.payee_id != null ? String(row.payee_id) : undefined,
-      cloudPayeeName: row.payee_name != null ? String(row.payee_name) : undefined,
       payeeId: resolvePay(row.payee_id),
       description: row.description ?? '',
       amount: row.amount,
@@ -488,7 +534,6 @@ function fromCloud(
       isArchived: row.is_archived,
       createdAt: row.created_at ?? new Date().toISOString(),
       updatedAt: row.updated_at as string | undefined,
-      aliases: Array.isArray(row.aliases) ? row.aliases : [],
       archivedAt: row.archived_at ?? undefined,
       mergedIntoPayeeId: resolvePay(row.merged_into_payee_id),
     }
@@ -586,12 +631,33 @@ function fromCloud(
 
 // ── Outgoing sync ─────────────────────────────────────────────────────────────
 export async function flushSyncQueue(userId: string): Promise<void> {
-  if (!supabase || !userId) return
+  if (!supabase || !userId || isSyncPaused()) return
 
   await ensureCloudIdsForSync()
 
   const queue = (await StorageService.getSyncQueue()) as SyncQueueItem[]
   if (queue.length === 0) return
+
+  const fullSyncItems = queue.filter(
+    (item) =>
+      item.table === FULL_SYNC_QUEUE_TABLE &&
+      (item.payload.reason === FULL_SYNC_QUEUE_REASON ||
+        item.payload.reason === CSV_IMPORT_QUEUE_REASON ||
+        item.payload.reason === CSV_REPLACE_QUEUE_REASON),
+  )
+  if (fullSyncItems.length > 0) {
+    const shouldReplaceCloud = fullSyncItems.some((item) => item.payload.replace === true)
+    const replaceTables =
+      fullSyncItems.find((item) => Array.isArray(item.payload.replaceTables))?.payload
+        .replaceTables as string[] | undefined
+    await runFullSyncUpload(userId, shouldReplaceCloud || Boolean(replaceTables), replaceTables)
+    for (const item of fullSyncItems) {
+      await StorageService.removeSyncQueueItem(item.id as number)
+    }
+  }
+
+  const remainingQueue = (await StorageService.getSyncQueue()) as SyncQueueItem[]
+  if (remainingQueue.length === 0) return
 
   // Build FK maps so cloud records use UUIDs for foreign keys, not numeric strings
   const [categories, payees, fixedExpenses] = await Promise.all([
@@ -609,7 +675,7 @@ export async function flushSyncQueue(userId: string): Promise<void> {
     ),
   }
 
-  for (const item of queue) {
+  for (const item of remainingQueue) {
     const cloudTable = TABLE_MAP[item.table]
     if (!cloudTable) {
       await StorageService.removeSyncQueueItem(item.id as number)
@@ -625,13 +691,10 @@ export async function flushSyncQueue(userId: string): Promise<void> {
         assertNoSupabaseError(result, `Delete ${cloudTable}`)
       } else {
         // insert or update → upsert
-        if (item.table === 'settings') {
-          const result = await supabase.from(cloudTable).upsert(row, { onConflict: 'user_id,key' })
-          assertNoSupabaseError(result, `Upsert ${cloudTable}`)
-        } else {
-          const result = await supabase.from(cloudTable).upsert(row, { onConflict: 'id' })
-          assertNoSupabaseError(result, `Upsert ${cloudTable}`)
-        }
+        const result = await supabase
+          .from(cloudTable)
+          .upsert(row, { onConflict: UPSERT_CONFLICT_MAP[cloudTable] ?? 'id' })
+        assertNoSupabaseError(result, `Upsert ${cloudTable}`)
       }
       await StorageService.removeSyncQueueItem(item.id as number)
     } catch (err) {
@@ -773,73 +836,17 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       if (p.cloudId && p.id) payeeMap.cloudIdToPayeeId?.set(p.cloudId, p.id)
     })
 
-    // Also map ALL cloud row cloudIds to local IDs by name. This handles the
-    // case where multiple cloud categories/payees share the same name but have
-    // different cloudIds — the merge overwrites the local cloudId with the last
-    // one processed, but ALL cloudIds need to resolve to the same local ID.
-    for (const r of catRes.data ?? []) {
-      const cr = r as Record<string, unknown>
-      const local = updatedCats.find(
-        (c) => c.name && String(cr.name).trim().toLowerCase() === normalizeEntityName(c.name),
-      )
-      if (local?.id && cr.id) {
-        catMap.cloudIdToCategoryId?.set(String(cr.id), local.id)
-      }
-    }
-    for (const r of payRes.data ?? []) {
-      const pr = r as Record<string, unknown>
-      const local = updatedPays.find(
-        (p) => p.name && String(pr.name).trim().toLowerCase() === normalizeEntityName(p.name),
-      )
-      if (local?.id && pr.id) {
-        payeeMap.cloudIdToPayeeId?.set(String(pr.id), local.id)
-      }
-    }
   }
 
-  // Build name-based resolution maps from current local data
-  const allLocalCats = await db.categories.toArray()
-  const allLocalPayees = await db.payees.toArray()
-  debugLog(
-    '[sync] local cats after merge:',
-    allLocalCats.length,
-    'payees:',
-    allLocalPayees.length,
-  )
-  if (allLocalCats.length > 0) {
-    debugLog(
-      '[sync] local cat sample:',
-      allLocalCats.slice(0, 3).map((c) => ({ id: c.id, cloudId: c.cloudId, name: c.name })),
-    )
-  }
-
-  const catNameMap: FromCloudMaps['categoryNameToLocalId'] = new Map()
-  for (const c of allLocalCats) {
-    if (c.name && c.id) {
-      catNameMap.set(normalizeEntityName(c.name), c.id)
-    }
-  }
-  const payeeNameMap: FromCloudMaps['payeeNameToLocalId'] = new Map()
-  for (const p of allLocalPayees) {
-    if (p.name && p.id) {
-      payeeNameMap.set(normalizeEntityName(p.name), p.id)
-    }
-  }
   const expenseResolutionMaps: FromCloudMaps = {
     cloudIdToCategoryId: catMap.cloudIdToCategoryId,
     cloudIdToPayeeId: payeeMap.cloudIdToPayeeId,
-    categoryNameToLocalId: catNameMap,
-    payeeNameToLocalId: payeeNameMap,
   }
   debugLog(
     '[sync] resolution maps — cloudId->cat:',
     catMap.cloudIdToCategoryId?.size ?? 0,
-    'name->cat:',
-    catNameMap.size,
     'cloudId->pay:',
     payeeMap.cloudIdToPayeeId?.size ?? 0,
-    'name->pay:',
-    payeeNameMap.size,
   )
 
   if (expRes.data?.length) {
@@ -860,32 +867,28 @@ export async function pullFromSupabase(userId: string): Promise<void> {
         } else {
           const resolved = await resolveLocalCategoryId(
             local.cloudCategoryId,
-            local.cloudCategoryName,
             expenseResolutionMaps,
           )
           if (resolved !== undefined) {
             categoryId = resolved
             resolvedViaFallback++
           } else {
-            unresolvedCats.add(
-              String(local.cloudCategoryId ?? local.cloudCategoryName ?? 'unknown'),
-            )
+            unresolvedCats.add(String(local.cloudCategoryId ?? 'unknown'))
           }
         }
         // Re-resolve payeeId with async fallback + auto-create
         let payeeId = local.payeeId as number | undefined
         if (payeeId !== undefined) {
           // already resolved
-        } else if (local.cloudPayeeId != null || local.cloudPayeeName != null) {
+        } else if (local.cloudPayeeId != null) {
           const resolved = await resolveLocalPayeeId(
             local.cloudPayeeId,
-            local.cloudPayeeName,
             expenseResolutionMaps,
           )
           if (resolved !== undefined) {
             payeeId = resolved
           } else {
-            unresolvedPayees.add(String(local.cloudPayeeId ?? local.cloudPayeeName ?? 'unknown'))
+            unresolvedPayees.add(String(local.cloudPayeeId ?? 'unknown'))
           }
         }
         return { ...local, categoryId, payeeId }
@@ -1159,7 +1162,7 @@ export async function fetchBackupPasswordFromProfile(userId: string): Promise<st
 
 // ── Initial migration: push all local data to Supabase once ──────────────────
 export async function migrateLocalToSupabase(userId: string): Promise<void> {
-  if (!supabase || !userId) return
+  if (!supabase || !userId || isSyncPaused()) return
 
   await ensureCloudIdsForSync()
 
@@ -1203,86 +1206,43 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
     fixedExpenseIdToCloudId,
   }
 
-  const client = supabase
-  const upsert = async (
-    table: string,
-    rows: Record<string, unknown>[],
-    onConflict = 'id',
-  ): Promise<void> => {
-    if (rows.length) {
-      const result = await client.from(table).upsert(rows, { onConflict })
-      assertNoSupabaseError(result, `Upsert ${table}`)
-    }
+  const rowsByTable: Record<(typeof FULL_SYNC_ORDER)[number], Record<string, unknown>[]> = {
+    categories: categories.map((r) =>
+      toCloud('categories', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    payees: payees.map((r) =>
+      toCloud('payees', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    fixed_expenses: fixedExpenses.map((r) =>
+      toCloud('fixedExpenses', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    fixed_expense_snapshots: fixedExpenseSnapshots.map((r) =>
+      toCloud('fixedExpenseSnapshots', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    income_snapshots: incomeSnapshots.map((r) =>
+      toCloud('incomeSnapshots', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    savings_snapshots: savingsSnapshots.map((r) =>
+      toCloud('savingsSnapshots', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    schedules: schedules.map((r) =>
+      toCloud('schedules', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    category_merge_history: categoryMergeHistory.map((r) =>
+      toCloud('categoryMergeHistory', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    payee_merge_history: payeeMergeHistory.map((r) =>
+      toCloud('payeeMergeHistory', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    settings: settings.map((r) =>
+      toCloud('settings', r as unknown as Record<string, unknown>, userId, maps),
+    ),
+    expenses: expenses.map((r) =>
+      toCloud('expenses', r as unknown as Record<string, unknown>, userId, maps),
+    ),
   }
 
-  await Promise.all([
-    upsert(
-      'categories',
-      categories.map((r) =>
-        toCloud('categories', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'payees',
-      payees.map((r) => toCloud('payees', r as unknown as Record<string, unknown>, userId, maps)),
-    ),
-    upsert(
-      'fixed_expenses',
-      fixedExpenses.map((r) =>
-        toCloud('fixedExpenses', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-  ])
-
-  await Promise.all([
-    upsert(
-      'expenses',
-      expenses.map((r) =>
-        toCloud('expenses', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'fixed_expense_snapshots',
-      fixedExpenseSnapshots.map((r) =>
-        toCloud('fixedExpenseSnapshots', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'income_snapshots',
-      incomeSnapshots.map((r) =>
-        toCloud('incomeSnapshots', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'savings_snapshots',
-      savingsSnapshots.map((r) =>
-        toCloud('savingsSnapshots', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'schedules',
-      schedules.map((r) =>
-        toCloud('schedules', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'category_merge_history',
-      categoryMergeHistory.map((r) =>
-        toCloud('categoryMergeHistory', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'payee_merge_history',
-      payeeMergeHistory.map((r) =>
-        toCloud('payeeMergeHistory', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-    ),
-    upsert(
-      'settings',
-      settings.map((r) =>
-        toCloud('settings', r as unknown as Record<string, unknown>, userId, maps),
-      ),
-      'user_id,key',
-    ),
-  ])
+  for (const table of FULL_SYNC_ORDER) {
+    await upsertRowsInBatches(table, rowsByTable[table])
+  }
 }

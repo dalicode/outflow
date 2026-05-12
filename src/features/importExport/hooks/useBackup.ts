@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 import { useCallback, useRef, useState } from 'react'
 import { useSettings } from '../../../context/settingsContext'
+import { runLocalImport } from '../../../services/importService'
 import { StorageService } from '../../../services/storageService'
 import {
   fetchBackupPasswordFromProfile,
@@ -32,14 +33,29 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
     null,
   )
   const [pendingImportMeta, setPendingImportMeta] = useState<Record<string, unknown> | null>(null)
-  const [isReloading, setIsReloading] = useState(false)
+  const [isReloading] = useState(false)
+  const IMPORT_PAUSE_REASON = 'import'
 
-  const triggerReload = useCallback(() => {
-    setIsReloading(true)
-    setTimeout(() => {
-      window.location.reload()
-    }, 1500)
-  }, [])
+  const executeBackupImport = useCallback(
+    async (payload: Record<string, unknown>) => {
+      await runLocalImport({
+        pauseReason: IMPORT_PAUSE_REASON,
+        runLocalWrite: () =>
+          StorageService.importAllData(payload, {
+            replace: replaceMode,
+            queueFullSync: true,
+          }),
+        onRefreshAll,
+        onStatus,
+        triggerSync,
+        hasCloudSync: Boolean(user),
+        importingStatus: 'Importing backup locally…',
+        importedLocalStatus: 'Backup imported locally.',
+        importedCloudStatus: 'Backup imported locally. Cloud sync queued in the background.',
+      })
+    },
+    [onRefreshAll, onStatus, replaceMode, triggerSync, user],
+  )
 
   const doExport = useCallback(
     async (password: string) => {
@@ -137,14 +153,9 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
             return
           }
         }
-        await StorageService.importAllData(decrypted as Record<string, unknown>, {
-          replace: replaceMode,
-        })
-        await onRefreshAll?.()
-        triggerSync?.()
+        await executeBackupImport(decrypted as Record<string, unknown>)
         setShowPasswordModal(false)
         setPendingFile(null)
-        triggerReload()
       } catch (err) {
         setPasswordError((err as Error).message)
         return
@@ -156,11 +167,8 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
     user,
     rememberBackupPassword,
     pendingFile,
-    replaceMode,
-    onRefreshAll,
-    triggerSync,
-    triggerReload,
     doExport,
+    executeBackupImport,
   ])
 
   const handleBackupImport = useCallback(
@@ -228,19 +236,14 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
           if (fileRef.current) fileRef.current.value = ''
           return
         }
-        await StorageService.importAllData(parsed as Record<string, unknown>, {
-          replace: replaceMode,
-        })
-        await onRefreshAll?.()
-        triggerSync?.()
-        triggerReload()
+        await executeBackupImport(parsed as Record<string, unknown>)
       } catch (err) {
         console.error('Import failed:', err)
         onStatus(`Import failed: ${(err as Error).message}`)
       }
       if (fileRef.current) fileRef.current.value = ''
     },
-    [replaceMode, onRefreshAll, triggerSync, triggerReload, onStatus],
+    [executeBackupImport, onStatus],
   )
 
   const closePasswordModal = useCallback(() => {
@@ -258,22 +261,17 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
   const handleDbVersionProceed = useCallback(async () => {
     if (!pendingImportPayload) return
     try {
-      await StorageService.importAllData(pendingImportPayload, {
-        replace: replaceMode,
-      })
-      await onRefreshAll?.()
-      triggerSync?.()
+      await executeBackupImport(pendingImportPayload)
       setShowDbVersionModal(false)
       setPendingImportPayload(null)
       setPendingImportMeta(null)
-      triggerReload()
     } catch (err) {
       onStatus(`Import failed: ${(err as Error).message}`)
       setShowDbVersionModal(false)
       setPendingImportPayload(null)
       setPendingImportMeta(null)
     }
-  }, [pendingImportPayload, replaceMode, onRefreshAll, triggerSync, triggerReload, onStatus])
+  }, [executeBackupImport, onStatus, pendingImportPayload])
 
   return {
     fileRef,

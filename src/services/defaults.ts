@@ -670,10 +670,9 @@ export function buildDefaultCategories(now: string): Category[] {
 }
 
 export function buildDefaultPayees(now: string): Payee[] {
-  return DEFAULT_PAYEES.map(({ name, aliases }) => ({
+  return DEFAULT_PAYEES.map(({ name }) => ({
     cloudId: crypto.randomUUID(),
     name,
-    aliases: aliases ?? [],
     createdAt: now,
     updatedAt: now,
     isArchived: false,

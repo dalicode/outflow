@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   findBestImportPayeeMatch,
+  findCanonicalDefaultPayeeName,
   getImportPayeeMatchSummary,
 } from '../features/importExport/utils/importPayeeMatching'
 import type { Payee } from '../types'
@@ -8,7 +9,7 @@ import type { Payee } from '../types'
 describe('importPayeeMatching', () => {
   const payees: Payee[] = [
     { id: 1, name: 'Costco' },
-    { id: 2, name: 'Amazon Fresh', aliases: ['Amazon Fresh Canada'] },
+    { id: 2, name: 'Amazon Fresh' },
     { id: 3, name: 'Amazon' },
   ]
 
@@ -26,6 +27,17 @@ describe('importPayeeMatching', () => {
   it('returns no match for an unrelated description', () => {
     const match = findBestImportPayeeMatch('Random Merchant', payees, 'r3')
     expect(match?.confidence).toBe('no_match')
+  })
+
+  it('resolves a default payee alias to its canonical payee name', () => {
+    expect(findCanonicalDefaultPayeeName('PAYPAL *NETFLIX')).toBe('Netflix')
+  })
+
+  it('matches a payee by default alias without storing aliases on the payee', () => {
+    const netflixPayee: Payee = { id: 4, name: 'Netflix' }
+    const match = findBestImportPayeeMatch('PAYPAL *NETFLIX', [netflixPayee], 'r4')
+    expect(match?.confidence).toBe('confident')
+    expect(match?.suggestedPayeeName).toBe('Netflix')
   })
 
   it('summarizes rows correctly', () => {

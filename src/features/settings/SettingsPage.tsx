@@ -112,6 +112,7 @@ export default function SettingsPage({
     onImportComplete: handleImportComplete,
     onStatusChange: setImportStatus,
     onErrorsChange: setImportErrors,
+    triggerSync,
   })
 
   useEffect(() => {
@@ -469,15 +470,22 @@ export default function SettingsPage({
             Import CSV
           </p>
           <div className="flex items-center justify-between py-1">
-            <label className="flex items-center gap-2 text-sm text-theme-text cursor-pointer">
-              <input
-                type="checkbox"
-                checked={csvImport.replaceMode}
-                onChange={(e) => csvImport.setReplaceMode(e.target.checked)}
-                className="rounded-theme-small"
-              />
-              Replace mode
-            </label>
+            <div className="min-w-0">
+              <label className="flex items-center gap-2 text-sm text-theme-text cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={csvImport.replaceMode}
+                  onChange={(e) => csvImport.setReplaceMode(e.target.checked)}
+                  className="rounded-theme-small"
+                />
+                Replace mode
+              </label>
+              <p className="mt-1 text-[11px] leading-5 text-theme-muted">
+                CSV replace mode clears your local expenses first, then syncs the new expense set
+                back to the cloud in the background. Categories and payees are preserved unless the
+                import changes them.
+              </p>
+            </div>
             <label className="relative inline-flex cursor-pointer shrink-0 ml-4">
               <input
                 ref={csvImport.fileRef}
@@ -511,15 +519,22 @@ export default function SettingsPage({
               Import Backup
             </p>
             <div className="flex items-center justify-between py-1">
-              <label className="flex items-center gap-2 text-sm text-theme-text cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={backup.replaceMode}
-                  onChange={(e) => backup.setReplaceMode(e.target.checked)}
-                  className="rounded-theme-small"
-                />
-                Replace existing data on import
-              </label>
+              <div className="min-w-0">
+                <label className="flex items-center gap-2 text-sm text-theme-text cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={backup.replaceMode}
+                    onChange={(e) => backup.setReplaceMode(e.target.checked)}
+                    className="rounded-theme-small"
+                  />
+                  Replace existing data on import
+                </label>
+                <p className="mt-1 text-[11px] leading-5 text-theme-muted">
+                  Replace mode clears the selected data locally first, then rebuilds your cloud
+                  backup from this file. Use it when you want the backup to fully overwrite what is
+                  in Outflow.
+                </p>
+              </div>
               <label className="relative inline-flex cursor-pointer shrink-0 ml-4">
                 <input
                   ref={backup.fileRef}
@@ -535,6 +550,9 @@ export default function SettingsPage({
             </div>
           </div>
         </Card>
+
+        {/* ── ABOUT ── */}
+        <AboutSection />
 
         {/* ── ADVANCED ── */}
         <Card title="Advanced" className="border border-theme-danger-subtle">
@@ -556,9 +574,6 @@ export default function SettingsPage({
             </button>
           </div>
         </Card>
-
-        {/* ── ABOUT ── */}
-        <AboutSection />
 
         {/* ── MODALS ── */}
 

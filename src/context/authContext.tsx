@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { StorageService } from '../services/storageService'
 import { supabase } from '../services/supabase'
+import { isSyncPaused } from '../services/syncRuntime'
 import { flushSyncQueue, migrateLocalToSupabase, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
 import { debugLog, debugWarn } from '../utils/debug'
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const flushQueuedChanges = useCallback(
     async (userId: string): Promise<boolean> => {
+      if (isSyncPaused()) return false
       const queue = await StorageService.getSyncQueue()
       if (queue.length === 0) {
         setSyncStatus('idle')
@@ -81,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const doPullAndFlush = useCallback(
     async (userId: string) => {
-      if (!supabase || !userId || syncingRef.current) return
+      if (!supabase || !userId || syncingRef.current || isSyncPaused()) return
       syncingRef.current = true
       let pulled = false
       setSyncStatus('syncing')
@@ -180,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Signed-in follow-up loading (outside onAuthStateChange) ───────────
   useEffect(() => {
     if (!user?.id) return
+    if (isSyncPaused()) return
     // Prevent concurrent sync runs (e.g. Strict Mode double-invoke, rapid re-renders)
     if (syncingRef.current) {
       return
@@ -240,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.id, doPullAndFlush, flushQueuedChanges, withTimeout])
 
   const triggerSync = useCallback(() => {
-    if (!supabase || !user) return
+    if (!supabase || !user || isSyncPaused()) return
     if (syncingRef.current) return
     if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
     if (retryTimerRef.current) {

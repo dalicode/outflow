@@ -6,7 +6,11 @@ import ImportReviewModal, { type ImportReviewSelection } from './ImportReviewMod
 import { getCsvField, matchCategoryByName, parseCSV, parseDateInput } from './utils/csvHelpers'
 import { DEFAULT_CATEGORIES } from '../../services/defaults'
 import type { ImportPayeeMatchSummary, ImportPayeeReviewRow } from './utils/importPayeeMatching'
-import { findBestImportPayeeMatch, getImportPayeeMatchSummary } from './utils/importPayeeMatching'
+import {
+  findBestImportPayeeMatch,
+  findCanonicalDefaultPayeeNames,
+  getImportPayeeMatchSummary,
+} from './utils/importPayeeMatching'
 
 interface CsvImportCardProps {
   onImportComplete: (importedYears: number[]) => void
@@ -123,10 +127,6 @@ export default function CsvImportCard({
         matchedPayees++
       } else {
         blankPayees++
-      }
-
-      if (override?.saveAlias && payeeId != null && row.description.trim()) {
-        await StorageService.addPayeeAlias(payeeId, row.description)
       }
 
       await StorageService.add({
@@ -327,6 +327,11 @@ export default function CsvImportCard({
         return
       }
 
+      const seededPayeeNames = findCanonicalDefaultPayeeNames(valid.map((row) => row.description))
+      if (seededPayeeNames.length > 0) {
+        await StorageService.ensurePayeesForImport(seededPayeeNames)
+      }
+
       const activePayees = await StorageService.getActivePayees()
       const payeeMatches: Array<ImportPayeeReviewRow | null> = valid.map((row) => {
         const match = findBestImportPayeeMatch(row.description, activePayees, row.rowId)
@@ -429,6 +434,11 @@ function CsvImportForm({
         />
         Replace mode
       </label>
+      <p className="text-[11px] leading-5 text-theme-muted mb-2">
+        CSV replace mode clears your local expenses first, then syncs the new expense set back to
+        the cloud in the background. Categories and payees are preserved unless the import changes
+        them.
+      </p>
       <label className="relative inline-flex cursor-pointer shrink-0">
         <input
           ref={fileRef}

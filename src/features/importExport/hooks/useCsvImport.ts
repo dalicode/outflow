@@ -1,11 +1,16 @@
 import { useCallback, useRef, useState } from 'react'
+import { runLocalImport } from '../../../services/importService'
 import { StorageService } from '../../../services/storageService'
 import type { Payee } from '../../../types'
 import type { ImportReviewSelection } from '../ImportReviewModal'
 import { getCsvField, matchCategoryByName, parseCSV, parseDateInput } from '../utils/csvHelpers'
 import { DEFAULT_CATEGORIES } from '../../../services/defaults'
 import type { ImportPayeeMatchSummary, ImportPayeeReviewRow } from '../utils/importPayeeMatching'
-import { findBestImportPayeeMatch, getImportPayeeMatchSummary } from '../utils/importPayeeMatching'
+import {
+  findBestImportPayeeMatch,
+  findCanonicalDefaultPayeeNames,
+  getImportPayeeMatchSummary,
+} from '../utils/importPayeeMatching'
 
 interface ValidImportRow {
   rowId: string
@@ -30,16 +35,19 @@ interface UseCsvImportParams {
   onImportComplete: (years: number[]) => void
   onStatusChange: (s: string) => void
   onErrorsChange: (errors: string[]) => void
+  triggerSync?: () => void
 }
 
 export function useCsvImport({
   onImportComplete,
   onStatusChange,
   onErrorsChange,
+  triggerSync,
 }: UseCsvImportParams) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
   const [replaceMode, setReplaceMode] = useState(false)
+  const CSV_IMPORT_PAUSE_REASON = 'csv-import'
 
   const yieldToBrowser = useCallback(
     () =>
@@ -82,39 +90,9 @@ export function useCsvImport({
         ? rows
         : rows.filter((row) => !existingKeys.has(`${row.date}|${row.amount}|${row.description}`))
 
-      const categoryNames = [...new Set(toAdd.map((row) => row.category).filter(Boolean))]
-      const categoryMap: Record<string, number> = {}
-      if (categoryNames.length > 0) {
-        const existingCategories = await StorageService.getCategories()
-        const existingByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c]))
-        const categoryDefs = DEFAULT_CATEGORIES as { name: string; aliases: string[] }[]
-        for (const name of categoryNames) {
-          const matchedByName = matchCategoryByName(name, categoryDefs)
-          if (matchedByName) {
-            const matched = existingByName.get(matchedByName.toLowerCase())
-            if (matched && !matched.isArchived) {
-              categoryMap[name] = matched.id as number
-              continue
-            }
-          }
-          const existingCategory = existingByName.get(name.toLowerCase())
-          if (existingCategory && !existingCategory.isArchived) {
-            categoryMap[name] = existingCategory.id as number
-          } else {
-            try {
-              const newId = await StorageService.addCategory(name)
-              categoryMap[name] = newId
-            } catch {
-              const refreshed = await StorageService.getCategories()
-              const found = refreshed.find((c) => c.name.toLowerCase() === name.toLowerCase())
-              if (found) categoryMap[name] = found.id as number
-            }
-          }
-        }
-      }
-
       let matchedPayees = 0
       let blankPayees = 0
+      const expenseRows = []
 
       for (const row of toAdd) {
         const override = selectionMap.get(row.rowId)
@@ -122,15 +100,11 @@ export function useCsvImport({
         if (payeeId != null) matchedPayees++
         else blankPayees++
 
-        if (override?.saveAlias && payeeId != null && row.description.trim()) {
-          await StorageService.addPayeeAlias(payeeId, row.description)
-        }
-
-        await StorageService.add({
+        expenseRows.push({
           date: row.date,
           amount: row.amount,
           description: row.description,
-          categoryId: categoryMap[row.category],
+          categoryId: undefined,
           payeeId,
         })
       }
@@ -139,14 +113,63 @@ export function useCsvImport({
         ...new Set(toAdd.map((row) => parseInt(row.date.slice(0, 4), 10))),
       ].sort((a, b) => a - b)
 
+      await runLocalImport({
+        pauseReason: CSV_IMPORT_PAUSE_REASON,
+        runLocalWrite: async () => {
+          const categoryNames = [...new Set(toAdd.map((row) => row.category).filter(Boolean))]
+          const categoryMap: Record<string, number> = {}
+          if (categoryNames.length > 0) {
+            const existingCategories = await StorageService.getCategories()
+            const existingByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c]))
+            const categoryDefs = DEFAULT_CATEGORIES as { name: string; aliases: string[] }[]
+            const unresolvedNames: string[] = []
+
+            for (const name of categoryNames) {
+              const matchedByName = matchCategoryByName(name, categoryDefs)
+              if (matchedByName) {
+                const matched = existingByName.get(matchedByName.toLowerCase())
+                if (matched && !matched.isArchived) {
+                  categoryMap[name] = matched.id as number
+                  continue
+                }
+              }
+
+              const existingCategory = existingByName.get(name.toLowerCase())
+              if (existingCategory && !existingCategory.isArchived) {
+                categoryMap[name] = existingCategory.id as number
+              } else {
+                unresolvedNames.push(name)
+              }
+            }
+
+            Object.assign(
+              categoryMap,
+              await StorageService.ensureCategoriesForImport(unresolvedNames),
+            )
+          }
+
+          for (const [index, row] of toAdd.entries()) {
+            expenseRows[index].categoryId = categoryMap[row.category]
+          }
+
+          if (mode) {
+            await StorageService.replaceAllExpenses(expenseRows, true)
+          } else {
+            await StorageService.bulkAddExpensesForImport(expenseRows, true)
+          }
+        },
+        onStatus: onStatusChange,
+        triggerSync,
+        importingStatus: 'Importing CSV locally…',
+        importedLocalStatus: `Imported ${toAdd.length} row(s). ${matchedPayees} payee(s) matched, ${blankPayees} left blank.${toAdd.length !== rows.length ? ` Skipped ${rows.length - toAdd.length} duplicate(s).` : ''}`,
+        importedCloudStatus: `Imported ${toAdd.length} row(s). ${matchedPayees} payee(s) matched, ${blankPayees} left blank.${toAdd.length !== rows.length ? ` Skipped ${rows.length - toAdd.length} duplicate(s).` : ''}`,
+      })
+
       onImportComplete(importedYears)
-      onStatusChange(
-        `Imported ${toAdd.length} row(s). ${matchedPayees} payee(s) matched, ${blankPayees} left blank.${toAdd.length !== rows.length ? ` Skipped ${rows.length - toAdd.length} duplicate(s).` : ''}`,
-      )
       setPendingImport(null)
       clearFileInput()
     },
-    [onImportComplete, onStatusChange, clearFileInput],
+    [onImportComplete, onStatusChange, clearFileInput, triggerSync],
   )
 
   const handleImportInternal = useCallback(
@@ -257,71 +280,86 @@ export function useCsvImport({
                 (row) => !existingKeys.has(`${row.date}|${row.amount}|${row.description}`),
               )
 
-          const payeeNames = [
-            ...new Set(toAdd.map((row) => row.explicitPayee).filter((s): s is string => !!s)),
-          ]
-          const payeeMap: Record<string, number> = {}
-          if (payeeNames.length > 0) {
-            const existingPayees = await StorageService.getPayees()
-            const existingByName = new Map(existingPayees.map((p) => [p.name.toLowerCase(), p]))
-            for (const name of payeeNames) {
-              const existingPayee = existingByName.get(name.toLowerCase())
-              if (existingPayee && !existingPayee.isArchived) {
-                payeeMap[name] = existingPayee.id as number
-              } else {
-                try {
-                  const newId = await StorageService.addPayee(name)
-                  payeeMap[name] = newId
-                } catch {
-                  const refreshed = await StorageService.getPayees()
-                  const found = refreshed.find((p) => p.name.toLowerCase() === name?.toLowerCase())
-                  if (found) payeeMap[name] = found.id as number
-                }
-              }
-            }
-          }
-
-          const categoryNames = [...new Set(toAdd.map((row) => row.category).filter(Boolean))]
-          const categoryMap: Record<string, number> = {}
-          if (categoryNames.length > 0) {
-            const existingCategories = await StorageService.getCategories()
-            const existingByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c]))
-            for (const name of categoryNames) {
-              const existingCategory = existingByName.get(name.toLowerCase())
-              if (existingCategory && !existingCategory.isArchived) {
-                categoryMap[name] = existingCategory.id as number
-              } else {
-                try {
-                  const newId = await StorageService.addCategory(name)
-                  categoryMap[name] = newId
-                } catch {
-                  const refreshed = await StorageService.getCategories()
-                  const found = refreshed.find((c) => c.name.toLowerCase() === name.toLowerCase())
-                  if (found) categoryMap[name] = found.id as number
-                }
-              }
-            }
-          }
-
-          for (const row of toAdd) {
-            await StorageService.add({
-              date: row.date,
-              amount: row.amount,
-              description: row.description,
-              categoryId: categoryMap[row.category],
-              payeeId: row.explicitPayee ? payeeMap[row.explicitPayee] : undefined,
-            })
-          }
-
           const importedYears = [
             ...new Set(toAdd.map((row) => parseInt(row.date.slice(0, 4), 10))),
           ].sort((a, b) => a - b)
+          await runLocalImport({
+            pauseReason: CSV_IMPORT_PAUSE_REASON,
+            runLocalWrite: async () => {
+              const payeeNames = [
+                ...new Set(toAdd.map((row) => row.explicitPayee).filter((s): s is string => !!s)),
+              ]
+              const payeeMap: Record<string, number> = {}
+              if (payeeNames.length > 0) {
+                const existingPayees = await StorageService.getPayees()
+                const existingByName = new Map(existingPayees.map((p) => [p.name.toLowerCase(), p]))
+                const unresolvedNames: string[] = []
+
+                for (const name of payeeNames) {
+                  const existingPayee = existingByName.get(name.toLowerCase())
+                  if (existingPayee && !existingPayee.isArchived) {
+                    payeeMap[name] = existingPayee.id as number
+                  } else {
+                    unresolvedNames.push(name)
+                  }
+                }
+
+                Object.assign(
+                  payeeMap,
+                  await StorageService.ensurePayeesForImport(unresolvedNames),
+                )
+              }
+
+              const categoryNames = [...new Set(toAdd.map((row) => row.category).filter(Boolean))]
+              const categoryMap: Record<string, number> = {}
+              if (categoryNames.length > 0) {
+                const existingCategories = await StorageService.getCategories()
+                const existingByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c]))
+                const unresolvedNames: string[] = []
+
+                for (const name of categoryNames) {
+                  const existingCategory = existingByName.get(name.toLowerCase())
+                  if (existingCategory && !existingCategory.isArchived) {
+                    categoryMap[name] = existingCategory.id as number
+                  } else {
+                    unresolvedNames.push(name)
+                  }
+                }
+
+                Object.assign(
+                  categoryMap,
+                  await StorageService.ensureCategoriesForImport(unresolvedNames),
+                )
+              }
+
+              const expenseRows = toAdd.map((row) => ({
+                date: row.date,
+                amount: row.amount,
+                description: row.description,
+                categoryId: categoryMap[row.category],
+                payeeId: row.explicitPayee ? payeeMap[row.explicitPayee] : undefined,
+              }))
+
+              if (nextReplaceMode) {
+                await StorageService.replaceAllExpenses(expenseRows, true)
+              } else {
+                await StorageService.bulkAddExpensesForImport(expenseRows, true)
+              }
+            },
+            onStatus: onStatusChange,
+            triggerSync,
+            importingStatus: 'Importing CSV locally…',
+            importedLocalStatus: `Imported ${toAdd.length} row(s)${toAdd.length !== rows.length ? `, skipped ${rows.length - toAdd.length} duplicate(s)` : ''}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ''}`,
+            importedCloudStatus: `Imported ${toAdd.length} row(s)${toAdd.length !== rows.length ? `, skipped ${rows.length - toAdd.length} duplicate(s)` : ''}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ''}`,
+          })
           onImportComplete(importedYears)
-          onStatusChange(
-            `Imported ${toAdd.length} row(s)${toAdd.length !== rows.length ? `, skipped ${rows.length - toAdd.length} duplicate(s)` : ''}.${errors.length ? ` ${errors.length} invalid row(s) skipped.` : ''}`,
-          )
           clearFileInput()
           return
+        }
+
+        const seededPayeeNames = findCanonicalDefaultPayeeNames(valid.map((row) => row.description))
+        if (seededPayeeNames.length > 0) {
+          await StorageService.ensurePayeesForImport(seededPayeeNames)
         }
 
         const activePayees = await StorageService.getActivePayees()
@@ -375,7 +413,14 @@ export function useCsvImport({
       }
       clearFileInput()
     },
-    [onStatusChange, onErrorsChange, onImportComplete, clearFileInput, yieldToBrowser],
+    [
+      onStatusChange,
+      onErrorsChange,
+      onImportComplete,
+      clearFileInput,
+      yieldToBrowser,
+      triggerSync,
+    ],
   )
 
   const handleFinalizeImport = useCallback(

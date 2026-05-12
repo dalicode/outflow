@@ -131,6 +131,7 @@ export function getExpenseColumns({
       meta: {
         className: 'text-center w-10',
         cellClassName: 'text-center',
+        width: '2.5rem',
       },
     },
     {
@@ -171,6 +172,7 @@ export function getExpenseColumns({
         cellClassName: 'text-theme-text whitespace-nowrap overflow-hidden',
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, 'date') ? 'cell-editing' : '',
+        width: '6rem',
       },
     },
     {
@@ -219,11 +221,16 @@ export function getExpenseColumns({
             data-field="payeeId"
             {...editableCellActivate(editing, exp, 'payeeId')}
             className={cn(
-              'cursor-pointer',
+              'cursor-pointer block w-full truncate',
               payeeMap[exp.payeeId as number]?.isArchived
                 ? 'text-theme-muted italic'
                 : 'text-theme-text font-medium',
             )}
+            title={
+              exp.payeeId && payeeMap[exp.payeeId as number]
+                ? payeeMap[exp.payeeId as number].name
+                : undefined
+            }
           >
             {exp.payeeId && payeeMap[exp.payeeId as number]
               ? payeeMap[exp.payeeId as number].name
@@ -235,9 +242,10 @@ export function getExpenseColumns({
       },
       meta: {
         className: 'text-left hidden sm:table-cell',
-        cellClassName: 'whitespace-nowrap overflow-hidden',
+        cellClassName: 'whitespace-nowrap overflow-hidden max-w-[12rem]',
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, 'payeeId') ? 'cell-editing' : '',
+        width: '18%',
       },
     },
     {
@@ -305,6 +313,7 @@ export function getExpenseColumns({
         cellClassName: 'whitespace-nowrap overflow-hidden',
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, 'categoryId') ? 'cell-editing' : '',
+        width: '18%',
       },
     },
     {
@@ -328,7 +337,8 @@ export function getExpenseColumns({
             data-expense-id={exp.id}
             data-field="description"
             {...editableCellActivate(editing, exp, 'description')}
-            className="cursor-pointer"
+            className="cursor-pointer block w-full truncate"
+            title={exp.description ?? undefined}
           >
             {exp.description || <span className="text-theme-muted">—</span>}
           </span>
@@ -336,9 +346,10 @@ export function getExpenseColumns({
       },
       meta: {
         className: 'text-left',
-        cellClassName: 'text-theme-text overflow-hidden truncate',
+        cellClassName: 'text-theme-text overflow-hidden max-w-[14rem]',
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, 'description') ? 'cell-editing' : '',
+        width: '28%',
       },
     },
     {
@@ -376,6 +387,7 @@ export function getExpenseColumns({
         cellClassName: 'text-right tabular-nums font-semibold whitespace-nowrap',
         getCellClassName: (exp: Expense) =>
           editing.isCellEditing(exp.id as number, 'amount') ? 'cell-editing' : '',
+        width: '7rem',
       },
     },
   ]

@@ -281,6 +281,10 @@ export default function BackupSection({
             />
             Replace existing data
           </label>
+          <p className="text-[11px] leading-5 text-theme-muted mb-2">
+            Replace mode clears the selected data locally first, then rebuilds your cloud backup
+            from this file. Use it when you want the backup to fully overwrite what is in Outflow.
+          </p>
           <label className="relative inline-flex cursor-pointer shrink-0">
             <input
               ref={fileRef}
