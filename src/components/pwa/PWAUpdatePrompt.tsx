@@ -3,24 +3,53 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { cn } from '../../utils/cn'
 
 const SW_UPDATE_KEY = 'sw:updateApplied'
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
 
 export default function PWAUpdatePrompt() {
   const [dismissed, setDismissed] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null)
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
-      registration?.update().catch(() => undefined)
+      if (!registration) return
+      setRegistration(registration)
     },
   })
 
-  // Handle "Update" — mark the update as intentional before reloading
+  useEffect(() => {
+    if (!registration) return
+
+    const checkForUpdate = () => {
+      if (document.visibilityState !== 'visible') return
+      if (!navigator.onLine) return
+      registration.update().catch(() => undefined)
+    }
+
+    checkForUpdate()
+    const intervalId = window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS)
+    window.addEventListener('online', checkForUpdate)
+    document.addEventListener('visibilitychange', checkForUpdate)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('online', checkForUpdate)
+      document.removeEventListener('visibilitychange', checkForUpdate)
+    }
+  }, [registration])
+
   const handleUpdate = useCallback(() => {
+    setUpdating(true)
     sessionStorage.setItem(SW_UPDATE_KEY, 'true')
-    updateServiceWorker(true)
-  }, [updateServiceWorker])
+    updateServiceWorker(true).catch(() => {
+      sessionStorage.removeItem(SW_UPDATE_KEY)
+      setUpdating(false)
+      setNeedRefresh(true)
+    })
+  }, [setNeedRefresh, updateServiceWorker])
 
   // Ignore controllerchange when it's from our own intentional update
   useEffect(() => {
@@ -79,6 +108,7 @@ export default function PWAUpdatePrompt() {
           <button
             type="button"
             onClick={() => setDismissed(true)}
+            disabled={updating}
             className="btn-modal-cancel px-4"
           >
             Later
@@ -86,9 +116,10 @@ export default function PWAUpdatePrompt() {
           <button
             type="button"
             onClick={handleUpdate}
+            disabled={updating}
             className="btn-modal-primary px-4"
           >
-            Update
+            {updating ? 'Updating…' : 'Update'}
           </button>
         </div>
       </section>

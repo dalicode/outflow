@@ -4,6 +4,18 @@ import './auth.css'
 
 type AuthMode = 'login' | 'signup'
 
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Authentication timed out. Please try again.')), ms)
+  })
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
+}
+
 function PasswordField({
   value,
   onChange,
@@ -97,13 +109,18 @@ export default function AuthPage({ onClose }: { onClose?: () => void }) {
       mode === 'login'
         ? supabase.auth.signInWithPassword({ email, password })
         : supabase.auth.signUp({ email, password })
-    const { error: err } = await fn
-    setLoading(false)
-    if (err) {
-      setError(err.message)
-      return
+    try {
+      const { error: err } = await withTimeout(fn, 20000)
+      if (err) {
+        setError(err.message)
+        return
+      }
+      if (mode === 'signup') setMessage('Check your email to confirm your account.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    if (mode === 'signup') setMessage('Check your email to confirm your account.')
   }
 
   const content = (

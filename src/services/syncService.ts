@@ -50,6 +50,50 @@ function toNumberArray(value: unknown): number[] {
   return value.map((item) => Number(item)).filter((item) => Number.isFinite(item))
 }
 
+const CLOUD_ID_TABLES = [
+  'expenses',
+  'categories',
+  'payees',
+  'fixedExpenses',
+  'fixedExpenseSnapshots',
+  'incomeSnapshots',
+  'savingsSnapshots',
+  'schedules',
+  'categoryMergeHistory',
+  'payeeMergeHistory',
+] as const
+
+interface SupabaseResult {
+  error?: { message?: string; code?: string; details?: string } | null
+}
+
+function assertNoSupabaseError(result: SupabaseResult, context: string): void {
+  if (!result.error) return
+  const detail = [result.error.message, result.error.code, result.error.details]
+    .filter(Boolean)
+    .join(' ')
+  throw new Error(`${context} failed${detail ? `: ${detail}` : ''}`)
+}
+
+async function ensureCloudIdsForSync(): Promise<void> {
+  const now = new Date().toISOString()
+
+  for (const tableName of CLOUD_ID_TABLES) {
+    const table = db.table<Record<string, unknown>, number>(tableName)
+    const rows = await table.toArray()
+
+    for (const row of rows) {
+      const updates: Record<string, unknown> = {}
+      if (!row.cloudId) updates.cloudId = crypto.randomUUID()
+      if (!row.updatedAt) updates.updatedAt = (row.createdAt as string | undefined) ?? now
+
+      if (Object.keys(updates).length > 0) {
+        await table.update(row.id as number, updates)
+      }
+    }
+  }
+}
+
 // Convert a local row to a Supabase-shaped row (snake_case + user_id)
 interface ToCloudMaps {
   categoryIdToCloudId?: Map<number, string>
@@ -549,6 +593,8 @@ function fromCloud(
 export async function flushSyncQueue(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
+  await ensureCloudIdsForSync()
+
   const queue = (await StorageService.getSyncQueue()) as SyncQueueItem[]
   if (queue.length === 0) return
 
@@ -582,13 +628,16 @@ export async function flushSyncQueue(userId: string): Promise<void> {
       if (item.operation === 'delete') {
         const payload = item.payload as Record<string, unknown>
         const cloudId = (payload.cloudId as string) || String(payload.id)
-        await supabase.from(cloudTable).delete().eq('id', cloudId).eq('user_id', userId)
+        const result = await supabase.from(cloudTable).delete().eq('id', cloudId).eq('user_id', userId)
+        assertNoSupabaseError(result, `Delete ${cloudTable}`)
       } else {
         // insert or update → upsert
         if (item.table === 'settings') {
-          await supabase.from(cloudTable).upsert(row, { onConflict: 'user_id,key' })
+          const result = await supabase.from(cloudTable).upsert(row, { onConflict: 'user_id,key' })
+          assertNoSupabaseError(result, `Upsert ${cloudTable}`)
         } else {
-          await supabase.from(cloudTable).upsert(row, { onConflict: 'id' })
+          const result = await supabase.from(cloudTable).upsert(row, { onConflict: 'id' })
+          assertNoSupabaseError(result, `Upsert ${cloudTable}`)
         }
       }
       await StorageService.removeSyncQueueItem(item.id as number)
@@ -666,6 +715,24 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     supabase.from('payee_merge_history').select('*').eq('user_id', userId),
     supabase.from('settings').select('*').eq('user_id', userId),
   ])
+
+  const results = [
+    ['expenses', expRes],
+    ['categories', catRes],
+    ['payees', payRes],
+    ['fixed_expenses', fixRes],
+    ['fixed_expense_snapshots', snapRes],
+    ['income_snapshots', incomeSnapRes],
+    ['savings_snapshots', savingsSnapRes],
+    ['schedules', scheduleRes],
+    ['category_merge_history', categoryMergeRes],
+    ['payee_merge_history', payeeMergeRes],
+    ['settings', setRes],
+  ] as const
+
+  for (const [table, result] of results) {
+    assertNoSupabaseError(result, `Fetch ${table}`)
+  }
 
   // Build FK resolution maps from categories and payees (cloudId → local numeric ID)
   const existingCats = await db.categories.toArray()
@@ -1105,6 +1172,8 @@ export async function fetchBackupPasswordFromProfile(userId: string): Promise<st
 export async function migrateLocalToSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
+  await ensureCloudIdsForSync()
+
   const [
     expenses,
     categories,
@@ -1154,7 +1223,8 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
     onConflict = 'id',
   ): Promise<void> => {
     if (rows.length) {
-      await client.from(table).upsert(rows, { onConflict })
+      const result = await client.from(table).upsert(rows, { onConflict })
+      assertNoSupabaseError(result, `Upsert ${table}`)
     }
   }
 
