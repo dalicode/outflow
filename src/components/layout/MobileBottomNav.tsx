@@ -10,6 +10,7 @@ import {
 import { NavLink, useLocation } from 'react-router-dom'
 import { useHaptics } from '../../hooks/useHaptics'
 import { cn } from '../../utils/cn'
+import { ROUTES } from '../../constants/routes'
 import type { NavItemConfig } from './navConfig'
 import { NAV_ITEMS, PlusIcon } from './navConfig'
 
@@ -44,7 +45,7 @@ export default function MobileBottomNav({
   const mobileDragDistanceRef = useRef(0)
   const pointerHistoryRef = useRef<Array<{ y: number; t: number }>>([])
   const location = useLocation()
-  const isOnDashboard = location.pathname === '/dashboard'
+  const isOnDashboard = location.pathname === ROUTES.DASHBOARD
   const justNavigatedRef = useRef(false)
   const haptics = useHaptics()
 

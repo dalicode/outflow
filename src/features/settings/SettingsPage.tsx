@@ -69,7 +69,8 @@ export default function SettingsPage({
   onSignIn,
 }: SettingsPageProps) {
   const { settings, save, formatDate, formatAmount, currentTheme } = useSettings()
-  const { user, signOut } = useAuth()
+  const { user, signOut, recoveryStatus, recoveryReport, runRecoveryCheck, rebuildCloudFromLocal } =
+    useAuth()
   const { showToast } = useToasts()
   const { payees } = usePayees()
 
@@ -92,6 +93,9 @@ export default function SettingsPage({
   const [isClearModalOpen, setIsClearModalOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [isClearReloading, setIsClearReloading] = useState(false)
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
+  const [isRebuildCloudModalOpen, setIsRebuildCloudModalOpen] = useState(false)
+  const [isRebuildingCloud, setIsRebuildingCloud] = useState(false)
 
   const { schedules, loadSchedules, deleteSchedule } = useScheduleList()
   const backup = useBackup({
@@ -416,6 +420,30 @@ export default function SettingsPage({
             </button>
           </div>
 
+          <div className="border-t border-theme-border mt-3 mb-3" />
+          <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
+            Recovery
+          </p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs text-theme-muted">
+                Local data is the source of truth. Use recovery to inspect sync health and rebuild
+                cloud data from local when needed.
+              </p>
+              <p className="mt-1 text-xs font-medium text-theme-text">
+                Health: {recoveryStatus}
+                {recoveryReport ? ` · ${recoveryReport.issues.length} issue${recoveryReport.issues.length === 1 ? '' : 's'}` : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsRecoveryModalOpen(true)}
+              className="settings-action-btn shrink-0"
+              data-testid="btn-open-recovery-modal"
+            >
+              Open
+            </button>
+          </div>
+
           {appliedScheduleNotices.length > 0 && (
             <>
               <div className="border-t border-theme-border mt-3 mb-3" />
@@ -693,6 +721,133 @@ export default function SettingsPage({
           confirmVariant="destructive"
           onConfirm={backup.handleDbVersionProceed}
         />
+
+        <Modal
+          isOpen={isRecoveryModalOpen}
+          onClose={() => setIsRecoveryModalOpen(false)}
+          title="Data Recovery"
+          size="md"
+          footer={
+            <ModalFooter>
+              <button onClick={() => setIsRecoveryModalOpen(false)} className="btn-cancel-sm flex-1">
+                Close
+              </button>
+              <button
+                onClick={() => void runRecoveryCheck()}
+                className="settings-action-btn flex-1"
+                data-testid="btn-run-diagnostics"
+              >
+                Run diagnostics
+              </button>
+              <button
+                onClick={() => {
+                  setIsRecoveryModalOpen(false)
+                  setIsRebuildCloudModalOpen(true)
+                }}
+                className="btn-modal-destructive flex-1"
+                disabled={
+                  !user?.id ||
+                  recoveryStatus === 'local_repair_required' ||
+                  recoveryStatus === 'recovering' ||
+                  isRebuildingCloud
+                }
+                data-testid="btn-rebuild-cloud-local"
+              >
+                Rebuild cloud
+              </button>
+            </ModalFooter>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-xs text-theme-muted">
+              Outflow stores your data locally first. Cloud sync is a replica of your local data.
+            </p>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
+                <p className="text-theme-muted">Status</p>
+                <p className="mt-1 font-semibold text-theme-text">{recoveryStatus}</p>
+              </div>
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
+                <p className="text-theme-muted">Issues</p>
+                <p className="mt-1 font-semibold text-theme-text">
+                  {recoveryReport?.issues.length ?? 0}
+                </p>
+              </div>
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
+                <p className="text-theme-muted">Local Expenses</p>
+                <p className="mt-1 font-semibold text-theme-text">
+                  {recoveryReport?.localCounts.expenses ?? '—'}
+                </p>
+              </div>
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
+                <p className="text-theme-muted">Cloud Expenses</p>
+                <p className="mt-1 font-semibold text-theme-text">
+                  {recoveryReport?.cloudCounts?.expenses ?? '—'}
+                </p>
+              </div>
+            </div>
+            {recoveryReport?.issues.length ? (
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
+                <p className="text-xs font-semibold text-theme-text">Issues</p>
+                <div className="mt-2 space-y-1">
+                  {recoveryReport.issues.map((issue) => (
+                    <p key={issue} className="text-xs text-theme-muted">
+                      {issue}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {recoveryStatus === 'local_repair_required' && (
+              <p className="text-xs text-theme-danger">
+                Local data needs repair first. Restore a local backup, then rebuild cloud from
+                local.
+              </p>
+            )}
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={isRebuildCloudModalOpen}
+          onClose={() => setIsRebuildCloudModalOpen(false)}
+          title="Rebuild Cloud From Local"
+          size="sm"
+          footer={
+            <ModalFooter>
+              <button
+                onClick={() => setIsRebuildCloudModalOpen(false)}
+                className="btn-cancel-sm flex-1"
+                disabled={isRebuildingCloud}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsRebuildingCloud(true)
+                  try {
+                    await rebuildCloudFromLocal()
+                    setIsRebuildCloudModalOpen(false)
+                    showToast({ message: 'Cloud rebuilt from local data.', tone: 'success' })
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Unknown error'
+                    showToast({ message: `Rebuild failed: ${message}`, tone: 'danger' })
+                  } finally {
+                    setIsRebuildingCloud(false)
+                  }
+                }}
+                className="btn-modal-destructive flex-1"
+                disabled={isRebuildingCloud}
+              >
+                Rebuild Cloud
+              </button>
+            </ModalFooter>
+          }
+        >
+          <p className="text-xs text-theme-muted">
+            This will replace your cloud data with the current local data. Local data will not be
+            deleted.
+          </p>
+        </Modal>
 
         <Modal
           isOpen={isClearModalOpen}

@@ -9,9 +9,15 @@ import {
   useState,
 } from 'react'
 import { StorageService } from '../services/storageService'
+import { runRecoveryDiagnostics, type RecoveryReport, type RecoveryStatus } from '../services/recoveryService'
 import { supabase } from '../services/supabase'
-import { isSyncPaused } from '../services/syncRuntime'
-import { flushSyncQueue, migrateLocalToSupabase, pullFromSupabase } from '../services/syncService'
+import { isSyncPaused, pauseSync, resumeSync } from '../services/syncRuntime'
+import {
+  clearUserCloudData,
+  flushSyncQueue,
+  migrateLocalToSupabase,
+  pullFromSupabase,
+} from '../services/syncService'
 import type { SyncStatus } from '../types'
 import { debugLog, debugWarn } from '../utils/debug'
 
@@ -21,6 +27,10 @@ interface AuthContextValue {
   syncStatus: SyncStatus
   hasSynced: boolean
   syncCount: number
+  recoveryStatus: RecoveryStatus | 'recovering'
+  recoveryReport: RecoveryReport | null
+  runRecoveryCheck: () => Promise<void>
+  rebuildCloudFromLocal: () => Promise<void>
   triggerSync: () => void
   signOut: () => Promise<{ error: AuthError | null }>
 }
@@ -40,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // hasSynced is true after the first successful sync
   const [hasSynced, setHasSynced] = useState(false)
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | 'recovering'>('healthy')
+  const [recoveryReport, setRecoveryReport] = useState<RecoveryReport | null>(null)
   const [authEvent, setAuthEvent] = useState<string | null>(null)
   const syncingRef = useRef(false)
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -65,6 +77,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       callback()
     }, 30000)
   }, [])
+
+  const runRecoveryCheck = useCallback(async () => {
+    const report = await runRecoveryDiagnostics(user?.id)
+    setRecoveryReport(report)
+    setRecoveryStatus(report.status)
+    if (report.status === 'rebuild_cloud_required' || report.status === 'local_repair_required') {
+      pauseSync('recovery')
+    } else {
+      resumeSync('recovery')
+    }
+  }, [user?.id])
+
+  const rebuildCloudFromLocal = useCallback(async () => {
+    if (!user?.id) return
+    setRecoveryStatus('recovering')
+    pauseSync('recovery')
+    setSyncStatus('syncing')
+    try {
+      await withTimeout(clearUserCloudData(user.id), 30000)
+      await withTimeout(migrateLocalToSupabase(user.id), 45000)
+      await runRecoveryCheck()
+      setSyncStatus('idle')
+    } catch (error) {
+      setSyncStatus('error')
+      setRecoveryStatus('rebuild_cloud_required')
+      throw error
+    }
+  }, [runRecoveryCheck, user?.id, withTimeout])
 
   const flushQueuedChanges = useCallback(
     async (userId: string): Promise<boolean> => {
@@ -92,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await withTimeout(pullFromSupabase(userId), 30000)
         pulled = true
         await flushQueuedChanges(userId)
+        await runRecoveryCheck()
         setSyncStatus('idle')
         setHasSynced(true)
         setSyncCount((c) => c + 1)
@@ -107,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         syncingRef.current = false
       }
     },
-    [flushQueuedChanges, scheduleRetry, withTimeout],
+    [flushQueuedChanges, runRecoveryCheck, scheduleRetry, withTimeout],
   )
 
   // ─── Auth initialization — runs once on mount ──────────────────────────
@@ -208,6 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           pulled = true
           await withTimeout(migrateLocalToSupabase(user.id), 30000)
           await flushQueuedChanges(user.id)
+          await runRecoveryCheck()
           if (!cancelled) {
             setSyncStatus('idle')
             setHasSynced(true)
@@ -240,7 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, doPullAndFlush, flushQueuedChanges, withTimeout])
+  }, [user?.id, doPullAndFlush, flushQueuedChanges, runRecoveryCheck, withTimeout])
 
   const triggerSync = useCallback(() => {
     if (!supabase || !user || isSyncPaused()) return
@@ -273,7 +315,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, syncStatus, hasSynced, syncCount, triggerSync, signOut }}
+      value={{
+        user,
+        loading,
+        syncStatus,
+        hasSynced,
+        syncCount,
+        recoveryStatus,
+        recoveryReport,
+        runRecoveryCheck,
+        rebuildCloudFromLocal,
+        triggerSync,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -2,6 +2,7 @@ import { type MouseEventHandler, useCallback, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useHaptics } from '../../hooks/useHaptics'
 import { cn } from '../../utils/cn'
+import { ROUTES } from '../../constants/routes'
 import type { NavItemConfig } from './navConfig'
 import { NAV_ITEMS, PlusIcon, SignInIcon, SignOutIcon } from './navConfig'
 import type { SyncStatus } from '../../types'
@@ -29,7 +30,7 @@ export default function DesktopSidebar({
   const [collapsed, setCollapsed] = useState(true)
   const haptics = useHaptics()
   const location = useLocation()
-  const isOnDashboard = location.pathname === '/dashboard'
+  const isOnDashboard = location.pathname === ROUTES.DASHBOARD
 
   const handleNavLinkClick = useCallback(
     (pageKey: NavItemConfig['pageKey'], e: React.MouseEvent) => {
