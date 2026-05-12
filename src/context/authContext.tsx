@@ -9,7 +9,11 @@ import {
   useState,
 } from 'react'
 import { StorageService } from '../services/storageService'
-import { runRecoveryDiagnostics, type RecoveryReport, type RecoveryStatus } from '../services/recoveryService'
+import {
+  runRecoveryDiagnostics,
+  type RecoveryReport,
+  type RecoveryStatus,
+} from '../services/recoveryService'
 import { supabase } from '../services/supabase'
 import { isSyncPaused, pauseSync, resumeSync } from '../services/syncRuntime'
 import {
@@ -85,16 +89,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastStartupSyncUserRef = useRef<string | null>(null)
 
-  const withTimeout = useCallback(function <T>(promise: Promise<T>, ms: number): Promise<T> {
+  const withTimeout = useCallback(async <T,>(promise: Promise<T>, ms: number): Promise<T> => {
     let timer: ReturnType<typeof setTimeout> | undefined
 
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
     })
 
-    return Promise.race([promise, timeout]).finally(() => {
+    try {
+      return await Promise.race([promise, timeout])
+    } finally {
       if (timer) clearTimeout(timer)
-    })
+    }
   }, [])
 
   const scheduleRetry = useCallback((callback: () => void) => {
@@ -215,7 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return activeSyncPromiseRef.current.catch((error) => {
         scheduleRetry(() => {
-          if (supabase && user?.id) void queueSync({ reason: 'retry', mode: 'pull-and-flush', force: true })
+          if (supabase && user?.id)
+            void queueSync({ reason: 'retry', mode: 'pull-and-flush', force: true })
         })
         throw error
       })
@@ -237,9 +244,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const supabaseClient = supabase
+
     async function initializeAuth() {
       try {
-        const { data, error } = await withTimeout(supabase.auth.getSession(), 10000)
+        const { data, error } = await withTimeout(supabaseClient.auth.getSession(), 10000)
 
         if (error) {
           console.error('[auth] Failed to restore Supabase session:', error)
