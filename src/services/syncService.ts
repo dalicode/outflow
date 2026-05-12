@@ -99,11 +99,6 @@ interface ToCloudMaps {
   categoryIdToCloudId?: Map<number, string>
   payeeIdToCloudId?: Map<number, string>
   fixedExpenseIdToCloudId?: Map<number, string>
-  categoryCloudIdToMergeTarget?: Map<string, string>
-  payeeCloudIdToMergeTarget?: Map<string, string>
-  categoryIdToName?: Map<number, string>
-  payeeIdToName?: Map<number, string>
-  entityIdToDontThrow?: Map<number, boolean>
 }
 
 function toCloud(
@@ -612,8 +607,6 @@ export async function flushSyncQueue(userId: string): Promise<void> {
     fixedExpenseIdToCloudId: new Map(
       fixedExpenses.filter((f) => f.cloudId).map((f) => [f.id!, f.cloudId!]),
     ),
-    categoryIdToName: new Map(categories.filter((c) => c.id && c.name).map((c) => [c.id!, c.name])),
-    payeeIdToName: new Map(payees.filter((p) => p.id && p.name).map((p) => [p.id!, p.name])),
   }
 
   for (const item of queue) {
@@ -643,7 +636,7 @@ export async function flushSyncQueue(userId: string): Promise<void> {
       await StorageService.removeSyncQueueItem(item.id as number)
     } catch (err) {
       console.warn('Sync flush error:', err)
-      break // stop on first error; retry next time
+      throw err
     }
   }
 }
@@ -853,8 +846,6 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     debugLog('[sync] resolving', expRes.data.length, 'cloud expenses')
     const unresolvedCats = new Set<string>()
     const unresolvedPayees = new Set<string>()
-    let autoCreatedCats = 0
-    const _autoCreatedPayees = 0
     let resolvedViaInitialMap = 0
     let resolvedViaFallback = 0
     const resolvedRows = await Promise.all(
@@ -867,7 +858,6 @@ export async function pullFromSupabase(userId: string): Promise<void> {
         if (categoryId !== undefined) {
           resolvedViaInitialMap++
         } else {
-          const autoCreatedBefore = autoCreatedCats
           const resolved = await resolveLocalCategoryId(
             local.cloudCategoryId,
             local.cloudCategoryName,
@@ -876,7 +866,6 @@ export async function pullFromSupabase(userId: string): Promise<void> {
           if (resolved !== undefined) {
             categoryId = resolved
             resolvedViaFallback++
-            if (autoCreatedCats > autoCreatedBefore) autoCreatedCats++
           } else {
             unresolvedCats.add(
               String(local.cloudCategoryId ?? local.cloudCategoryName ?? 'unknown'),
@@ -1212,8 +1201,6 @@ export async function migrateLocalToSupabase(userId: string): Promise<void> {
     categoryIdToCloudId,
     payeeIdToCloudId,
     fixedExpenseIdToCloudId,
-    categoryIdToName: new Map(categories.filter((c) => c.id && c.name).map((c) => [c.id!, c.name])),
-    payeeIdToName: new Map(payees.filter((p) => p.id && p.name).map((p) => [p.id!, p.name])),
   }
 
   const client = supabase

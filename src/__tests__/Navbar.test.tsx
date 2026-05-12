@@ -45,6 +45,21 @@ describe('Navbar', () => {
     expect(within(sidebar).getByText('test@example.com')).toBeInTheDocument()
   })
 
+  it('shows the expanded cloud sync status label for signed-in users', () => {
+    renderNavbar({
+      onAddExpense: vi.fn(),
+      onSignOut: vi.fn(),
+      userEmail: 'test@example.com',
+      syncStatus: 'idle',
+    })
+
+    const sidebar = document.querySelector('aside') as HTMLElement
+    fireEvent.click(within(sidebar).getByTitle('Expand'))
+
+    expect(within(sidebar).getByLabelText('Cloud synced')).toBeInTheDocument()
+    expect(within(sidebar).getByText('All devices up to date')).toBeInTheDocument()
+  })
+
   it('calls onSignOut when sign out clicked', () => {
     const onSignOut = vi.fn()
     renderNavbar({ onAddExpense: vi.fn(), onSignOut })

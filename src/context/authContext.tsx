@@ -43,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncingRef = useRef(false)
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const syncingWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastStartupSyncUserRef = useRef<string | null>(null)
 
   const withTimeout = useCallback(function <T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -165,10 +164,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false
-      if (syncingWatchdogRef.current) {
-        clearTimeout(syncingWatchdogRef.current)
-        syncingWatchdogRef.current = null
-      }
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current)
         retryTimerRef.current = null
@@ -181,32 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [withTimeout])
-
-  useEffect(() => {
-    if (syncingWatchdogRef.current) {
-      clearTimeout(syncingWatchdogRef.current)
-      syncingWatchdogRef.current = null
-    }
-
-    if (syncStatus !== 'syncing') return
-
-    syncingWatchdogRef.current = setTimeout(() => {
-      const hasPendingFlush = flushTimerRef.current != null
-      const hasRetryScheduled = retryTimerRef.current != null
-      const isActuallySyncing = syncingRef.current || hasPendingFlush
-
-      if (!isActuallySyncing && !hasRetryScheduled) {
-        setSyncStatus('idle')
-      }
-    }, 1000)
-
-    return () => {
-      if (syncingWatchdogRef.current) {
-        clearTimeout(syncingWatchdogRef.current)
-        syncingWatchdogRef.current = null
-      }
-    }
-  }, [syncStatus])
 
   // ─── Signed-in follow-up loading (outside onAuthStateChange) ───────────
   useEffect(() => {
@@ -268,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, authEvent, doPullAndFlush, flushQueuedChanges, withTimeout])
+  }, [user?.id, doPullAndFlush, flushQueuedChanges, withTimeout])
 
   const triggerSync = useCallback(() => {
     if (!supabase || !user) return

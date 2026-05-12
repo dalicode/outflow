@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
-import SyncIndicator from './components/layout/SyncIndicator'
 import Modal from './components/ui/Modal'
 import OfflineStatusBadge from './components/pwa/OfflineStatusBadge'
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt'
@@ -587,9 +586,6 @@ function AppShell() {
                 isScrolling && 'is-scrolling',
               )}
             >
-              <div className="absolute inset-x-0 top-0 z-50 sm:hidden pointer-events-none">
-                <SyncIndicator syncStatus={syncStatus} variant="bar" />
-              </div>
               <Routes>
                 <Route
                   path={ROUTES.DASHBOARD}

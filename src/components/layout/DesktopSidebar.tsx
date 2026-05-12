@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useHaptics } from '../../hooks/useHaptics'
 import { cn } from '../../utils/cn'
 import type { NavItemConfig } from './navConfig'
-import { NAV_ITEMS, PlusIcon, SignOutIcon } from './navConfig'
+import { NAV_ITEMS, PlusIcon, SignInIcon, SignOutIcon } from './navConfig'
 import type { SyncStatus } from '../../types'
 import SyncIndicator from './SyncIndicator'
 
@@ -42,6 +42,9 @@ export default function DesktopSidebar({
   )
 
   const sidebarWidth = collapsed ? 'w-14' : 'w-44'
+  const footerItemClass = collapsed
+    ? 'min-h-10 justify-center px-2'
+    : 'min-h-[3.25rem] gap-3 px-3 mx-2'
 
   return (
     <aside className={cn('navbar-desktop group', sidebarWidth)}>
@@ -143,7 +146,7 @@ export default function DesktopSidebar({
           data-testid="btn-add-expense"
           className={cn(
             'w-full flex items-center rounded-theme-medium text-theme-primary nav-item-hover hover:bg-theme-primary-subtle active:scale-95',
-            collapsed ? 'justify-center py-2.5 px-2' : 'gap-3 py-2.5 px-3 mx-2',
+            footerItemClass,
           )}
           aria-label="Add expense"
         >
@@ -153,9 +156,12 @@ export default function DesktopSidebar({
 
         {onSignOut && (
           <div
-            className={cn('flex', collapsed ? 'justify-center py-1' : 'justify-start px-4 py-1')}
+            className={cn(
+              'w-full flex items-center rounded-theme-medium text-theme-muted',
+              footerItemClass,
+            )}
           >
-            <SyncIndicator syncStatus={syncStatus} />
+            <SyncIndicator syncStatus={syncStatus} compact={collapsed} />
           </div>
         )}
 
@@ -167,7 +173,7 @@ export default function DesktopSidebar({
             }}
             className={cn(
               'w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger-subtle',
-              collapsed ? 'justify-center py-2.5 px-2' : 'gap-3 py-2.5 px-3 mx-2',
+              footerItemClass,
             )}
             title={userEmail}
           >
@@ -191,23 +197,11 @@ export default function DesktopSidebar({
             }}
             className={cn(
               'w-full flex items-center rounded-theme-medium nav-item-hover text-theme-primary hover:bg-theme-primary-subtle',
-              collapsed ? 'justify-center py-2.5 px-2' : 'gap-3 py-2.5 px-3 mx-2',
+              footerItemClass,
             )}
             title="Sign in to sync data across devices"
           >
-            <svg
-              className="w-6 h-6 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
-              />
-            </svg>
+            <SignInIcon />
             {!collapsed && <span className="text-sm font-medium truncate">Sign in</span>}
           </button>
         ) : null}

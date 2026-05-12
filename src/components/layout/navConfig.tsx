@@ -215,19 +215,58 @@ const PlusIcon = () => (
   </svg>
 )
 
+const SignInIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
+    <rect
+      x="4"
+      y="3"
+      width="10"
+      height="18"
+      rx="2"
+      fill="var(--theme-primary)"
+      opacity="0.15"
+      stroke="var(--theme-primary)"
+      strokeWidth="1.75"
+    />
+    <path
+      d="M12 12h8"
+      stroke="var(--theme-primary)"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+    />
+    <path
+      d="m17 7 5 5-5 5"
+      stroke="var(--theme-primary)"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="10.5" cy="12" r="1" fill="var(--theme-primary)" opacity="0.7" />
+  </svg>
+)
+
 const SignOutIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    className="w-6 h-6 shrink-0"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
+    <rect
+      x="4"
+      y="3"
+      width="10"
+      height="18"
+      rx="2"
+      fill="var(--theme-muted)"
+      opacity="0.12"
+      stroke="currentColor"
+      strokeWidth="1.75"
+    />
+    <path d="M12 12h8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    <path
+      d="m17 7 5 5-5 5"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="7.5" cy="12" r="1" fill="currentColor" opacity="0.7" />
   </svg>
 )
 
@@ -305,6 +344,7 @@ export {
   PayeesIcon,
   PlusIcon,
   SettingsIcon,
+  SignInIcon,
   SignOutIcon,
   SummaryIcon,
 }

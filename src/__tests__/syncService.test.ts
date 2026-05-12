@@ -32,6 +32,9 @@ vi.mock('../services/storageService', () => ({
   StorageService: {
     getSyncQueue: vi.fn(() => Promise.resolve([])),
     removeSyncQueueItem: vi.fn(),
+    getCategories: vi.fn(() => Promise.resolve([])),
+    getPayees: vi.fn(() => Promise.resolve([])),
+    getFixedExpenses: vi.fn(() => Promise.resolve([])),
   },
 }))
 
@@ -43,7 +46,8 @@ vi.mock('../services/supabase', () => ({
   },
 }))
 
-import { pullFromSupabase } from '../services/syncService'
+import { StorageService } from '../services/storageService'
+import { flushSyncQueue, pullFromSupabase } from '../services/syncService'
 
 function makeQuery(data: unknown[]) {
   return {
@@ -190,5 +194,55 @@ describe('pullFromSupabase', () => {
       key: 'monthlyIncome',
       value: 5000,
     })
+  })
+})
+
+describe('flushSyncQueue', () => {
+  beforeEach(() => {
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([])
+    vi.mocked(StorageService.removeSyncQueueItem).mockReset()
+    vi.mocked(StorageService.getCategories).mockResolvedValue([])
+    vi.mocked(StorageService.getPayees).mockResolvedValue([])
+    vi.mocked(StorageService.getFixedExpenses).mockResolvedValue([])
+    supabaseSelect.mockReset()
+  })
+
+  it('keeps failed outbound writes queued and reports the failure', async () => {
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
+      {
+        id: 1,
+        table: 'expenses',
+        operation: 'insert',
+        timestamp: 1,
+        payload: {
+          id: 10,
+          cloudId: 'expense-cloud-id',
+          date: '2026-05-05',
+          amount: 18.5,
+          categoryId: 1,
+          payeeId: 2,
+        },
+      },
+    ])
+    vi.mocked(StorageService.getCategories).mockResolvedValue([
+      { id: 1, cloudId: 'category-cloud-id', name: 'Food' },
+    ])
+    vi.mocked(StorageService.getPayees).mockResolvedValue([
+      { id: 2, cloudId: 'payee-cloud-id', name: 'Cafe' },
+    ])
+
+    supabaseSelect.mockImplementation(() => ({
+      upsert: () => Promise.resolve({ data: null, error: { message: 'Bad Request' } }),
+    }))
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await expect(flushSyncQueue('user-1')).rejects.toThrow(
+        'Upsert expenses failed: Bad Request',
+      )
+      expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 })
