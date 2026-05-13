@@ -3,10 +3,6 @@ import { useCallback, useRef, useState } from 'react'
 import { useSettings } from '../../../context/settingsContext'
 import { runLocalImport } from '../../../services/importService'
 import { StorageService } from '../../../services/storageService'
-import {
-  fetchBackupPasswordFromProfile,
-  syncBackupPasswordToProfile,
-} from '../../../services/syncService'
 import { APP_VERSION } from '../../../utils/appVersion'
 import { decryptBackup, encryptBackup, isEncryptedEnvelope } from '../../../utils/backupCrypto'
 import { getLocalToday } from '../../../utils/historicalDataHelpers'
@@ -35,6 +31,7 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
   const [pendingImportMeta, setPendingImportMeta] = useState<Record<string, unknown> | null>(null)
   const [isReloading] = useState(false)
   const IMPORT_PAUSE_REASON = 'import'
+  const BACKUP_PASSWORD_SETTING_KEY = 'backupPassword'
 
   const executeBackupImport = useCallback(
     async (payload: Record<string, unknown>) => {
@@ -102,7 +99,7 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
 
   const handleBackupExport = useCallback(async () => {
     if (user?.id) {
-      const saved = await fetchBackupPasswordFromProfile(user.id)
+      const saved = await StorageService.getSetting<string>(BACKUP_PASSWORD_SETTING_KEY, null)
       if (saved) {
         await doExport(saved)
         return
@@ -123,7 +120,7 @@ export function useBackup({ user, onStatus, onRefreshAll, triggerSync }: UseBack
     }
     if (passwordModalMode === 'export') {
       if (user?.id && rememberBackupPassword) {
-        await syncBackupPasswordToProfile(user.id, backupPassword)
+        await StorageService.setSetting(BACKUP_PASSWORD_SETTING_KEY, backupPassword)
       }
       setShowPasswordModal(false)
       await doExport(backupPassword)

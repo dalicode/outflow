@@ -8,6 +8,14 @@ import {
   resolveScheduleValueForMonth,
 } from './common'
 
+function makeSettingRow(key: string, value: unknown): { key: string; value: unknown; updatedAt: string } {
+  return {
+    key,
+    value,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 export async function getSchedules(): Promise<Schedule[]> {
   return db.schedules.toArray()
 }
@@ -94,11 +102,13 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
         )
       }
       liveIncome = schedule.newValue
-      await db.settings.put({ key: 'monthlyIncome', value: liveIncome })
-      await db.settings.put({
-        key: 'monthlyIncomeUpdatedAt',
-        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-      })
+      await db.settings.put(makeSettingRow('monthlyIncome', liveIncome))
+      await db.settings.put(
+        makeSettingRow(
+          'monthlyIncomeUpdatedAt',
+          `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
+        ),
+      )
       await enqueue('settings', 'upsert', { key: 'monthlyIncome', value: liveIncome })
       await enqueue('settings', 'upsert', {
         key: 'monthlyIncomeUpdatedAt',
@@ -121,11 +131,13 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
         )
       }
       liveSavingsRate = schedule.newValue
-      await db.settings.put({ key: 'savingsRate', value: liveSavingsRate })
-      await db.settings.put({
-        key: 'savingsRateUpdatedAt',
-        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-      })
+      await db.settings.put(makeSettingRow('savingsRate', liveSavingsRate))
+      await db.settings.put(
+        makeSettingRow(
+          'savingsRateUpdatedAt',
+          `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
+        ),
+      )
       await enqueue('settings', 'upsert', { key: 'savingsRate', value: liveSavingsRate })
       await enqueue('settings', 'upsert', {
         key: 'savingsRateUpdatedAt',
@@ -189,10 +201,7 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
 
   if (newNotices.length > 0) {
     const mergedLog = [...newNotices, ...existingNoticeLog].slice(0, 20)
-    await db.settings.put({
-      key: 'scheduleMaterializationLog',
-      value: mergedLog,
-    })
+    await db.settings.put(makeSettingRow('scheduleMaterializationLog', mergedLog))
   }
 
   return newNotices
@@ -214,14 +223,14 @@ export async function rolloverSnapshots() {
 
   // First-time: initialize without rollover
   if (!lastOpenKey) {
-    await db.settings.put({ key: 'lastAppOpenMonthKey', value: currentKey })
+    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
     await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
     return
   }
 
   // Backward time travel guard
   if (lastOpenKey >= currentKey) {
-    await db.settings.put({ key: 'lastAppOpenMonthKey', value: currentKey })
+    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
     await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
     return
   }
@@ -238,7 +247,7 @@ export async function rolloverSnapshots() {
     lastMonth < 1 ||
     lastMonth > 12
   ) {
-    await db.settings.put({ key: 'lastAppOpenMonthKey', value: currentKey })
+    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
     await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
     return
   }
@@ -261,7 +270,7 @@ export async function rolloverSnapshots() {
   }
 
   if (gapMonths.length === 0) {
-    await db.settings.put({ key: 'lastAppOpenMonthKey', value: currentKey })
+    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
     await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
     return
   }
@@ -411,10 +420,7 @@ export async function rolloverSnapshots() {
         const updatedSchedule = await db.schedules.get(scheduleId)
         await enqueue('schedules', 'update', updatedSchedule as unknown as Record<string, unknown>)
       }
-      await db.settings.put({
-        key: 'lastAppOpenMonthKey',
-        value: currentKey,
-      })
+      await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
       await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
     },
   )

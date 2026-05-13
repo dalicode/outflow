@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const addCalls: Array<{ table: string; row: Record<string, unknown> }> = []
 const updateCalls: Array<{ table: string; id: number; row: Record<string, unknown> }> = []
 const upsertCalls: Array<{ table: string; rows: Record<string, unknown>[]; onConflict?: string }> = []
+const settingsPutMock = vi.hoisted(() => vi.fn())
+const syncQueueToArrayMock = vi.hoisted(() => vi.fn())
+const settingsGetMock = vi.hoisted(() => vi.fn())
 
 function makeTableMock() {
   return {
@@ -25,7 +28,14 @@ vi.mock('../services/db/schema', () => ({
     payees: { toArray: vi.fn(() => Promise.resolve([])) },
     fixedExpenses: { toArray: vi.fn(() => Promise.resolve([])) },
     expenses: { toArray: vi.fn(() => Promise.resolve([])) },
-    settings: { put: vi.fn() },
+    settings: { put: settingsPutMock, get: settingsGetMock },
+    syncQueue: {
+      where: vi.fn(() => ({
+        equals: vi.fn(() => ({
+          toArray: syncQueueToArrayMock,
+        })),
+      })),
+    },
   },
 }))
 
@@ -70,6 +80,11 @@ describe('pullFromSupabase', () => {
     addCalls.length = 0
     updateCalls.length = 0
     upsertCalls.length = 0
+    settingsPutMock.mockReset()
+    settingsGetMock.mockReset()
+    syncQueueToArrayMock.mockReset()
+    syncQueueToArrayMock.mockResolvedValue([])
+    settingsGetMock.mockResolvedValue(undefined)
 
     supabaseSelect.mockReset()
     supabaseSelect.mockImplementation((table: string) => {
@@ -202,6 +217,7 @@ describe('pullFromSupabase', () => {
     expect(dbModule.default.settings.put).toHaveBeenCalledWith({
       key: 'monthlyIncome',
       value: 5000,
+      updatedAt: expect.any(String),
     })
   })
 
@@ -235,6 +251,115 @@ describe('pullFromSupabase', () => {
 
     const expenseAdds = addCalls.filter(({ row }) => row.description != null)
     expect(expenseAdds).toHaveLength(1001)
+  })
+
+  it('does not overwrite a pending local uiSettings change during pull', async () => {
+    syncQueueToArrayMock.mockResolvedValue([
+      {
+        id: 9,
+        table: 'settings',
+        operation: 'upsert',
+        timestamp: 9,
+        payload: {
+          key: 'uiSettings',
+          value: {
+            visualTheme: 'sharpProfessionalDark',
+          },
+        },
+      },
+    ])
+
+    supabaseSelect.mockImplementation((table: string) => {
+      if (table === 'settings') {
+        return makeQuery([
+          {
+            key: 'uiSettings',
+            value: JSON.stringify({
+              visualTheme: 'default',
+            }),
+          },
+        ])
+      }
+      return makeQuery([])
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(settingsPutMock).not.toHaveBeenCalledWith({
+      key: 'uiSettings',
+      value: {
+        visualTheme: 'default',
+      },
+      updatedAt: expect.any(String),
+    })
+  })
+
+  it('keeps newer local settings when cloud settings are older', async () => {
+    settingsGetMock.mockImplementation(async (key: string) => {
+      if (key === 'uiSettings') {
+        return {
+          key: 'uiSettings',
+          value: { visualTheme: 'sharpProfessionalDark' },
+          updatedAt: '2026-05-10T00:00:00.000Z',
+        }
+      }
+      return undefined
+    })
+
+    supabaseSelect.mockImplementation((table: string) => {
+      if (table === 'settings') {
+        return makeQuery([
+          {
+            key: 'uiSettings',
+            value: JSON.stringify({ visualTheme: 'default' }),
+            updated_at: '2026-05-01T00:00:00.000Z',
+          },
+        ])
+      }
+      return makeQuery([])
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(settingsPutMock).not.toHaveBeenCalledWith({
+      key: 'uiSettings',
+      value: { visualTheme: 'default' },
+      updatedAt: '2026-05-01T00:00:00.000Z',
+    })
+  })
+
+  it('applies newer cloud settings when local settings are older', async () => {
+    settingsGetMock.mockImplementation(async (key: string) => {
+      if (key === 'uiSettings') {
+        return {
+          key: 'uiSettings',
+          value: { visualTheme: 'default' },
+          updatedAt: '2026-05-01T00:00:00.000Z',
+        }
+      }
+      return undefined
+    })
+
+    supabaseSelect.mockImplementation((table: string) => {
+      if (table === 'settings') {
+        return makeQuery([
+          {
+            key: 'uiSettings',
+            value: JSON.stringify({ visualTheme: 'sharpProfessionalDark' }),
+            updated_at: '2026-05-10T00:00:00.000Z',
+          },
+        ])
+      }
+      return makeQuery([])
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(settingsPutMock).toHaveBeenCalledWith({
+      key: 'uiSettings',
+      value: { visualTheme: 'sharpProfessionalDark' },
+      updatedAt: '2026-05-10T00:00:00.000Z',
+    })
   })
 })
 

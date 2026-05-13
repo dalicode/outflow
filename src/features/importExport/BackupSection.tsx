@@ -7,10 +7,6 @@ import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { useSettings } from '../../context/settingsContext'
 import { StorageService } from '../../services/storageService'
-import {
-  fetchBackupPasswordFromProfile,
-  syncBackupPasswordToProfile,
-} from '../../services/syncService'
 import { APP_VERSION } from '../../utils/appVersion'
 import { decryptBackup, encryptBackup, isEncryptedEnvelope } from '../../utils/backupCrypto'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
@@ -47,6 +43,7 @@ export default function BackupSection({
   )
   const [pendingImportMeta, setPendingImportMeta] = useState<Record<string, unknown> | null>(null)
   const [isReloading, setIsReloading] = useState(false)
+  const BACKUP_PASSWORD_SETTING_KEY = 'backupPassword'
 
   const triggerReload = () => {
     setIsReloading(true)
@@ -99,7 +96,7 @@ export default function BackupSection({
 
   const handleBackupExport = async () => {
     if (user?.id) {
-      const saved = await fetchBackupPasswordFromProfile(user.id)
+      const saved = await StorageService.getSetting<string>(BACKUP_PASSWORD_SETTING_KEY, null)
       if (saved) {
         await doExport(saved)
         return
@@ -120,7 +117,7 @@ export default function BackupSection({
     }
     if (passwordModalMode === 'export') {
       if (user?.id && rememberBackupPassword) {
-        await syncBackupPasswordToProfile(user.id, backupPassword)
+        await StorageService.setSetting(BACKUP_PASSWORD_SETTING_KEY, backupPassword)
       }
       setShowPasswordModal(false)
       await doExport(backupPassword)

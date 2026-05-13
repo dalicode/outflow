@@ -7,10 +7,11 @@ export async function getSetting<T>(key: string, fallback: T | null = null): Pro
 }
 
 export async function setSetting(key: string, value: unknown): Promise<void> {
-  await db.settings.put({ key, value })
+  const updatedAt = new Date().toISOString()
+  await db.settings.put({ key, value, updatedAt })
   await enqueue('settings', 'upsert', { key, value })
 }
 
 export async function setLocalSetting(key: string, value: unknown): Promise<void> {
-  await db.settings.put({ key, value })
+  await db.settings.put({ key, value, updatedAt: new Date().toISOString() })
 }

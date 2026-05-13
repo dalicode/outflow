@@ -19,12 +19,6 @@ vi.mock('../services/supabase', () => ({
   supabase: null,
 }))
 
-// Mock syncService
-vi.mock('../services/syncService', () => ({
-  syncThemeToProfile: vi.fn().mockResolvedValue(undefined),
-  fetchThemeFromProfile: vi.fn().mockResolvedValue(null),
-}))
-
 describe('useSettings', () => {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <SettingsProvider>{children}</SettingsProvider>

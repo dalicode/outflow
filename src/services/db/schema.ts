@@ -17,6 +17,7 @@ import { buildDefaultCategories, buildDefaultPayees } from '../defaults'
 interface Setting {
   key: string
   value: unknown
+  updatedAt?: string
 }
 
 class OutflowDB extends Dexie {
@@ -288,6 +289,32 @@ class OutflowDB extends Dexie {
       categoryMergeHistory: '++id, sourceCategoryId, targetCategoryId',
       payeeMergeHistory: '++id, sourcePayeeId, targetPayeeId',
     })
+
+    this.version(17)
+      .stores({
+        expenses: '++id, date, categoryId, payeeId',
+        settings: 'key',
+        fixedExpenses: '++id',
+        categories: '++id, name',
+        payees: '++id, name',
+        syncQueue: '++id, table, timestamp',
+        fixedExpenseSnapshots: '++id, [fixedExpenseId+year+month], year, month',
+        schedules:
+          '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId',
+        incomeSnapshots: '++id, [year+month], year, month',
+        savingsSnapshots: '++id, [year+month], year, month',
+        categoryMergeHistory: '++id, sourceCategoryId, targetCategoryId',
+        payeeMergeHistory: '++id, sourcePayeeId, targetPayeeId',
+      })
+      .upgrade(async (tx) => {
+        const now = new Date().toISOString()
+        const settings = (await tx.table('settings').toArray()) as Setting[]
+        for (const row of settings) {
+          if (!row.updatedAt) {
+            await tx.table('settings').update(row.key, { updatedAt: now })
+          }
+        }
+      })
 
     this.on('populate', () => {
       const now = new Date().toISOString()

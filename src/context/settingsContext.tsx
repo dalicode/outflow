@@ -9,8 +9,6 @@ import {
   useState,
 } from 'react'
 import { StorageService } from '../services/storageService'
-import { supabase } from '../services/supabase'
-import { fetchThemeFromProfile, syncThemeToProfile } from '../services/syncService'
 import type { AppSettings, ThemeConfig } from '../types'
 import { getCSSVariables, getTheme, THEMES } from '../utils/themeConfig'
 
@@ -85,34 +83,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     ])
       .then(([saved, savedPrivacyMode]: [unknown, unknown]) => {
         if (cancelled) return
+        const savedSettings =
+          saved && typeof saved === 'object' ? (saved as Record<string, unknown>) : null
         const next = saved
-          ? { ...DEFAULTS, ...(saved as Record<string, unknown>) }
+          ? { ...DEFAULTS, ...savedSettings }
           : { ...DEFAULTS }
         setSettings(next as AppSettings)
         setPrivacyModeEnabled(Boolean(savedPrivacyMode))
         setLoaded(true)
         if (fallbackTimer) clearTimeout(fallbackTimer)
-
-        if (supabase) {
-          supabase.auth
-            .getSession()
-            .then(({ data: { session } }) => {
-              if (session?.user?.id) {
-                fetchThemeFromProfile(session.user.id)
-                  .then((profileTheme: string | null) => {
-                    if (!cancelled && profileTheme && THEMES[profileTheme]) {
-                      setSettings((prev) => ({ ...prev, visualTheme: profileTheme }))
-                    }
-                  })
-                  .catch((err: Error) => {
-                    console.warn('Theme profile fetch error:', err)
-                  })
-              }
-            })
-            .catch((err: Error) => {
-              console.warn('Auth session error in settings:', err)
-            })
-        }
       })
       .catch((err: Error) => {
         console.warn('Settings load error:', err)
@@ -195,17 +174,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const next = { ...settings, ...patch }
       setSettings(next)
       await StorageService.setSetting('uiSettings', next)
-      if (patch.visualTheme) {
-        await StorageService.setSetting('selectedTheme', patch.visualTheme)
-        if (supabase) {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession()
-          if (session?.user?.id) {
-            await syncThemeToProfile(session.user.id, patch.visualTheme)
-          }
-        }
-      }
     },
     [settings],
   )

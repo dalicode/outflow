@@ -277,6 +277,12 @@ function dedupeRowsByConflictKey(
   return [...deduped.values(), ...passthrough]
 }
 
+function getIsoTimestampMs(value: unknown): number {
+  if (typeof value !== 'string' || value.length === 0) return 0
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 function getSyncQueueIdentityKey(item: SyncQueueItem): string | null {
   if (item.table === FULL_SYNC_QUEUE_TABLE) return null
 
@@ -757,7 +763,11 @@ function fromCloud(
     }
   }
   if (table === 'settings') {
-    return { key: row.key, value: JSON.parse(String(row.value)) }
+    return {
+      key: row.key,
+      value: JSON.parse(String(row.value)),
+      updatedAt: row.updated_at as string | undefined,
+    }
   }
   return row
 }
@@ -1130,9 +1140,35 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     await mergeByCloudId('payeeMergeHistory', rows)
   }
   if (setRows.length) {
+    const pendingSettingsKeys = new Set<string>()
+    const pendingQueue =
+      'syncQueue' in db && db.syncQueue
+        ? await db.syncQueue.where('table').equals('settings').toArray()
+        : []
+    for (const item of pendingQueue) {
+      if (item.operation === 'delete') continue
+      const key = String((item.payload as Record<string, unknown>)?.key ?? '')
+      if (key) pendingSettingsKeys.add(key)
+    }
+
     for (const row of setRows) {
       const local = fromCloud('settings', row as Record<string, unknown>)
-      await db.settings.put({ key: String(local.key), value: local.value })
+      const key = String(local.key)
+      // If local has a pending outgoing update for this key, keep local as source of truth
+      // to avoid pull-before-flush reverting in-memory and persisted settings.
+      if (pendingSettingsKeys.has(key)) continue
+      const existing = await db.settings.get(key)
+      const localTime = getIsoTimestampMs(existing?.updatedAt)
+      const cloudTime = getIsoTimestampMs(local.updatedAt)
+      if (existing && localTime > cloudTime) continue
+      await db.settings.put({
+        key,
+        value: local.value,
+        updatedAt:
+          typeof local.updatedAt === 'string' && local.updatedAt.length > 0
+            ? local.updatedAt
+            : new Date().toISOString(),
+      })
     }
   }
 
@@ -1263,71 +1299,6 @@ async function deduplicateByName(
 
       await table.delete(oldId)
     }
-  }
-}
-
-// ── Theme profile sync ────────────────────────────────────────────────────────
-export async function syncThemeToProfile(userId: string, themeId: string): Promise<void> {
-  if (!supabase || !userId) return
-  try {
-    await supabase
-      .from('profiles')
-      .upsert(
-        { id: userId, selected_theme: themeId, updated_at: new Date().toISOString() },
-        { onConflict: 'id' },
-      )
-  } catch (err) {
-    console.warn('Profile theme sync error:', err)
-  }
-}
-
-export async function fetchThemeFromProfile(userId: string): Promise<string | null> {
-  if (!supabase || !userId) return null
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('selected_theme')
-      .eq('id', userId)
-      .single()
-    if (error) return null
-    return ((data as Record<string, unknown> | null)?.selected_theme as string | null) ?? null
-  } catch (err) {
-    console.warn('Profile theme fetch error:', err)
-    return null
-  }
-}
-
-// ── Backup password sync ──────────────────────────────────────────────────────
-export async function syncBackupPasswordToProfile(
-  userId: string,
-  backupPassword: string,
-): Promise<void> {
-  if (!supabase || !userId) return
-  try {
-    await supabase
-      .from('profiles')
-      .upsert(
-        { id: userId, backup_password: backupPassword, updated_at: new Date().toISOString() },
-        { onConflict: 'id' },
-      )
-  } catch (err) {
-    console.warn('Profile backup password sync error:', err)
-  }
-}
-
-export async function fetchBackupPasswordFromProfile(userId: string): Promise<string | null> {
-  if (!supabase || !userId) return null
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('backup_password')
-      .eq('id', userId)
-      .single()
-    if (error) return null
-    return ((data as Record<string, unknown> | null)?.backup_password as string | null) ?? null
-  } catch (err) {
-    console.warn('Profile backup password fetch error:', err)
-    return null
   }
 }
 
