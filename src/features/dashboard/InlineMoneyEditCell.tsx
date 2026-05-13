@@ -7,6 +7,7 @@ interface InlineMoneyEditCellProps {
   initialValue: number
   onCommit: (value: number) => void
   onCancel: () => void
+  onEnter?: (shiftKey: boolean) => void
   onTab?: (shiftKey: boolean) => void
 }
 
@@ -14,6 +15,7 @@ export default function InlineMoneyEditCell({
   initialValue,
   onCommit,
   onCancel,
+  onEnter,
   onTab,
 }: InlineMoneyEditCellProps) {
   const { settings } = useSettings()
@@ -33,8 +35,9 @@ export default function InlineMoneyEditCell({
         className="w-full"
         inputClassName="text-right"
         onBlurValue={onCommit}
-        onEnterValue={(value) => {
+        onEnterValue={(value, shiftKey) => {
           onCommit(value)
+          onEnter?.(shiftKey)
         }}
         onTabValue={(value, shiftKey) => {
           onCommit(value)

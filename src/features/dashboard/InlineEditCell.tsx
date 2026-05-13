@@ -5,6 +5,7 @@ interface InlineEditCellProps {
   initialValue: string
   onCommit: (value: string) => void
   onCancel: () => void
+  onEnter?: (shiftKey: boolean) => void
   onTab?: (shiftKey: boolean) => void
   validate?: (value: string) => string | null
   error?: string | null
@@ -16,6 +17,7 @@ export default function InlineEditCell({
   initialValue,
   onCommit,
   onCancel,
+  onEnter,
   onTab,
   validate,
   error: externalError,
@@ -60,6 +62,7 @@ export default function InlineEditCell({
           if (e.key === 'Enter') {
             e.preventDefault()
             commit()
+            onEnter?.(e.shiftKey)
             return
           }
           if (e.key === 'Tab') {

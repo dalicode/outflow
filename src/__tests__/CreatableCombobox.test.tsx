@@ -138,4 +138,89 @@ describe('CreatableCombobox', () => {
       expect(onChange).toHaveBeenCalledWith(3)
     })
   })
+
+  it('uses onEnterSelect for keyboard commit flow and passes shift state', async () => {
+    const onChange = vi.fn()
+    const onEnterSelect = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+        onEnterSelect={onEnterSelect}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
+
+    await waitFor(() => {
+      expect(onEnterSelect).toHaveBeenCalledWith(2, true)
+      expect(onChange).not.toHaveBeenCalled()
+    })
+  })
+
+  it('uses onTabSelect for highlighted keyboard commit before moving on', async () => {
+    const onChange = vi.fn()
+    const onTab = vi.fn()
+    const onTabSelect = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+        onTab={onTab}
+        onTabSelect={onTabSelect}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true })
+
+    await waitFor(() => {
+      expect(onTabSelect).toHaveBeenCalledWith(2, true)
+      expect(onTab).toHaveBeenCalledWith(true)
+      expect(onChange).not.toHaveBeenCalled()
+    })
+  })
+
+  it('keeps blur commits on the current value instead of the highlighted row', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value={2}
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.blur(screen.getByRole('combobox'))
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(2)
+    })
+  })
 })

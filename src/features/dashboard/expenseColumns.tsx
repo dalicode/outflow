@@ -150,6 +150,7 @@ export function getExpenseColumns({
                   editing.createOnCommit(exp.id as number, 'date')(iso)
                 }}
                 onCancel={editing.createOnCancel()}
+                onEnter={(shiftKey) => editing.handleEnterNavigation(exp, 'date', shiftKey)}
                 onTab={(shiftKey) => editing.handleTabNavigation(exp, 'date', shiftKey)}
               />
             </div>
@@ -200,6 +201,15 @@ export function getExpenseColumns({
                   editing.createOnCommit(exp.id as number, 'payeeId', {
                     stayInEdit: true,
                   })(numId)
+                }}
+                onEnterSelect={(id, shiftKey) => {
+                  const numId = id != null ? Number(id) : undefined
+                  editing.createOnCommit(exp.id as number, 'payeeId')(numId)
+                  editing.handleEnterNavigation(exp, 'payeeId', shiftKey)
+                }}
+                onTabSelect={(id) => {
+                  const numId = id != null ? Number(id) : undefined
+                  editing.createOnCommit(exp.id as number, 'payeeId')(numId)
                 }}
                 onCreate={async (name) => {
                   const newId = await StorageService.addPayee(name)
@@ -274,6 +284,15 @@ export function getExpenseColumns({
                     stayInEdit: true,
                   })(numId)
                 }}
+                onEnterSelect={(id, shiftKey) => {
+                  const numId = id != null ? Number(id) : undefined
+                  editing.createOnCommit(exp.id as number, 'categoryId')(numId)
+                  editing.handleEnterNavigation(exp, 'categoryId', shiftKey)
+                }}
+                onTabSelect={(id) => {
+                  const numId = id != null ? Number(id) : undefined
+                  editing.createOnCommit(exp.id as number, 'categoryId')(numId)
+                }}
                 onCreate={async (name) => {
                   const newId = await StorageService.addCategory(name)
                   if (newId == null) throw new Error('Failed to create category')
@@ -327,6 +346,7 @@ export function getExpenseColumns({
               initialValue={exp.description ?? ''}
               onCommit={editing.createOnCommit(exp.id as number, 'description')}
               onCancel={editing.createOnCancel()}
+              onEnter={(shiftKey) => editing.handleEnterNavigation(exp, 'description', shiftKey)}
               onTab={(shiftKey) => editing.handleTabNavigation(exp, 'description', shiftKey)}
             />
           )
@@ -366,6 +386,7 @@ export function getExpenseColumns({
                 editing.createOnCommit(exp.id as number, 'amount')(value)
               }}
               onCancel={editing.createOnCancel()}
+              onEnter={(shiftKey) => editing.handleEnterNavigation(exp, 'amount', shiftKey)}
               onTab={(shiftKey) => editing.handleTabNavigation(exp, 'amount', shiftKey)}
             />
           )

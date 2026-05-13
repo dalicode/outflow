@@ -22,7 +22,7 @@ describe('DesktopDropdown', () => {
 
     const search = await screen.findByPlaceholderText('Search...')
     const firstOption = screen.getByRole('button', { name: 'Coffee' })
-    expect(firstOption.className).toContain('bg-theme-primary-subtle')
+    expect(firstOption.className).toContain('bg-theme-primary-muted')
 
     fireEvent.keyDown(search, { key: 'Enter' })
 
@@ -55,16 +55,16 @@ describe('DesktopDropdown', () => {
     const gasOption = screen.getByRole('button', { name: 'Gas' })
     const groceriesOption = screen.getByRole('button', { name: 'Groceries' })
 
-    expect(gasOption.className).toContain('bg-theme-primary-subtle')
-    expect(groceriesOption.className).not.toContain('bg-theme-primary-subtle')
+    expect(gasOption.className).toContain('bg-theme-primary-muted')
+    expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
 
     fireEvent.keyDown(search, { key: 'ArrowDown' })
-    expect(groceriesOption.className).toContain('bg-theme-primary-subtle')
-    expect(gasOption.className).not.toContain('bg-theme-primary-subtle')
+    expect(groceriesOption.className).toContain('bg-theme-primary-muted')
+    expect(gasOption.className).not.toContain('bg-theme-primary-muted')
 
     fireEvent.keyDown(search, { key: 'ArrowUp' })
-    expect(gasOption.className).toContain('bg-theme-primary-subtle')
-    expect(groceriesOption.className).not.toContain('bg-theme-primary-subtle')
+    expect(gasOption.className).toContain('bg-theme-primary-muted')
+    expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
 
     fireEvent.keyDown(search, { key: 'Enter' })
 

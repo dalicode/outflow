@@ -100,13 +100,15 @@ describe('DatePicker', () => {
 
   it('selects active day with Enter', () => {
     const onChange = vi.fn()
-    render(<DatePicker value="2024-06-15" autoOpen onChange={onChange} />)
+    const onEnter = vi.fn()
+    render(<DatePicker value="2024-06-15" autoOpen onChange={onChange} onEnter={onEnter} />)
 
     const input = screen.getByRole('textbox')
     fireEvent.keyDown(input, { key: 'ArrowRight' })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
 
     expect(onChange).toHaveBeenCalledWith('2024-06-16')
+    expect(onEnter).toHaveBeenCalledWith(true)
   })
 
   it('changes month with PageUp and PageDown', () => {

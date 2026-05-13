@@ -260,6 +260,9 @@ export default function DesktopDropdown({
     return highlightedItem.id === item.id
   }
 
+  const highlightedItemClassName =
+    'bg-theme-primary-muted text-theme-primary shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--theme-primary)_28%,transparent)]'
+
   return (
     <div className="relative" ref={triggerRef}>
       <SingleSelectTrigger
@@ -281,9 +284,9 @@ export default function DesktopDropdown({
               width: panelStyle?.width ?? 0,
               zIndex: 9999,
             }}
-            className="rounded-theme-medium border border-theme-border bg-theme-surface text-theme-text shadow-lg"
+            className="rounded-theme-medium border border-theme-border bg-theme-background text-theme-text shadow-xl shadow-black/10 ring-1 ring-[color:color-mix(in_srgb,var(--theme-primary)_10%,transparent)]"
           >
-            <div className="border-b border-theme-border p-2">
+            <div className="border-b border-theme-border bg-theme-background-muted p-2">
               <input
                 ref={searchInputRef}
                 type="text"
@@ -313,7 +316,7 @@ export default function DesktopDropdown({
                       className={cn(
                         'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm transition-colors hover:bg-theme-background',
                         isItemHighlighted({ type: 'recent', id: option.id, label: option.label }) &&
-                          'bg-theme-primary-subtle',
+                          highlightedItemClassName,
                         option.id === value && 'font-semibold text-theme-primary',
                       )}
                       onMouseEnter={() =>
@@ -345,7 +348,7 @@ export default function DesktopDropdown({
                       className={cn(
                         'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm transition-colors hover:bg-theme-background',
                         isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
-                          'bg-theme-primary-subtle',
+                          highlightedItemClassName,
                         option.id === value && 'font-semibold text-theme-primary',
                       )}
                       onMouseEnter={() =>
@@ -376,7 +379,7 @@ export default function DesktopDropdown({
                       className={cn(
                         'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm transition-colors hover:bg-theme-background',
                         isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
-                          'bg-theme-primary-subtle',
+                          highlightedItemClassName,
                         option.id === value && 'font-semibold text-theme-primary',
                       )}
                       onMouseEnter={() =>
@@ -410,7 +413,7 @@ export default function DesktopDropdown({
                     className={cn(
                       'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50',
                       isItemHighlighted({ type: 'create', label: `Create "${query.trim()}"` }) &&
-                        'bg-theme-primary-subtle',
+                        highlightedItemClassName,
                     )}
                     onMouseEnter={() =>
                       setHighlightedIndex(
@@ -447,7 +450,7 @@ export default function DesktopDropdown({
                     className={cn(
                       'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background',
                       isItemHighlighted({ type: 'clear', label: clearLabel }) &&
-                        'bg-theme-primary-subtle',
+                        highlightedItemClassName,
                     )}
                     onMouseEnter={() =>
                       setHighlightedIndex(

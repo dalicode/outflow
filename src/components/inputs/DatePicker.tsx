@@ -60,6 +60,7 @@ interface DatePickerProps {
   value: string
   onChange: (iso: string) => void
   onCancel?: () => void
+  onEnter?: (shiftKey: boolean) => void
   onTab?: (shiftKey: boolean) => void
   autoOpen?: boolean
   autoFocusInput?: boolean
@@ -188,6 +189,7 @@ export default function DatePicker({
   value,
   onChange,
   onCancel,
+  onEnter,
   onTab,
   autoOpen = false,
   autoFocusInput = false,
@@ -572,6 +574,7 @@ export default function DatePicker({
               case 'Enter':
                 e.preventDefault()
                 commitActiveDate()
+                onEnter?.(e.shiftKey)
                 break
             }
           }}

@@ -37,6 +37,7 @@ export interface CellEditingAPI {
     options?: { stayInEdit?: boolean },
   ) => (value: unknown) => void
   createOnCancel: () => () => void
+  handleEnterNavigation: (expense: Expense, field: EditableField, shiftKey: boolean) => void
   handleTabNavigation: (expense: Expense, field: EditableField, shiftKey: boolean) => void
   validateField: (field: EditableField, value: unknown) => string | null
   setPendingName: (expenseId: number, field: EditableField, name: string) => void
@@ -229,6 +230,26 @@ export function useExpenseCellEditing({
     }
   }, [])
 
+  const handleEnterNavigation = useCallback(
+    (expense: Expense, field: EditableField, shiftKey: boolean) => {
+      const rowIdx = expensesRef.current.findIndex((ex) => ex.id === expense.id)
+      if (rowIdx === -1) {
+        cancelCurrentCellEdit()
+        return
+      }
+
+      const targetRowIdx = shiftKey ? rowIdx - 1 : rowIdx + 1
+      if (targetRowIdx < 0 || targetRowIdx >= expensesRef.current.length) {
+        cancelCurrentCellEdit()
+        return
+      }
+
+      const targetExpense = expensesRef.current[targetRowIdx]
+      startCellEdit(targetExpense, field)
+    },
+    [cancelCurrentCellEdit, startCellEdit],
+  )
+
   const handleTabNavigation = useCallback(
     (expense: Expense, field: EditableField, shiftKey: boolean) => {
       const idx = FIELD_ORDER.indexOf(field)
@@ -266,6 +287,7 @@ export function useExpenseCellEditing({
     isCellEditing,
     createOnCommit,
     createOnCancel,
+    handleEnterNavigation,
     handleTabNavigation,
     validateField,
     setPendingName,

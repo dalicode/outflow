@@ -37,7 +37,7 @@ interface MoneyInputProps {
   showCurrencyCode?: boolean
   onEscape?: () => void
   onBlurValue?: (value: number) => void
-  onEnterValue?: (value: number) => void
+  onEnterValue?: (value: number, shiftKey: boolean) => void
   onTabValue?: (value: number, shiftKey: boolean) => void
 }
 
@@ -188,7 +188,7 @@ export default function MoneyInput({
     }
 
     if (event.key === 'Enter') {
-      onEnterValue?.(centsToSignedDollars(absoluteCents, isNegativeMode))
+      onEnterValue?.(centsToSignedDollars(absoluteCents, isNegativeMode), event.shiftKey)
       return
     }
 

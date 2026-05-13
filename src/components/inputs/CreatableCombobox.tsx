@@ -61,6 +61,8 @@ interface CreatableComboboxProps {
   onChange: (id: string | number | undefined) => void
   onCreate?: (name: string) => Promise<string | number>
   onCancel?: () => void
+  onEnterSelect?: (id: string | number | undefined, shiftKey: boolean) => void
+  onTabSelect?: (id: string | number | undefined, shiftKey: boolean) => void
   onTab?: (shiftKey: boolean) => void
 }
 
@@ -89,6 +91,8 @@ export default function CreatableCombobox({
   onChange,
   onCreate,
   onCancel,
+  onEnterSelect,
+  onTabSelect,
   onTab,
 }: CreatableComboboxProps) {
   const [hasTyped, setHasTyped] = useState(false)
@@ -224,10 +228,6 @@ export default function CreatableCombobox({
     if (!filterText.trim()) {
       return options.find((o) => o.label === displayQuery)?.id ?? value
     }
-    const highlightedItem = navigableItems[highlightedIndex]
-    if (highlightedItem?.type === 'recent' || highlightedItem?.type === 'option') {
-      return highlightedItem.id
-    }
 
     const firstSelectable = navigableItems.find(
       (item) => item.type === 'recent' || item.type === 'option',
@@ -235,6 +235,15 @@ export default function CreatableCombobox({
 
     return firstSelectable?.id ?? value
   }, [displayQuery, filterText, highlightedIndex, navigableItems, options, value])
+
+  const getHighlightedCommitId = useCallback(() => {
+    const highlightedItem = navigableItems[highlightedIndex]
+    if (highlightedItem?.type === 'recent' || highlightedItem?.type === 'option') {
+      return highlightedItem.id
+    }
+
+    return getDefaultCommitId()
+  }, [getDefaultCommitId, highlightedIndex, navigableItems])
 
   const commitDefaultSelection = useCallback(() => {
     const id = getDefaultCommitId()
@@ -250,6 +259,25 @@ export default function CreatableCombobox({
     }
     onChange(id)
   }, [filterText, displayOptions.length, getDefaultCommitId, onChange, options, selectedLabel])
+
+  const handleKeyboardSelection = useCallback(
+    (
+      id: string | number | undefined,
+      shiftKey: boolean,
+      keyboardAction: 'enter' | 'tab' = 'enter',
+    ) => {
+      if (keyboardAction === 'tab' && onTabSelect) {
+        onTabSelect(id, shiftKey)
+        return
+      }
+      if (keyboardAction === 'enter' && onEnterSelect) {
+        onEnterSelect(id, shiftKey)
+        return
+      }
+      onChange(id)
+    },
+    [onChange, onEnterSelect, onTabSelect],
+  )
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -296,7 +324,7 @@ export default function CreatableCombobox({
             setDisplayQuery(highlightedItem.label)
             setHasTyped(false)
             closeDropdown()
-            onChange(id)
+            handleKeyboardSelection(id, e.shiftKey)
           }
           break
         }
@@ -311,7 +339,7 @@ export default function CreatableCombobox({
           closeDropdown()
           if (onTab) {
             e.preventDefault()
-            commitDefaultSelection()
+            handleKeyboardSelection(getHighlightedCommitId(), e.shiftKey, 'tab')
             onTab(e.shiftKey)
           }
           break
@@ -328,9 +356,8 @@ export default function CreatableCombobox({
       openDropdown,
       onCancel,
       onTab,
-      displayQuery,
-      onChange,
-      commitDefaultSelection,
+      handleKeyboardSelection,
+      getHighlightedCommitId,
     ],
   )
 
@@ -421,6 +448,9 @@ export default function CreatableCombobox({
     }
   }, [dropdownState.isOpen, highlightedIndex, navigableItems.length])
 
+  const highlightedItemClassName =
+    'bg-theme-primary-muted text-theme-primary shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--theme-primary)_28%,transparent)]'
+
   const dropdownContent = dropdownState.isOpen && dropdownState.pos && (
     <div
       id={listboxId}
@@ -468,7 +498,7 @@ export default function CreatableCombobox({
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
             navigableItems[highlightedIndex]?.type === 'recent' &&
               navigableItems[highlightedIndex]?.id === opt.id &&
-              'bg-theme-primary-subtle',
+              highlightedItemClassName,
             opt.id === value && 'bg-theme-primary-subtle',
           )}
           onPointerDown={(e) => {
@@ -499,7 +529,7 @@ export default function CreatableCombobox({
           className={cn(
             'px-3 py-2 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-            itemIndex === highlightedIndex && 'bg-theme-primary-subtle',
+            itemIndex === highlightedIndex && highlightedItemClassName,
             opt.id === value && 'font-medium',
           )}
           onPointerDown={(e) => {
@@ -521,7 +551,7 @@ export default function CreatableCombobox({
           className={cn(
             'px-3 py-2.5 text-sm cursor-pointer text-theme-text border-t border-theme-border',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-            totalItems - 1 === highlightedIndex && 'bg-theme-primary-subtle',
+            totalItems - 1 === highlightedIndex && highlightedItemClassName,
           )}
           onPointerDown={(e) => {
             e.preventDefault()
