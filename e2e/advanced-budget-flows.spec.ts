@@ -39,7 +39,7 @@ test.describe("Advanced budget flows", () => {
     await expect(dialog).not.toBeVisible();
     await expect(rows.nth(0).locator("[data-field='description']")).toHaveText("Shared description");
     await expect(rows.nth(1).locator("[data-field='description']")).toHaveText("Shared description");
-    await expect(rows.nth(2).locator("[data-field='description']")).toHaveText("Snack");
+    await expect(rows.nth(2).locator("[data-field='description']")).toHaveText("Lunch");
   });
 
   test("merging payees reassigns expenses and archives the source payee", async ({ page }) => {

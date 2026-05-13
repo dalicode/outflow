@@ -22,7 +22,7 @@ test.describe("Inline editing (desktop)", () => {
 
     // Wait for the first row's description text to appear
     const descCell = firstRow.locator("[data-field='description']");
-    await expect(descCell).toHaveText("Lunch", { timeout: 5000 });
+    await expect(descCell).toHaveText("Snack", { timeout: 5000 });
 
     // Click description cell → inline edit → Escape cancels, original text restored
     await descCell.click();
@@ -30,7 +30,7 @@ test.describe("Inline editing (desktop)", () => {
     await expect(input).toBeVisible({ timeout: 3000 });
     await input.fill("Changed text");
     await input.press("Escape");
-    await expect(descCell).toHaveText("Lunch", { timeout: 3000 });
+    await expect(descCell).toHaveText("Snack", { timeout: 3000 });
 
     // Date cell activates date picker
     await firstRow.locator("[data-field='date']").click();

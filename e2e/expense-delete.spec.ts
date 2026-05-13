@@ -27,7 +27,7 @@ test.describe("Expense deletion flows (desktop)", () => {
     await confirmDialog.getByRole("button", { name: "Delete" }).click();
 
     await expect(rows).toHaveCount(2);
-    await expect(page.getByText("Deleted Lunch.")).toBeVisible();
+    await expect(page.getByText("Deleted Snack.")).toBeVisible();
 
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(rows).toHaveCount(3);
