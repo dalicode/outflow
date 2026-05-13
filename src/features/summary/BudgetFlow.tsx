@@ -3,6 +3,7 @@ import BudgetFlowBar, {
   barPct,
   getRemainingBarColor,
 } from '../../components/ui/BudgetFlowBar'
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
 import type { MonthlySummary } from '../../types'
 import { cn } from '../../utils/cn'
@@ -66,7 +67,9 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs text-theme-muted uppercase tracking-wider mb-0.5">Monthly Budget</p>
-          <p className="text-2xl font-bold text-theme-text tabular-nums">{formatAmount(income)}</p>
+          <p className="text-2xl font-bold text-theme-text tabular-nums">
+            <PrivateValue>{formatAmount(income)}</PrivateValue>
+          </p>
         </div>
         <div
           className={cn(
@@ -81,7 +84,9 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
           <p className="text-xs uppercase tracking-wider mb-0.5 opacity-70">
             {isOverBudget ? 'Over budget' : 'Remaining'}
           </p>
-          <p className="text-2xl font-bold tabular-nums">{formatAmount(remaining)}</p>
+          <p className="text-2xl font-bold tabular-nums">
+            <PrivateValue>{formatAmount(remaining)}</PrivateValue>
+          </p>
         </div>
       </div>
 
@@ -107,6 +112,7 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               dotClass="bg-theme-primary"
               textClass="text-theme-primary"
               formatAmount={formatAmount}
+              privateValue
             />
             <AllocationRow
               label="Variable Expenses"
@@ -115,6 +121,7 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               dotClass="bg-theme-danger"
               textClass="text-theme-danger"
               formatAmount={formatAmount}
+              privateValue
             />
             <AllocationRow
               label="Auto Savings"
@@ -122,7 +129,8 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               rowPct={barPct(Math.max(0, autoSavings), income)}
               dotColor={reservedSavingsColor}
               textColor={reservedSavingsColor}
-              formatAmount={formatAmount}
+              formatAmount={(amount) => formatAmount(amount)}
+              privateValue
             />
 
             <div className="border-t border-theme-border my-2" />
@@ -141,7 +149,9 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-                  {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
+                  <PrivateValue>
+                    {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
+                  </PrivateValue>
                 </span>
                 <span
                   className={cn(
@@ -149,8 +159,10 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
                     isOverBudget ? 'text-theme-danger' : 'text-theme-success',
                   )}
                 >
-                  {isOverBudget ? '−' : '+'}
-                  {formatAmount(Math.abs(remaining))}
+                  <PrivateValue>
+                    {isOverBudget ? '−' : '+'}
+                    {formatAmount(Math.abs(remaining))}
+                  </PrivateValue>
                 </span>
               </div>
             </div>

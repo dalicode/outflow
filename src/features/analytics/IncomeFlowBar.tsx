@@ -3,6 +3,7 @@ import BudgetFlowBar, {
   barPct,
   getRemainingBarColor,
 } from '../../components/ui/BudgetFlowBar'
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { cn } from '../../utils/cn'
 import { useThemeColors } from './AnalyticsCharts'
 
@@ -122,7 +123,7 @@ export default function IncomeFlowBar({
           {headlineLabel}
         </span>
         <span className="text-lg font-bold text-theme-text tabular-nums">
-          {formatAmount(income)}
+          <PrivateValue>{formatAmount(income)}</PrivateValue>
         </span>
         {headlineContext && <span className="text-xs text-theme-muted">· {headlineContext}</span>}
       </div>
@@ -148,6 +149,7 @@ export default function IncomeFlowBar({
             dotColor={colors.text}
             textColor={colors.text}
             formatAmount={formatAmount}
+            privateValue
           />
           <AllocationRow
             label="Fixed Expenses"
@@ -156,6 +158,7 @@ export default function IncomeFlowBar({
             dotColor={colors.primary}
             textColor={colors.primary}
             formatAmount={formatAmount}
+            privateValue
           />
           <AllocationRow
             label="Variable Expenses"
@@ -164,6 +167,7 @@ export default function IncomeFlowBar({
             dotColor={colors.danger}
             textColor={colors.danger}
             formatAmount={formatAmount}
+            privateValue
           />
 
           <div className="border-t border-theme-border my-2" />
@@ -182,7 +186,9 @@ export default function IncomeFlowBar({
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-                {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
+                <PrivateValue>
+                  {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
+                </PrivateValue>
               </span>
               <span
                 className={cn('text-sm font-semibold tabular-nums w-24 text-right')}
@@ -191,7 +197,7 @@ export default function IncomeFlowBar({
                 }}
               >
                 {remaining >= 0 ? '+' : '−'}
-                {formatAmount(Math.abs(remaining))}
+                <PrivateValue>{formatAmount(Math.abs(remaining))}</PrivateValue>
               </span>
             </div>
           </div>

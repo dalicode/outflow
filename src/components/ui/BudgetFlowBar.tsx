@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { GREEN_TO_RED_SCALE } from '../../utils/summaryColorUtils'
 import { cn } from '../../utils/cn'
+import PrivateValue from '../privacy/PrivateValue'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ interface AllocationRowProps {
   textClass?: string
   prefix?: string
   formatAmount: (n: number) => string
+  privateValue?: boolean
 }
 
 export function AllocationRow({
@@ -90,7 +92,15 @@ export function AllocationRow({
   textClass,
   prefix = '',
   formatAmount,
+  privateValue = false,
 }: AllocationRowProps) {
+  const amount = (
+    <>
+      {prefix}
+      {formatAmount(value)}
+    </>
+  )
+
   return (
     <div className="flex items-center gap-2 py-1.5">
       <span
@@ -100,14 +110,19 @@ export function AllocationRow({
       <span className="text-sm text-theme-text flex-1 min-w-0 truncate">{label}</span>
       <div className="flex items-center gap-3">
         <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-          {rowPct !== 0 ? `${rowPct.toFixed(0)}%` : '—'}
+          {privateValue ? (
+            <PrivateValue>{rowPct !== 0 ? `${rowPct.toFixed(0)}%` : '—'}</PrivateValue>
+          ) : rowPct !== 0 ? (
+            `${rowPct.toFixed(0)}%`
+          ) : (
+            '—'
+          )}
         </span>
         <span
           className={cn('text-sm font-semibold tabular-nums w-24 text-right', textClass)}
           style={textColor ? { color: textColor } : undefined}
         >
-          {prefix}
-          {formatAmount(value)}
+          {privateValue ? <PrivateValue>{amount}</PrivateValue> : amount}
         </span>
       </div>
     </div>

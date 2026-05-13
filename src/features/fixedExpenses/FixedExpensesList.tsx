@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import MoneyInput from '../../components/inputs/MoneyInput'
+import PrivateValue from '../../components/privacy/PrivateValue'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { useSettings } from '../../context/settingsContext'
@@ -279,7 +280,7 @@ export default function FixedExpensesList({
                         : 'text-base font-semibold text-theme-text tabular-nums'
                     }
                   >
-                    {formatAmount(total)}
+                    <PrivateValue>{formatAmount(total)}</PrivateValue>
                     <span className="ml-1 text-xs font-normal text-theme-muted">/mo</span>
                   </p>
                   <p className="text-xs text-theme-muted">
@@ -349,7 +350,7 @@ export default function FixedExpensesList({
                         {item.name}
                       </span>
                       <span className="shrink-0 text-sm font-semibold text-theme-text tabular-nums">
-                        {formatAmount(item.amount)}
+                        <PrivateValue>{formatAmount(item.amount)}</PrivateValue>
                       </span>
                     </button>
                   </li>
@@ -372,7 +373,7 @@ export default function FixedExpensesList({
           <p className="text-xs text-theme-muted uppercase tracking-wider">Fixed Expenses</p>
           {activeItems.length > 0 ? (
             <p className="text-xl font-bold text-theme-text tabular-nums">
-              {formatAmount(total)}
+              <PrivateValue>{formatAmount(total)}</PrivateValue>
               <span className="text-sm font-normal text-theme-muted ml-1">/mo</span>
             </p>
           ) : (
@@ -417,7 +418,7 @@ export default function FixedExpensesList({
               >
                 <span className="text-sm font-medium text-theme-text truncate">{item.name}</span>
                 <span className="text-sm font-semibold text-theme-text tabular-nums shrink-0">
-                  {formatAmount(item.amount)}
+                  <PrivateValue>{formatAmount(item.amount)}</PrivateValue>
                   <span className="text-xs font-normal text-theme-muted ml-1">/mo</span>
                 </span>
               </button>

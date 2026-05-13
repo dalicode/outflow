@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
 import IncomeModalForm from '../dashboard/components/IncomeModalForm'
 
@@ -68,7 +69,7 @@ export default function IncomeForm({
                       : 'text-xl font-bold text-theme-text tabular-nums'
                   }
                 >
-                  {formatAmount(monthly)}
+                  <PrivateValue>{formatAmount(monthly)}</PrivateValue>
                   <span
                     className={
                       mobileList
@@ -83,7 +84,7 @@ export default function IncomeForm({
                 </p>
                 {!mobileList && freq !== 'monthly' && (
                   <p className="text-xs text-theme-muted">
-                    {formatAmount(raw)} {FREQ_LABEL[freq]}
+                    <PrivateValue>{formatAmount(raw)}</PrivateValue> {FREQ_LABEL[freq]}
                   </p>
                 )}
               </>

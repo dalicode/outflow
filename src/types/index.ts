@@ -359,6 +359,8 @@ export interface AuthContextValue {
 export interface SettingsContextValue {
   settings: AppSettings
   save: (patch: Partial<AppSettings>) => Promise<void>
+  privacyModeEnabled: boolean
+  togglePrivacyMode: () => Promise<void>
   currentTheme: ThemeConfig
   themeColors: ThemeConfig['colors']
   currency: (n: number | null | undefined) => string

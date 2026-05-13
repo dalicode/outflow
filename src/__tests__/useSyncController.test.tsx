@@ -164,7 +164,9 @@ describe('useSyncController', () => {
     expect(pullFromSupabase).toHaveBeenCalledTimes(0)
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000)
+      await Promise.resolve()
+      await vi.advanceTimersToNextTimerAsync()
+      await Promise.resolve()
     })
 
     expect(pullFromSupabase).toHaveBeenCalledTimes(1)

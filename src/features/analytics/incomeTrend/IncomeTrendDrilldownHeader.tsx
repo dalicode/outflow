@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+import PrivateValue from '../../../components/privacy/PrivateValue'
 import type { ThemeColors } from '../AnalyticsCharts'
 
 function DrilldownStat({
@@ -6,7 +8,7 @@ function DrilldownStat({
   valueColor,
 }: {
   label: string
-  value: string
+  value: ReactNode
   valueColor?: string
 }) {
   return (
@@ -86,20 +88,20 @@ export default function IncomeTrendDrilldownHeader({
           All-time cash flow
         </div>
         <div className="text-2xl font-bold tabular-nums" style={{ color: cumulativeColor }}>
-          {formatAmount(cumulativeRemaining)}
+          <PrivateValue>{formatAmount(cumulativeRemaining)}</PrivateValue>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 px-4 pb-3 sm:grid-cols-4 sm:px-5">
-        <DrilldownStat label="Income" value={formatAmount(income)} />
+        <DrilldownStat label="Income" value={<PrivateValue>{formatAmount(income)}</PrivateValue>} />
         <DrilldownStat
           label="Expenses"
-          value={formatAmount(expenses)}
+          value={<PrivateValue>{formatAmount(expenses)}</PrivateValue>}
           valueColor={expenses > 0 ? colors.danger : undefined}
         />
         <DrilldownStat
           label="Saved"
-          value={formatAmount(saved)}
+          value={<PrivateValue>{formatAmount(saved)}</PrivateValue>}
           valueColor={saved < 0 ? colors.danger : saved > 0 ? colors.success : undefined}
         />
         <DrilldownStat

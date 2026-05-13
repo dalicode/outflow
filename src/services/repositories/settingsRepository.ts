@@ -10,3 +10,7 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
   await db.settings.put({ key, value })
   await enqueue('settings', 'upsert', { key, value })
 }
+
+export async function setLocalSetting(key: string, value: unknown): Promise<void> {
+  await db.settings.put({ key, value })
+}

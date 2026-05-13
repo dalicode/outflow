@@ -29,6 +29,8 @@ const DEFAULTS: AppSettings = {
   reminderStyle: 'gentle',
 }
 
+const PRIVACY_MODE_SETTING_KEY = 'localPrivacyModeEnabled'
+
 const FONT_MAP: Record<string, string> = {
   system:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif',
@@ -45,6 +47,8 @@ interface SettingsContextValue {
   settings: AppSettings
   save: (patch: Partial<AppSettings>) => Promise<void>
   loadSettings: () => Promise<void>
+  privacyModeEnabled: boolean
+  togglePrivacyMode: () => Promise<void>
   currentTheme: ThemeConfig
   themeColors: ThemeConfig['colors']
   currency: (n: number | null | undefined) => string
@@ -67,6 +71,7 @@ export function useSettings() {
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULTS)
+  const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const cssVarsRef = useRef<Record<string, string> | null>(null)
 
@@ -74,13 +79,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
-    StorageService.getSetting('uiSettings', null)
-      .then((saved: unknown) => {
+    Promise.all([
+      StorageService.getSetting('uiSettings', null),
+      StorageService.getSetting(PRIVACY_MODE_SETTING_KEY, false),
+    ])
+      .then(([saved, savedPrivacyMode]: [unknown, unknown]) => {
         if (cancelled) return
         const next = saved
           ? { ...DEFAULTS, ...(saved as Record<string, unknown>) }
           : { ...DEFAULTS }
         setSettings(next as AppSettings)
+        setPrivacyModeEnabled(Boolean(savedPrivacyMode))
         setLoaded(true)
         if (fallbackTimer) clearTimeout(fallbackTimer)
 
@@ -163,13 +172,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const loadSettings = useCallback(async () => {
     try {
-      const saved = await StorageService.getSetting('uiSettings', null)
+      const [saved, savedPrivacyMode] = await Promise.all([
+        StorageService.getSetting('uiSettings', null),
+        StorageService.getSetting(PRIVACY_MODE_SETTING_KEY, false),
+      ])
       const next = saved ? { ...DEFAULTS, ...(saved as Record<string, unknown>) } : { ...DEFAULTS }
       setSettings(next as AppSettings)
+      setPrivacyModeEnabled(Boolean(savedPrivacyMode))
     } catch (err) {
       console.warn('Settings reload error:', err)
     }
   }, [])
+
+  const togglePrivacyMode = useCallback(async () => {
+    const next = !privacyModeEnabled
+    setPrivacyModeEnabled(next)
+    await StorageService.setLocalSetting(PRIVACY_MODE_SETTING_KEY, next)
+  }, [privacyModeEnabled])
 
   const save = useCallback(
     async (patch: Partial<AppSettings>) => {
@@ -276,6 +295,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       settings,
       save,
       loadSettings,
+      privacyModeEnabled,
+      togglePrivacyMode,
       currentTheme,
       themeColors: currentTheme.colors,
       currency,
@@ -292,6 +313,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       settings,
       save,
       loadSettings,
+      privacyModeEnabled,
+      togglePrivacyMode,
       currentTheme,
       currency,
       formatAmount,

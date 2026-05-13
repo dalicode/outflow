@@ -1,4 +1,5 @@
-import { forwardRef } from 'react'
+import { forwardRef, type ReactNode } from 'react'
+import PrivateValue from '../../../components/privacy/PrivateValue'
 import type { YearTrendRow } from '../../../utils/analyticsTrendUtils'
 import type { ThemeColors } from '../AnalyticsCharts'
 
@@ -21,7 +22,7 @@ function formatDelta(
 
 interface StatChipProps {
   label: string
-  value: string
+  value: ReactNode
   valueColor?: string
 }
 
@@ -85,13 +86,17 @@ const IncomeTrendMonthPreview = forwardRef<HTMLDivElement, IncomeTrendMonthPrevi
         </div>
 
         <div className="grid grid-cols-2 gap-3 px-4 pb-3 sm:grid-cols-4 sm:px-5">
-          <StatChip label="Income" value={formatAmount(row.income)} />
+          <StatChip label="Income" value={<PrivateValue>{formatAmount(row.income)}</PrivateValue>} />
           <StatChip
             label="Expenses"
-            value={formatAmount(row.expenses)}
+            value={<PrivateValue>{formatAmount(row.expenses)}</PrivateValue>}
             valueColor={row.expenses > 0 ? colors.danger : undefined}
           />
-          <StatChip label="Saved" value={formatAmount(row.saved)} valueColor={savedColor} />
+          <StatChip
+            label="Saved"
+            value={<PrivateValue>{formatAmount(row.saved)}</PrivateValue>}
+            valueColor={savedColor}
+          />
           <StatChip label="Rate" value={formatSavingsRate(row.savingsRate)} />
         </div>
 
@@ -129,7 +134,7 @@ const IncomeTrendMonthPreview = forwardRef<HTMLDivElement, IncomeTrendMonthPrevi
             )}
           </div>
           <div className="text-lg font-bold tabular-nums mt-0.5" style={{ color: cumulativeColor }}>
-            {formatAmount(row.cumulativeRemaining)}
+            <PrivateValue>{formatAmount(row.cumulativeRemaining)}</PrivateValue>
           </div>
         </div>
 

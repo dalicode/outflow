@@ -26,6 +26,7 @@ export const StorageService = {
   // ── Settings ──────────────────────────────────────────────
   getSetting: settingsRepo.getSetting,
   setSetting: settingsRepo.setSetting,
+  setLocalSetting: settingsRepo.setLocalSetting,
 
   // ── Fixed Expenses ────────────────────────────────────────
   getFixedExpenses: fixedExpenseRepo.getFixedExpenses,

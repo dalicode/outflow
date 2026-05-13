@@ -5,6 +5,7 @@ import type {
   MultiMonthCategoryRow,
   MultiMonthFixedRow,
 } from '../../types'
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { cn } from '../../utils/cn'
 import { getSavingsGradientColor } from '../../utils/colorHelpers'
 
@@ -239,13 +240,17 @@ export default function MultiMonthViewTable({
                                 displayIdx === 0 && 'border-l border-theme-border',
                               )}
                             >
-                              {amount !== null ? formatAmount(amount) : '—'}
+                              {amount !== null ? (
+                                <PrivateValue>{formatAmount(amount)}</PrivateValue>
+                              ) : (
+                                '—'
+                              )}
                             </td>
                           )
                         })}
                         {showGrandTotal && (
                           <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
-                            {formatAmount(fixedGrandTotal ?? 0)}
+                            <PrivateValue>{formatAmount(fixedGrandTotal ?? 0)}</PrivateValue>
                           </td>
                         )}
                       </>
@@ -255,7 +260,11 @@ export default function MultiMonthViewTable({
                           —
                         </td>
                         <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-medium text-theme-text">
-                          {fe.monthlyAmounts[0] !== null ? formatAmount(fe.monthlyAmounts[0]) : '—'}
+                          {fe.monthlyAmounts[0] !== null ? (
+                            <PrivateValue>{formatAmount(fe.monthlyAmounts[0])}</PrivateValue>
+                          ) : (
+                            '—'
+                          )}
                         </td>
                       </>
                     )}
@@ -301,14 +310,14 @@ export default function MultiMonthViewTable({
                               className="font-semibold text-theme-text cursor-not-allowed opacity-70"
                               title="Use Schedule to change future values"
                             >
-                              {formatAmount(summary.income)}
+                              <PrivateValue>{formatAmount(summary.income)}</PrivateValue>
                             </span>
                           ) : (
                             <button
                               onClick={() => onIncomeClick(dataIdx)}
                               className="font-semibold hover:underline text-theme-text"
                             >
-                              {formatAmount(summary.income)}
+                              <PrivateValue>{formatAmount(summary.income)}</PrivateValue>
                             </button>
                           )}
                         </td>
@@ -316,7 +325,9 @@ export default function MultiMonthViewTable({
                     })}
                     {showGrandTotal && (
                       <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
-                        {formatAmount(monthSummaries.reduce((s, m) => s + m.income, 0))}
+                        <PrivateValue>
+                          {formatAmount(monthSummaries.reduce((s, m) => s + m.income, 0))}
+                        </PrivateValue>
                       </td>
                     )}
                   </>
@@ -331,14 +342,14 @@ export default function MultiMonthViewTable({
                           className="font-semibold text-theme-text cursor-not-allowed opacity-70"
                           title="Use Schedule to change future values"
                         >
-                          {formatAmount(monthSummaries[0].income)}
+                          <PrivateValue>{formatAmount(monthSummaries[0].income)}</PrivateValue>
                         </span>
                       ) : (
                         <button
                           onClick={() => onIncomeClick(0)}
                           className="font-semibold hover:underline text-theme-text"
                         >
-                          {formatAmount(monthSummaries[0].income)}
+                          <PrivateValue>{formatAmount(monthSummaries[0].income)}</PrivateValue>
                         </button>
                       )}
                     </td>
@@ -371,14 +382,14 @@ export default function MultiMonthViewTable({
                               className="font-semibold text-theme-text cursor-not-allowed opacity-70"
                               title="Use Schedule to change future values"
                             >
-                              {formatAmount(summary.autoSavings)}
+                              <PrivateValue>{formatAmount(summary.autoSavings)}</PrivateValue>
                             </span>
                           ) : (
                             <button
                               onClick={() => onSavingsClick(dataIdx)}
                               className="font-semibold hover:underline text-theme-text"
                             >
-                              {formatAmount(summary.autoSavings)}
+                              <PrivateValue>{formatAmount(summary.autoSavings)}</PrivateValue>
                             </button>
                           )}
                         </td>
@@ -386,7 +397,9 @@ export default function MultiMonthViewTable({
                     })}
                     {showGrandTotal && (
                       <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
-                        {formatAmount(monthSummaries.reduce((s, m) => s + m.autoSavings, 0))}
+                        <PrivateValue>
+                          {formatAmount(monthSummaries.reduce((s, m) => s + m.autoSavings, 0))}
+                        </PrivateValue>
                       </td>
                     )}
                   </>
@@ -401,14 +414,18 @@ export default function MultiMonthViewTable({
                           className="font-semibold text-theme-text cursor-not-allowed opacity-70"
                           title="Use Schedule to change future values"
                         >
-                          {formatAmount(monthSummaries[0].autoSavings)}
+                          <PrivateValue>
+                            {formatAmount(monthSummaries[0].autoSavings)}
+                          </PrivateValue>
                         </span>
                       ) : (
                         <button
                           onClick={() => onSavingsClick(0)}
                           className="font-semibold hover:underline text-theme-text"
                         >
-                          {formatAmount(monthSummaries[0].autoSavings)}
+                          <PrivateValue>
+                            {formatAmount(monthSummaries[0].autoSavings)}
+                          </PrivateValue>
                         </button>
                       )}
                     </td>
@@ -438,7 +455,7 @@ export default function MultiMonthViewTable({
                             displayIdx === 0 && 'border-l border-theme-border',
                           )}
                         >
-                          {formatAmount(totalExpenses)}
+                          <PrivateValue>{formatAmount(totalExpenses)}</PrivateValue>
                         </td>
                       )
                     })}
@@ -454,12 +471,14 @@ export default function MultiMonthViewTable({
                             : 'text-theme-danger',
                         )}
                       >
-                        {formatAmount(
-                          monthSummaries.reduce(
-                            (s, m) => s + m.fixedExpensesTotal + m.variableExpenses,
-                            0,
-                          ),
-                        )}
+                        <PrivateValue>
+                          {formatAmount(
+                            monthSummaries.reduce(
+                              (s, m) => s + m.fixedExpensesTotal + m.variableExpenses,
+                              0,
+                            ),
+                          )}
+                        </PrivateValue>
                       </td>
                     )}
                   </>
@@ -477,9 +496,11 @@ export default function MultiMonthViewTable({
                           : 'text-theme-danger',
                       )}
                     >
-                      {formatAmount(
-                        monthSummaries[0].fixedExpensesTotal + monthSummaries[0].variableExpenses,
-                      )}
+                      <PrivateValue>
+                        {formatAmount(
+                          monthSummaries[0].fixedExpensesTotal + monthSummaries[0].variableExpenses,
+                        )}
+                      </PrivateValue>
                     </td>
                   </>
                 )}
@@ -507,7 +528,7 @@ export default function MultiMonthViewTable({
                             displayIdx === 0 && 'border-l border-theme-border',
                           )}
                         >
-                          {formatAmount(summary.remaining)}
+                          <PrivateValue>{formatAmount(summary.remaining)}</PrivateValue>
                         </td>
                       )
                     })}
@@ -518,7 +539,9 @@ export default function MultiMonthViewTable({
                           remainingGrandTotalClass,
                         )}
                       >
-                        {formatAmount(monthSummaries.reduce((s, m) => s + m.remaining, 0))}
+                        <PrivateValue>
+                          {formatAmount(monthSummaries.reduce((s, m) => s + m.remaining, 0))}
+                        </PrivateValue>
                       </td>
                     )}
                   </>
@@ -533,7 +556,7 @@ export default function MultiMonthViewTable({
                         remainingClasses[0],
                       )}
                     >
-                      {formatAmount(monthSummaries[0].remaining)}
+                      <PrivateValue>{formatAmount(monthSummaries[0].remaining)}</PrivateValue>
                     </td>
                   </>
                 )}
@@ -561,7 +584,7 @@ export default function MultiMonthViewTable({
                           )}
                           style={{ color }}
                         >
-                          {formatAmount(totalSavings)}
+                          <PrivateValue>{formatAmount(totalSavings)}</PrivateValue>
                         </td>
                       )
                     })}
@@ -570,7 +593,7 @@ export default function MultiMonthViewTable({
                         className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
                         style={{ color: grandTotalSavings.color }}
                       >
-                        {formatAmount(grandTotalSavings.grandTotal)}
+                        <PrivateValue>{formatAmount(grandTotalSavings.grandTotal)}</PrivateValue>
                       </td>
                     )}
                   </>
@@ -583,7 +606,9 @@ export default function MultiMonthViewTable({
                       className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
                       style={{ color: totalSavingsData[0]?.color }}
                     >
-                      {formatAmount(monthSummaries[0].autoSavings + monthSummaries[0].remaining)}
+                      <PrivateValue>
+                        {formatAmount(monthSummaries[0].autoSavings + monthSummaries[0].remaining)}
+                      </PrivateValue>
                     </td>
                   </>
                 )}

@@ -1,3 +1,4 @@
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
 import { getCategoryColor } from '../../utils/summaryColorUtils'
 
@@ -24,7 +25,9 @@ export default function SpendingBreakdown({ items, total }: SpendingBreakdownPro
       {/* Header */}
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold text-theme-text">Variable Spending</p>
-        <p className="text-sm font-semibold text-theme-text tabular-nums">{formatAmount(total)}</p>
+        <p className="text-sm font-semibold text-theme-text tabular-nums">
+          <PrivateValue>{formatAmount(total)}</PrivateValue>
+        </p>
       </div>
 
       {/* Category rows */}

@@ -5,6 +5,7 @@ import { useMaxVisible } from '../../hooks/useMaxVisible'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Category, Expense, Payee } from '../../types'
 import type { AllTimeRow } from '../../utils/analyticsTrendUtils'
+import PrivacyToggle from '../../components/privacy/PrivacyToggle'
 import IncomeTrendSection from './incomeTrend/IncomeTrendSection'
 import YearStrip from './YearStrip'
 import './analytics.css'
@@ -72,7 +73,10 @@ export default function AnalyticsPage({
 
   return (
     <main className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6" data-testid="analytics-page">
-      <h1 className="text-2xl font-bold text-theme-text tracking-tight">Analytics</h1>
+      <div className="flex items-baseline gap-1.5">
+        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Analytics</h1>
+        <PrivacyToggle className="translate-y-[2px]" />
+      </div>
 
       <div className="space-y-6 max-w-6xl mx-auto">
         <YearStrip

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { type ReactNode, useMemo } from 'react'
 import {
   Bar,
   BarChart,
@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useSettings } from '../../context/settingsContext'
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Expense, MonthlySummary } from '../../types'
 import { cn } from '../../utils/cn'
@@ -27,7 +28,7 @@ interface BudgetPaceSectionProps {
 
 interface MetricProps {
   label: string
-  value: string
+  value: ReactNode
   subValue?: string
   valueClassName?: string
 }
@@ -355,10 +356,19 @@ export default function BudgetPaceSection({
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <Metric label="Spent so far" value={formatAmount(pace.spentSoFar)} />
+        <Metric
+          label="Spent so far"
+          value={<PrivateValue>{formatAmount(pace.spentSoFar)}</PrivateValue>}
+        />
         <Metric
           label="Budget remaining"
-          value={pace.budgetRemaining == null ? '—' : formatAmount(pace.budgetRemaining)}
+          value={
+            pace.budgetRemaining == null ? (
+              '—'
+            ) : (
+              <PrivateValue>{formatAmount(pace.budgetRemaining)}</PrivateValue>
+            )
+          }
           valueClassName={
             pace.budgetRemaining != null && pace.budgetRemaining < 0
               ? 'text-theme-danger'
@@ -368,7 +378,15 @@ export default function BudgetPaceSection({
         <Metric label="Days remaining" value={String(pace.daysRemaining)} />
         <Metric
           label="Safe daily spend"
-          value={pace.safeDailySpend == null ? '—' : `${formatAmount(pace.safeDailySpend)}/day`}
+          value={
+            pace.safeDailySpend == null ? (
+              '—'
+            ) : (
+              <>
+                <PrivateValue>{formatAmount(pace.safeDailySpend)}</PrivateValue>/day
+              </>
+            )
+          }
           valueClassName={
             statusTone === 'danger'
               ? 'text-theme-danger'
@@ -379,7 +397,11 @@ export default function BudgetPaceSection({
         />
         <Metric
           label="Current avg/day"
-          value={`${formatAmount(pace.currentAverageDailySpend)}/day`}
+          value={
+            <>
+              <PrivateValue>{formatAmount(pace.currentAverageDailySpend)}</PrivateValue>/day
+            </>
+          }
         />
         <Metric
           label="Budget used"

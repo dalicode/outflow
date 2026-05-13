@@ -47,6 +47,7 @@ const TABLE_MAP: Record<string, string> = {
 }
 
 const SYNC_BATCH_SIZE = 250
+const LOCAL_ONLY_SETTING_KEYS = new Set(['localPrivacyModeEnabled'])
 const FULL_SYNC_ORDER = [
   'categories',
   'payees',
@@ -825,6 +826,12 @@ export async function flushSyncQueue(
 
   for (const item of compactedQueue) {
     assertSyncRunActive(options?.shouldContinue)
+    if (item.table === 'settings' && LOCAL_ONLY_SETTING_KEYS.has(String(item.payload.key))) {
+      for (const itemId of item.itemIds) {
+        await StorageService.removeSyncQueueItem(itemId)
+      }
+      continue
+    }
     const cloudTable = TABLE_MAP[item.table]
     if (!cloudTable) {
       for (const itemId of item.itemIds) {
@@ -1401,9 +1408,9 @@ export async function migrateLocalToSupabase(
     payee_merge_history: payeeMergeHistory.map((r) =>
       toCloud('payeeMergeHistory', r as unknown as Record<string, unknown>, userId, maps),
     ),
-    settings: settings.map((r) =>
-      toCloud('settings', r as unknown as Record<string, unknown>, userId, maps),
-    ),
+    settings: settings
+      .filter((r) => !LOCAL_ONLY_SETTING_KEYS.has(String(r.key)))
+      .map((r) => toCloud('settings', r as unknown as Record<string, unknown>, userId, maps)),
     expenses: expenses.map((r) =>
       toCloud('expenses', r as unknown as Record<string, unknown>, userId, maps),
     ),

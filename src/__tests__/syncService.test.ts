@@ -368,6 +368,33 @@ describe('flushSyncQueue', () => {
     expect(StorageService.removeSyncQueueItem).toHaveBeenCalledTimes(501)
   })
 
+  it('does not upload local-only privacy settings', async () => {
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
+      {
+        id: 1,
+        table: 'settings',
+        operation: 'upsert',
+        timestamp: 1,
+        payload: {
+          key: 'localPrivacyModeEnabled',
+          value: true,
+        },
+      },
+    ])
+
+    supabaseSelect.mockImplementation((table: string) => ({
+      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
+        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
+        return Promise.resolve({ data: null, error: null })
+      },
+    }))
+
+    await flushSyncQueue('user-1')
+
+    expect(upsertCalls).toHaveLength(0)
+    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(1)
+  })
+
   it('does not remove queue items when a sync run becomes stale after upload', async () => {
     let shouldContinue = true
 

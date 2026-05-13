@@ -1,9 +1,11 @@
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
+import type { ReactNode } from 'react'
 import type { MonthlySummary } from '../../types'
 
 interface CardProps {
   label: string
-  value: string
+  value: ReactNode
   colorClass?: string
 }
 
@@ -34,30 +36,34 @@ export default function SummarySection({ summary }: SummarySectionProps) {
         Financial Summary
       </span>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Card label="Monthly Income" value={formatAmount(income)} colorClass="text-theme-primary" />
+        <Card
+          label="Monthly Income"
+          value={<PrivateValue>{formatAmount(income)}</PrivateValue>}
+          colorClass="text-theme-primary"
+        />
         <Card
           label="Fixed Expenses"
-          value={formatAmount(fixedExpensesTotal)}
+          value={<PrivateValue>{formatAmount(fixedExpensesTotal)}</PrivateValue>}
           colorClass="text-theme-primary"
         />
         <Card
           label="Variable Expenses"
-          value={formatAmount(variableExpenses)}
+          value={<PrivateValue>{formatAmount(variableExpenses)}</PrivateValue>}
           colorClass="text-theme-primary"
         />
         <Card
           label="Available Income"
-          value={formatAmount(Math.max(0, available))}
+          value={<PrivateValue>{formatAmount(Math.max(0, available))}</PrivateValue>}
           colorClass="text-theme-primary"
         />
         <Card
           label="Auto Savings"
-          value={formatAmount(Math.max(0, autoSavings))}
+          value={<PrivateValue>{formatAmount(Math.max(0, autoSavings))}</PrivateValue>}
           colorClass="text-theme-primary"
         />
         <Card
           label="Remaining Budget"
-          value={formatAmount(remaining)}
+          value={<PrivateValue>{formatAmount(remaining)}</PrivateValue>}
           colorClass={
             remaining > 0
               ? 'text-theme-success'

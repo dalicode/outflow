@@ -1,3 +1,5 @@
+import PrivateValue from '../../components/privacy/PrivateValue'
+import PrivacyToggle from '../../components/privacy/PrivacyToggle'
 import { useSettings } from '../../context/settingsContext'
 import type { MonthlySummary } from '../../types'
 import { cn } from '../../utils/cn'
@@ -13,7 +15,12 @@ export default function DashboardHeader({ financialSummary, daysLeft }: Dashboar
 
   return (
     <div className="flex items-start justify-between">
-      <h1 className="text-2xl font-bold text-theme-text tracking-tight">Dashboard</h1>
+      <div className="flex items-center gap-1.5">
+        <h1 className="text-2xl font-bold leading-none text-theme-text tracking-tight">
+          Dashboard
+        </h1>
+        <PrivacyToggle className="translate-y-[2px]" />
+      </div>
       <div
         className={cn(
           'flex flex-col items-end text-right pt-0.5',
@@ -27,7 +34,7 @@ export default function DashboardHeader({ financialSummary, daysLeft }: Dashboar
             remaining >= 0 ? 'text-theme-success' : 'text-theme-danger',
           )}
         >
-          {formatAmount(remaining)}
+          <PrivateValue>{formatAmount(remaining)}</PrivateValue>
         </span>
         <span className="text-xs text-theme-muted mt-0.5">
           Remaining

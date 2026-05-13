@@ -1,14 +1,16 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider, useAuth } from '../context/authContext'
 import { SettingsProvider, useSettings } from '../context/settingsContext'
+import { StorageService } from '../services/storageService'
 
 // Mock StorageService
 vi.mock('../services/storageService', () => ({
   StorageService: {
     getSetting: vi.fn().mockResolvedValue(null),
     setSetting: vi.fn().mockResolvedValue(undefined),
+    setLocalSetting: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -94,6 +96,22 @@ describe('useSettings', () => {
 
     expect(Object.keys(result.current.availableThemes).length).toBeGreaterThan(0)
     expect(result.current.availableThemes.default).toBeDefined()
+  })
+
+  it('persists privacy mode with a local-only setting', async () => {
+    const { result } = renderHook(() => useSettings(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.loaded).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.togglePrivacyMode()
+    })
+
+    expect(result.current.privacyModeEnabled).toBe(true)
+    expect(StorageService.setLocalSetting).toHaveBeenCalledWith('localPrivacyModeEnabled', true)
+    expect(StorageService.setSetting).not.toHaveBeenCalledWith('localPrivacyModeEnabled', true)
   })
 
   it('throws when used outside provider', () => {

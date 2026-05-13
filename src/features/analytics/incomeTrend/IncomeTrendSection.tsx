@@ -15,6 +15,7 @@ import {
   RankedPayeeViz,
   useThemeColors,
 } from '../AnalyticsCharts'
+import PrivateValue from '../../../components/privacy/PrivateValue'
 import IncomeFlowBar from '../IncomeFlowBar'
 import ViewToggle from '../ViewToggle'
 import IncomeTrendExpensePreview from './IncomeTrendExpensePreview'
@@ -357,7 +358,7 @@ export default function IncomeTrendSection({
                     color: ytdSaved >= 0 ? colors.success : colors.danger,
                   }}
                 >
-                  {formatAmount(ytdSaved)}
+                  <PrivateValue>{formatAmount(ytdSaved)}</PrivateValue>
                 </span>
               </div>
               {ytdDelta != null && (
@@ -368,7 +369,8 @@ export default function IncomeTrendSection({
                       color: ytdDelta >= 0 ? colors.success : colors.danger,
                     }}
                   >
-                    {ytdDelta >= 0 ? '↑' : '↓'} {formatAmount(Math.abs(ytdDelta))}
+                    {ytdDelta >= 0 ? '↑' : '↓'}{' '}
+                    <PrivateValue>{formatAmount(Math.abs(ytdDelta))}</PrivateValue>
                   </span>
                   <span className="text-xs text-theme-muted">
                     vs{' '}

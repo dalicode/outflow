@@ -4,6 +4,8 @@ import { useSettings } from '../../context/settingsContext'
 import type { Expense } from '../../types'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
+import PrivateValue from '../../components/privacy/PrivateValue'
+import PrivacyToggle from '../../components/privacy/PrivacyToggle'
 import FixedExpensesList from '../fixedExpenses/FixedExpensesList'
 import BudgetFlow from './BudgetFlow'
 import BudgetPaceSection from './BudgetPaceSection'
@@ -45,14 +47,29 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
   const allocatedTotal = fixedExpenseTotal + savingsAmount
   const formatSummaryAmount = (amount: number) => formatAmount(amount).replace(/\.00$/, '')
   const planSummaryParts = [
-    incomeIsSet ? `Inc. ${formatSummaryAmount(monthlyIncome)}` : null,
-    hasSavingsGoal ? `Sav. ${formatSummaryAmount(savingsAmount)}` : null,
-    hasFixedExpenses ? `Fixed ${formatSummaryAmount(fixedExpenseTotal)}` : null,
+    incomeIsSet ? (
+      <span key="income">
+        Inc. <PrivateValue>{formatSummaryAmount(monthlyIncome)}</PrivateValue>
+      </span>
+    ) : null,
+    hasSavingsGoal ? (
+      <span key="savings">
+        Sav. <PrivateValue>{formatSummaryAmount(savingsAmount)}</PrivateValue>
+      </span>
+    ) : null,
+    hasFixedExpenses ? (
+      <span key="fixed">
+        Fixed <PrivateValue>{formatSummaryAmount(fixedExpenseTotal)}</PrivateValue>
+      </span>
+    ) : null,
   ].filter(Boolean)
 
   return (
     <main className="max-w-4xl w-full mx-auto px-4 py-6 space-y-6" data-testid="summary-page">
-      <h1 className="text-2xl font-bold text-theme-text tracking-tight">Budget</h1>
+      <div className="flex items-baseline gap-1.5">
+        <h1 className="text-2xl font-bold text-theme-text tracking-tight">Budget</h1>
+        <PrivacyToggle className="translate-y-[2px]" />
+      </div>
       <div className="space-y-4 md:max-w-3xl mx-auto">
         {!incomeIsSet && (
           <div className="rounded-theme-large border border-dashed border-theme-border bg-theme-surface p-5 text-center space-y-1">
@@ -74,16 +91,23 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
               >
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className="text-sm font-semibold text-theme-text">Plan</p>
-                  <p className="truncate text-xs text-theme-muted">
-                    {planSummaryParts.length > 0
-                      ? planSummaryParts.join(' · ')
-                      : 'Tap to configure your monthly plan'}
+                  <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-theme-muted">
+                    {planSummaryParts.length > 0 ? (
+                      planSummaryParts.map((part, index) => (
+                        <span key={index} className="inline-flex items-center gap-1">
+                          {index > 0 && <span aria-hidden="true">·</span>}
+                          {part}
+                        </span>
+                      ))
+                    ) : (
+                      <span>Tap to configure your monthly plan</span>
+                    )}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
                   {allocatedTotal > 0 && (
                     <p className="text-xs font-medium text-theme-text">
-                      {formatAmount(allocatedTotal)} allocated
+                      <PrivateValue>{formatAmount(allocatedTotal)}</PrivateValue> allocated
                     </p>
                   )}
                   <span className="text-base text-theme-muted" aria-hidden="true">

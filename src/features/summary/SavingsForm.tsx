@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
 import SavingsModalForm from '../dashboard/components/SavingsModalForm'
 
@@ -55,7 +56,7 @@ export default function SavingsForm({
                       : 'text-xl font-bold text-theme-text tabular-nums'
                   }
                 >
-                  {formatAmount(amount)}
+                  <PrivateValue>{formatAmount(amount)}</PrivateValue>
                   <span
                     className={
                       mobileList
@@ -68,8 +69,8 @@ export default function SavingsForm({
                     /mo
                   </span>
                 </p>
-                <p className="text-xs text-theme-muted">
-                  {mobileList ? `${rate.toFixed(1)}% of income` : `${rate.toFixed(1)}% of income`}
+                <p className="text-xs text-theme-muted tabular-nums">
+                  <PrivateValue>{rate.toFixed(1)}%</PrivateValue> of income
                 </p>
               </>
             ) : (
