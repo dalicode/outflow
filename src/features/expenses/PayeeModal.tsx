@@ -14,6 +14,7 @@ interface PayeeModalProps {
   onClose: () => void
   refreshPayees?: () => void | Promise<void>
   refreshExpenses?: () => Promise<void>
+  triggerSync?: () => void
 }
 
 export default function PayeeModal({
@@ -22,6 +23,7 @@ export default function PayeeModal({
   onClose,
   refreshPayees,
   refreshExpenses,
+  triggerSync,
 }: PayeeModalProps) {
   const { showToast, showUndoToast } = useToasts()
   const [newName, setNewName] = useState('')
@@ -100,6 +102,7 @@ export default function PayeeModal({
     onPayeesChange?.()
     await refreshPayees?.()
     await refreshExpenses?.()
+    triggerSync?.()
     const targetName = active.find((p) => p.id === targetId)?.name ?? 'another payee'
     const sourceName = mergeSource.name
     showUndoToast(`Merged ${sourceName} into ${targetName}`, async () => {
@@ -108,6 +111,7 @@ export default function PayeeModal({
       onPayeesChange?.()
       await refreshPayees?.()
       await refreshExpenses?.()
+      triggerSync?.()
     })
     setMergeSource(null)
   }

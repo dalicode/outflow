@@ -9,9 +9,10 @@ import type { Payee } from '../../types'
 
 interface PayeesPageProps {
   refreshExpenses?: () => Promise<void>
+  triggerSync?: () => void
 }
 
-export default function PayeesPage({ refreshExpenses }: PayeesPageProps) {
+export default function PayeesPage({ refreshExpenses, triggerSync }: PayeesPageProps) {
   const { payees, refresh } = usePayees()
   const { showToast, showUndoToast } = useToasts()
   const [search, setSearch] = useState('')
@@ -96,10 +97,12 @@ export default function PayeesPage({ refreshExpenses }: PayeesPageProps) {
       showToast({ message: `Undid merge of ${sourceName} into ${targetName}`, tone: 'success' })
       refresh()
       await refreshExpenses?.()
+      triggerSync?.()
     })
     setMergeSource(null)
     refresh()
     await refreshExpenses?.()
+    triggerSync?.()
   }
 
   return (

@@ -661,7 +661,7 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <PayeesPage refreshExpenses={refreshExpenses} />
+                      <PayeesPage refreshExpenses={refreshExpenses} triggerSync={triggerSync} />
                     </ScrollablePage>
                   }
                 />
@@ -701,6 +701,7 @@ function AppShell() {
                   onCategoriesChange={handleCategoriesChange}
                   refreshPayees={refreshPayees}
                   refreshExpenses={refreshExpenses}
+                  triggerSync={triggerSync}
                 />
               </Suspense>
             )}

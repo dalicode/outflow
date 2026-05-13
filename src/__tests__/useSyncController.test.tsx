@@ -151,4 +151,22 @@ describe('useSyncController', () => {
 
     expect(pullFromSupabase).toHaveBeenCalledTimes(2)
   })
+
+  it('periodically pulls while the tab stays visible', async () => {
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(0)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000)
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+  })
 })

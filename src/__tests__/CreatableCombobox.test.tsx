@@ -69,4 +69,73 @@ describe('CreatableCombobox', () => {
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     })
   })
+
+  it('highlights the first row when opened and selects it with Enter', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+      />,
+    )
+
+    const firstOption = screen.getByRole('option', { name: 'Coffee' })
+    expect(firstOption).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('highlights the first filtered row while typing and allows arrow navigation', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+          { id: 3, label: 'Gas' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'g' } })
+
+    const gasOption = screen.getByRole('option', { name: 'Gas' })
+    const groceriesOption = screen.getByRole('option', { name: 'Groceries' })
+
+    expect(gasOption).toHaveAttribute('aria-selected', 'true')
+    expect(groceriesOption).toHaveAttribute('aria-selected', 'false')
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(gasOption).toHaveAttribute('aria-selected', 'false')
+    expect(groceriesOption).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    expect(gasOption).toHaveAttribute('aria-selected', 'true')
+    expect(groceriesOption).toHaveAttribute('aria-selected', 'false')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(3)
+    })
+  })
 })

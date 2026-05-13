@@ -4,6 +4,11 @@ import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './combob
 import { cn } from '../../utils/cn'
 import SingleSelectTrigger from './SingleSelectTrigger'
 
+type NavigableItem =
+  | { type: 'recent' | 'option'; id: string | number; label: string }
+  | { type: 'create'; label: string }
+  | { type: 'clear'; label: string }
+
 interface DesktopDropdownProps {
   value?: string | number
   options: ComboboxOption[]
@@ -39,6 +44,7 @@ export default function DesktopDropdown({
 }: DesktopDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [panelStyle, setPanelStyle] = useState<{
@@ -76,6 +82,38 @@ export default function DesktopDropdown({
 
   const showCreateOption = allowCreate && onCreate && query.trim() && !hasExactMatch(options, query)
   const showCreateHint = allowCreate && onCreate && !query.trim()
+  const navigableItems = useMemo<NavigableItem[]>(() => {
+    const items: NavigableItem[] = [
+      ...recentVisibleOptions.map((option) => ({
+        type: 'recent' as const,
+        id: option.id,
+        label: option.label,
+      })),
+      ...displayOptions.map((option) => ({
+        type: 'option' as const,
+        id: option.id,
+        label: option.label,
+      })),
+    ]
+
+    if (showCreateOption) {
+      items.push({ type: 'create', label: `Create "${query.trim()}"` })
+    }
+
+    if (allowClear && value != null) {
+      items.push({ type: 'clear', label: clearLabel })
+    }
+
+    return items
+  }, [
+    allowClear,
+    clearLabel,
+    displayOptions,
+    query,
+    recentVisibleOptions,
+    showCreateOption,
+    value,
+  ])
 
   const updatePanelPosition = useCallback(() => {
     if (!triggerRef.current) return
@@ -91,11 +129,13 @@ export default function DesktopDropdown({
     if (!isOpen) {
       setPanelStyle(null)
       setQuery('')
+      setHighlightedIndex(0)
       setIsCreating(false)
       setCreateError(null)
       return
     }
     updatePanelPosition()
+    setHighlightedIndex(0)
     searchInputRef.current?.focus()
   }, [isOpen, updatePanelPosition])
 
@@ -126,6 +166,26 @@ export default function DesktopDropdown({
     return () => document.removeEventListener('mousedown', handleMouseDown)
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+    if (navigableItems.length === 0) {
+      if (highlightedIndex !== -1) {
+        setHighlightedIndex(-1)
+      }
+      return
+    }
+    if (highlightedIndex < 0 || highlightedIndex >= navigableItems.length) {
+      setHighlightedIndex(0)
+    }
+  }, [highlightedIndex, isOpen, navigableItems.length])
+
+  useEffect(() => {
+    if (!isOpen || highlightedIndex < 0) return
+
+    const optionEl = document.getElementById(`desktop-dropdown-option-${highlightedIndex}`)
+    optionEl?.scrollIntoView({ block: 'nearest' })
+  }, [highlightedIndex, isOpen])
+
   const handleSelect = (id: string | number) => {
     onChange(id)
     setIsOpen(false)
@@ -150,6 +210,54 @@ export default function DesktopDropdown({
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen) return
+
+    switch (e.key) {
+      case 'ArrowDown': {
+        e.preventDefault()
+        if (navigableItems.length === 0) return
+        setHighlightedIndex((prev) => (prev >= navigableItems.length - 1 ? 0 : prev + 1))
+        break
+      }
+      case 'ArrowUp': {
+        e.preventDefault()
+        if (navigableItems.length === 0) return
+        setHighlightedIndex((prev) => (prev <= 0 ? navigableItems.length - 1 : prev - 1))
+        break
+      }
+      case 'Enter': {
+        e.preventDefault()
+        const highlightedItem = navigableItems[highlightedIndex]
+        if (!highlightedItem) return
+        if (highlightedItem.type === 'create') {
+          void handleCreate()
+        } else if (highlightedItem.type === 'clear') {
+          handleClear()
+        } else {
+          handleSelect(highlightedItem.id)
+        }
+        break
+      }
+      case 'Escape': {
+        e.preventDefault()
+        setIsOpen(false)
+        break
+      }
+      default:
+        break
+    }
+  }
+
+  const isItemHighlighted = (item: NavigableItem): boolean => {
+    const highlightedItem = navigableItems[highlightedIndex]
+    if (!highlightedItem || highlightedItem.type !== item.type) return false
+
+    if (item.type === 'create' || item.type === 'clear') return true
+
+    return highlightedItem.id === item.id
   }
 
   return (
@@ -180,7 +288,11 @@ export default function DesktopDropdown({
                 ref={searchInputRef}
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setHighlightedIndex(0)
+                }}
+                onKeyDown={handleInputKeyDown}
                 placeholder="Search..."
                 className="w-full rounded-theme-small border border-theme-border bg-theme-background px-2.5 py-1.5 text-sm outline-none focus:border-theme-primary"
               />
@@ -194,13 +306,23 @@ export default function DesktopDropdown({
                   </div>
                   {recentVisibleOptions.map((option) => (
                     <button
+                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === option.id)}`}
                       key={option.id}
                       type="button"
                       onClick={() => handleSelect(option.id)}
                       className={cn(
                         'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm transition-colors hover:bg-theme-background',
+                        isItemHighlighted({ type: 'recent', id: option.id, label: option.label }) &&
+                          'bg-theme-primary-subtle',
                         option.id === value && 'font-semibold text-theme-primary',
                       )}
+                      onMouseEnter={() =>
+                        setHighlightedIndex(
+                          navigableItems.findIndex(
+                            (item) => item.type === 'recent' && item.id === option.id,
+                          ),
+                        )
+                      }
                     >
                       {option.isArchived && (
                         <span className="text-xs text-theme-muted">(archived)</span>
@@ -216,13 +338,23 @@ export default function DesktopDropdown({
                   <div className="px-2 py-1 text-xs font-medium text-theme-muted">All</div>
                   {displayOptions.map((option) => (
                     <button
+                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
                       key={option.id}
                       type="button"
                       onClick={() => handleSelect(option.id)}
                       className={cn(
                         'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm transition-colors hover:bg-theme-background',
+                        isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
+                          'bg-theme-primary-subtle',
                         option.id === value && 'font-semibold text-theme-primary',
                       )}
+                      onMouseEnter={() =>
+                        setHighlightedIndex(
+                          navigableItems.findIndex(
+                            (item) => item.type === 'option' && item.id === option.id,
+                          ),
+                        )
+                      }
                     >
                       {option.isArchived && (
                         <span className="text-xs text-theme-muted">(archived)</span>
@@ -237,13 +369,23 @@ export default function DesktopDropdown({
                 <div className="px-2 py-1">
                   {displayOptions.map((option) => (
                     <button
+                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
                       key={option.id}
                       type="button"
                       onClick={() => handleSelect(option.id)}
                       className={cn(
                         'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm transition-colors hover:bg-theme-background',
+                        isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
+                          'bg-theme-primary-subtle',
                         option.id === value && 'font-semibold text-theme-primary',
                       )}
+                      onMouseEnter={() =>
+                        setHighlightedIndex(
+                          navigableItems.findIndex(
+                            (item) => item.type === 'option' && item.id === option.id,
+                          ),
+                        )
+                      }
                     >
                       {option.isArchived && (
                         <span className="text-xs text-theme-muted">(archived)</span>
@@ -261,10 +403,20 @@ export default function DesktopDropdown({
               {showCreateOption && (
                 <div className="border-t border-theme-border px-2 py-1">
                   <button
+                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'create')}`}
                     type="button"
                     onClick={handleCreate}
                     disabled={isCreating}
-                    className="flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50"
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50',
+                      isItemHighlighted({ type: 'create', label: `Create "${query.trim()}"` }) &&
+                        'bg-theme-primary-subtle',
+                    )}
+                    onMouseEnter={() =>
+                      setHighlightedIndex(
+                        navigableItems.findIndex((item) => item.type === 'create'),
+                      )
+                    }
                   >
                     <svg
                       className="h-4 w-4 shrink-0"
@@ -289,9 +441,19 @@ export default function DesktopDropdown({
               {allowClear && value != null && (
                 <div className="border-t border-theme-border px-2 py-1">
                   <button
+                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'clear')}`}
                     type="button"
                     onClick={handleClear}
-                    className="flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background"
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-theme-small px-2 py-1.5 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background',
+                      isItemHighlighted({ type: 'clear', label: clearLabel }) &&
+                        'bg-theme-primary-subtle',
+                    )}
+                    onMouseEnter={() =>
+                      setHighlightedIndex(
+                        navigableItems.findIndex((item) => item.type === 'clear'),
+                      )
+                    }
                   >
                     <span>{clearLabel}</span>
                   </button>

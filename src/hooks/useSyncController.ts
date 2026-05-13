@@ -6,8 +6,8 @@ import type { SyncStatus } from '../types'
 import { debugLog, debugWarn } from '../utils/debug'
 import { withTimeout } from '../utils/withTimeout'
 
-const PERIODIC_PULL_INTERVAL_MS = 5 * 60 * 1000
-const FRESHNESS_SYNC_THRESHOLD_MS = 2 * 60 * 1000
+const PERIODIC_PULL_INTERVAL_MS = 60 * 1000
+const FRESHNESS_SYNC_THRESHOLD_MS = 30 * 1000
 const LOCAL_CHANGE_SYNC_DEBOUNCE_MS = 2000
 
 type SyncReason =

@@ -111,6 +111,11 @@ export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): 
 
   if (affectedIds.length > 0) {
     await db.expenses.where('payeeId').equals(sourcePayeeId).modify({ payeeId: targetPayeeId })
+    const updatedExpenses = await db.expenses.bulkGet(affectedIds)
+    for (const expense of updatedExpenses) {
+      if (!expense) continue
+      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
+    }
   }
 
   const mergeId = await db.payeeMergeHistory.add({
@@ -153,6 +158,11 @@ export async function revertPayeeMerge(mergeId: number): Promise<void> {
         changes: { payeeId: mergeRow.sourcePayeeId },
       })),
     )
+    const revertedExpenses = await db.expenses.bulkGet(mergeRow.affectedExpenseIds)
+    for (const expense of revertedExpenses) {
+      if (!expense) continue
+      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
+    }
   }
 
   await db.payees.update(mergeRow.sourcePayeeId, {

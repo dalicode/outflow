@@ -1180,8 +1180,11 @@ export async function fetchBackupPasswordFromProfile(userId: string): Promise<st
 }
 
 // ── Initial migration: push all local data to Supabase once ──────────────────
-export async function migrateLocalToSupabase(userId: string): Promise<void> {
-  if (!supabase || !userId || isSyncPaused()) return
+export async function migrateLocalToSupabase(
+  userId: string,
+  options: { ignorePause?: boolean } = {},
+): Promise<void> {
+  if (!supabase || !userId || (!options.ignorePause && isSyncPaused())) return
 
   await ensureCloudIdsForSync()
 

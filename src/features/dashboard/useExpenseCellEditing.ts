@@ -14,7 +14,11 @@ function validateField(field: EditableField, value: unknown): string | null {
   if (field === 'amount') {
     const str = String(value ?? '').trim()
     if (str === '') return null
-    if (Number.isNaN(parseFloat(str))) return 'Invalid amount'
+    const normalized = str.replace(/[^0-9.-]/g, '')
+    if (normalized === '' || normalized === '-' || normalized === '.' || normalized === '-.') {
+      return 'Invalid amount'
+    }
+    if (Number.isNaN(Number(normalized))) return 'Invalid amount'
     return null
   }
   return null

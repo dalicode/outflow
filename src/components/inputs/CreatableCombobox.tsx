@@ -64,6 +64,10 @@ interface CreatableComboboxProps {
   onTab?: (shiftKey: boolean) => void
 }
 
+type NavigableItem =
+  | { type: 'recent' | 'option'; id: string | number; label: string }
+  | { type: 'create'; label: string }
+
 export default function CreatableCombobox({
   label,
   value,
@@ -127,9 +131,28 @@ export default function CreatableCombobox({
   const showCreateOption =
     allowCreate && onCreate && filterText.trim() && !hasExactMatch(options, filterText)
   const showCreateHint = allowCreate && onCreate && dropdownState.isOpen && !filterText.trim()
+  const navigableItems = useMemo<NavigableItem[]>(() => {
+    const items: NavigableItem[] = [
+      ...recentVisibleOptions.map((option) => ({
+        type: 'recent' as const,
+        id: option.id,
+        label: option.label,
+      })),
+      ...displayOptions.map((option) => ({
+        type: 'option' as const,
+        id: option.id,
+        label: option.label,
+      })),
+    ]
 
-  const totalItems = displayOptions.length + (showCreateOption ? 1 : 0)
-  const createIndex = displayOptions.length
+    if (showCreateOption) {
+      items.push({ type: 'create', label: createLabel(filterText) })
+    }
+
+    return items
+  }, [createLabel, displayOptions, filterText, recentVisibleOptions, showCreateOption])
+
+  const totalItems = navigableItems.length
 
   const updateDropdownPosition = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect()
@@ -144,7 +167,7 @@ export default function CreatableCombobox({
     if (disabled || isCreating) return
     setDisplayQuery(selectedLabel)
     setHasTyped(false)
-    setHighlightedIndex(-1)
+    setHighlightedIndex(0)
     setLocalError(null)
     inputRef.current?.select()
 
@@ -201,9 +224,17 @@ export default function CreatableCombobox({
     if (!filterText.trim()) {
       return options.find((o) => o.label === displayQuery)?.id ?? value
     }
-    const highlightedMatch = displayOptions[highlightedIndex]
-    return highlightedMatch?.id ?? displayOptions[0]?.id ?? value
-  }, [displayOptions, displayQuery, filterText, highlightedIndex, options, value])
+    const highlightedItem = navigableItems[highlightedIndex]
+    if (highlightedItem?.type === 'recent' || highlightedItem?.type === 'option') {
+      return highlightedItem.id
+    }
+
+    const firstSelectable = navigableItems.find(
+      (item) => item.type === 'recent' || item.type === 'option',
+    )
+
+    return firstSelectable?.id ?? value
+  }, [displayQuery, filterText, highlightedIndex, navigableItems, options, value])
 
   const commitDefaultSelection = useCallback(() => {
     const id = getDefaultCommitId()
@@ -243,7 +274,6 @@ export default function CreatableCombobox({
           e.preventDefault()
           setHighlightedIndex((prev) => {
             const next = prev >= totalItems - 1 ? 0 : prev + 1
-            setDisplayQuery(displayOptions[next]?.label ?? displayQuery)
             return next
           })
           break
@@ -252,18 +282,18 @@ export default function CreatableCombobox({
           e.preventDefault()
           setHighlightedIndex((prev) => {
             const next = prev <= 0 ? totalItems - 1 : prev - 1
-            setDisplayQuery(displayOptions[next]?.label ?? displayQuery)
             return next
           })
           break
         }
         case 'Enter': {
           e.preventDefault()
-          if (showCreateOption && highlightedIndex === createIndex) {
+          const highlightedItem = navigableItems[highlightedIndex]
+          if (highlightedItem?.type === 'create') {
             handleCreate()
-          } else if (displayOptions[highlightedIndex]) {
-            const id = displayOptions[highlightedIndex].id
-            setDisplayQuery(displayOptions[highlightedIndex].label)
+          } else if (highlightedItem?.type === 'recent' || highlightedItem?.type === 'option') {
+            const id = highlightedItem.id
+            setDisplayQuery(highlightedItem.label)
             setHasTyped(false)
             closeDropdown()
             onChange(id)
@@ -291,10 +321,8 @@ export default function CreatableCombobox({
     [
       dropdownState.isOpen,
       totalItems,
-      showCreateOption,
       highlightedIndex,
-      createIndex,
-      displayOptions,
+      navigableItems,
       handleCreate,
       closeDropdown,
       openDropdown,
@@ -372,6 +400,27 @@ export default function CreatableCombobox({
     }
   }, [selectedLabel, hasTyped])
 
+  useEffect(() => {
+    if (!dropdownState.isOpen || highlightedIndex < 0) return
+
+    const optionEl = document.getElementById(`${optionIdPrefix}-${highlightedIndex}`)
+    optionEl?.scrollIntoView({ block: 'nearest' })
+  }, [dropdownState.isOpen, highlightedIndex, optionIdPrefix])
+
+  useEffect(() => {
+    if (!dropdownState.isOpen) return
+    if (navigableItems.length === 0) {
+      if (highlightedIndex !== -1) {
+        setHighlightedIndex(-1)
+      }
+      return
+    }
+
+    if (highlightedIndex < 0 || highlightedIndex >= navigableItems.length) {
+      setHighlightedIndex(0)
+    }
+  }, [dropdownState.isOpen, highlightedIndex, navigableItems.length])
+
   const dropdownContent = dropdownState.isOpen && dropdownState.pos && (
     <div
       id={listboxId}
@@ -411,11 +460,15 @@ export default function CreatableCombobox({
       {recentVisibleOptions.map((opt) => (
         <div
           key={`recent-${opt.id}`}
+          id={`${optionIdPrefix}-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id)}`}
           role="option"
-          aria-selected={opt.id === value}
+          aria-selected={navigableItems[highlightedIndex]?.type === 'recent' && navigableItems[highlightedIndex]?.id === opt.id}
           className={cn(
             'px-3 py-2 text-sm cursor-pointer text-theme-text border-b border-theme-border',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+            navigableItems[highlightedIndex]?.type === 'recent' &&
+              navigableItems[highlightedIndex]?.id === opt.id &&
+              'bg-theme-primary-subtle',
             opt.id === value && 'bg-theme-primary-subtle',
           )}
           onPointerDown={(e) => {
@@ -423,20 +476,30 @@ export default function CreatableCombobox({
             e.stopPropagation()
             handleSelect(opt.id)
           }}
+          onMouseEnter={() =>
+            setHighlightedIndex(
+              navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id),
+            )
+          }
         >
           {opt.label}
         </div>
       ))}
-      {displayOptions.map((opt, i) => (
+      {displayOptions.map((opt) => {
+        const itemIndex = navigableItems.findIndex(
+          (item) => item.type === 'option' && item.id === opt.id,
+        )
+
+        return (
         <div
           key={opt.id}
-          id={`${optionIdPrefix}-${i}`}
+          id={`${optionIdPrefix}-${itemIndex}`}
           role="option"
-          aria-selected={i === highlightedIndex}
+          aria-selected={itemIndex === highlightedIndex}
           className={cn(
             'px-3 py-2 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-            i === highlightedIndex && 'bg-theme-primary-subtle',
+            itemIndex === highlightedIndex && 'bg-theme-primary-subtle',
             opt.id === value && 'font-medium',
           )}
           onPointerDown={(e) => {
@@ -444,27 +507,28 @@ export default function CreatableCombobox({
             e.stopPropagation()
             handleSelect(opt.id)
           }}
-          onMouseEnter={() => setHighlightedIndex(i)}
+          onMouseEnter={() => setHighlightedIndex(itemIndex)}
         >
           {opt.label}
         </div>
-      ))}
+        )
+      })}
       {showCreateOption && (
         <div
-          id={`${optionIdPrefix}-${createIndex}`}
+          id={`${optionIdPrefix}-${totalItems - 1}`}
           role="option"
-          aria-selected={createIndex === highlightedIndex}
+          aria-selected={totalItems - 1 === highlightedIndex}
           className={cn(
             'px-3 py-2.5 text-sm cursor-pointer text-theme-text border-t border-theme-border',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-            createIndex === highlightedIndex && 'bg-theme-primary-subtle',
+            totalItems - 1 === highlightedIndex && 'bg-theme-primary-subtle',
           )}
           onPointerDown={(e) => {
             e.preventDefault()
             e.stopPropagation()
             void handleCreate()
           }}
-          onMouseEnter={() => setHighlightedIndex(createIndex)}
+          onMouseEnter={() => setHighlightedIndex(totalItems - 1)}
         >
           {isCreating ? (
             <span className="flex items-center gap-2 text-theme-text">

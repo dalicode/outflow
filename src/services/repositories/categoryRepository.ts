@@ -102,6 +102,11 @@ export async function mergeCategory(
       .where('categoryId')
       .equals(sourceCategoryId)
       .modify({ categoryId: targetCategoryId })
+    const updatedExpenses = await db.expenses.bulkGet(affectedIds)
+    for (const expense of updatedExpenses) {
+      if (!expense) continue
+      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
+    }
   }
 
   const mergeId = await db.categoryMergeHistory.add({
@@ -145,6 +150,11 @@ export async function revertCategoryMerge(mergeId: number): Promise<void> {
         changes: { categoryId: mergeRow.sourceCategoryId },
       })),
     )
+    const revertedExpenses = await db.expenses.bulkGet(mergeRow.affectedExpenseIds)
+    for (const expense of revertedExpenses) {
+      if (!expense) continue
+      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
+    }
   }
 
   // Un-archive the source category

@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setExternalSyncStatus('syncing')
     try {
       await withTimeout(clearUserCloudData(user.id), 30000)
-      await withTimeout(migrateLocalToSupabase(user.id), 45000)
+      await withTimeout(migrateLocalToSupabase(user.id, { ignorePause: true }), 45000)
       await runRecoveryCheck()
       setExternalSyncStatus('idle')
     } catch (error) {

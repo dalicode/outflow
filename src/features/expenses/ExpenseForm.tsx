@@ -52,6 +52,7 @@ interface ExpenseFormProps {
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
   refreshExpenses?: () => Promise<void>
+  triggerSync?: () => void
 }
 
 export default function ExpenseForm({
@@ -64,6 +65,7 @@ export default function ExpenseForm({
   refreshCategories: refreshCategoriesProp,
   refreshPayees: refreshPayeesProp,
   refreshExpenses: refreshExpensesProp,
+  triggerSync,
 }: ExpenseFormProps) {
   const isEdit = !!initialExpense
   const { expenses } = useExpenses()
@@ -492,6 +494,7 @@ export default function ExpenseForm({
           onPayeesChange={refreshPayees}
           refreshPayees={refreshPayeesProp}
           refreshExpenses={refreshExpensesProp}
+          triggerSync={triggerSync}
           onClose={() => setShowPayeeModal(false)}
         />
       )}

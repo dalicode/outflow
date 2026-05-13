@@ -21,9 +21,22 @@ interface PullToRefreshContainerProps extends Omit<HTMLAttributes<HTMLDivElement
   scrollable?: boolean
 }
 
-const PULL_THRESHOLD = 110
-const MAX_PULL = 120
-const PULL_DAMPING = 0.5
+const PULL_THRESHOLD = 76
+const REFRESH_HOLD_DISTANCE = 64
+const MAX_PULL = 112
+const PULL_START_SLOP = 8
+const SUCCESS_VISIBLE_MS = 700
+
+function getResistedPullDistance(delta: number): number {
+  if (delta <= 0) return 0
+
+  const distance =
+    delta <= PULL_THRESHOLD
+      ? delta
+      : PULL_THRESHOLD + (delta - PULL_THRESHOLD) * 0.28
+
+  return Math.min(MAX_PULL, distance)
+}
 
 const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainerProps>(
   function PullToRefreshContainer(
@@ -43,10 +56,13 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
     const { light, success } = useHaptics()
     const containerRef = useRef<HTMLDivElement | null>(null)
     const startYRef = useRef<number | null>(null)
+    const startXRef = useRef<number | null>(null)
     const draggingRef = useRef(false)
     const armedRef = useRef(false)
     const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [pullDistance, setPullDistance] = useState(0)
+    const [isDragging, setIsDragging] = useState(false)
+    const [isArmed, setIsArmed] = useState(false)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [showRefreshSuccess, setShowRefreshSuccess] = useState(false)
 
@@ -54,38 +70,45 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
 
     const resetPull = useCallback(() => {
       startYRef.current = null
+      startXRef.current = null
       draggingRef.current = false
       armedRef.current = false
+      setIsDragging(false)
+      setIsArmed(false)
       setPullDistance(0)
     }, [])
 
     const beginRefresh = useCallback(async () => {
       let completed = false
       setIsRefreshing(true)
+      setIsArmed(false)
       setShowRefreshSuccess(false)
-      setPullDistance(PULL_THRESHOLD)
+      setPullDistance(REFRESH_HOLD_DISTANCE)
       try {
         await onRefresh()
         completed = true
         success()
         setShowRefreshSuccess(true)
         setIsRefreshing(false)
-        setPullDistance(PULL_THRESHOLD)
+        setPullDistance(REFRESH_HOLD_DISTANCE)
         if (successTimeoutRef.current) {
           clearTimeout(successTimeoutRef.current)
         }
         successTimeoutRef.current = setTimeout(() => {
           setShowRefreshSuccess(false)
           setPullDistance(0)
-        }, 1200)
+        }, SUCCESS_VISIBLE_MS)
       } finally {
         setIsRefreshing(false)
         if (!completed) {
           setPullDistance(0)
         }
         startYRef.current = null
+        startXRef.current = null
         draggingRef.current = false
         armedRef.current = false
+        setIsDragging(false)
+        setIsArmed(false)
       }
     }, [onRefresh, success])
 
@@ -96,9 +119,13 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
         const el = scrollTargetRef?.current ?? containerRef.current
         if (!el || el.scrollTop > 0) return
 
-        startYRef.current = event.touches[0].clientY
+        const touch = event.touches[0]
+        startYRef.current = touch.clientY
+        startXRef.current = touch.clientX
         draggingRef.current = true
         armedRef.current = false
+        setIsDragging(true)
+        setIsArmed(false)
       },
       [disabled, isRefreshing, scrollTargetRef],
     )
@@ -110,10 +137,19 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
         const el = scrollTargetRef?.current ?? containerRef.current
         if (!el) return
 
-        const delta = event.touches[0].clientY - startYRef.current
-        if (delta <= 0) {
+        const touch = event.touches[0]
+        const delta = touch.clientY - startYRef.current
+        const horizontalDelta = Math.abs(touch.clientX - (startXRef.current ?? touch.clientX))
+
+        if (horizontalDelta > Math.abs(delta) * 1.2) {
+          resetPull()
+          return
+        }
+
+        if (delta <= PULL_START_SLOP) {
           setPullDistance(0)
           armedRef.current = false
+          setIsArmed(false)
           return
         }
 
@@ -123,14 +159,16 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
         }
 
         event.preventDefault()
-        const dampedDistance = Math.min(MAX_PULL, delta * PULL_DAMPING)
+        const dampedDistance = getResistedPullDistance(delta - PULL_START_SLOP)
         setPullDistance(dampedDistance)
 
         if (dampedDistance >= PULL_THRESHOLD && !armedRef.current) {
           armedRef.current = true
+          setIsArmed(true)
           light()
         } else if (dampedDistance < PULL_THRESHOLD && armedRef.current) {
           armedRef.current = false
+          setIsArmed(false)
         }
       },
       [disabled, light, resetPull, scrollTargetRef],
@@ -181,20 +219,25 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
       : Math.min(1, Math.max(0, (indicatorProgress - 0.9) / 0.1))
     const instructionOpacity =
       isRefreshing || showRefreshSuccess ? 0 : instructionReveal * (1 - spinnerReveal)
+    const contentOffset = isRefreshing || showRefreshSuccess
+      ? REFRESH_HOLD_DISTANCE
+      : Math.min(REFRESH_HOLD_DISTANCE, pullDistance * 0.78)
     const refreshAreaHeight =
       indicatorVisible || showRefreshSuccess || isRefreshing
         ? Math.min(
             MAX_PULL,
-            Math.max(44, pullDistance * 0.6 + (isRefreshing || showRefreshSuccess ? 18 : 10)),
+            Math.max(44, pullDistance * 0.64 + (isRefreshing || showRefreshSuccess ? 18 : 10)),
           )
         : 0
     const contentStyle =
       pullDistance > 0 || isRefreshing
         ? {
-            transform: `translateY(${pullDistance}px)`,
-            transition: isRefreshing
-              ? 'transform 180ms ease'
-              : 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)',
+            transform: `translateY(${contentOffset}px)`,
+            transition: isDragging
+              ? 'none'
+              : isRefreshing
+                ? 'transform 180ms ease'
+                : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)',
           }
         : undefined
 
@@ -219,9 +262,11 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
           style={{
             height: `${refreshAreaHeight}px`,
             opacity: indicatorVisible ? 1 : 0,
-            transition: isRefreshing
-              ? 'height 180ms ease, opacity 140ms ease'
-              : 'height 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease',
+            transition: isDragging
+              ? 'none'
+              : isRefreshing
+                ? 'height 180ms ease, opacity 140ms ease'
+                : 'height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease',
           }}
         >
           <div
@@ -249,7 +294,7 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
                 <path d="M10 3v12" />
                 <path d="m5.5 10.5 4.5 4.5 4.5-4.5" />
               </svg>
-              <span>Pull down to refresh</span>
+              <span>{isArmed ? 'Release to refresh' : 'Pull down to refresh'}</span>
             </span>
 
             <span
@@ -273,7 +318,7 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
                 </span>
               ) : (
                 isRefreshing ||
-                (pullDistance >= 110 && (
+                (isArmed && (
                   <span
                     className="inline-block h-8 w-8 animate-spin rounded-full border-2"
                     style={{
