@@ -6,8 +6,9 @@ import type { SyncStatus } from '../types'
 import { debugLog, debugWarn } from '../utils/debug'
 import { withTimeout } from '../utils/withTimeout'
 
-const PERIODIC_PULL_INTERVAL_MS = 60 * 1000
+const PERIODIC_PULL_INTERVAL_MS = 300 * 1000
 const FRESHNESS_SYNC_THRESHOLD_MS = 30 * 1000
+const RECENT_PULL_COOLDOWN_MS = 10 * 1000
 const LOCAL_CHANGE_SYNC_DEBOUNCE_MS = 2000
 
 type SyncReason =
@@ -48,6 +49,15 @@ interface UseSyncControllerResult {
 
 function shouldApplyFreshnessGate(reason: SyncReason): boolean {
   return reason === 'focus' || reason === 'visible' || reason === 'periodic'
+}
+
+function shouldApplyRecentPullCooldown(reason: SyncReason): boolean {
+  return (
+    reason === 'focus' ||
+    reason === 'visible' ||
+    reason === 'periodic' ||
+    reason === 'token-refresh'
+  )
 }
 
 function getModeRank(mode: QueueSyncOptions['mode']): number {
@@ -125,6 +135,12 @@ export function useSyncController({
     return Date.now() - lastSuccessfulSyncAtRef.current >= FRESHNESS_SYNC_THRESHOLD_MS
   }, [])
 
+  const shouldRunRecentPullSync = useCallback((force = false, reason?: SyncReason) => {
+    if (force) return true
+    if (!reason || !shouldApplyRecentPullCooldown(reason)) return true
+    return Date.now() - lastSuccessfulSyncAtRef.current >= RECENT_PULL_COOLDOWN_MS
+  }, [])
+
   const setExternalSyncStatus = useCallback((status: SyncStatus) => {
     setSyncStatus(status)
   }, [])
@@ -197,6 +213,9 @@ export function useSyncController({
   const queueSync = useCallback(
     async (options: QueueSyncOptions): Promise<void> => {
       if (!userId || isSyncPaused()) return
+      if (!shouldRunRecentPullSync(options.force, options.reason)) {
+        return
+      }
       if (!options.force && shouldApplyFreshnessGate(options.reason) && !shouldRunFreshnessSync()) {
         return
       }
@@ -222,11 +241,11 @@ export function useSyncController({
           pendingFollowUpOptionsRef.current = null
           await runSyncNow(userId, nextOptions, generation)
           nextOptions = followUpSyncRequestedRef.current
-            ? pendingFollowUpOptionsRef.current ?? {
+            ? (pendingFollowUpOptionsRef.current ?? {
                 reason: 'queued-follow-up',
                 mode: 'pull-and-flush',
                 force: true,
-              }
+              })
             : null
         } while (nextOptions && !isSyncPaused())
       }
@@ -265,7 +284,9 @@ export function useSyncController({
   useEffect(() => {
     if (!userId) return
 
-    const maybePull = (reason: Extract<SyncReason, 'focus' | 'online' | 'periodic' | 'visible'>) => {
+    const maybePull = (
+      reason: Extract<SyncReason, 'focus' | 'online' | 'periodic' | 'visible'>,
+    ) => {
       if (document.visibilityState !== 'visible') return
       if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) return
       if (reason !== 'online' && !shouldRunFreshnessSync()) return

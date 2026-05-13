@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authEvent !== 'TOKEN_REFRESHED') return
-    void queueSync({ reason: 'token-refresh', mode: 'pull-and-flush', force: true })
+    void queueSync({ reason: 'token-refresh', mode: 'pull-and-flush' })
   }, [authEvent, queueSync])
 
   const signOut = async () => {

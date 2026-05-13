@@ -169,4 +169,58 @@ describe('useSyncController', () => {
 
     expect(pullFromSupabase).toHaveBeenCalledTimes(1)
   })
+
+  it('suppresses focus and token-refresh pull bursts right after a successful sync', async () => {
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.syncNow()
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      await result.current.queueSync({ reason: 'token-refresh', mode: 'pull-and-flush' })
+      await Promise.resolve()
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+      await result.current.queueSync({ reason: 'token-refresh', mode: 'pull-and-flush' })
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(2)
+  })
+
+  it('still allows online pulls immediately after a recent successful sync', async () => {
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.syncNow()
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+      await Promise.resolve()
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(2)
+  })
 })
