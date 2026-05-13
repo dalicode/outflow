@@ -24,7 +24,7 @@ test.describe("Keyboard navigation (desktop)", () => {
     const firstRow = rows.nth(0);
     const secondRow = rows.nth(1);
 
-    await expect(firstRow.locator("[data-field='description']")).toHaveText("Snack row");
+    await expect(firstRow.locator("[data-field='description']")).toHaveText("Coffee row");
     await expect(secondRow.locator("[data-field='description']")).toHaveText("Lunch row");
 
     await firstRow.locator("[data-field='amount']").click();
