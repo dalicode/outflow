@@ -66,7 +66,7 @@ export default function ExpenseTableMobile({
                   'row-hover',
                 )}
                 style={{
-                  gridTemplateColumns: 'minmax(60px, auto) 1fr minmax(60px, auto)',
+                  gridTemplateColumns: '9rem minmax(0, 1fr) minmax(60px, auto)',
                 }}
                 onTouchStart={isInteractive ? (e) => onTouchStart(e, exp.id as number) : undefined}
                 onTouchMove={isInteractive ? onTouchMove : undefined}
@@ -82,13 +82,13 @@ export default function ExpenseTableMobile({
               >
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-medium text-theme-text truncate">
-                    {resolvePayeeName?.(exp) || exp.description || '—'}
+                    {resolvePayeeName?.(exp) || '—'}
                   </span>
                   {!hideCategory && (
                     <span className="text-xs text-theme-muted truncate">{resolveName(exp)}</span>
                   )}
                 </div>
-                <div className="text-right min-w-0">
+                <div className="text-left min-w-0">
                   {exp.description && (
                     <span className="text-sm text-theme-muted truncate block">
                       {exp.description}
