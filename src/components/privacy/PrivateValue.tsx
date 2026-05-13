@@ -14,7 +14,7 @@ export default function PrivateValue({ children, className }: PrivateValueProps)
     <span
       className={cn(
         'inline-block transition-[filter,opacity] duration-150',
-        privacyModeEnabled && 'blur-[0.25em] select-none opacity-80',
+        privacyModeEnabled && 'blur-[0.26em] select-none opacity-80',
         className,
       )}
     >
