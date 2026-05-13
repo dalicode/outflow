@@ -50,38 +50,40 @@ export default function DesktopSidebar({
   return (
     <aside className={cn('navbar-desktop group', sidebarWidth)}>
       {/* Brand + Collapse toggle */}
-      <div className="px-3 pt-4 pb-2 flex items-center justify-between">
+      <div className="px-3 pt-4 pb-2">
         {!collapsed && (
-          <div className="flex items-center gap-2 overflow-hidden">
-            <img src="/icon.svg" alt="" className="w-7 h-7 shrink-0" />
-            <span className="text-lg font-bold text-theme-primary tracking-tight">Outflow</span>
+          <div className="mx-2 grid min-h-10 grid-cols-[1fr_auto] items-center">
+            <div className="flex min-w-0 items-center gap-3 px-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+                <img src="/icon.svg" alt="" className="h-6 w-6" />
+              </span>
+              <span className="text-md font-semibold leading-none text-theme-primary">Outflow</span>
+            </div>
+            <button
+              onClick={() => {
+                haptics.selection()
+                setCollapsed(true)
+              }}
+              className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              aria-label="Collapse sidebar"
+              title="Collapse"
+            >
+              <svg
+                className="translate-x-2 h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                <polyline points="17 18 11 12 17 6" />
+              </svg>
+            </button>
           </div>
         )}
         {collapsed && (
           <div className="flex justify-center w-full">
             <img src="/icon.svg" alt="" className="w-9 h-9 shrink-0" />
           </div>
-        )}
-        {!collapsed && (
-          <button
-            onClick={() => {
-              haptics.selection()
-              setCollapsed(true)
-            }}
-            className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-            aria-label="Collapse sidebar"
-            title="Collapse"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
         )}
       </div>
 
