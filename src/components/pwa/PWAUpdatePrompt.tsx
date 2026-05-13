@@ -20,6 +20,24 @@ export default function PWAUpdatePrompt() {
   })
 
   useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    let cancelled = false
+
+    navigator.serviceWorker
+      .getRegistration()
+      .then((activeRegistration) => {
+        if (!cancelled && activeRegistration) {
+          setRegistration(activeRegistration)
+        }
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (!registration) return
 
     let observedInstallingWorker: ServiceWorker | null = null
@@ -56,29 +74,51 @@ export default function PWAUpdatePrompt() {
     const checkForUpdate = () => {
       if (document.visibilityState !== 'visible') return
       if (!navigator.onLine) return
-      registration
-        .update()
-        .then(() => {
-          showPromptIfWaiting()
-          handleInstallingWorker(registration.installing)
+      navigator.serviceWorker
+        .getRegistration()
+        .then((latestRegistration) => {
+          const activeRegistration = latestRegistration ?? registration
+          if (latestRegistration && latestRegistration !== registration) {
+            setRegistration(latestRegistration)
+          }
+          return activeRegistration.update().then(() => {
+            if (activeRegistration.waiting) {
+              setDismissed(false)
+              setNeedRefresh(true)
+            }
+            handleInstallingWorker(activeRegistration.installing)
+          })
         })
         .catch(() => undefined)
     }
 
+    const checkForUpdateOnVisibility = () => {
+      if (document.visibilityState !== 'visible') return
+      checkForUpdate()
+    }
+
+    const checkForUpdateOnFocus = () => {
+      checkForUpdate()
+    }
+
+    registration.addEventListener('updatefound', handleUpdateFound)
     showPromptIfWaiting()
     handleInstallingWorker(registration.installing)
-    registration.addEventListener('updatefound', handleUpdateFound)
     checkForUpdate()
     const intervalId = window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS)
     window.addEventListener('online', checkForUpdate)
-    document.addEventListener('visibilitychange', checkForUpdate)
+    window.addEventListener('focus', checkForUpdateOnFocus)
+    window.addEventListener('pageshow', checkForUpdateOnFocus)
+    document.addEventListener('visibilitychange', checkForUpdateOnVisibility)
 
     return () => {
       removeInstallingListener?.()
       registration.removeEventListener('updatefound', handleUpdateFound)
       window.clearInterval(intervalId)
       window.removeEventListener('online', checkForUpdate)
-      document.removeEventListener('visibilitychange', checkForUpdate)
+      window.removeEventListener('focus', checkForUpdateOnFocus)
+      window.removeEventListener('pageshow', checkForUpdateOnFocus)
+      document.removeEventListener('visibilitychange', checkForUpdateOnVisibility)
     }
   }, [registration, setNeedRefresh])
 
@@ -86,14 +126,10 @@ export default function PWAUpdatePrompt() {
     setUpdating(true)
     sessionStorage.setItem(SW_UPDATE_KEY, 'true')
 
-    // Manually send SKIP_WAITING to the waiting SW instead of using
-    // updateServiceWorker(true), which reloads while the message channel is
-    // still active, causing "message channel closed" errors.
     if (registration?.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' })
     }
 
-    // Short delay to let the SW message channel close cleanly before reload
     setTimeout(() => window.location.reload(), 50)
   }, [registration])
 
