@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const addCalls: Array<{ table: string; row: Record<string, unknown> }> = []
 const updateCalls: Array<{ table: string; id: number; row: Record<string, unknown> }> = []
+const upsertCalls: Array<{ table: string; rows: Record<string, unknown>[]; onConflict?: string }> = []
 
 function makeTableMock() {
   return {
@@ -68,6 +69,7 @@ describe('pullFromSupabase', () => {
   beforeEach(() => {
     addCalls.length = 0
     updateCalls.length = 0
+    upsertCalls.length = 0
 
     supabaseSelect.mockReset()
     supabaseSelect.mockImplementation((table: string) => {
@@ -238,6 +240,7 @@ describe('pullFromSupabase', () => {
 
 describe('flushSyncQueue', () => {
   beforeEach(() => {
+    upsertCalls.length = 0
     vi.mocked(StorageService.getSyncQueue).mockResolvedValue([])
     vi.mocked(StorageService.removeSyncQueueItem).mockReset()
     vi.mocked(StorageService.getCategories).mockResolvedValue([])
@@ -277,11 +280,91 @@ describe('flushSyncQueue', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
       await expect(flushSyncQueue('user-1')).rejects.toThrow(
-        'Upsert expenses failed: Bad Request',
+        'Upsert expenses batch 1/1 failed: Bad Request',
       )
       expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
     } finally {
       warnSpy.mockRestore()
     }
+  })
+
+  it('compacts redundant queue items and flushes only the latest row state', async () => {
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
+      {
+        id: 1,
+        table: 'expenses',
+        operation: 'update',
+        timestamp: 1,
+        payload: {
+          id: 10,
+          cloudId: 'expense-cloud-id',
+          date: '2026-05-05',
+          amount: 10,
+          description: 'First state',
+        },
+      },
+      {
+        id: 2,
+        table: 'expenses',
+        operation: 'update',
+        timestamp: 2,
+        payload: {
+          id: 10,
+          cloudId: 'expense-cloud-id',
+          date: '2026-05-05',
+          amount: 20,
+          description: 'Latest state',
+        },
+      },
+    ])
+
+    supabaseSelect.mockImplementation((table: string) => ({
+      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
+        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
+        return Promise.resolve({ data: null, error: null })
+      },
+    }))
+
+    await flushSyncQueue('user-1')
+
+    expect(upsertCalls).toHaveLength(1)
+    expect(upsertCalls[0].table).toBe('expenses')
+    expect(upsertCalls[0].rows).toHaveLength(1)
+    expect(upsertCalls[0].rows[0].amount).toBe(20)
+    expect(upsertCalls[0].rows[0].description).toBe('Latest state')
+    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledTimes(2)
+    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(1)
+    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(2)
+  })
+
+  it('batches large outbound upserts into multiple requests', async () => {
+    const queue = Array.from({ length: 501 }, (_, index) => ({
+      id: index + 1,
+      table: 'expenses',
+      operation: 'insert' as const,
+      timestamp: index + 1,
+      payload: {
+        id: index + 1,
+        cloudId: `expense-cloud-${index + 1}`,
+        date: '2026-05-05',
+        amount: index + 1,
+        description: `Expense ${index + 1}`,
+      },
+    }))
+
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue(queue)
+
+    supabaseSelect.mockImplementation((table: string) => ({
+      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
+        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
+        return Promise.resolve({ data: null, error: null })
+      },
+    }))
+
+    await flushSyncQueue('user-1')
+
+    expect(upsertCalls).toHaveLength(3)
+    expect(upsertCalls.map((call) => call.rows.length)).toEqual([250, 250, 1])
+    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledTimes(501)
   })
 })
