@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { cn } from '../../utils/cn'
@@ -143,6 +143,9 @@ export default function Modal({
   showCloseButton = true,
   bodyClassName,
 }: ModalProps) {
+  const mobileTitleId = useId()
+  const desktopTitleId = useId()
+  const descriptionId = useId()
   const containerRef = useFocusTrap(isOpen)
   // Whether this modal instance has pushed a history entry
   const pushedRef = useRef(false)
@@ -294,6 +297,8 @@ export default function Modal({
   const isFullScreenMobile = mobileFullScreen || size === 'xl' || size === 'full'
   const hasHeader = title || description
   const isMobileViewport = viewportMetrics.width < 640
+  const labelledById =
+    title && isFullScreenMobile && isMobileViewport ? mobileTitleId : desktopTitleId
   const mobileCardMaxHeight = Math.max(0, viewportMetrics.height - 24)
   const hasMobileAction = isFullScreenMobile && Boolean(onMobileAction)
   const desktopPlacementClass = desktopPlacementMap[size]
@@ -331,8 +336,8 @@ export default function Modal({
       onPointerDown={handleBackdropPointerDown}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? 'modal-title' : undefined}
-      aria-describedby={description ? 'modal-description' : undefined}
+      aria-labelledby={title ? labelledById : undefined}
+      aria-describedby={description ? descriptionId : undefined}
       style={overlayStyle}
     >
       <div
@@ -360,7 +365,7 @@ export default function Modal({
             </button>
             {title && (
               <h2
-                id="modal-title"
+                id={mobileTitleId}
                 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-theme-text"
               >
                 {title}
@@ -381,7 +386,7 @@ export default function Modal({
           >
             <div className="flex items-center justify-between">
               {title ? (
-                <h3 id="modal-title" className="text-base font-semibold text-theme-text">
+                <h3 id={desktopTitleId} className="text-base font-semibold text-theme-text">
                   {title}
                 </h3>
               ) : (
@@ -399,7 +404,7 @@ export default function Modal({
               )}
             </div>
             {description && (
-              <p id="modal-description" className="mt-1 text-xs text-theme-muted">
+              <p id={descriptionId} className="mt-1 text-xs text-theme-muted">
                 {description}
               </p>
             )}

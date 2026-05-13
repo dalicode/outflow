@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import MoneyInput from '../../components/inputs/MoneyInput'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
@@ -7,6 +7,14 @@ import type { FixedExpense } from '../../types'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 
 const EMPTY = { name: '', amount: '' }
+
+type PendingModalAction =
+  | { type: 'add'; returnToManage: boolean }
+  | {
+      type: 'edit'
+      item: FixedExpense
+      returnToManage: boolean
+    }
 
 interface FixedExpensesListProps {
   items: FixedExpense[]
@@ -34,6 +42,8 @@ export default function FixedExpensesList({
   const [form, setForm] = useState(EMPTY)
   const [error, setError] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const [pendingAction, setPendingAction] = useState<PendingModalAction | null>(null)
+  const [returnToManageModal, setReturnToManageModal] = useState(false)
 
   const activeItems = items.filter((i) => !i.isArchived)
   const total = activeItems.reduce((s, i) => s + i.amount, 0)
@@ -45,28 +55,77 @@ export default function FixedExpensesList({
     return ''
   }
 
-  const openAdd = () => {
-    setShowManageModal(false)
+  const restoreManageModal = () => {
+    window.setTimeout(() => setShowManageModal(true), 0)
+  }
+
+  const openAddModal = (returnToManage = false) => {
     setModalMode('add')
     setEditId(null)
     setForm(EMPTY)
     setError('')
+    setReturnToManageModal(returnToManage)
     setShowModal(true)
   }
 
-  const openEdit = (item: FixedExpense) => {
-    setShowManageModal(false)
+  const openEditModal = (item: FixedExpense, returnToManage = false) => {
     setModalMode('edit')
     setEditId(item.id as number)
     setForm({ name: item.name, amount: String(item.amount) })
     setError('')
+    setReturnToManageModal(returnToManage)
     setShowModal(true)
   }
 
-  const closeModal = () => {
+  const openAdd = () => {
+    if (showManageModal) {
+      setPendingAction({ type: 'add', returnToManage: true })
+      setShowManageModal(false)
+      return
+    }
+
+    openAddModal()
+  }
+
+  const openEdit = (item: FixedExpense) => {
+    if (showManageModal) {
+      setPendingAction({ type: 'edit', item, returnToManage: true })
+      setShowManageModal(false)
+      return
+    }
+
+    openEditModal(item)
+  }
+
+  useEffect(() => {
+    if (showManageModal || !pendingAction) return
+
+    const timeoutId = window.setTimeout(() => {
+      if (pendingAction.type === 'add') {
+        openAddModal(pendingAction.returnToManage)
+      } else {
+        openEditModal(pendingAction.item, pendingAction.returnToManage)
+      }
+      setPendingAction(null)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [pendingAction, showManageModal])
+
+  const closeModal = ({ restoreManage = true, clearReturn = true } = {}) => {
+    const shouldRestoreManage = restoreManage && returnToManageModal
     setShowModal(false)
     setForm(EMPTY)
     setError('')
+    if (clearReturn) setReturnToManageModal(false)
+    if (shouldRestoreManage) restoreManageModal()
+  }
+
+  const closeDeleteConfirmation = () => {
+    const shouldRestoreManage = returnToManageModal
+    setConfirmDeleteId(null)
+    setReturnToManageModal(false)
+    if (shouldRestoreManage) restoreManageModal()
   }
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -87,6 +146,104 @@ export default function FixedExpensesList({
     closeModal()
   }
 
+  const fixedExpenseModal = (
+    <Modal
+      isOpen={showModal}
+      onClose={closeModal}
+      title={modalMode === 'add' ? 'Add Fixed Expense' : 'Edit Fixed Expense'}
+      size="sm"
+      footer={
+        <ModalFooter>
+          <button type="button" onClick={() => closeModal()} className="btn-cancel-sm flex-1">
+            Cancel
+          </button>
+          <button type="submit" form="fixed-expense-form" className="btn-modal-primary flex-1">
+            {modalMode === 'add' ? 'Add' : 'Save'}
+          </button>
+        </ModalFooter>
+      }
+    >
+      <form id="fixed-expense-form" onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-xs text-theme-muted">
+          Recurring monthly expense like rent or utilities. Applied to all active months
+          automatically.
+        </p>
+        {error && <p className="text-theme-danger text-xs">{error}</p>}
+        <label className="flex flex-col gap-1.5 text-sm text-theme-muted">
+          Name
+          <input
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="e.g. Rent"
+            autoFocus
+            className="input-md"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm text-theme-muted">
+          Monthly Amount
+          <MoneyInput
+            value={Number.parseFloat(form.amount || '0')}
+            onChange={(amount) => setForm((f) => ({ ...f, amount: amount.toFixed(2) }))}
+            currency={moneyConfig.currency}
+            locale={moneyConfig.locale}
+            size="md"
+            showCurrencyCode
+          />
+        </label>
+        {modalMode === 'edit' && editId != null && (
+          <div className="border-t border-theme-border pt-4 space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-theme-text">Delete fixed expense</span>
+              <button
+                type="button"
+                onClick={() => {
+                  closeModal({ restoreManage: false, clearReturn: false })
+                  setConfirmDeleteId(editId)
+                }}
+                data-testid={`btn-delete-fixed-expense-${editId}`}
+                className="btn-modal-destructive h-7 px-3 shrink-0"
+              >
+                Delete
+              </button>
+            </div>
+            <p className="text-xs text-theme-muted">Remove recurring expense going forward.</p>
+          </div>
+        )}
+      </form>
+    </Modal>
+  )
+
+  const deleteConfirmationModal = (
+    <Modal
+      isOpen={confirmDeleteId !== null}
+      onClose={closeDeleteConfirmation}
+      title="Delete Fixed Expense"
+      size="sm"
+      footer={
+        <ModalFooter>
+          <button type="button" onClick={closeDeleteConfirmation} className="btn-cancel-sm flex-1">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirmDeleteId != null) onDelete(confirmDeleteId)
+              closeDeleteConfirmation()
+            }}
+            className="btn-modal-destructive flex-1"
+          >
+            Delete
+          </button>
+        </ModalFooter>
+      }
+    >
+      <p className="text-sm text-theme-muted">
+        This will remove the fixed expense from your budget. Existing snapshots for past months are
+        kept.
+      </p>
+    </Modal>
+  )
+
   if (compact) {
     return (
       <>
@@ -104,7 +261,13 @@ export default function FixedExpensesList({
             }
           >
             <div className={mobileList ? 'min-w-0 flex-1 space-y-0.5' : 'space-y-0.5'}>
-              <p className={mobileList ? 'text-sm font-medium text-theme-text' : 'text-xs text-theme-muted uppercase tracking-wider'}>
+              <p
+                className={
+                  mobileList
+                    ? 'text-sm font-medium text-theme-text'
+                    : 'text-xs text-theme-muted uppercase tracking-wider'
+                }
+              >
                 Fixed Expenses
               </p>
               {activeItems.length > 0 ? (
@@ -195,6 +358,8 @@ export default function FixedExpensesList({
             )}
           </div>
         </Modal>
+        {fixedExpenseModal}
+        {deleteConfirmationModal}
       </>
     )
   }
@@ -261,105 +426,8 @@ export default function FixedExpensesList({
         </ul>
       )}
 
-      {/* Add / Edit modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={closeModal}
-        title={modalMode === 'add' ? 'Add Fixed Expense' : 'Edit Fixed Expense'}
-        size="sm"
-        footer={
-          <ModalFooter>
-            <button type="button" onClick={closeModal} className="btn-cancel-sm flex-1">
-              Cancel
-            </button>
-            <button type="submit" form="fixed-expense-form" className="btn-modal-primary flex-1">
-              {modalMode === 'add' ? 'Add' : 'Save'}
-            </button>
-          </ModalFooter>
-        }
-      >
-        <form id="fixed-expense-form" onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-xs text-theme-muted">
-            Recurring monthly expense like rent or utilities. Applied to all active months
-            automatically.
-          </p>
-          {error && <p className="text-theme-danger text-xs">{error}</p>}
-          <label className="flex flex-col gap-1.5 text-sm text-theme-muted">
-            Name
-            <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Rent"
-              autoFocus
-              className="input-md"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-theme-muted">
-            Monthly Amount
-            <MoneyInput
-              value={Number.parseFloat(form.amount || '0')}
-              onChange={(amount) => setForm((f) => ({ ...f, amount: amount.toFixed(2) }))}
-              currency={moneyConfig.currency}
-              locale={moneyConfig.locale}
-              size="md"
-              showCurrencyCode
-            />
-          </label>
-          {modalMode === 'edit' && editId != null && (
-            <div className="border-t border-theme-border pt-4 space-y-1.5">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium text-theme-text">Delete fixed expense</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeModal()
-                    setConfirmDeleteId(editId)
-                  }}
-                  data-testid={`btn-delete-fixed-expense-${editId}`}
-                  className="btn-modal-destructive h-7 px-3 shrink-0"
-                >
-                  Delete
-                </button>
-              </div>
-              <p className="text-xs text-theme-muted">Remove recurring expense going forward.</p>
-            </div>
-          )}
-        </form>
-      </Modal>
-
-      {/* Delete confirmation */}
-      <Modal
-        isOpen={confirmDeleteId !== null}
-        onClose={() => setConfirmDeleteId(null)}
-        title="Delete Fixed Expense"
-        size="sm"
-        footer={
-          <ModalFooter>
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteId(null)}
-              className="btn-cancel-sm flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (confirmDeleteId != null) onDelete(confirmDeleteId)
-                setConfirmDeleteId(null)
-              }}
-              className="btn-modal-destructive flex-1"
-            >
-              Delete
-            </button>
-          </ModalFooter>
-        }
-      >
-        <p className="text-sm text-theme-muted">
-          This will remove the fixed expense from your budget. Existing snapshots for past months
-          are kept.
-        </p>
-      </Modal>
+      {fixedExpenseModal}
+      {deleteConfirmationModal}
     </div>
   )
 }
