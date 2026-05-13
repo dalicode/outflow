@@ -367,4 +367,41 @@ describe('flushSyncQueue', () => {
     expect(upsertCalls.map((call) => call.rows.length)).toEqual([250, 250, 1])
     expect(StorageService.removeSyncQueueItem).toHaveBeenCalledTimes(501)
   })
+
+  it('does not remove queue items when a sync run becomes stale after upload', async () => {
+    let shouldContinue = true
+
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
+      {
+        id: 1,
+        table: 'expenses',
+        operation: 'update',
+        timestamp: 1,
+        payload: {
+          id: 10,
+          cloudId: 'expense-cloud-id',
+          date: '2026-05-05',
+          amount: 33,
+          description: 'Stale-safe row',
+        },
+      },
+    ])
+
+    supabaseSelect.mockImplementation((table: string) => ({
+      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
+        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
+        shouldContinue = false
+        return Promise.resolve({ data: null, error: null })
+      },
+    }))
+
+    await expect(
+      flushSyncQueue('user-1', {
+        shouldContinue: () => shouldContinue,
+      }),
+    ).rejects.toThrow('Sync run superseded')
+
+    expect(upsertCalls).toHaveLength(1)
+    expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
+  })
 })

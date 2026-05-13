@@ -95,6 +95,11 @@ export function useSyncController({
   const lastSuccessfulSyncAtRef = useRef<number>(0)
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const syncRunGenerationRef = useRef(0)
+
+  const isCurrentSyncRun = useCallback((generation: number) => {
+    return syncRunGenerationRef.current === generation
+  }, [])
 
   const scheduleRetry = useCallback((callback: () => void) => {
     if (retryTimerRef.current) return
@@ -125,55 +130,68 @@ export function useSyncController({
   }, [])
 
   const flushQueuedChanges = useCallback(
-    async (id: string): Promise<boolean> => {
+    async (id: string, generation: number): Promise<boolean> => {
       if (isSyncPaused()) return false
       const queue = await StorageService.getSyncQueue()
       if (queue.length === 0) {
-        setSyncStatus('idle')
+        if (isCurrentSyncRun(generation)) {
+          setSyncStatus('idle')
+        }
         return false
       }
 
-      await withTimeout(flushSyncQueue(id), 15000)
+      await withTimeout(
+        flushSyncQueue(id, {
+          shouldContinue: () => isCurrentSyncRun(generation),
+        }),
+        15000,
+      )
       return true
     },
-    [],
+    [isCurrentSyncRun],
   )
 
   const runSyncNow = useCallback(
-    async (id: string, options: QueueSyncOptions) => {
+    async (id: string, options: QueueSyncOptions, generation: number) => {
       if (isSyncPaused()) return
       if (syncingRef.current) return
       syncingRef.current = true
-      setSyncStatus('syncing')
+      if (isCurrentSyncRun(generation)) {
+        setSyncStatus('syncing')
+      }
       debugLog('[sync] running', options.reason, options.mode ?? 'pull-and-flush')
 
       try {
         if (options.mode === 'flush-only') {
-          await flushQueuedChanges(id)
+          await flushQueuedChanges(id, generation)
         } else if (options.mode === 'full-upload-after-pull') {
           await withTimeout(pullFromSupabase(id), 30000)
           await withTimeout(migrateLocalToSupabase(id), 45000)
-          await flushQueuedChanges(id)
+          await flushQueuedChanges(id, generation)
         } else {
           await withTimeout(pullFromSupabase(id), 30000)
-          await flushQueuedChanges(id)
+          await flushQueuedChanges(id, generation)
         }
 
-        await runRecoveryCheck()
-        lastSuccessfulSyncAtRef.current = Date.now()
-        setHasSynced(true)
-        setSyncCount((c) => c + 1)
-        setSyncStatus('idle')
-        debugLog('[sync] complete', options.reason)
+        if (isCurrentSyncRun(generation)) {
+          await runRecoveryCheck()
+          lastSuccessfulSyncAtRef.current = Date.now()
+          setHasSynced(true)
+          setSyncCount((c) => c + 1)
+          setSyncStatus('idle')
+          debugLog('[sync] complete', options.reason)
+        }
       } catch (error) {
-        setSyncStatus('error')
-        debugWarn('[sync] failed, will retry in 30s', options.reason)
+        if (isCurrentSyncRun(generation)) {
+          setSyncStatus('error')
+          debugWarn('[sync] failed, will retry in 30s', options.reason)
+        }
         throw error
       } finally {
         syncingRef.current = false
       }
     },
-    [flushQueuedChanges, runRecoveryCheck],
+    [flushQueuedChanges, isCurrentSyncRun, runRecoveryCheck],
   )
 
   const queueSync = useCallback(
@@ -195,12 +213,14 @@ export function useSyncController({
       }
 
       const run = async () => {
+        const generation = syncRunGenerationRef.current + 1
+        syncRunGenerationRef.current = generation
         let nextOptions: QueueSyncOptions | null = options
 
         do {
           followUpSyncRequestedRef.current = false
           pendingFollowUpOptionsRef.current = null
-          await runSyncNow(userId, nextOptions)
+          await runSyncNow(userId, nextOptions, generation)
           nextOptions = followUpSyncRequestedRef.current
             ? pendingFollowUpOptionsRef.current ?? {
                 reason: 'queued-follow-up',

@@ -118,7 +118,12 @@ interface CompactedSyncQueueItem {
   payload: Record<string, unknown>
 }
 
+interface SyncRunGuardOptions {
+  shouldContinue?: () => boolean
+}
+
 const CLOUD_FETCH_PAGE_SIZE = 1000
+const STALE_SYNC_RUN_MESSAGE = 'Sync run superseded'
 
 function assertNoSupabaseError(result: SupabaseResult, context: string): void {
   if (!result.error) return
@@ -126,6 +131,12 @@ function assertNoSupabaseError(result: SupabaseResult, context: string): void {
     .filter(Boolean)
     .join(' ')
   throw new Error(`${context} failed${detail ? `: ${detail}` : ''}`)
+}
+
+function assertSyncRunActive(shouldContinue?: () => boolean): void {
+  if (shouldContinue && !shouldContinue()) {
+    throw new Error(STALE_SYNC_RUN_MESSAGE)
+  }
 }
 
 async function fetchAllRowsForUser(
@@ -190,6 +201,7 @@ async function upsertRowsInBatches(
   table: string,
   rows: Record<string, unknown>[],
   onConflict = UPSERT_CONFLICT_MAP[table] ?? 'id',
+  options?: SyncRunGuardOptions,
 ): Promise<void> {
   if (!supabase || rows.length === 0) return
 
@@ -197,6 +209,7 @@ async function upsertRowsInBatches(
 
   const batches = chunkArray(dedupedRows, SYNC_BATCH_SIZE)
   for (let index = 0; index < batches.length; index += 1) {
+    assertSyncRunActive(options?.shouldContinue)
     const result = await supabase.from(table).upsert(batches[index], { onConflict })
     assertNoSupabaseError(
       result,
@@ -749,10 +762,14 @@ function fromCloud(
 }
 
 // ── Outgoing sync ─────────────────────────────────────────────────────────────
-export async function flushSyncQueue(userId: string): Promise<void> {
+export async function flushSyncQueue(
+  userId: string,
+  options?: SyncRunGuardOptions,
+): Promise<void> {
   if (!supabase || !userId || isSyncPaused()) return
 
   await ensureCloudIdsForSync()
+  assertSyncRunActive(options?.shouldContinue)
 
   const queue = (await StorageService.getSyncQueue()) as SyncQueueItem[]
   if (queue.length === 0) return
@@ -770,6 +787,7 @@ export async function flushSyncQueue(userId: string): Promise<void> {
       fullSyncItems.find((item) => Array.isArray(item.payload.replaceTables))?.payload
         .replaceTables as string[] | undefined
     await runFullSyncUpload(userId, shouldReplaceCloud || Boolean(replaceTables), replaceTables)
+    assertSyncRunActive(options?.shouldContinue)
     for (const item of fullSyncItems) {
       await StorageService.removeSyncQueueItem(item.id as number)
     }
@@ -777,6 +795,7 @@ export async function flushSyncQueue(userId: string): Promise<void> {
 
   const remainingQueue = (await StorageService.getSyncQueue()) as SyncQueueItem[]
   if (remainingQueue.length === 0) return
+  assertSyncRunActive(options?.shouldContinue)
   const compactedQueue = compactSyncQueueItems(remainingQueue)
 
   // Build FK maps so cloud records use UUIDs for foreign keys, not numeric strings
@@ -805,6 +824,7 @@ export async function flushSyncQueue(userId: string): Promise<void> {
   >()
 
   for (const item of compactedQueue) {
+    assertSyncRunActive(options?.shouldContinue)
     const cloudTable = TABLE_MAP[item.table]
     if (!cloudTable) {
       for (const itemId of item.itemIds) {
@@ -835,7 +855,8 @@ export async function flushSyncQueue(userId: string): Promise<void> {
   for (const [cloudTable, items] of upsertItemsByCloudTable) {
     const rows = items.map((item) => item.row)
     try {
-      await upsertRowsInBatches(cloudTable, rows)
+      await upsertRowsInBatches(cloudTable, rows, undefined, options)
+      assertSyncRunActive(options?.shouldContinue)
       for (const item of items) {
         for (const itemId of item.itemIds) {
           await StorageService.removeSyncQueueItem(itemId)
@@ -850,8 +871,10 @@ export async function flushSyncQueue(userId: string): Promise<void> {
   for (const [cloudTable, items] of deleteItemsByCloudTable) {
     for (const item of items) {
       try {
+        assertSyncRunActive(options?.shouldContinue)
         const result = await supabase.from(cloudTable).delete().eq('id', item.cloudId).eq('user_id', userId)
         assertNoSupabaseError(result, `Delete ${cloudTable}`)
+        assertSyncRunActive(options?.shouldContinue)
         for (const itemId of item.itemIds) {
           await StorageService.removeSyncQueueItem(itemId)
         }
