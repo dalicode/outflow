@@ -40,6 +40,15 @@
 .border-theme-border {
   border-color: var(--theme-border);
 }
+.border-theme-muted {
+  border-color: var(--theme-muted);
+}
+.border-theme-primary {
+  border-color: var(--theme-primary);
+}
+.border-theme-text {
+  border-color: var(--theme-text);
+}
 
 @layer utilities {
   .divide-theme-border > * + * {
@@ -805,12 +814,26 @@
   opacity: 0;
   transition: opacity 0.15s ease;
 }
+.expense-checkbox-wrapper::before,
+.expense-checkbox-wrapper::after {
+  content: none !important;
+}
+.expense-checkbox-box {
+  position: relative;
+}
+.expense-checkbox-box::before,
+.expense-checkbox-box::after {
+  content: none !important;
+  border-color: inherit !important;
+  box-shadow: none !important;
+}
 tr:hover .expense-checkbox-wrapper,
 .expense-checkbox-wrapper.checked {
   opacity: 1;
 }
 /* Header checkbox is always visible */
 th .expense-checkbox-wrapper {
+  margin-top: 0;
   opacity: 1;
 }
 

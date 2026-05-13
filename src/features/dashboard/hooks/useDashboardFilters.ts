@@ -118,7 +118,7 @@ export function useDashboardFilters(
     const keys = new Set(monthKeys.map((m) => m.key))
     return expenses
       .filter((e) => keys.has(e.date.slice(0, 7)))
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => b.date.localeCompare(a.date))
   }, [expenses, monthKeys])
 
   const filteredExpenses = useMemo(() => {

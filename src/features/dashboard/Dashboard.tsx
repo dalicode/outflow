@@ -27,6 +27,7 @@ import type { ExpenseTableHandle } from './ExpenseTable'
 import FilterModal from './FilterModal'
 import MonthSpanSelector from './MonthSpanSelector'
 import PayeeViewTable from './PayeeViewTable'
+import PrivateValue from '../../components/privacy/PrivateValue'
 
 interface DashboardProps {
   expenses: Expense[]
@@ -255,7 +256,7 @@ export default function Dashboard({
                 <p className="text-sm text-theme-muted tabular-nums">
                   {dash.expensesInSelectedSpan.length} transaction
                   {dash.expensesInSelectedSpan.length !== 1 ? 's' : ''} ·{' '}
-                  {formatAmount(spanVariableTotal)}
+                  <PrivateValue>{formatAmount(spanVariableTotal)}</PrivateValue>
                 </p>
               </div>
 

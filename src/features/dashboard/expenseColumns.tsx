@@ -62,33 +62,37 @@ export function getExpenseColumns({
     {
       id: 'select',
       header: () => (
-        <label className={cn('expense-checkbox-wrapper cursor-pointer', allSelected && 'checked')}>
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={onToggleSelectAll}
-            className="sr-only"
-            aria-label="Select all"
-          />
-          <div
-            className={cn(
-              'w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
-              allSelected ? 'border-theme-text bg-transparent' : 'border-theme-text bg-transparent',
-            )}
+        <div className="flex items-center justify-center">
+          <label
+            className={cn('expense-checkbox-wrapper cursor-pointer', allSelected && 'checked')}
           >
-            {allSelected && (
-              <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
-                <path
-                  d="M2.5 6.5L5 9l4.5-5.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-          </div>
-        </label>
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onToggleSelectAll}
+              className="sr-only"
+              aria-label="Select all"
+            />
+            <div
+              className={cn(
+                'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
+                'border-theme-muted bg-transparent',
+              )}
+            >
+              {allSelected && (
+                <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6.5L5 9l4.5-5.5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </div>
+          </label>
+        </div>
       ),
       cell: ({ row }) => {
         const exp = row.original
@@ -107,10 +111,10 @@ export function getExpenseColumns({
             />
             <div
               className={cn(
-                'w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
+                'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
                 isSelected
                   ? 'border-theme-text bg-transparent'
-                  : 'border-theme-text bg-transparent',
+                  : 'border-theme-text bg-theme-primary-subtle',
               )}
             >
               {isSelected && (
@@ -377,7 +381,6 @@ export function getExpenseColumns({
       header: 'Amount',
       cell: ({ row }) => {
         const exp = row.original
-        const amountColor = (exp.amount ?? 0) < 0 ? 'text-theme-success' : 'text-theme-primary'
         if (editing.isCellEditing(exp.id as number, 'amount')) {
           return (
             <InlineMoneyEditCell
@@ -397,7 +400,7 @@ export function getExpenseColumns({
             data-expense-id={exp.id}
             data-field="amount"
             {...editableCellActivate(editing, exp, 'amount')}
-            className={cn('cursor-pointer', amountColor)}
+            className="cursor-pointer text-theme-text"
           >
             {formatAmount(exp.amount ?? 0)}
           </span>

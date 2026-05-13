@@ -70,6 +70,13 @@ type NavigableItem =
   | { type: 'recent' | 'option'; id: string | number; label: string }
   | { type: 'create'; label: string }
 
+type KeyboardAction = 'enter' | 'tab'
+interface CreateInputContext {
+  keyboardAction?: KeyboardAction
+  shiftKey?: boolean
+  onComplete?: () => void
+}
+
 export default function CreatableCombobox({
   label,
   value,
@@ -101,6 +108,7 @@ export default function CreatableCombobox({
   const [localError, setLocalError] = useState<string | null>(null)
   const justCreatedRef = useRef(false)
   const isCreatingRef = useRef(false)
+  const pendingCommittedLabelRef = useRef<string | null>(null)
   const [dropdownState, setDropdownState] = useState<{
     isOpen: boolean
     pos: { top: number; left: number; width: number } | null
@@ -189,6 +197,7 @@ export default function CreatableCombobox({
   const handleSelect = useCallback(
     (id: string | number) => {
       const label = options.find((o) => o.id === id)?.label ?? ''
+      pendingCommittedLabelRef.current = null
       setDisplayQuery(label)
       setHasTyped(false)
       closeDropdown()
@@ -197,32 +206,49 @@ export default function CreatableCombobox({
     [options, closeDropdown, onChange],
   )
 
-  const handleCreate = useCallback(async () => {
+  const handleCreate = useCallback(
+    async (input?: CreateInputContext) => {
     if (!onCreate || isCreating) return
     const trimmed = filterText.trim()
     if (!trimmed) return
+    const keyboardAction = input?.keyboardAction
+    const shiftKey = input?.shiftKey ?? false
+    const shouldRefocusAfterCreate = keyboardAction == null
     isCreatingRef.current = true
     setIsCreating(true)
     setLocalError(null)
     try {
       const newId = await onCreate(trimmed)
       justCreatedRef.current = true
-      onChange(newId)
+      pendingCommittedLabelRef.current = trimmed
+      setDisplayQuery(trimmed)
       setHasTyped(false)
+      if (keyboardAction === 'tab' && onTabSelect) {
+        onTabSelect(newId, shiftKey)
+      } else if (keyboardAction === 'enter' && onEnterSelect) {
+        onEnterSelect(newId, shiftKey)
+      } else {
+        onChange(newId)
+      }
+      input?.onComplete?.()
       closeDropdown()
     } catch (err) {
       setLocalError((err as Error).message)
     } finally {
       setIsCreating(false)
       isCreatingRef.current = false
-      requestAnimationFrame(() => {
-        inputRef.current?.focus()
-      })
+      if (shouldRefocusAfterCreate) {
+        requestAnimationFrame(() => {
+          inputRef.current?.focus()
+        })
+      }
       setTimeout(() => {
         justCreatedRef.current = false
       }, 150)
     }
-  }, [onCreate, isCreating, filterText, onChange, closeDropdown])
+    },
+    [onCreate, isCreating, filterText, onChange, closeDropdown, onEnterSelect, onTabSelect],
+  )
 
   const getDefaultCommitId = useCallback(() => {
     if (!filterText.trim()) {
@@ -318,7 +344,7 @@ export default function CreatableCombobox({
           e.preventDefault()
           const highlightedItem = navigableItems[highlightedIndex]
           if (highlightedItem?.type === 'create') {
-            handleCreate()
+            void handleCreate({ keyboardAction: 'enter', shiftKey: e.shiftKey })
           } else if (highlightedItem?.type === 'recent' || highlightedItem?.type === 'option') {
             const id = highlightedItem.id
             setDisplayQuery(highlightedItem.label)
@@ -339,8 +365,17 @@ export default function CreatableCombobox({
           closeDropdown()
           if (onTab) {
             e.preventDefault()
-            handleKeyboardSelection(getHighlightedCommitId(), e.shiftKey, 'tab')
-            onTab(e.shiftKey)
+            const highlightedItem = navigableItems[highlightedIndex]
+            if (highlightedItem?.type === 'create') {
+              void handleCreate({
+                keyboardAction: 'tab',
+                shiftKey: e.shiftKey,
+                onComplete: () => onTab(e.shiftKey),
+              })
+            } else {
+              handleKeyboardSelection(getHighlightedCommitId(), e.shiftKey, 'tab')
+              onTab(e.shiftKey)
+            }
           }
           break
         }
@@ -422,6 +457,16 @@ export default function CreatableCombobox({
   }, [autoOpen, openDropdown, autoFocus])
 
   useEffect(() => {
+    if (pendingCommittedLabelRef.current) {
+      if (selectedLabel === pendingCommittedLabelRef.current) {
+        pendingCommittedLabelRef.current = null
+      } else if (!selectedLabel) {
+        return
+      } else {
+        pendingCommittedLabelRef.current = null
+      }
+    }
+
     if (!hasTyped) {
       setDisplayQuery(selectedLabel)
     }

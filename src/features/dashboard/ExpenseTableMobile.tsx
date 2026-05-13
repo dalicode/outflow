@@ -50,24 +50,27 @@ export default function ExpenseTableMobile({
     <div>
       {groupedExpenses.map(([date, items]) => (
         <div key={date}>
-          <div className="py-1 px-3 text-xs text-theme-muted bg-theme-background">
+          <div className="px-3 py-2 text-xs text-theme-muted bg-theme-background border-b border-theme-muted-subtle">
             {formatDate(date)}
           </div>
           {items.map((exp) => {
             const isSelected = resolvedSelectedIds.has(exp.id as number)
-            const amountColor = exp.amount < 0 ? 'text-theme-success' : 'text-theme-primary'
+            const payeeLabel = resolvePayeeName?.(exp) || '—'
+            const categoryLabel = hideCategory ? '' : resolveName(exp)
+            const detailLabel =
+              categoryLabel && exp.description
+                ? `${categoryLabel} · ${exp.description}`
+                : categoryLabel || exp.description || ''
             return (
               <div
                 key={exp.id}
                 data-testid={`expense-row-mobile-${exp.id}`}
                 className={cn(
-                  'grid items-center gap-x-3 py-1 px-3 expense-row-mobile',
-                  isSelected && 'selected-row border-l-4 border-theme-primary',
+                  'expense-row-mobile border-b border-theme-muted-subtle px-3 py-2',
+                  'grid grid-cols-[minmax(0,1fr)_6.5rem] grid-rows-[auto_auto] gap-x-3 gap-y-0.5',
+                  isSelected && 'selected-row bg-theme-primary-subtle border-l-4 border-theme-primary',
                   'row-hover',
                 )}
-                style={{
-                  gridTemplateColumns: '9rem minmax(0, 1fr) minmax(60px, auto)',
-                }}
                 onTouchStart={isInteractive ? (e) => onTouchStart(e, exp.id as number) : undefined}
                 onTouchMove={isInteractive ? onTouchMove : undefined}
                 onTouchEnd={isInteractive ? (e) => onTouchEnd(e, exp.id as number) : undefined}
@@ -80,23 +83,16 @@ export default function ExpenseTableMobile({
                   }
                 }}
               >
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-medium text-theme-text truncate">
-                    {resolvePayeeName?.(exp) || '—'}
-                  </span>
-                  {!hideCategory && (
-                    <span className="text-xs text-theme-muted truncate">{resolveName(exp)}</span>
-                  )}
-                </div>
-                <div className="text-left min-w-0">
-                  {exp.description && (
-                    <span className="text-sm text-theme-muted truncate block">
-                      {exp.description}
-                    </span>
-                  )}
-                </div>
-                <span className={cn('text-sm font-semibold tabular-nums text-right', amountColor)}>
+                <span className="col-start-1 row-start-1 min-w-0 truncate text-sm font-medium text-theme-text">
+                  {payeeLabel}
+                </span>
+                <span
+                  className="col-start-2 row-span-2 row-start-1 self-center text-right text-sm font-semibold tabular-nums text-theme-text"
+                >
                   {formatAmount(exp.amount)}
+                </span>
+                <span className="col-start-1 row-start-2 min-w-0 truncate text-xs text-theme-muted">
+                  {detailLabel || '—'}
                 </span>
               </div>
             )

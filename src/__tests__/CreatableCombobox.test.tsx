@@ -223,4 +223,67 @@ describe('CreatableCombobox', () => {
       expect(onChange).toHaveBeenCalledWith(2)
     })
   })
+
+  it('uses onEnterSelect when creating a new option via Enter', async () => {
+    const onChange = vi.fn()
+    const onEnterSelect = vi.fn()
+    const onCreate = vi.fn(async () => 99)
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[{ id: 1, label: 'Coffee' }]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        allowCreate
+        onCreate={onCreate}
+        onChange={onChange}
+        onEnterSelect={onEnterSelect}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'New payee' } })
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
+
+    await waitFor(() => {
+      expect(onCreate).toHaveBeenCalledWith('New payee')
+      expect(onEnterSelect).toHaveBeenCalledWith(99, true)
+      expect(onChange).not.toHaveBeenCalled()
+    })
+  })
+
+  it('uses onTabSelect when creating a new option via Tab', async () => {
+    const onChange = vi.fn()
+    const onTab = vi.fn()
+    const onTabSelect = vi.fn()
+    const onCreate = vi.fn(async () => 77)
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[{ id: 1, label: 'Coffee' }]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        allowCreate
+        onCreate={onCreate}
+        onChange={onChange}
+        onTab={onTab}
+        onTabSelect={onTabSelect}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'New category' } })
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true })
+
+    await waitFor(() => {
+      expect(onCreate).toHaveBeenCalledWith('New category')
+      expect(onTabSelect).toHaveBeenCalledWith(77, true)
+      expect(onTab).toHaveBeenCalledWith(true)
+      expect(onChange).not.toHaveBeenCalled()
+    })
+  })
 })
