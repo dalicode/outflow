@@ -56,6 +56,17 @@ function getPopupPosition(rect: DOMRect): {
   return { top, left, width }
 }
 
+function getAnchorRect(
+  container: HTMLDivElement | null,
+  variant: 'default' | 'inline',
+): DOMRect | null {
+  if (!container) return null
+  if (variant !== 'inline') return container.getBoundingClientRect()
+  const tableCell = container.closest('td,th')
+  if (tableCell) return tableCell.getBoundingClientRect()
+  return container.getBoundingClientRect()
+}
+
 interface DatePickerProps {
   value: string
   onChange: (iso: string) => void
@@ -265,10 +276,10 @@ export default function DatePicker({
     setTextValue(formatISODate(toISO(baseDate), dateFormat))
     setViewDate(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1))
 
-    const rect = containerRef.current?.getBoundingClientRect()
+    const rect = getAnchorRect(containerRef.current, variant)
     const pos = rect ? getPopupPosition(rect) : null
     setPopupState({ isOpen: true, pos })
-  }, [disabled, value, dateFormat])
+  }, [disabled, value, dateFormat, variant])
 
   const closePopup = useCallback(() => {
     setPopupState({ isOpen: false, pos: null })
@@ -324,7 +335,7 @@ export default function DatePicker({
   useEffect(() => {
     if (!popupState.isOpen || isMobile) return
     const updatePos = () => {
-      const rect = containerRef.current?.getBoundingClientRect()
+      const rect = getAnchorRect(containerRef.current, variant)
       if (!rect) return
       setPopupState((prev) => ({ ...prev, pos: getPopupPosition(rect) }))
     }
@@ -346,7 +357,7 @@ export default function DatePicker({
       window.removeEventListener('scroll', updatePos, true)
       document.removeEventListener('mousedown', handleClick)
     }
-  }, [popupState.isOpen, isMobile, commitActiveDate, closePopup])
+  }, [popupState.isOpen, isMobile, commitActiveDate, closePopup, variant])
 
   // Escape key
   useEffect(() => {

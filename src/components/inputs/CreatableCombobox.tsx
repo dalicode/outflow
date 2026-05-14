@@ -14,7 +14,9 @@ function getDropdownPosition(rect: DOMRect): {
   top: number
   left: number
   width: number
+  maxHeight: number
 } {
+  const ROW_HEIGHT = 30
   const availableWidth = window.innerWidth - VIEWPORT_MARGIN * 2
   const preferredWidth = Math.max(
     rect.width,
@@ -29,15 +31,37 @@ function getDropdownPosition(rect: DOMRect): {
   const spaceAbove = rect.top - VIEWPORT_MARGIN
   const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN
   const shouldOpenBelow = spaceBelow >= DROPDOWN_MAX_HEIGHT || spaceBelow >= spaceAbove
+  const availableHeight = shouldOpenBelow ? spaceBelow : spaceAbove
+  const maxHeight = Math.min(DROPDOWN_MAX_HEIGHT, Math.max(ROW_HEIGHT, availableHeight))
 
   const top = shouldOpenBelow
     ? rect.bottom + DROPDOWN_GAP
     : Math.max(
         VIEWPORT_MARGIN,
-        rect.top - Math.min(DROPDOWN_MAX_HEIGHT, Math.max(spaceAbove, 0)) - DROPDOWN_GAP,
+        rect.top - maxHeight - DROPDOWN_GAP,
       )
 
-  return { top, left, width }
+  return { top, left, width, maxHeight }
+}
+
+function getInlineDropdownPosition(rect: DOMRect): {
+  top: number
+  left: number
+  width: number
+  maxHeight: number
+} {
+  const ROW_HEIGHT = 30
+  const base = getDropdownPosition(rect)
+  const snapped = Math.max(ROW_HEIGHT, Math.floor(base.maxHeight / ROW_HEIGHT) * ROW_HEIGHT)
+  return { ...base, maxHeight: snapped }
+}
+
+function getInlineAnchorRect(container: HTMLDivElement | null, variant: 'default' | 'inline'): DOMRect | null {
+  if (!container) return null
+  if (variant !== 'inline') return container.getBoundingClientRect()
+  const tableCell = container.closest('td,th')
+  if (tableCell) return tableCell.getBoundingClientRect()
+  return container.getBoundingClientRect()
 }
 
 interface CreatableComboboxProps {
@@ -167,13 +191,13 @@ export default function CreatableCombobox({
   const totalItems = navigableItems.length
 
   const updateDropdownPosition = useCallback(() => {
-    const rect = containerRef.current?.getBoundingClientRect()
+    const rect = getInlineAnchorRect(containerRef.current, variant)
     if (!rect) return
     setDropdownState((prev) => ({
       ...prev,
-      pos: getDropdownPosition(rect),
+      pos: variant === 'inline' ? getInlineDropdownPosition(rect) : getDropdownPosition(rect),
     }))
-  }, [])
+  }, [variant])
 
   const openDropdown = useCallback(() => {
     if (disabled || isCreating) return
@@ -183,11 +207,15 @@ export default function CreatableCombobox({
     setLocalError(null)
     inputRef.current?.select()
 
-    const rect = containerRef.current?.getBoundingClientRect()
-    const pos = rect ? getDropdownPosition(rect) : null
+    const rect = getInlineAnchorRect(containerRef.current, variant)
+    const pos = rect
+      ? variant === 'inline'
+        ? getInlineDropdownPosition(rect)
+        : getDropdownPosition(rect)
+      : null
 
     setDropdownState({ isOpen: true, pos })
-  }, [disabled, isCreating, selectedLabel])
+  }, [disabled, isCreating, selectedLabel, variant])
 
   const closeDropdown = useCallback(() => {
     setDropdownState({ isOpen: false, pos: null })
@@ -406,7 +434,11 @@ export default function CreatableCombobox({
       const rect = containerRef.current?.getBoundingClientRect()
       setDropdownState({
         isOpen: true,
-        pos: rect ? getDropdownPosition(rect) : null,
+        pos: rect
+          ? variant === 'inline'
+            ? getInlineDropdownPosition(rect)
+            : getDropdownPosition(rect)
+          : null,
       })
     }
   }
@@ -504,17 +536,21 @@ export default function CreatableCombobox({
       onMouseDown={(e) => e.preventDefault()}
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
-      className="fixed z-[60] bg-theme-background text-theme-text border border-theme-border rounded-theme-medium shadow-lg max-h-60 overflow-y-auto scrollbar-auto-hide"
+      className={cn(
+        'fixed z-[60] bg-theme-background text-theme-text border border-theme-border rounded-theme-medium shadow-lg max-h-60 overflow-y-auto scrollbar-auto-hide',
+        variant !== 'inline' && 'pb-2',
+      )}
       style={{
         top: dropdownState.pos.top,
         left: dropdownState.pos.left,
         width: dropdownState.pos.width,
+        maxHeight: dropdownState.pos.maxHeight,
         boxSizing: 'border-box',
       }}
     >
       {showCreateHint && (
-        <div className="border-b border-theme-border px-3 py-2">
-          <div className="flex items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
+        <div className="border-b border-theme-border px-3">
+          <div className="flex h-[30px] items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
             <span
               aria-hidden="true"
               className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
@@ -526,8 +562,8 @@ export default function CreatableCombobox({
         </div>
       )}
       {recentVisibleOptions.length > 0 && (
-        <div className="border-b border-theme-border px-3 py-2">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+        <div className="border-b border-theme-border px-3">
+          <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
             {recentLabel}
           </div>
         </div>
@@ -539,7 +575,7 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={navigableItems[highlightedIndex]?.type === 'recent' && navigableItems[highlightedIndex]?.id === opt.id}
           className={cn(
-            'px-3 py-2 text-sm cursor-pointer text-theme-text border-b border-theme-border',
+            'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
             navigableItems[highlightedIndex]?.type === 'recent' &&
               navigableItems[highlightedIndex]?.id === opt.id &&
@@ -572,7 +608,7 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={itemIndex === highlightedIndex}
           className={cn(
-            'px-3 py-2 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0',
+            'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
             itemIndex === highlightedIndex && highlightedItemClassName,
             opt.id === value && 'font-medium',
@@ -594,7 +630,7 @@ export default function CreatableCombobox({
           role="option"
           aria-selected={totalItems - 1 === highlightedIndex}
           className={cn(
-            'px-3 py-2.5 text-sm cursor-pointer text-theme-text border-t border-theme-border',
+            'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-t border-theme-border',
             'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
             totalItems - 1 === highlightedIndex && highlightedItemClassName,
           )}

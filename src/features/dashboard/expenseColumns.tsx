@@ -145,7 +145,7 @@ export function getExpenseColumns({
         const exp = row.original
         if (editing.isCellEditing(exp.id as number, 'date')) {
           return (
-            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+            <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
               <DatePicker
                 value={exp.date ?? ''}
                 variant="inline"
@@ -187,7 +187,7 @@ export function getExpenseColumns({
         const exp = row.original
         if (editing.isCellEditing(exp.id as number, 'payeeId')) {
           return (
-            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+            <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
               <CreatableCombobox
                 value={exp.payeeId}
                 variant="inline"
@@ -269,7 +269,7 @@ export function getExpenseColumns({
         const exp = row.original
         if (editing.isCellEditing(exp.id as number, 'categoryId')) {
           return (
-            <div data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+            <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
               <CreatableCombobox
                 value={exp.categoryId}
                 variant="inline"
