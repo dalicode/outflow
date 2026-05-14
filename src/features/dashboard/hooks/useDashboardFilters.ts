@@ -79,7 +79,9 @@ export function useDashboardFilters(
     (v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
       setSelectedCategoriesState((prev) => {
         const next = typeof v === 'function' ? v(prev) : v
-        onFiltersChange?.({ selectedCategories: Array.from(next) })
+        queueMicrotask(() => {
+          onFiltersChange?.({ selectedCategories: Array.from(next) })
+        })
         return next
       })
     },
@@ -90,7 +92,9 @@ export function useDashboardFilters(
     (v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
       setSelectedPayeesState((prev) => {
         const next = typeof v === 'function' ? v(prev) : v
-        onFiltersChange?.({ selectedPayees: Array.from(next) })
+        queueMicrotask(() => {
+          onFiltersChange?.({ selectedPayees: Array.from(next) })
+        })
         return next
       })
     },
