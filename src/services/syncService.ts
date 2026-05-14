@@ -1309,6 +1309,13 @@ export async function migrateLocalToSupabase(
 ): Promise<void> {
   if (!supabase || !userId || (!options.ignorePause && isSyncPaused())) return
 
+  // Ensure local canonical uniqueness by name before cloud upload.
+  // This prevents user_id+name unique constraint violations when a
+  // freshly seeded cloud account and imported backup both contain
+  // the same category/payee names.
+  await deduplicateByName(db.table('categories'), 'categoryId')
+  await deduplicateByName(db.table('payees'), 'payeeId')
+
   await ensureCloudIdsForSync()
 
   const [

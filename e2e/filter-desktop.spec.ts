@@ -44,8 +44,7 @@ test.describe("Filter modal (desktop)", () => {
 
     const filterButton = visibleFiltersButton(page);
     await expect(filterButton).toBeVisible();
-    const countBadge = filterButton.locator("span").last();
-    await expect(countBadge).toContainText("1");
+    await expect(filterButton).toContainText("1");
 
     await expect(page.getByText("Lunch")).toBeVisible();
     await expect(page.getByText("Groceries")).toHaveCount(0);

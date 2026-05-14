@@ -113,6 +113,7 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               textClass="text-theme-primary"
               formatAmount={formatAmount}
               privateValue
+              privatePercentage={false}
             />
             <AllocationRow
               label="Variable Expenses"
@@ -122,6 +123,7 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               textClass="text-theme-danger"
               formatAmount={formatAmount}
               privateValue
+              privatePercentage={false}
             />
             <AllocationRow
               label="Auto Savings"
@@ -131,6 +133,7 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               textColor={reservedSavingsColor}
               formatAmount={(amount) => formatAmount(amount)}
               privateValue
+              privatePercentage={false}
             />
 
             <div className="border-t border-theme-border my-2" />
@@ -149,9 +152,7 @@ export default function BudgetFlow({ summary, variableBreakdown }: BudgetFlowPro
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-                  <PrivateValue>
-                    {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
-                  </PrivateValue>
+                  {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
                 </span>
                 <span
                   className={cn(

@@ -80,6 +80,7 @@ interface AllocationRowProps {
   prefix?: string
   formatAmount: (n: number) => string
   privateValue?: boolean
+  privatePercentage?: boolean
 }
 
 export function AllocationRow({
@@ -93,6 +94,7 @@ export function AllocationRow({
   prefix = '',
   formatAmount,
   privateValue = false,
+  privatePercentage = privateValue,
 }: AllocationRowProps) {
   const amount = (
     <>
@@ -110,7 +112,7 @@ export function AllocationRow({
       <span className="text-sm text-theme-text flex-1 min-w-0 truncate">{label}</span>
       <div className="flex items-center gap-3">
         <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-          {privateValue ? (
+          {privatePercentage ? (
             <PrivateValue>{rowPct !== 0 ? `${rowPct.toFixed(0)}%` : '—'}</PrivateValue>
           ) : rowPct !== 0 ? (
             `${rowPct.toFixed(0)}%`
