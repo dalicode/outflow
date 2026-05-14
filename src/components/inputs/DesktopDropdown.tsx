@@ -62,11 +62,12 @@ export default function DesktopDropdown({
     top: number
     left: number
     width: number
-    maxHeight: number
-    contentMaxHeight: number
+    availableHeight: number
+    openBelow: boolean
   } | null>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -132,14 +133,16 @@ export default function DesktopDropdown({
     let height = 0
     if (showCreateHint) height += CREATE_HINT_HEIGHT
     if (recentVisibleOptions.length > 0) height += SECTION_LABEL_HEIGHT
+    height += recentVisibleOptions.length * OPTION_ROW_HEIGHT
     if (showRecentSection && displayOptions.length > 0) height += SECTION_LABEL_HEIGHT
+    height += displayOptions.length * OPTION_ROW_HEIGHT
     if (displayOptions.length === 0 && query.trim() && !showCreateOption) height += EMPTY_STATE_HEIGHT
     if (showCreateOption) {
       height += CREATE_ROW_HEIGHT
       if (createError) height += 24
     }
     if (allowClear && value != null) height += CLEAR_ROW_HEIGHT
-    return height
+    return Math.max(OPTION_ROW_HEIGHT, height)
   }, [
     allowClear,
     createError,
@@ -159,27 +162,64 @@ export default function DesktopDropdown({
     const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_VIEWPORT_MARGIN
     const openBelow =
       spaceBelow >= DROPDOWN_PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
+    const directionalSpace = openBelow ? spaceBelow : spaceAbove
     const availableHeight = Math.max(
       OPTION_ROW_HEIGHT,
-      Math.min(DROPDOWN_PANEL_MAX_HEIGHT, openBelow ? spaceBelow : spaceAbove),
+      Math.min(DROPDOWN_PANEL_MAX_HEIGHT, directionalSpace),
     )
-    const chromeHeight = SEARCH_SECTION_HEIGHT + getContentChromeHeight()
-    const contentAvailable = Math.max(OPTION_ROW_HEIGHT, availableHeight - chromeHeight)
-    const contentMaxHeight = Math.max(
+    setPanelStyle({
+      top: openBelow ? rect.bottom + window.scrollY + DROPDOWN_GAP : rect.top + window.scrollY - DROPDOWN_GAP,
+      left: rect.left + window.scrollX,
+      width: rect.width,
+      availableHeight,
+      openBelow,
+    })
+  }, [])
+
+  const contentHeight = getContentChromeHeight()
+  const contentMaxHeight = useMemo(() => {
+    if (!panelStyle) return OPTION_ROW_HEIGHT * 4
+    const contentAvailable = Math.max(
+      OPTION_ROW_HEIGHT,
+      panelStyle.availableHeight - SEARCH_SECTION_HEIGHT,
+    )
+    if (contentHeight <= contentAvailable) return contentHeight
+    return Math.max(
       OPTION_ROW_HEIGHT,
       Math.floor(contentAvailable / OPTION_ROW_HEIGHT) * OPTION_ROW_HEIGHT,
     )
-    const panelHeight = chromeHeight + contentMaxHeight
-    setPanelStyle({
-      top: openBelow
-        ? rect.bottom + window.scrollY + DROPDOWN_GAP
-        : rect.top + window.scrollY - panelHeight - DROPDOWN_GAP,
-      left: rect.left + window.scrollX,
-      width: rect.width,
-      maxHeight: panelHeight,
-      contentMaxHeight,
-    })
-  }, [getContentChromeHeight, showCreateHint, recentVisibleOptions.length, showRecentSection, displayOptions.length, showCreateOption, allowClear, value, createError])
+  }, [contentHeight, panelStyle])
+
+  const panelHeight = SEARCH_SECTION_HEIGHT + contentMaxHeight
+  const panelTop = panelStyle
+    ? panelStyle.openBelow
+      ? panelStyle.top
+      : panelStyle.top - panelHeight
+    : 0
+  const opensAbove = panelStyle?.openBelow === false
+  const renderRecentOptions = opensAbove ? [...recentVisibleOptions].reverse() : recentVisibleOptions
+  const renderDisplayOptions = opensAbove ? [...displayOptions].reverse() : displayOptions
+  const defaultHighlightIndex = useMemo((): number => {
+    if (navigableItems.length === 0) return -1
+    if (!opensAbove) return 0
+
+    if (recentVisibleOptions.length > 0) {
+      return 0
+    }
+
+    if (displayOptions.length > 0) {
+      return recentVisibleOptions.length
+    }
+
+    for (let index = navigableItems.length - 1; index >= 0; index -= 1) {
+      const item = navigableItems[index]
+      if (item.type === 'recent' || item.type === 'option') {
+        return index
+      }
+    }
+
+    return navigableItems.length - 1
+  }, [displayOptions.length, navigableItems, opensAbove, recentVisibleOptions.length])
 
   useEffect(() => {
     if (!isOpen) {
@@ -191,9 +231,9 @@ export default function DesktopDropdown({
       return
     }
     updatePanelPosition()
-    setHighlightedIndex(0)
+    setHighlightedIndex((prev) => (prev === defaultHighlightIndex ? prev : defaultHighlightIndex))
     searchInputRef.current?.focus()
-  }, [isOpen, updatePanelPosition])
+  }, [defaultHighlightIndex, isOpen, updatePanelPosition])
 
   useEffect(() => {
     if (!isOpen) return
@@ -231,9 +271,9 @@ export default function DesktopDropdown({
       return
     }
     if (highlightedIndex < 0 || highlightedIndex >= navigableItems.length) {
-      setHighlightedIndex(0)
+      setHighlightedIndex(defaultHighlightIndex)
     }
-  }, [highlightedIndex, isOpen, navigableItems.length])
+  }, [defaultHighlightIndex, highlightedIndex, isOpen, navigableItems.length])
 
   useEffect(() => {
     if (!isOpen || highlightedIndex < 0) return
@@ -241,6 +281,20 @@ export default function DesktopDropdown({
     const optionEl = document.getElementById(`desktop-dropdown-option-${highlightedIndex}`)
     optionEl?.scrollIntoView({ block: 'nearest' })
   }, [highlightedIndex, isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !opensAbove || !contentRef.current) return
+    contentRef.current.scrollTop = contentRef.current.scrollHeight
+  }, [
+    isOpen,
+    opensAbove,
+    query,
+    displayOptions.length,
+    recentVisibleOptions.length,
+    showCreateOption,
+    allowClear,
+    value,
+  ])
 
   const handleSelect = (id: string | number) => {
     onChange(id)
@@ -335,13 +389,17 @@ export default function DesktopDropdown({
             ref={panelRef}
             style={{
               position: 'absolute',
-              top: panelStyle?.top ?? 0,
+              top: panelStyle ? panelTop : 0,
               left: panelStyle?.left ?? 0,
               width: panelStyle?.width ?? 0,
-              maxHeight: panelStyle?.maxHeight ?? DROPDOWN_PANEL_MAX_HEIGHT,
+              height: panelStyle ? panelHeight : DROPDOWN_PANEL_MAX_HEIGHT,
+              maxHeight: panelStyle?.availableHeight ?? DROPDOWN_PANEL_MAX_HEIGHT,
               zIndex: 9999,
             }}
-            className="flex flex-col overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background text-theme-text shadow-xl shadow-black/10 ring-1 ring-[color:color-mix(in_srgb,var(--theme-primary)_10%,transparent)]"
+            className={cn(
+              'flex overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background text-theme-text shadow-xl shadow-black/10 ring-1 ring-[color:color-mix(in_srgb,var(--theme-primary)_10%,transparent)]',
+              panelStyle?.openBelow === false ? 'flex-col-reverse' : 'flex-col',
+            )}
           >
             <div className="border-b border-theme-border bg-theme-background-muted p-2">
               <input
@@ -350,7 +408,7 @@ export default function DesktopDropdown({
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value)
-                  setHighlightedIndex(0)
+                  setHighlightedIndex(defaultHighlightIndex)
                 }}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Search..."
@@ -359,175 +417,310 @@ export default function DesktopDropdown({
             </div>
 
             <div
-              className="overflow-y-auto"
-              style={{ maxHeight: panelStyle?.contentMaxHeight ?? OPTION_ROW_HEIGHT * 4 }}
+              ref={contentRef}
+              className="overflow-y-auto overscroll-contain"
+              style={{ maxHeight: contentMaxHeight }}
             >
-              {showRecentSection && (
-                <div className="border-b border-theme-border px-2">
-                  <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
-                    {recentLabel}
+              <div className="min-h-full">
+                {!opensAbove && showRecentSection && (
+                  <div className="border-b border-theme-border px-2">
+                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
+                      {recentLabel}
+                    </div>
+                    {recentVisibleOptions.map((option) => (
+                      <button
+                        id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === option.id)}`}
+                        key={option.id}
+                        type="button"
+                        onClick={() => handleSelect(option.id)}
+                        className={cn(
+                          'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
+                          isItemHighlighted({ type: 'recent', id: option.id, label: option.label }) &&
+                            highlightedItemClassName,
+                          option.id === value && 'font-semibold text-theme-primary',
+                        )}
+                        onMouseEnter={() =>
+                          setHighlightedIndex(
+                            navigableItems.findIndex(
+                              (item) => item.type === 'recent' && item.id === option.id,
+                            ),
+                          )
+                        }
+                      >
+                        {option.isArchived && (
+                          <span className="text-xs text-theme-muted">(archived)</span>
+                        )}
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
                   </div>
-                  {recentVisibleOptions.map((option) => (
-                    <button
-                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === option.id)}`}
-                      key={option.id}
-                      type="button"
-                      onClick={() => handleSelect(option.id)}
-                      className={cn(
-                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
-                        isItemHighlighted({ type: 'recent', id: option.id, label: option.label }) &&
-                          highlightedItemClassName,
-                        option.id === value && 'font-semibold text-theme-primary',
-                      )}
-                      onMouseEnter={() =>
-                        setHighlightedIndex(
-                          navigableItems.findIndex(
-                            (item) => item.type === 'recent' && item.id === option.id,
-                          ),
-                        )
-                      }
-                    >
-                      {option.isArchived && (
-                        <span className="text-xs text-theme-muted">(archived)</span>
-                      )}
-                      <span>{option.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                )}
 
-              {showRecentSection && displayOptions.length > 0 && (
-                <div className="border-b border-theme-border px-2">
-                  <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
-                    All
+                {!opensAbove && showRecentSection && displayOptions.length > 0 && (
+                  <div className="border-b border-theme-border px-2">
+                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
+                      All
+                    </div>
+                    {displayOptions.map((option) => (
+                      <button
+                        id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
+                        key={option.id}
+                        type="button"
+                        onClick={() => handleSelect(option.id)}
+                        className={cn(
+                          'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
+                          isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
+                            highlightedItemClassName,
+                          option.id === value && 'font-semibold text-theme-primary',
+                        )}
+                        onMouseEnter={() =>
+                          setHighlightedIndex(
+                            navigableItems.findIndex(
+                              (item) => item.type === 'option' && item.id === option.id,
+                            ),
+                          )
+                        }
+                      >
+                        {option.isArchived && (
+                          <span className="text-xs text-theme-muted">(archived)</span>
+                        )}
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
                   </div>
-                  {displayOptions.map((option) => (
+                )}
+
+                {!opensAbove && !showRecentSection && displayOptions.length > 0 && (
+                  <div className="px-2">
+                    {displayOptions.map((option) => (
+                      <button
+                        id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
+                        key={option.id}
+                        type="button"
+                        onClick={() => handleSelect(option.id)}
+                        className={cn(
+                          'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
+                          isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
+                            highlightedItemClassName,
+                          option.id === value && 'font-semibold text-theme-primary',
+                        )}
+                        onMouseEnter={() =>
+                          setHighlightedIndex(
+                            navigableItems.findIndex(
+                              (item) => item.type === 'option' && item.id === option.id,
+                            ),
+                          )
+                        }
+                      >
+                        {option.isArchived && (
+                          <span className="text-xs text-theme-muted">(archived)</span>
+                        )}
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {!opensAbove && displayOptions.length === 0 && query.trim() && !showCreateOption && (
+                  <div className="flex min-h-[60px] items-center justify-center px-4 py-3 text-center text-sm text-theme-muted">
+                    {emptyMessage}
+                  </div>
+                )}
+
+                {!opensAbove && showCreateOption && (
+                  <div className="border-t border-theme-border px-2">
                     <button
-                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
-                      key={option.id}
+                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'create')}`}
                       type="button"
-                      onClick={() => handleSelect(option.id)}
+                      onClick={handleCreate}
+                      disabled={isCreating}
                       className={cn(
-                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
-                        isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
+                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50',
+                        isItemHighlighted({ type: 'create', label: `Create "${query.trim()}"` }) &&
                           highlightedItemClassName,
-                        option.id === value && 'font-semibold text-theme-primary',
                       )}
                       onMouseEnter={() =>
                         setHighlightedIndex(
-                          navigableItems.findIndex(
-                            (item) => item.type === 'option' && item.id === option.id,
-                          ),
+                          navigableItems.findIndex((item) => item.type === 'create'),
                         )
                       }
                     >
-                      {option.isArchived && (
-                        <span className="text-xs text-theme-muted">(archived)</span>
-                      )}
-                      <span>{option.label}</span>
+                      <svg
+                        className="h-4 w-4 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                      </svg>
+                      <span>Create &quot;{query.trim()}&quot;</span>
                     </button>
-                  ))}
-                </div>
-              )}
+                    {createError && (
+                      <p className="px-2 pb-1 text-xs text-theme-danger">{createError}</p>
+                    )}
+                  </div>
+                )}
+                {!opensAbove && showCreateHint && (
+                  <div className="flex min-h-[30px] items-center justify-center px-4 py-2 text-center text-[11px] text-theme-muted">
+                    {createHint}
+                  </div>
+                )}
 
-              {!showRecentSection && displayOptions.length > 0 && (
-                <div className="px-2">
-                  {displayOptions.map((option) => (
+                {!opensAbove && allowClear && value != null && (
+                  <div className="border-t border-theme-border px-2">
                     <button
-                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
-                      key={option.id}
+                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'clear')}`}
                       type="button"
-                      onClick={() => handleSelect(option.id)}
+                      onClick={handleClear}
                       className={cn(
-                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
-                        isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
+                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background',
+                        isItemHighlighted({ type: 'clear', label: clearLabel }) &&
                           highlightedItemClassName,
-                        option.id === value && 'font-semibold text-theme-primary',
                       )}
                       onMouseEnter={() =>
                         setHighlightedIndex(
-                          navigableItems.findIndex(
-                            (item) => item.type === 'option' && item.id === option.id,
-                          ),
+                          navigableItems.findIndex((item) => item.type === 'clear'),
                         )
                       }
                     >
-                      {option.isArchived && (
-                        <span className="text-xs text-theme-muted">(archived)</span>
-                      )}
-                      <span>{option.label}</span>
+                      <span>{clearLabel}</span>
                     </button>
-                  ))}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {displayOptions.length === 0 && query.trim() && !showCreateOption && (
-                <div className="flex min-h-[60px] items-center justify-center px-4 py-3 text-center text-sm text-theme-muted">
-                  {emptyMessage}
-                </div>
-              )}
-
-              {showCreateOption && (
-                <div className="border-t border-theme-border px-2">
+                {opensAbove && allowClear && value != null && (
+                  <div className="border-b border-theme-border px-2">
+                    <button
+                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'clear')}`}
+                      type="button"
+                      onClick={handleClear}
+                      className={cn(
+                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background',
+                        isItemHighlighted({ type: 'clear', label: clearLabel }) &&
+                          highlightedItemClassName,
+                      )}
+                      onMouseEnter={() =>
+                        setHighlightedIndex(
+                          navigableItems.findIndex((item) => item.type === 'clear'),
+                        )
+                      }
+                    >
+                      <span>{clearLabel}</span>
+                    </button>
+                  </div>
+                )}
+                {opensAbove && showCreateHint && (
+                  <div className="flex min-h-[30px] items-center justify-center border-b border-theme-border px-4 py-2 text-center text-[11px] text-theme-muted">
+                    {createHint}
+                  </div>
+                )}
+                {opensAbove && showCreateOption && (
+                  <div className="border-b border-theme-border px-2">
+                    <button
+                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'create')}`}
+                      type="button"
+                      onClick={handleCreate}
+                      disabled={isCreating}
+                      className={cn(
+                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50',
+                        isItemHighlighted({ type: 'create', label: `Create "${query.trim()}"` }) &&
+                          highlightedItemClassName,
+                      )}
+                      onMouseEnter={() =>
+                        setHighlightedIndex(
+                          navigableItems.findIndex((item) => item.type === 'create'),
+                        )
+                      }
+                    >
+                      <svg
+                        className="h-4 w-4 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                      </svg>
+                      <span>Create &quot;{query.trim()}&quot;</span>
+                    </button>
+                    {createError && (
+                      <p className="px-2 pb-1 text-xs text-theme-danger">{createError}</p>
+                    )}
+                  </div>
+                )}
+                {opensAbove && displayOptions.length === 0 && query.trim() && !showCreateOption && (
+                  <div className="flex min-h-[60px] items-center justify-center px-4 py-3 text-center text-sm text-theme-muted">
+                    {emptyMessage}
+                  </div>
+                )}
+                {opensAbove && renderDisplayOptions.map((option) => (
                   <button
-                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'create')}`}
+                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
+                    key={option.id}
                     type="button"
-                    onClick={handleCreate}
-                    disabled={isCreating}
+                    onClick={() => handleSelect(option.id)}
                     className={cn(
-                      'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50',
-                      isItemHighlighted({ type: 'create', label: `Create "${query.trim()}"` }) &&
+                      'flex h-[30px] w-full items-center gap-2 border-b border-theme-border px-4 text-left text-sm transition-colors hover:bg-theme-background',
+                      isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
                         highlightedItemClassName,
+                      option.id === value && 'font-semibold text-theme-primary',
                     )}
                     onMouseEnter={() =>
                       setHighlightedIndex(
-                        navigableItems.findIndex((item) => item.type === 'create'),
+                        navigableItems.findIndex(
+                          (item) => item.type === 'option' && item.id === option.id,
+                        ),
                       )
                     }
                   >
-                    <svg
-                      className="h-4 w-4 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span>Create &quot;{query.trim()}&quot;</span>
+                    {option.isArchived && (
+                      <span className="text-xs text-theme-muted">(archived)</span>
+                    )}
+                    <span>{option.label}</span>
                   </button>
-                  {createError && (
-                    <p className="px-2 pb-1 text-xs text-theme-danger">{createError}</p>
-                  )}
-                </div>
-              )}
-              {showCreateHint && (
-                <div className="flex min-h-[30px] items-center justify-center px-4 py-2 text-center text-[11px] text-theme-muted">
-                  {createHint}
-                </div>
-              )}
-
-              {allowClear && value != null && (
-                <div className="border-t border-theme-border px-2">
+                ))}
+                {opensAbove && showRecentSection && displayOptions.length > 0 && (
+                  <div className="border-b border-theme-border px-2">
+                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
+                      All
+                    </div>
+                  </div>
+                )}
+                {opensAbove && renderRecentOptions.map((option) => (
                   <button
-                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'clear')}`}
+                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === option.id)}`}
+                    key={option.id}
                     type="button"
-                    onClick={handleClear}
+                    onClick={() => handleSelect(option.id)}
                     className={cn(
-                      'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background',
-                      isItemHighlighted({ type: 'clear', label: clearLabel }) &&
+                      'flex h-[30px] w-full items-center gap-2 border-b border-theme-border px-4 text-left text-sm transition-colors hover:bg-theme-background',
+                      isItemHighlighted({ type: 'recent', id: option.id, label: option.label }) &&
                         highlightedItemClassName,
+                      option.id === value && 'font-semibold text-theme-primary',
                     )}
                     onMouseEnter={() =>
                       setHighlightedIndex(
-                        navigableItems.findIndex((item) => item.type === 'clear'),
+                        navigableItems.findIndex(
+                          (item) => item.type === 'recent' && item.id === option.id,
+                        ),
                       )
                     }
                   >
-                    <span>{clearLabel}</span>
+                    {option.isArchived && (
+                      <span className="text-xs text-theme-muted">(archived)</span>
+                    )}
+                    <span>{option.label}</span>
                   </button>
-                </div>
-              )}
+                ))}
+                {opensAbove && showRecentSection && (
+                  <div className="border-b border-theme-border px-2">
+                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
+                      {recentLabel}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>,
           document.body,

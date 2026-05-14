@@ -14,7 +14,8 @@ function getDropdownPosition(rect: DOMRect): {
   top: number
   left: number
   width: number
-  maxHeight: number
+  availableHeight: number
+  openBelow: boolean
 } {
   const ROW_HEIGHT = 30
   const availableWidth = window.innerWidth - VIEWPORT_MARGIN * 2
@@ -31,29 +32,28 @@ function getDropdownPosition(rect: DOMRect): {
   const spaceAbove = rect.top - VIEWPORT_MARGIN
   const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN
   const shouldOpenBelow = spaceBelow >= DROPDOWN_MAX_HEIGHT || spaceBelow >= spaceAbove
-  const availableHeight = shouldOpenBelow ? spaceBelow : spaceAbove
-  const maxHeight = Math.min(DROPDOWN_MAX_HEIGHT, Math.max(ROW_HEIGHT, availableHeight))
+  const availableHeight = Math.min(
+    DROPDOWN_MAX_HEIGHT,
+    Math.max(ROW_HEIGHT, shouldOpenBelow ? spaceBelow : spaceAbove),
+  )
 
-  const top = shouldOpenBelow
-    ? rect.bottom + DROPDOWN_GAP
-    : Math.max(
-        VIEWPORT_MARGIN,
-        rect.top - maxHeight - DROPDOWN_GAP,
-      )
-
-  return { top, left, width, maxHeight }
+  return {
+    top: shouldOpenBelow ? rect.bottom + DROPDOWN_GAP : rect.top - DROPDOWN_GAP,
+    left,
+    width,
+    availableHeight,
+    openBelow: shouldOpenBelow,
+  }
 }
 
 function getInlineDropdownPosition(rect: DOMRect): {
   top: number
   left: number
   width: number
-  maxHeight: number
+  availableHeight: number
+  openBelow: boolean
 } {
-  const ROW_HEIGHT = 30
-  const base = getDropdownPosition(rect)
-  const snapped = Math.max(ROW_HEIGHT, Math.floor(base.maxHeight / ROW_HEIGHT) * ROW_HEIGHT)
-  return { ...base, maxHeight: snapped }
+  return getDropdownPosition(rect)
 }
 
 function getInlineAnchorRect(container: HTMLDivElement | null, variant: 'default' | 'inline'): DOMRect | null {
@@ -126,6 +126,8 @@ export default function CreatableCombobox({
   onTabSelect,
   onTab,
 }: CreatableComboboxProps) {
+  const ROW_HEIGHT = 30
+  const EMPTY_STATE_HEIGHT = 60
   const [hasTyped, setHasTyped] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isCreating, setIsCreating] = useState(false)
@@ -133,13 +135,21 @@ export default function CreatableCombobox({
   const justCreatedRef = useRef(false)
   const isCreatingRef = useRef(false)
   const pendingCommittedLabelRef = useRef<string | null>(null)
+  const autoOpenedRef = useRef(false)
   const [dropdownState, setDropdownState] = useState<{
     isOpen: boolean
-    pos: { top: number; left: number; width: number } | null
+    pos: {
+      top: number
+      left: number
+      width: number
+      availableHeight: number
+      openBelow: boolean
+    } | null
   }>({ isOpen: false, pos: null })
 
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const listboxId = useId()
   const optionIdPrefix = useId()
 
@@ -190,6 +200,44 @@ export default function CreatableCombobox({
 
   const totalItems = navigableItems.length
 
+  const contentHeight = useMemo(() => {
+    let height = 0
+    if (showCreateHint) height += ROW_HEIGHT
+    if (recentVisibleOptions.length > 0) height += ROW_HEIGHT
+    height += recentVisibleOptions.length * ROW_HEIGHT
+    height += displayOptions.length * ROW_HEIGHT
+    if (showCreateOption) height += ROW_HEIGHT
+    if (displayOptions.length === 0 && !showCreateOption && recentVisibleOptions.length === 0) {
+      height += EMPTY_STATE_HEIGHT
+    }
+    return Math.max(ROW_HEIGHT, height)
+  }, [
+    displayOptions.length,
+    recentVisibleOptions.length,
+    showCreateHint,
+    showCreateOption,
+    ROW_HEIGHT,
+    EMPTY_STATE_HEIGHT,
+  ])
+
+  const resolvedDropdownHeight = useMemo(() => {
+    const availableHeight = dropdownState.pos?.availableHeight
+    if (!availableHeight) return null
+    if (contentHeight <= availableHeight) return contentHeight
+    return Math.max(ROW_HEIGHT, Math.floor(availableHeight / ROW_HEIGHT) * ROW_HEIGHT)
+  }, [contentHeight, dropdownState.pos?.availableHeight, ROW_HEIGHT])
+
+  const dropdownTop = useMemo(() => {
+    if (!dropdownState.pos || !resolvedDropdownHeight) return null
+    return dropdownState.pos.openBelow
+      ? dropdownState.pos.top
+      : dropdownState.pos.top - resolvedDropdownHeight
+  }, [dropdownState.pos, resolvedDropdownHeight])
+
+  const opensAbove = dropdownState.pos?.openBelow === false
+  const renderRecentOptions = opensAbove ? [...recentVisibleOptions].reverse() : recentVisibleOptions
+  const renderDisplayOptions = opensAbove ? [...displayOptions].reverse() : displayOptions
+
   const updateDropdownPosition = useCallback(() => {
     const rect = getInlineAnchorRect(containerRef.current, variant)
     if (!rect) return
@@ -201,11 +249,15 @@ export default function CreatableCombobox({
 
   const openDropdown = useCallback(() => {
     if (disabled || isCreating) return
-    setDisplayQuery(selectedLabel)
-    setHasTyped(false)
+    const currentInputValue = inputRef.current?.value ?? displayQuery
+    const hasUserQuery = currentInputValue !== selectedLabel
+    setDisplayQuery(currentInputValue)
+    setHasTyped(hasUserQuery)
     setHighlightedIndex(0)
     setLocalError(null)
-    inputRef.current?.select()
+    if (!hasUserQuery) {
+      inputRef.current?.select()
+    }
 
     const rect = getInlineAnchorRect(containerRef.current, variant)
     const pos = rect
@@ -215,7 +267,7 @@ export default function CreatableCombobox({
       : null
 
     setDropdownState({ isOpen: true, pos })
-  }, [disabled, isCreating, selectedLabel, variant])
+  }, [disabled, displayQuery, isCreating, selectedLabel, variant])
 
   const closeDropdown = useCallback(() => {
     setDropdownState({ isOpen: false, pos: null })
@@ -480,15 +532,19 @@ export default function CreatableCombobox({
   }, [dropdownState.isOpen, listboxId, updateDropdownPosition])
 
   useLayoutEffect(() => {
-    if (autoOpen) {
+    if (autoOpen && !autoOpenedRef.current) {
+      autoOpenedRef.current = true
       openDropdown()
     } else if (autoFocus) {
       inputRef.current?.focus()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!autoOpen) {
+      autoOpenedRef.current = false
+    }
   }, [autoOpen, openDropdown, autoFocus])
 
   useEffect(() => {
+    if (dropdownState.isOpen) return
     if (pendingCommittedLabelRef.current) {
       if (selectedLabel === pendingCommittedLabelRef.current) {
         pendingCommittedLabelRef.current = null
@@ -502,7 +558,7 @@ export default function CreatableCombobox({
     if (!hasTyped) {
       setDisplayQuery(selectedLabel)
     }
-  }, [selectedLabel, hasTyped])
+  }, [selectedLabel, hasTyped, dropdownState.isOpen])
 
   useEffect(() => {
     if (!dropdownState.isOpen || highlightedIndex < 0) return
@@ -510,6 +566,19 @@ export default function CreatableCombobox({
     const optionEl = document.getElementById(`${optionIdPrefix}-${highlightedIndex}`)
     optionEl?.scrollIntoView({ block: 'nearest' })
   }, [dropdownState.isOpen, highlightedIndex, optionIdPrefix])
+
+  useEffect(() => {
+    if (!dropdownState.isOpen || !opensAbove || !contentRef.current) return
+    contentRef.current.scrollTop = contentRef.current.scrollHeight
+  }, [
+    dropdownState.isOpen,
+    opensAbove,
+    filterText,
+    displayOptions.length,
+    recentVisibleOptions.length,
+    showCreateHint,
+    showCreateOption,
+  ])
 
   useEffect(() => {
     if (!dropdownState.isOpen) return
@@ -537,131 +606,263 @@ export default function CreatableCombobox({
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
       className={cn(
-        'fixed z-[60] bg-theme-background text-theme-text border border-theme-border rounded-theme-medium shadow-lg max-h-60 overflow-y-auto scrollbar-auto-hide',
-        variant !== 'inline' && 'pb-2',
+        'fixed z-[60] overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background text-theme-text shadow-lg',
       )}
       style={{
-        top: dropdownState.pos.top,
+        top: dropdownTop ?? dropdownState.pos.top,
         left: dropdownState.pos.left,
         width: dropdownState.pos.width,
-        maxHeight: dropdownState.pos.maxHeight,
+        height: resolvedDropdownHeight ?? dropdownState.pos.availableHeight,
+        maxHeight: dropdownState.pos.availableHeight,
         boxSizing: 'border-box',
       }}
     >
-      {showCreateHint && (
-        <div className="border-b border-theme-border px-3">
-          <div className="flex h-[30px] items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
-            <span
-              aria-hidden="true"
-              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
-            >
-              +
-            </span>
-            <span className="truncate">{createHint}</span>
-          </div>
-        </div>
-      )}
-      {recentVisibleOptions.length > 0 && (
-        <div className="border-b border-theme-border px-3">
-          <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
-            {recentLabel}
-          </div>
-        </div>
-      )}
-      {recentVisibleOptions.map((opt) => (
-        <div
-          key={`recent-${opt.id}`}
-          id={`${optionIdPrefix}-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id)}`}
-          role="option"
-          aria-selected={navigableItems[highlightedIndex]?.type === 'recent' && navigableItems[highlightedIndex]?.id === opt.id}
-          className={cn(
-            'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border',
-            'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-            navigableItems[highlightedIndex]?.type === 'recent' &&
-              navigableItems[highlightedIndex]?.id === opt.id &&
-              highlightedItemClassName,
-            opt.id === value && 'bg-theme-primary-subtle',
-          )}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            handleSelect(opt.id)
-          }}
-          onMouseEnter={() =>
-            setHighlightedIndex(
-              navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id),
-            )
-          }
-        >
-          {opt.label}
-        </div>
-      ))}
-      {displayOptions.map((opt) => {
-        const itemIndex = navigableItems.findIndex(
-          (item) => item.type === 'option' && item.id === opt.id,
-        )
-
-        return (
-        <div
-          key={opt.id}
-          id={`${optionIdPrefix}-${itemIndex}`}
-          role="option"
-          aria-selected={itemIndex === highlightedIndex}
-          className={cn(
-            'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0',
-            'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-            itemIndex === highlightedIndex && highlightedItemClassName,
-            opt.id === value && 'font-medium',
-          )}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            handleSelect(opt.id)
-          }}
-          onMouseEnter={() => setHighlightedIndex(itemIndex)}
-        >
-          {opt.label}
-        </div>
-        )
-      })}
-      {showCreateOption && (
-        <div
-          id={`${optionIdPrefix}-${totalItems - 1}`}
-          role="option"
-          aria-selected={totalItems - 1 === highlightedIndex}
-          className={cn(
-            'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-t border-theme-border',
-            'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-            totalItems - 1 === highlightedIndex && highlightedItemClassName,
-          )}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            void handleCreate()
-          }}
-          onMouseEnter={() => setHighlightedIndex(totalItems - 1)}
-        >
-          {isCreating ? (
-            <span className="flex items-center gap-2 text-theme-text">
-              <Spinner size="xs" />
-              Adding...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2 text-theme-text">
+      <div
+        ref={contentRef}
+        className={cn(
+          'h-full overflow-y-auto overscroll-contain',
+        )}
+      >
+        {!opensAbove && showCreateHint && (
+          <div className="border-b border-theme-border px-3">
+            <div className="flex h-[30px] items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
               <span
                 aria-hidden="true"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
               >
                 +
               </span>
-              <span>{createLabel(filterText)}</span>
-            </span>
-          )}
-        </div>
-      )}
-      {displayOptions.length === 0 && !showCreateOption && recentVisibleOptions.length === 0 && (
-        <div className="px-3 py-4 text-sm text-theme-text text-center">{emptyMessage}</div>
-      )}
+              <span className="truncate">{createHint}</span>
+            </div>
+          </div>
+        )}
+        {!opensAbove && recentVisibleOptions.length > 0 && (
+          <div className="border-b border-theme-border px-3">
+            <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+              {recentLabel}
+            </div>
+          </div>
+        )}
+        {!opensAbove && recentVisibleOptions.map((opt) => (
+          <div
+            key={`recent-${opt.id}`}
+            id={`${optionIdPrefix}-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id)}`}
+            role="option"
+            aria-selected={navigableItems[highlightedIndex]?.type === 'recent' && navigableItems[highlightedIndex]?.id === opt.id}
+            className={cn(
+              'flex h-[30px] items-center border-b border-theme-border px-3 text-sm text-theme-text cursor-pointer',
+              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+              navigableItems[highlightedIndex]?.type === 'recent' &&
+                navigableItems[highlightedIndex]?.id === opt.id &&
+                highlightedItemClassName,
+              opt.id === value && 'bg-theme-primary-subtle',
+            )}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleSelect(opt.id)
+            }}
+            onMouseEnter={() =>
+              setHighlightedIndex(
+                navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id),
+              )
+            }
+          >
+            {opt.label}
+          </div>
+        ))}
+        {!opensAbove && displayOptions.length > 0 && recentVisibleOptions.length > 0 && (
+          <div className="border-b border-theme-border px-3">
+            <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+              All
+            </div>
+          </div>
+        )}
+        {!opensAbove && renderDisplayOptions.map((opt) => {
+          const itemIndex = navigableItems.findIndex(
+            (item) => item.type === 'option' && item.id === opt.id,
+          )
+
+          return (
+            <div
+              key={opt.id}
+              id={`${optionIdPrefix}-${itemIndex}`}
+              role="option"
+              aria-selected={itemIndex === highlightedIndex}
+              className={cn(
+                'flex h-[30px] items-center border-b border-theme-border px-3 text-sm cursor-pointer text-theme-text last:border-b-0',
+                'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+                itemIndex === highlightedIndex && highlightedItemClassName,
+                opt.id === value && 'font-medium',
+              )}
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleSelect(opt.id)
+              }}
+              onMouseEnter={() => setHighlightedIndex(itemIndex)}
+            >
+              {opt.label}
+            </div>
+          )
+        })}
+        {!opensAbove && showCreateOption && (
+          <div
+            id={`${optionIdPrefix}-${totalItems - 1}`}
+            role="option"
+            aria-selected={totalItems - 1 === highlightedIndex}
+            className={cn(
+              'flex h-[30px] items-center border-b border-theme-border px-3 text-sm text-theme-text cursor-pointer',
+              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+              totalItems - 1 === highlightedIndex && highlightedItemClassName,
+            )}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void handleCreate()
+            }}
+            onMouseEnter={() => setHighlightedIndex(totalItems - 1)}
+          >
+            {isCreating ? (
+              <span className="flex items-center gap-2 text-theme-text">
+                <Spinner size="xs" />
+                Adding...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2 text-theme-text">
+                <span
+                  aria-hidden="true"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                >
+                  +
+                </span>
+                <span>{createLabel(filterText)}</span>
+              </span>
+            )}
+          </div>
+        )}
+        {opensAbove && showCreateOption && (
+          <div
+            id={`${optionIdPrefix}-${totalItems - 1}`}
+            role="option"
+            aria-selected={totalItems - 1 === highlightedIndex}
+            className={cn(
+              'flex h-[30px] items-center border-b border-theme-border px-3 text-sm text-theme-text cursor-pointer',
+              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+              totalItems - 1 === highlightedIndex && highlightedItemClassName,
+            )}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void handleCreate()
+            }}
+            onMouseEnter={() => setHighlightedIndex(totalItems - 1)}
+          >
+            {isCreating ? (
+              <span className="flex items-center gap-2 text-theme-text">
+                <Spinner size="xs" />
+                Adding...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2 text-theme-text">
+                <span
+                  aria-hidden="true"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+                >
+                  +
+                </span>
+                <span>{createLabel(filterText)}</span>
+              </span>
+            )}
+          </div>
+        )}
+        {opensAbove && displayOptions.length > 0 && recentVisibleOptions.length > 0 && (
+          <div className="border-b border-theme-border px-3">
+            <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+              All
+            </div>
+          </div>
+        )}
+        {opensAbove && renderDisplayOptions.map((opt) => {
+          const itemIndex = navigableItems.findIndex(
+            (item) => item.type === 'option' && item.id === opt.id,
+          )
+
+          return (
+          <div
+            key={opt.id}
+            id={`${optionIdPrefix}-${itemIndex}`}
+            role="option"
+            aria-selected={itemIndex === highlightedIndex}
+            className={cn(
+              'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0',
+              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+              itemIndex === highlightedIndex && highlightedItemClassName,
+              opt.id === value && 'font-medium',
+            )}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleSelect(opt.id)
+            }}
+            onMouseEnter={() => setHighlightedIndex(itemIndex)}
+          >
+            {opt.label}
+          </div>
+          )
+        })}
+        {opensAbove && recentVisibleOptions.length > 0 && (
+          <div className="border-b border-theme-border px-3">
+            <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+              {recentLabel}
+            </div>
+          </div>
+        )}
+        {opensAbove && renderRecentOptions.map((opt) => (
+          <div
+            key={`recent-${opt.id}`}
+            id={`${optionIdPrefix}-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id)}`}
+            role="option"
+            aria-selected={navigableItems[highlightedIndex]?.type === 'recent' && navigableItems[highlightedIndex]?.id === opt.id}
+            className={cn(
+              'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border',
+              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
+              navigableItems[highlightedIndex]?.type === 'recent' &&
+                navigableItems[highlightedIndex]?.id === opt.id &&
+                highlightedItemClassName,
+              opt.id === value && 'bg-theme-primary-subtle',
+            )}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleSelect(opt.id)
+            }}
+            onMouseEnter={() =>
+              setHighlightedIndex(
+                navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id),
+              )
+            }
+          >
+            {opt.label}
+          </div>
+        ))}
+        {opensAbove && showCreateHint && (
+          <div className="border-b border-theme-border px-3">
+            <div className="flex h-[30px] items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
+              <span
+                aria-hidden="true"
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
+              >
+                +
+              </span>
+              <span className="truncate">{createHint}</span>
+            </div>
+          </div>
+        )}
+        {displayOptions.length === 0 && !showCreateOption && recentVisibleOptions.length === 0 && (
+          <div className="px-3 py-4 text-sm text-theme-text text-center">{emptyMessage}</div>
+        )}
+      </div>
     </div>
   )
 

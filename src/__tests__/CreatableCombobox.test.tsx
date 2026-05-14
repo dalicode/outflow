@@ -4,6 +4,29 @@ import { describe, expect, it, vi } from 'vitest'
 import CreatableCombobox from '../components/inputs/CreatableCombobox'
 
 describe('CreatableCombobox', () => {
+  it('preserves typed text if a click open lands after typing starts', async () => {
+    render(
+      <CreatableCombobox
+        value=""
+        options={[
+          { id: 1, label: 'Yonder Ledger' },
+          { id: 2, label: 'Zephyr Ledger' },
+        ]}
+        variant="inline"
+        openOnClick
+        onChange={vi.fn()}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'yon' } })
+    fireEvent.click(input)
+
+    expect(input).toHaveValue('yon')
+    expect(screen.getByRole('option', { name: 'Yonder Ledger' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Zephyr Ledger' })).not.toBeInTheDocument()
+  })
+
   it('does not reopen after selection when the inline editor remounts', async () => {
     function RemountingCombobox() {
       const [value, setValue] = useState<string | number>(1)
