@@ -336,7 +336,8 @@ export default function CreatableCombobox({
     }
 
     const firstSelectable = navigableItems.find(
-      (item) => item.type === 'recent' || item.type === 'option',
+      (item): item is Extract<NavigableItem, { type: 'recent' | 'option' }> =>
+        item.type === 'recent' || item.type === 'option',
     )
 
     return firstSelectable?.id ?? value

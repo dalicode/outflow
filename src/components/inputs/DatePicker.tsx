@@ -32,7 +32,8 @@ const VIEWPORT_MARGIN = 8
 const POPUP_GAP = 4
 
 function getPopupPosition(rect: DOMRect): {
-  top: number
+  top?: number
+  bottom?: number
   left: number
   width: number
 } {
@@ -46,14 +47,11 @@ function getPopupPosition(rect: DOMRect): {
   const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN
   const shouldOpenBelow = spaceBelow >= POPUP_MAX_HEIGHT || spaceBelow >= spaceAbove
 
-  const top = shouldOpenBelow
-    ? rect.bottom + POPUP_GAP
-    : Math.max(
-        VIEWPORT_MARGIN,
-        rect.top - Math.min(POPUP_MAX_HEIGHT, Math.max(spaceAbove, 0)) - POPUP_GAP,
-      )
+  if (shouldOpenBelow) {
+    return { top: rect.bottom + POPUP_GAP, left, width }
+  }
 
-  return { top, left, width }
+  return { bottom: window.innerHeight - rect.top + POPUP_GAP, left, width }
 }
 
 function getAnchorRect(
@@ -231,7 +229,7 @@ export default function DatePicker({
   const [isInvalid, setIsInvalid] = useState(false)
   const [popupState, setPopupState] = useState<{
     isOpen: boolean
-    pos: { top: number; left: number; width: number } | null
+    pos: { top?: number; bottom?: number; left: number; width: number } | null
   }>({ isOpen: false, pos: null })
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
 
@@ -419,9 +417,10 @@ export default function DatePicker({
       }}
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
-      className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-large shadow-xl"
+      className="fixed z-[60] bg-theme-background border border-theme-border rounded-theme-large shadow-xl max-h-[320px] overflow-y-auto"
       style={{
         top: popupState.pos.top,
+        bottom: popupState.pos.bottom,
         left: popupState.pos.left,
         width: popupState.pos.width,
       }}

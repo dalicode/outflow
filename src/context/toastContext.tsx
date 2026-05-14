@@ -285,9 +285,10 @@ function ToastViewport({
               }}
               onTouchMove={(e) => {
                 if (!touchRef.current || touchRef.current.id !== id) return
+                const touch = touchRef.current
                 setTouchDeltas((prev) => ({
                   ...prev,
-                  [id]: e.touches[0].clientY - touchRef.current?.y,
+                  [id]: e.touches[0].clientY - touch.y,
                 }))
               }}
               onTouchEnd={() => {

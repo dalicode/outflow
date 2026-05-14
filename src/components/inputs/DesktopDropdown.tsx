@@ -367,7 +367,7 @@ export default function DesktopDropdown({
 
     if (item.type === 'create' || item.type === 'clear') return true
 
-    return highlightedItem.id === item.id
+    return (highlightedItem as { id: string | number }).id === (item as { id: string | number }).id
   }
 
   const highlightedItemClassName =
