@@ -203,15 +203,27 @@ function MultiSelectDropdown({
   const selectionFooter = (
     <div className="flex items-center justify-between border-t border-theme-border px-1 pt-2">
       <span className="text-xs text-theme-muted">{selected.size} selected</span>
-      {selected.size > 0 && (
+      <div className="flex items-center gap-3">
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-xs font-medium text-theme-primary hover:opacity-80"
+          >
+            Clear
+          </button>
+        )}
         <button
           type="button"
-          onClick={onClear}
+          onClick={() => {
+            setIsOpen(false)
+            setIsMobilePickerOpen(false)
+          }}
           className="text-xs font-medium text-theme-primary hover:opacity-80"
         >
-          Clear
+          Done
         </button>
-      )}
+      </div>
     </div>
   )
 
