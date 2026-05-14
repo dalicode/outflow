@@ -42,11 +42,11 @@ test.describe("Filter modal (desktop)", () => {
     await page.getByTestId("btn-apply-filters").click();
     await expect(page.getByRole("dialog", { name: "Filter Transactions" })).not.toBeVisible({ timeout: 5000 });
 
+    await expect(page.getByText("Lunch")).toBeVisible();
+    await expect(page.getByText("Groceries")).toHaveCount(0);
+
     const filterButton = visibleFiltersButton(page);
     await expect(filterButton).toBeVisible();
     await expect(filterButton).toContainText("1");
-
-    await expect(page.getByText("Lunch")).toBeVisible();
-    await expect(page.getByText("Groceries")).toHaveCount(0);
   });
 });
