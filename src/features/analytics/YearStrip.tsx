@@ -42,7 +42,10 @@ export default function YearStrip({
       selectedKey={year}
       smoothScrollThreshold={200}
       scrollMode="nearest"
-      itemWidth={48}
+      itemWidth={56}
+      onCurrent={() => {
+        if (year !== currentYear) onYearChange(currentYear)
+      }}
       onStepBack={() => {
         if (!canGoBack) return
         const idx = sorted.indexOf(year)
@@ -55,35 +58,35 @@ export default function YearStrip({
         const next = sorted[idx + 1]
         if (next != null) onYearChange(next)
       }}
+      disableCurrent={year === currentYear}
+      currentLabel="Current year"
       disableStepBack={!canGoBack}
       disableStepForward={!canGoForward}
-      jumpBackLabel="Back"
       stepBackLabel="Previous year"
       stepForwardLabel="Next year"
-      jumpForwardLabel="Current year"
       spanSelector={multipleActive ? '.year-pill-selected' : undefined}
     >
       {sorted.map((y) => {
         const isActive = activeYears ? activeYears.has(y) : y === year
         const isCurrent = y === currentYear
         return (
-          <button
-            key={y}
-            onClick={() => {
-              haptics.selection()
-              onYearChange(y)
-            }}
-            className={cn(
-              'year-pill motion-safe:active:scale-[0.98]',
-              isActive && 'year-pill-selected',
-              !isActive && isCurrent && 'year-pill-current',
-            )}
-            data-selected={isActive || undefined}
-            aria-label={String(y)}
-            aria-current={isActive ? 'date' : undefined}
-          >
-            {y}
-          </button>
+          <div key={y} className="year-strip-item" data-selected={isActive || undefined}>
+            <button
+              onClick={() => {
+                haptics.selection()
+                onYearChange(y)
+              }}
+              className={cn(
+                'year-pill motion-safe:active:scale-[0.98]',
+                isActive && 'year-pill-selected',
+                !isActive && isCurrent && 'year-pill-current',
+              )}
+              aria-label={String(y)}
+              aria-current={isActive ? 'date' : undefined}
+            >
+              {y}
+            </button>
+          </div>
         )
       })}
     </Strip>

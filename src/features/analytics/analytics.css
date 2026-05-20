@@ -274,12 +274,22 @@
   display: none;
 }
 
+/* Year strip item track */
+.year-strip-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  flex-shrink: 0;
+  scroll-snap-align: center;
+}
+
 /* Year pill */
 .year-pill {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
+  width: 48px;
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-small);
   font-size: 0.8125rem;
@@ -288,8 +298,6 @@
   background-color: transparent;
   border: none;
   cursor: pointer;
-  scroll-snap-align: center;
-  flex-shrink: 0;
   position: relative;
   z-index: 1;
   transition:

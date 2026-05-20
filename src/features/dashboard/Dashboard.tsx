@@ -191,11 +191,10 @@ export default function Dashboard({
           yearFirstIndices={dash.yearFirstIndices}
           monthKeys={dash.monthKeys}
           onSelectMonth={dash.navigateToMonth}
-          onJumpBack={dash.jumpBackMonths}
+          onCurrent={dash.jumpToCurrentMonth}
           onStepBack={dash.goToPreviousMonth}
           onStepForward={dash.goToNextMonth}
-          onJumpForward={dash.jumpToCurrentMonth}
-          disableJumpForward={dash.isAtCurrentMonth}
+          disableCurrent={dash.isAtCurrentMonth}
         />
       </div>
       {/* ── Tabs ── */}

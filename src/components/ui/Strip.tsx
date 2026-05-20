@@ -8,18 +8,15 @@ interface StripProps {
   scrollSelector: string
   selectedKey?: string | number
   align?: 'center' | 'end'
-  onJumpBack?: () => void
+  onCurrent?: () => void
   onStepBack?: () => void
   onStepForward?: () => void
-  onJumpForward?: () => void
-  disableJumpBack?: boolean
+  disableCurrent?: boolean
   disableStepBack?: boolean
   disableStepForward?: boolean
-  disableJumpForward?: boolean
-  jumpBackLabel: string
+  currentLabel?: string
   stepBackLabel: string
   stepForwardLabel: string
-  jumpForwardLabel: string
   beforeScroll?: ReactNode
   afterScroll?: ReactNode
   smoothScrollThreshold?: number
@@ -72,7 +69,7 @@ function ChevronRight({ className = 'w-4 h-4' }: { className?: string }) {
   )
 }
 
-function DoubleChevronLeft({ className = 'w-4 h-4' }: { className?: string }) {
+function CalendarIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -81,21 +78,8 @@ function DoubleChevronLeft({ className = 'w-4 h-4' }: { className?: string }) {
       strokeWidth="2"
       viewBox="0 0 24 24"
     >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M18 19l-7-7 7-7M11 19l-7-7 7-7" />
-    </svg>
-  )
-}
-
-function DoubleChevronRight({ className = 'w-4 h-4' }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M6 5l7 7-7 7" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4M16 2v4M3 10h18" />
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
     </svg>
   )
 }
@@ -106,18 +90,15 @@ export default function Strip({
   scrollSelector,
   selectedKey,
   align = 'center',
-  onJumpBack,
+  onCurrent,
   onStepBack,
   onStepForward,
-  onJumpForward,
-  disableJumpBack,
+  disableCurrent,
   disableStepBack,
   disableStepForward,
-  disableJumpForward,
-  jumpBackLabel,
+  currentLabel,
   stepBackLabel,
   stepForwardLabel,
-  jumpForwardLabel,
   beforeScroll,
   afterScroll,
   smoothScrollThreshold = 240,
@@ -218,11 +199,11 @@ export default function Strip({
     })
   })
 
-  const hasNav = onJumpBack || onStepBack || onStepForward || onJumpForward
+  const hasNav = onCurrent || onStepBack || onStepForward
 
-  const handleJumpBack = () => {
+  const handleCurrent = () => {
     haptics.selection()
-    onJumpBack?.()
+    onCurrent?.()
   }
   const handleStepBack = () => {
     haptics.selection()
@@ -232,23 +213,18 @@ export default function Strip({
     haptics.selection()
     onStepForward?.()
   }
-  const handleJumpForward = () => {
-    haptics.selection()
-    onJumpForward?.()
-  }
-
   return (
     <div className={cn('flex justify-center', alignmentClass)}>
       {hasNav && (
         <>
-          {onJumpBack && (
+          {onCurrent && (
             <button
-              onClick={handleJumpBack}
-              disabled={disableJumpBack}
-              className={cn('strip-nav-btn', disableJumpBack && 'cursor-not-allowed opacity-40')}
-              aria-label={jumpBackLabel}
+              onClick={handleCurrent}
+              disabled={disableCurrent}
+              className={cn('strip-nav-btn', disableCurrent && 'cursor-not-allowed opacity-40')}
+              aria-label={currentLabel}
             >
-              <DoubleChevronLeft />
+              <CalendarIcon />
             </button>
           )}
           {onStepBack && (
@@ -300,16 +276,6 @@ export default function Strip({
               aria-label={stepForwardLabel}
             >
               <ChevronRight />
-            </button>
-          )}
-          {onJumpForward && (
-            <button
-              onClick={handleJumpForward}
-              disabled={disableJumpForward}
-              className={cn('strip-nav-btn', disableJumpForward && 'cursor-not-allowed opacity-40')}
-              aria-label={jumpForwardLabel}
-            >
-              <DoubleChevronRight />
             </button>
           )}
         </>

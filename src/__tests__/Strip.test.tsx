@@ -38,10 +38,9 @@ describe('Strip', () => {
         scrollClass="month-strip-scroll"
         scrollSelector="[data-selected='true']"
         selectedKey="jan"
-        jumpBackLabel="Back"
+        currentLabel="Current"
         stepBackLabel="Previous"
         stepForwardLabel="Next"
-        jumpForwardLabel="Forward"
       >
         <button data-selected="true">Jan</button>
         <button>Feb</button>
@@ -75,10 +74,9 @@ describe('Strip', () => {
         scrollClass="month-strip-scroll"
         scrollSelector="[data-selected='true']"
         selectedKey="apr"
-        jumpBackLabel="Back"
+        currentLabel="Current"
         stepBackLabel="Previous"
         stepForwardLabel="Next"
-        jumpForwardLabel="Forward"
       >
         <button>Jan</button>
         <button>Feb</button>
@@ -90,4 +88,5 @@ describe('Strip', () => {
     expect(scrollTo).toHaveBeenCalled()
     expect(scrollContainer.scrollLeft).toBeGreaterThan(0)
   })
+
 })

@@ -19,11 +19,10 @@ interface DashboardMonthStripProps {
   yearFirstIndices: Map<number, number>
   monthKeys: Array<{ key: string }>
   onSelectMonth: (year: number, month: number) => void
-  onJumpBack: () => void
+  onCurrent: () => void
   onStepBack: () => void
   onStepForward: () => void
-  onJumpForward: () => void
-  disableJumpForward: boolean
+  disableCurrent: boolean
 }
 
 export default function DashboardMonthStrip({
@@ -35,11 +34,10 @@ export default function DashboardMonthStrip({
   yearFirstIndices,
   monthKeys,
   onSelectMonth,
-  onJumpBack,
+  onCurrent,
   onStepBack,
   onStepForward,
-  onJumpForward,
-  disableJumpForward,
+  disableCurrent,
 }: DashboardMonthStripProps) {
   const haptics = useHaptics()
 
@@ -50,16 +48,14 @@ export default function DashboardMonthStrip({
       scrollSelector="[data-selected='true']"
       selectedKey={`${selectedYear}-${selectedMonth}`}
       align="end"
-      onJumpBack={onJumpBack}
+      onCurrent={onCurrent}
       onStepBack={onStepBack}
       onStepForward={onStepForward}
-      onJumpForward={onJumpForward}
-      disableJumpForward={disableJumpForward}
-      jumpBackLabel="Back"
+      disableCurrent={disableCurrent}
+      currentLabel="Current month"
       stepBackLabel="Previous month"
       stepForwardLabel="Next month"
-      jumpForwardLabel="Current month"
-      spanSelector={monthSpan > 1 ? '.month-pill-selected' : undefined}
+      spanSelector={monthSpan > 1 ? '.month-pill-span-active' : undefined}
     >
       {monthStrip.map(({ year, month }, index) => {
         const isSelected = year === selectedYear && month === selectedMonth
@@ -89,7 +85,7 @@ export default function DashboardMonthStrip({
               onClick={handleClick}
               className={cn(
                 'month-pill motion-safe:active:scale-[0.98]',
-                (isSelected || isInSpan) && 'month-pill-selected',
+                monthSpan > 1 ? isInSpan && 'month-pill-span-active' : isSelected && 'month-pill-selected',
                 !isSelected && !isInSpan && isRealCurrent && 'month-pill-current',
               )}
               aria-label={`${monthName} ${year}`}
