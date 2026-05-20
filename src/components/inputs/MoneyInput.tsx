@@ -43,6 +43,7 @@ interface MoneyInputProps {
   onEnterValue?: (value: number, shiftKey: boolean) => void
   onTabValue?: (value: number, shiftKey: boolean) => void
   entryMode?: MoneyInputEntryMode
+  inputTestId?: string
 }
 
 const SIZE_MAP: Record<MoneyInputSize, string> = {
@@ -81,6 +82,7 @@ export default function MoneyInput({
   onEnterValue,
   onTabValue,
   entryMode = 'decimal',
+  inputTestId,
 }: MoneyInputProps) {
   const inputId = useId()
   const haptics = useHaptics()
@@ -475,6 +477,7 @@ export default function MoneyInput({
           aria-invalid={hasError}
           aria-label={label ?? 'Amount'}
           inputMode={entryMode === 'decimal' ? 'decimal' : allowNegative ? 'decimal' : 'numeric'}
+          data-testid={inputTestId}
         />
 
         {allowNegative &&

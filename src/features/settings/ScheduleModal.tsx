@@ -485,6 +485,7 @@ export default function ScheduleModal({
                   size="md"
                   showCurrencyCode
                   disabled={isReadOnly}
+                  inputTestId="schedule-value-input"
                 />
               )}
             </div>
