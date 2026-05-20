@@ -69,6 +69,11 @@ describe('Navbar', () => {
     fireEvent.click(expandButton)
 
     fireEvent.click(within(sidebar).getByText('Sign out'))
+    expect(onSignOut).not.toHaveBeenCalled()
+    expect(screen.getByText('Sign out?')).toBeInTheDocument()
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sign out' }))
     expect(onSignOut).toHaveBeenCalledTimes(1)
   })
 

@@ -13,7 +13,7 @@ interface DesktopSidebarProps {
   syncStatus?: SyncStatus
   onSignIn?: () => void
   showSignIn?: boolean
-  onSignOut?: MouseEventHandler<HTMLButtonElement>
+  onSignOut?: () => void
   userEmail?: string
   onCycleDashboardView?: () => void
 }
@@ -205,9 +205,9 @@ export default function DesktopSidebar({
 
         {onSignOut ? (
           <button
-            onClick={(e) => {
+            onClick={() => {
               haptics.selection()
-              onSignOut(e)
+              onSignOut()
             }}
             className={cn(
               'w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger-subtle',

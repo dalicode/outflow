@@ -98,6 +98,7 @@ export default function SettingsPage({
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
   const [isRebuildCloudModalOpen, setIsRebuildCloudModalOpen] = useState(false)
   const [isRebuildingCloud, setIsRebuildingCloud] = useState(false)
+  const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = useState(false)
 
   const { schedules, loadSchedules, deleteSchedule } = useScheduleList()
   const backup = useBackup({
@@ -362,10 +363,7 @@ export default function SettingsPage({
             {user ? (
               <button
                 type="button"
-                onClick={async () => {
-                  const { error } = await signOut()
-                  if (error) showToast({ message: error.message, tone: 'danger' })
-                }}
+                onClick={() => setIsSignOutConfirmOpen(true)}
                 className="settings-action-btn shrink-0 ml-4"
               >
                 Sign out
@@ -380,6 +378,21 @@ export default function SettingsPage({
             )}
           </div>
         </Card>
+
+        <ConfirmDialog
+          isOpen={isSignOutConfirmOpen}
+          onClose={() => setIsSignOutConfirmOpen(false)}
+          title="Sign out?"
+          description="You’ll need to sign back in to resume cloud sync on this device."
+          cancelLabel="Cancel"
+          confirmLabel="Sign out"
+          confirmVariant="destructive"
+          onConfirm={() => {
+            void signOut().then(({ error }) => {
+              if (error) showToast({ message: error.message, tone: 'danger' })
+            })
+          }}
+        />
 
         {/* ── DATA ── */}
         <Card title="Data">

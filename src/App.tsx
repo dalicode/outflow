@@ -1,11 +1,11 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
-import Modal from './components/ui/Modal'
 import OfflineStatusBadge from './components/pwa/OfflineStatusBadge'
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt'
 import PWAUpdatePrompt from './components/pwa/PWAUpdatePrompt'
 import LoadingOverlay from './components/ui/LoadingOverlay'
+import Modal from './components/ui/Modal'
 import PullToRefreshContainer from './components/ui/PullToRefreshContainer'
 import { installTestApi } from './test/testApi'
 import { ROUTES } from './constants/routes'
@@ -137,7 +137,8 @@ function AppShell() {
     }
   }, [])
 
-  const { user, loading, syncStatus, syncCount, syncNow, triggerSync, signOut } = useAuth()
+  const { user, loading, lastSignInAt, syncStatus, syncCount, syncNow, triggerSync, signOut } =
+    useAuth()
   const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
@@ -155,6 +156,19 @@ function AppShell() {
   const [snapshotsReady, setSnapshotsReady] = useState(false)
   const [pendingExpenseDeleteIds, setPendingExpenseDeleteIds] = useState<number[]>([])
   const pendingExpenseDeleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const lastWelcomedSignInRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!user || lastSignInAt === null) return
+    if (lastWelcomedSignInRef.current === lastSignInAt) return
+
+    lastWelcomedSignInRef.current = lastSignInAt
+    showToast({
+      message: `Welcome back${user.email ? `, ${user.email}` : ''}.`,
+      tone: 'success',
+      durationMs: 3500,
+    })
+  }, [lastSignInAt, showToast, user])
 
   const announceAppliedScheduleUpdates = useCallback(
     (notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>) => {
@@ -575,7 +589,7 @@ function AppShell() {
               onAddExpense={() => setShowForm(true)}
               onSignOut={
                 supabase && user
-                  ? (_e) => {
+                  ? () => {
                       signOut().then(({ error }) => {
                         if (error) {
                           showToast({ message: 'Sign out failed', tone: 'danger' })

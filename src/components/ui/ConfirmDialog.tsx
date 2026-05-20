@@ -65,7 +65,7 @@ export default function ConfirmDialog({
         </ModalFooter>
       }
     >
-      {description && <div className="pb-1">{description}</div>}
+      {description && <div className="pb-1 text-sm text-theme-muted">{description}</div>}
     </Modal>
   )
 }
