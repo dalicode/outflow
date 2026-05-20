@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn'
 interface SyncIndicatorProps {
   syncStatus: SyncStatus
   compact?: boolean
+  showLabel?: boolean
 }
 
 const LABEL_MAP: Record<SyncStatus, string> = {
@@ -121,7 +122,11 @@ function CloudStatusIcon({
   )
 }
 
-export default function SyncIndicator({ syncStatus, compact = false }: SyncIndicatorProps) {
+export default function SyncIndicator({
+  syncStatus,
+  compact = false,
+  showLabel = true,
+}: SyncIndicatorProps) {
   return (
     <div
       className={cn(
@@ -133,7 +138,12 @@ export default function SyncIndicator({ syncStatus, compact = false }: SyncIndic
     >
       <CloudStatusIcon syncStatus={syncStatus} compact={compact} />
       {!compact && (
-        <div className="min-w-0">
+        <div
+          className={cn(
+            'min-w-0 transition-opacity duration-200',
+            showLabel ? 'opacity-100' : 'opacity-0',
+          )}
+        >
           <p className="text-[0.6875rem] font-semibold leading-none text-theme-text">
             {LABEL_MAP[syncStatus]}
           </p>

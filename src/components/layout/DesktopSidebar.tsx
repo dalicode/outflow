@@ -1,4 +1,4 @@
-import { type MouseEventHandler, useCallback, useState } from 'react'
+import { type MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useHaptics } from '../../hooks/useHaptics'
 import { cn } from '../../utils/cn'
@@ -28,9 +28,19 @@ export default function DesktopSidebar({
   onCycleDashboardView,
 }: DesktopSidebarProps) {
   const [collapsed, setCollapsed] = useState(true)
+  const [labelsVisible, setLabelsVisible] = useState(false)
+  const labelRevealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const haptics = useHaptics()
   const location = useLocation()
   const isOnDashboard = location.pathname === ROUTES.DASHBOARD
+
+  useEffect(() => {
+    return () => {
+      if (labelRevealTimeoutRef.current) {
+        clearTimeout(labelRevealTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleNavLinkClick = useCallback(
     (pageKey: NavItemConfig['pageKey'], e: React.MouseEvent) => {
@@ -46,6 +56,33 @@ export default function DesktopSidebar({
   const footerItemClass = collapsed
     ? 'min-h-10 justify-center px-2'
     : 'min-h-[3.25rem] gap-3 px-3 mx-2'
+  const labelClass = cn(
+    'transition-opacity duration-200',
+    labelsVisible ? 'opacity-100' : 'opacity-0',
+  )
+
+  const expandSidebar = useCallback(() => {
+    haptics.selection()
+    if (labelRevealTimeoutRef.current) {
+      clearTimeout(labelRevealTimeoutRef.current)
+    }
+    setCollapsed(false)
+    setLabelsVisible(false)
+    labelRevealTimeoutRef.current = setTimeout(() => {
+      setLabelsVisible(true)
+      labelRevealTimeoutRef.current = null
+    }, 200)
+  }, [haptics])
+
+  const collapseSidebar = useCallback(() => {
+    haptics.selection()
+    if (labelRevealTimeoutRef.current) {
+      clearTimeout(labelRevealTimeoutRef.current)
+      labelRevealTimeoutRef.current = null
+    }
+    setLabelsVisible(false)
+    setCollapsed(true)
+  }, [haptics])
 
   return (
     <aside className={cn('navbar-desktop group', sidebarWidth)}>
@@ -57,13 +94,12 @@ export default function DesktopSidebar({
               <span className="flex h-6 w-6 shrink-0 items-center justify-center">
                 <img src="/icon.svg" alt="" className="h-6 w-6" />
               </span>
-              <span className="text-md font-semibold leading-none text-theme-primary">Outflow</span>
+              <span className={cn('text-md font-semibold leading-none text-theme-primary', labelClass)}>
+                Outflow
+              </span>
             </div>
             <button
-              onClick={() => {
-                haptics.selection()
-                setCollapsed(true)
-              }}
+              onClick={collapseSidebar}
               className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               aria-label="Collapse sidebar"
               title="Collapse"
@@ -91,10 +127,7 @@ export default function DesktopSidebar({
       {collapsed && (
         <div className="flex justify-center pb-2">
           <button
-            onClick={() => {
-              haptics.selection()
-              setCollapsed(false)
-            }}
+            onClick={expandSidebar}
             className="navbar-toggle-btn nav-item-hover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
             aria-label="Expand sidebar"
             title="Expand"
@@ -132,7 +165,9 @@ export default function DesktopSidebar({
               )}
             >
               <Icon active={isActive} />
-              {!collapsed && <span className="text-sm font-medium truncate">{label}</span>}
+              {!collapsed && (
+                <span className={cn('text-sm font-medium truncate', labelClass)}>{label}</span>
+              )}
             </NavLink>
           )
         })}
@@ -154,7 +189,7 @@ export default function DesktopSidebar({
           aria-label="Add expense"
         >
           <PlusIcon />
-          {!collapsed && <span className="text-sm font-medium truncate">Add</span>}
+          {!collapsed && <span className={cn('text-sm font-medium truncate', labelClass)}>Add</span>}
         </button>
 
         {onSignOut && (
@@ -164,7 +199,7 @@ export default function DesktopSidebar({
               footerItemClass,
             )}
           >
-            <SyncIndicator syncStatus={syncStatus} compact={collapsed} />
+            <SyncIndicator syncStatus={syncStatus} compact={collapsed} showLabel={labelsVisible} />
           </div>
         )}
 
@@ -182,7 +217,7 @@ export default function DesktopSidebar({
           >
             <SignOutIcon />
             {!collapsed && (
-              <div className="text-left overflow-hidden">
+              <div className={cn('text-left overflow-hidden', labelClass)}>
                 <span className="text-sm font-medium block truncate">Sign out</span>
                 {userEmail && (
                   <span className="text-[0.6875rem] text-theme-muted block truncate">
@@ -205,7 +240,9 @@ export default function DesktopSidebar({
             title="Sign in to sync data across devices"
           >
             <SignInIcon />
-            {!collapsed && <span className="text-sm font-medium truncate">Sign in</span>}
+            {!collapsed && (
+              <span className={cn('text-sm font-medium truncate', labelClass)}>Sign in</span>
+            )}
           </button>
         ) : null}
       </div>

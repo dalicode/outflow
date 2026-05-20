@@ -4,6 +4,7 @@ dist/
 .vscode/
 .kiro/
 .opencode/
+docs/
 
 # Dependencies
 node_modules/
