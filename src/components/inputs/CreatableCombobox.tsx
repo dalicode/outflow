@@ -1,66 +1,50 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../utils/cn'
+import {
+  getDropdownFloatingPosition,
+  type FloatingPosition,
+} from '../../utils/floatingPosition'
 import Spinner from '../ui/Spinner'
 import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './comboboxUtils'
 
-const DROPDOWN_MAX_HEIGHT = 240
-const VIEWPORT_MARGIN = 8
+const DROPDOWN_MAX_HEIGHT = 420
 const DROPDOWN_GAP = 4
 const DROPDOWN_MIN_WIDTH = 240
 const DROPDOWN_MAX_WIDTH = 420
+const MAX_VISIBLE_OPTION_ROWS = 8
+const MIN_ROWS_BEFORE_FLIP = 4
 
-function getDropdownPosition(rect: DOMRect): {
-  top: number
-  left: number
-  width: number
-  availableHeight: number
-  openBelow: boolean
-} {
-  const ROW_HEIGHT = 30
-  const availableWidth = window.innerWidth - VIEWPORT_MARGIN * 2
+function getDropdownPosition(rect: DOMRect, desiredHeight: number): FloatingPosition {
   const preferredWidth = Math.max(
     rect.width,
     Math.min(DROPDOWN_MAX_WIDTH, Math.max(DROPDOWN_MIN_WIDTH, rect.width * 1.2)),
   )
-  const width = Math.min(preferredWidth, availableWidth)
-  const left = Math.min(
-    Math.max(rect.left, VIEWPORT_MARGIN),
-    window.innerWidth - VIEWPORT_MARGIN - width,
-  )
 
-  const spaceAbove = rect.top - VIEWPORT_MARGIN
-  const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN
-  const shouldOpenBelow = spaceBelow >= DROPDOWN_MAX_HEIGHT || spaceBelow >= spaceAbove
-  const availableHeight = Math.min(
-    DROPDOWN_MAX_HEIGHT,
-    Math.max(ROW_HEIGHT, shouldOpenBelow ? spaceBelow : spaceAbove),
-  )
+  return getDropdownFloatingPosition(rect, {
+    idealHeight: desiredHeight,
+    maxHeight: DROPDOWN_MAX_HEIGHT,
+    minUsableHeight: MIN_ROWS_BEFORE_FLIP * 30,
+    minWidth: DROPDOWN_MIN_WIDTH,
+    maxWidth: DROPDOWN_MAX_WIDTH,
+    desiredWidth: preferredWidth,
+    gap: DROPDOWN_GAP,
+  })
+}
 
-  return {
-    top: shouldOpenBelow ? rect.bottom + DROPDOWN_GAP : rect.top - DROPDOWN_GAP,
-    left,
-    width,
-    availableHeight,
-    openBelow: shouldOpenBelow,
+function getAnchorRect(
+  container: HTMLDivElement | null,
+  variant: 'default' | 'inline',
+): DOMRect | undefined {
+  if (!container) return undefined
+
+  if (variant === 'inline') {
+    const tableCell = container.closest('td')
+    if (tableCell instanceof HTMLTableCellElement) {
+      return tableCell.getBoundingClientRect()
+    }
   }
-}
 
-function getInlineDropdownPosition(rect: DOMRect): {
-  top: number
-  left: number
-  width: number
-  availableHeight: number
-  openBelow: boolean
-} {
-  return getDropdownPosition(rect)
-}
-
-function getInlineAnchorRect(container: HTMLDivElement | null, variant: 'default' | 'inline'): DOMRect | null {
-  if (!container) return null
-  if (variant !== 'inline') return container.getBoundingClientRect()
-  const tableCell = container.closest('td,th')
-  if (tableCell) return tableCell.getBoundingClientRect()
   return container.getBoundingClientRect()
 }
 
@@ -134,17 +118,12 @@ export default function CreatableCombobox({
   const [localError, setLocalError] = useState<string | null>(null)
   const justCreatedRef = useRef(false)
   const isCreatingRef = useRef(false)
+  const isUserEditingRef = useRef(false)
   const pendingCommittedLabelRef = useRef<string | null>(null)
   const autoOpenedRef = useRef(false)
   const [dropdownState, setDropdownState] = useState<{
     isOpen: boolean
-    pos: {
-      top: number
-      left: number
-      width: number
-      availableHeight: number
-      openBelow: boolean
-    } | null
+    pos: FloatingPosition | null
   }>({ isOpen: false, pos: null })
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -199,6 +178,7 @@ export default function CreatableCombobox({
   }, [createLabel, displayOptions, filterText, recentVisibleOptions, showCreateOption])
 
   const totalItems = navigableItems.length
+  const visibleOptionCount = recentVisibleOptions.length + displayOptions.length
 
   const contentHeight = useMemo(() => {
     let height = 0
@@ -220,63 +200,105 @@ export default function CreatableCombobox({
     EMPTY_STATE_HEIGHT,
   ])
 
+  const maxVisibleContentHeight = useMemo(() => {
+    let chromeHeight = 0
+    if (showCreateHint) chromeHeight += ROW_HEIGHT
+    if (recentVisibleOptions.length > 0) chromeHeight += ROW_HEIGHT
+    if (displayOptions.length > 0 && recentVisibleOptions.length > 0) chromeHeight += ROW_HEIGHT
+
+    const visibleRows = Math.min(
+      MAX_VISIBLE_OPTION_ROWS,
+      visibleOptionCount + (showCreateOption ? 1 : 0),
+    )
+
+    if (visibleRows === 0) {
+      return contentHeight
+    }
+
+    return chromeHeight + visibleRows * ROW_HEIGHT
+  }, [
+    contentHeight,
+    displayOptions.length,
+    recentVisibleOptions.length,
+    showCreateHint,
+    showCreateOption,
+    visibleOptionCount,
+    ROW_HEIGHT,
+  ])
+
+  const resolveDropdownHeight = useCallback(
+    (availableHeight: number) => {
+      const targetHeight = Math.min(contentHeight, maxVisibleContentHeight)
+      if (targetHeight <= availableHeight) return targetHeight
+      return Math.max(ROW_HEIGHT, Math.floor(availableHeight / ROW_HEIGHT) * ROW_HEIGHT)
+    },
+    [contentHeight, maxVisibleContentHeight, ROW_HEIGHT],
+  )
+
+  const desiredDropdownHeight = useMemo(
+    () => Math.min(contentHeight, maxVisibleContentHeight),
+    [contentHeight, maxVisibleContentHeight],
+  )
+
   const resolvedDropdownHeight = useMemo(() => {
     const availableHeight = dropdownState.pos?.availableHeight
     if (!availableHeight) return null
-    if (contentHeight <= availableHeight) return contentHeight
-    return Math.max(ROW_HEIGHT, Math.floor(availableHeight / ROW_HEIGHT) * ROW_HEIGHT)
-  }, [contentHeight, dropdownState.pos?.availableHeight, ROW_HEIGHT])
+    return resolveDropdownHeight(availableHeight)
+  }, [dropdownState.pos?.availableHeight, resolveDropdownHeight])
 
   const dropdownTop = useMemo(() => {
     if (!dropdownState.pos || !resolvedDropdownHeight) return null
-    return dropdownState.pos.openBelow
-      ? dropdownState.pos.top
-      : dropdownState.pos.top - resolvedDropdownHeight
+    if (dropdownState.pos.placement === 'bottom') {
+      return dropdownState.pos.top ?? null
+    }
+
+    if (dropdownState.pos.bottom == null) return null
+    return window.innerHeight - dropdownState.pos.bottom - resolvedDropdownHeight
   }, [dropdownState.pos, resolvedDropdownHeight])
 
-  const opensAbove = dropdownState.pos?.openBelow === false
-  const renderRecentOptions = opensAbove ? [...recentVisibleOptions].reverse() : recentVisibleOptions
-  const renderDisplayOptions = opensAbove ? [...displayOptions].reverse() : displayOptions
-
   const updateDropdownPosition = useCallback(() => {
-    const rect = getInlineAnchorRect(containerRef.current, variant)
+    const rect = getAnchorRect(containerRef.current, variant)
     if (!rect) return
+    const nextPos = getDropdownPosition(rect, desiredDropdownHeight)
     setDropdownState((prev) => ({
       ...prev,
-      pos: variant === 'inline' ? getInlineDropdownPosition(rect) : getDropdownPosition(rect),
+      pos: nextPos,
     }))
-  }, [variant])
+  }, [desiredDropdownHeight, variant])
 
   const openDropdown = useCallback(() => {
     if (disabled || isCreating) return
     const currentInputValue = inputRef.current?.value ?? displayQuery
     const hasUserQuery = currentInputValue !== selectedLabel
+    const shouldPreserveDraft = isUserEditingRef.current || hasUserQuery
+
+    if (shouldPreserveDraft) {
+      isUserEditingRef.current = true
+    }
+
     setDisplayQuery(currentInputValue)
-    setHasTyped(hasUserQuery)
-    setHighlightedIndex(0)
+    setHasTyped(shouldPreserveDraft)
+    setHighlightedIndex(-1)
     setLocalError(null)
-    if (!hasUserQuery) {
+    if (!shouldPreserveDraft) {
       inputRef.current?.select()
     }
 
-    const rect = getInlineAnchorRect(containerRef.current, variant)
-    const pos = rect
-      ? variant === 'inline'
-        ? getInlineDropdownPosition(rect)
-        : getDropdownPosition(rect)
-      : null
+    const rect = getAnchorRect(containerRef.current, variant)
+    const pos = rect ? getDropdownPosition(rect, desiredDropdownHeight) : null
 
     setDropdownState({ isOpen: true, pos })
-  }, [disabled, displayQuery, isCreating, selectedLabel, variant])
+  }, [desiredDropdownHeight, disabled, displayQuery, isCreating, selectedLabel, variant])
 
   const closeDropdown = useCallback(() => {
     setDropdownState({ isOpen: false, pos: null })
-    setHighlightedIndex(0)
+    setHighlightedIndex(-1)
   }, [])
 
   const handleSelect = useCallback(
     (id: string | number) => {
       const label = options.find((o) => o.id === id)?.label ?? ''
+      isUserEditingRef.current = false
       pendingCommittedLabelRef.current = null
       setDisplayQuery(label)
       setHasTyped(false)
@@ -300,6 +322,7 @@ export default function CreatableCombobox({
     try {
       const newId = await onCreate(trimmed)
       justCreatedRef.current = true
+      isUserEditingRef.current = false
       pendingCommittedLabelRef.current = trimmed
       setDisplayQuery(trimmed)
       setHasTyped(false)
@@ -356,11 +379,13 @@ export default function CreatableCombobox({
     const id = getDefaultCommitId()
     const option = options.find((o) => o.id === id)
     if (filterText.trim() && displayOptions.length === 0) {
+      isUserEditingRef.current = false
       setDisplayQuery(selectedLabel)
       setHasTyped(false)
       return
     }
     if (option) {
+      isUserEditingRef.current = false
       setDisplayQuery(option.label)
       setHasTyped(false)
     }
@@ -408,16 +433,16 @@ export default function CreatableCombobox({
         case 'ArrowDown': {
           e.preventDefault()
           setHighlightedIndex((prev) => {
-            const next = prev >= totalItems - 1 ? 0 : prev + 1
-            return next
+            if (prev === -1 || prev >= totalItems - 1) return 0
+            return prev + 1
           })
           break
         }
         case 'ArrowUp': {
           e.preventDefault()
           setHighlightedIndex((prev) => {
-            const next = prev <= 0 ? totalItems - 1 : prev - 1
-            return next
+            if (prev === -1 || prev <= 0) return totalItems - 1
+            return prev - 1
           })
           break
         }
@@ -428,10 +453,27 @@ export default function CreatableCombobox({
             void handleCreate({ keyboardAction: 'enter', shiftKey: e.shiftKey })
           } else if (highlightedItem?.type === 'recent' || highlightedItem?.type === 'option') {
             const id = highlightedItem.id
+            isUserEditingRef.current = false
             setDisplayQuery(highlightedItem.label)
             setHasTyped(false)
             closeDropdown()
             handleKeyboardSelection(id, e.shiftKey)
+          } else if (showCreateOption) {
+            void handleCreate({ keyboardAction: 'enter', shiftKey: e.shiftKey })
+          } else if (getDefaultCommitId() !== undefined) {
+            const defaultId = getDefaultCommitId()
+            const defaultOption = options.find((option) => option.id === defaultId)
+            if (defaultOption) {
+              isUserEditingRef.current = false
+              setDisplayQuery(defaultOption.label)
+              setHasTyped(false)
+              closeDropdown()
+              handleKeyboardSelection(defaultId, e.shiftKey)
+            }
+          } else if (!highlightedItem && !displayQuery.trim()) {
+            setHasTyped(false)
+            closeDropdown()
+            handleKeyboardSelection(undefined, e.shiftKey)
           }
           break
         }
@@ -448,6 +490,12 @@ export default function CreatableCombobox({
             e.preventDefault()
             const highlightedItem = navigableItems[highlightedIndex]
             if (highlightedItem?.type === 'create') {
+              void handleCreate({
+                keyboardAction: 'tab',
+                shiftKey: e.shiftKey,
+                onComplete: () => onTab(e.shiftKey),
+              })
+            } else if (showCreateOption) {
               void handleCreate({
                 keyboardAction: 'tab',
                 shiftKey: e.shiftKey,
@@ -472,6 +520,9 @@ export default function CreatableCombobox({
       openDropdown,
       onCancel,
       onTab,
+      showCreateOption,
+      getDefaultCommitId,
+      options,
       handleKeyboardSelection,
       getHighlightedCommitId,
     ],
@@ -479,19 +530,16 @@ export default function CreatableCombobox({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
+    isUserEditingRef.current = true
     setDisplayQuery(val)
     setHasTyped(true)
-    setHighlightedIndex(0)
+    setHighlightedIndex(-1)
     setLocalError(null)
     if (!dropdownState.isOpen) {
-      const rect = containerRef.current?.getBoundingClientRect()
+      const rect = getAnchorRect(containerRef.current, variant)
       setDropdownState({
         isOpen: true,
-        pos: rect
-          ? variant === 'inline'
-            ? getInlineDropdownPosition(rect)
-            : getDropdownPosition(rect)
-          : null,
+        pos: rect ? getDropdownPosition(rect, desiredDropdownHeight) : null,
       })
     }
   }
@@ -544,6 +592,11 @@ export default function CreatableCombobox({
     }
   }, [autoOpen, openDropdown, autoFocus])
 
+  useLayoutEffect(() => {
+    if (!dropdownState.isOpen) return
+    updateDropdownPosition()
+  }, [dropdownState.isOpen, updateDropdownPosition])
+
   useEffect(() => {
     if (dropdownState.isOpen) return
     if (pendingCommittedLabelRef.current) {
@@ -556,7 +609,7 @@ export default function CreatableCombobox({
       }
     }
 
-    if (!hasTyped) {
+    if (!isUserEditingRef.current && !hasTyped) {
       setDisplayQuery(selectedLabel)
     }
   }, [selectedLabel, hasTyped, dropdownState.isOpen])
@@ -569,17 +622,9 @@ export default function CreatableCombobox({
   }, [dropdownState.isOpen, highlightedIndex, optionIdPrefix])
 
   useEffect(() => {
-    if (!dropdownState.isOpen || !opensAbove || !contentRef.current) return
-    contentRef.current.scrollTop = contentRef.current.scrollHeight
-  }, [
-    dropdownState.isOpen,
-    opensAbove,
-    filterText,
-    displayOptions.length,
-    recentVisibleOptions.length,
-    showCreateHint,
-    showCreateOption,
-  ])
+    if (!dropdownState.isOpen || !contentRef.current) return
+    contentRef.current.scrollTop = 0
+  }, [dropdownState.isOpen])
 
   useEffect(() => {
     if (!dropdownState.isOpen) return
@@ -591,7 +636,7 @@ export default function CreatableCombobox({
     }
 
     if (highlightedIndex < 0 || highlightedIndex >= navigableItems.length) {
-      setHighlightedIndex(0)
+      setHighlightedIndex(-1)
     }
   }, [dropdownState.isOpen, highlightedIndex, navigableItems.length])
 
@@ -611,6 +656,7 @@ export default function CreatableCombobox({
       )}
       style={{
         top: dropdownTop ?? dropdownState.pos.top,
+        bottom: dropdownState.pos.placement === 'top' ? dropdownState.pos.bottom : undefined,
         left: dropdownState.pos.left,
         width: dropdownState.pos.width,
         height: resolvedDropdownHeight ?? dropdownState.pos.availableHeight,
@@ -624,7 +670,7 @@ export default function CreatableCombobox({
           'h-full overflow-y-auto overscroll-contain',
         )}
       >
-        {!opensAbove && showCreateHint && (
+        {showCreateHint && (
           <div className="border-b border-theme-border px-3">
             <div className="flex h-[30px] items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
               <span
@@ -637,14 +683,14 @@ export default function CreatableCombobox({
             </div>
           </div>
         )}
-        {!opensAbove && recentVisibleOptions.length > 0 && (
+        {recentVisibleOptions.length > 0 && (
           <div className="border-b border-theme-border px-3">
             <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
               {recentLabel}
             </div>
           </div>
         )}
-        {!opensAbove && recentVisibleOptions.map((opt) => (
+        {recentVisibleOptions.map((opt) => (
           <div
             key={`recent-${opt.id}`}
             id={`${optionIdPrefix}-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id)}`}
@@ -672,14 +718,14 @@ export default function CreatableCombobox({
             {opt.label}
           </div>
         ))}
-        {!opensAbove && displayOptions.length > 0 && recentVisibleOptions.length > 0 && (
+        {displayOptions.length > 0 && recentVisibleOptions.length > 0 && (
           <div className="border-b border-theme-border px-3">
             <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
               All
             </div>
           </div>
         )}
-        {!opensAbove && renderDisplayOptions.map((opt) => {
+        {displayOptions.map((opt) => {
           const itemIndex = navigableItems.findIndex(
             (item) => item.type === 'option' && item.id === opt.id,
           )
@@ -707,7 +753,7 @@ export default function CreatableCombobox({
             </div>
           )
         })}
-        {!opensAbove && showCreateOption && (
+        {showCreateOption && (
           <div
             id={`${optionIdPrefix}-${totalItems - 1}`}
             role="option"
@@ -740,124 +786,6 @@ export default function CreatableCombobox({
                 <span>{createLabel(filterText)}</span>
               </span>
             )}
-          </div>
-        )}
-        {opensAbove && showCreateOption && (
-          <div
-            id={`${optionIdPrefix}-${totalItems - 1}`}
-            role="option"
-            aria-selected={totalItems - 1 === highlightedIndex}
-            className={cn(
-              'flex h-[30px] items-center border-b border-theme-border px-3 text-sm text-theme-text cursor-pointer',
-              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-              totalItems - 1 === highlightedIndex && highlightedItemClassName,
-            )}
-            onPointerDown={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              void handleCreate()
-            }}
-            onMouseEnter={() => setHighlightedIndex(totalItems - 1)}
-          >
-            {isCreating ? (
-              <span className="flex items-center gap-2 text-theme-text">
-                <Spinner size="xs" />
-                Adding...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2 text-theme-text">
-                <span
-                  aria-hidden="true"
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
-                >
-                  +
-                </span>
-                <span>{createLabel(filterText)}</span>
-              </span>
-            )}
-          </div>
-        )}
-        {opensAbove && displayOptions.length > 0 && recentVisibleOptions.length > 0 && (
-          <div className="border-b border-theme-border px-3">
-            <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
-              All
-            </div>
-          </div>
-        )}
-        {opensAbove && renderDisplayOptions.map((opt) => {
-          const itemIndex = navigableItems.findIndex(
-            (item) => item.type === 'option' && item.id === opt.id,
-          )
-
-          return (
-          <div
-            key={opt.id}
-            id={`${optionIdPrefix}-${itemIndex}`}
-            role="option"
-            aria-selected={itemIndex === highlightedIndex}
-            className={cn(
-              'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border last:border-b-0',
-              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-              itemIndex === highlightedIndex && highlightedItemClassName,
-              opt.id === value && 'font-medium',
-            )}
-            onPointerDown={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              handleSelect(opt.id)
-            }}
-            onMouseEnter={() => setHighlightedIndex(itemIndex)}
-          >
-            {opt.label}
-          </div>
-          )
-        })}
-        {opensAbove && recentVisibleOptions.length > 0 && (
-          <div className="border-b border-theme-border px-3">
-            <div className="flex h-[30px] items-center text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
-              {recentLabel}
-            </div>
-          </div>
-        )}
-        {opensAbove && renderRecentOptions.map((opt) => (
-          <div
-            key={`recent-${opt.id}`}
-            id={`${optionIdPrefix}-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id)}`}
-            role="option"
-            aria-selected={navigableItems[highlightedIndex]?.type === 'recent' && navigableItems[highlightedIndex]?.id === opt.id}
-            className={cn(
-              'flex h-[30px] items-center px-3 text-sm cursor-pointer text-theme-text border-b border-theme-border',
-              'transition-[background-color,color,transform] duration-150 motion-safe:active:scale-[0.99]',
-              navigableItems[highlightedIndex]?.type === 'recent' &&
-                navigableItems[highlightedIndex]?.id === opt.id &&
-                highlightedItemClassName,
-              opt.id === value && 'bg-theme-primary-subtle',
-            )}
-            onPointerDown={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              handleSelect(opt.id)
-            }}
-            onMouseEnter={() =>
-              setHighlightedIndex(
-                navigableItems.findIndex((item) => item.type === 'recent' && item.id === opt.id),
-              )
-            }
-          >
-            {opt.label}
-          </div>
-        ))}
-        {opensAbove && showCreateHint && (
-          <div className="border-b border-theme-border px-3">
-            <div className="flex h-[30px] items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
-              <span
-                aria-hidden="true"
-                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-theme-primary"
-              >
-                +
-              </span>
-              <span className="truncate">{createHint}</span>
-            </div>
           </div>
         )}
         {displayOptions.length === 0 && !showCreateOption && recentVisibleOptions.length === 0 && (
@@ -882,7 +810,7 @@ export default function CreatableCombobox({
           aria-expanded={dropdownState.isOpen}
           aria-controls={dropdownState.isOpen ? listboxId : undefined}
           aria-activedescendant={
-            dropdownState.isOpen && totalItems > 0
+            dropdownState.isOpen && totalItems > 0 && highlightedIndex >= 0
               ? `${optionIdPrefix}-${highlightedIndex}`
               : undefined
           }

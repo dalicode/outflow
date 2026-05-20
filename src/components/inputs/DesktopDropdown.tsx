@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './comboboxUtils'
 import { cn } from '../../utils/cn'
+import {
+  getDropdownFloatingPosition,
+  type FloatingPosition,
+} from '../../utils/floatingPosition'
 import SingleSelectTrigger from './SingleSelectTrigger'
+import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './comboboxUtils'
 
-const DROPDOWN_VIEWPORT_MARGIN = 8
 const DROPDOWN_GAP = 4
 const DROPDOWN_PANEL_MAX_HEIGHT = 420
 const SEARCH_SECTION_HEIGHT = 57
@@ -14,6 +17,8 @@ const CREATE_HINT_HEIGHT = 30
 const CREATE_ROW_HEIGHT = 30
 const CLEAR_ROW_HEIGHT = 30
 const EMPTY_STATE_HEIGHT = 60
+const MAX_VISIBLE_OPTION_ROWS = 8
+const MIN_ROWS_BEFORE_FLIP = 4
 
 type NavigableItem =
   | { type: 'recent' | 'option'; id: string | number; label: string }
@@ -58,13 +63,7 @@ export default function DesktopDropdown({
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  const [panelStyle, setPanelStyle] = useState<{
-    top: number
-    left: number
-    width: number
-    availableHeight: number
-    openBelow: boolean
-  } | null>(null)
+  const [panelStyle, setPanelStyle] = useState<FloatingPosition | null>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -129,20 +128,26 @@ export default function DesktopDropdown({
     value,
   ])
 
-  const getContentChromeHeight = useCallback(() => {
-    let height = 0
-    if (showCreateHint) height += CREATE_HINT_HEIGHT
-    if (recentVisibleOptions.length > 0) height += SECTION_LABEL_HEIGHT
-    height += recentVisibleOptions.length * OPTION_ROW_HEIGHT
-    if (showRecentSection && displayOptions.length > 0) height += SECTION_LABEL_HEIGHT
-    height += displayOptions.length * OPTION_ROW_HEIGHT
-    if (displayOptions.length === 0 && query.trim() && !showCreateOption) height += EMPTY_STATE_HEIGHT
-    if (showCreateOption) {
-      height += CREATE_ROW_HEIGHT
-      if (createError) height += 24
+  const getDesiredContentViewportHeight = useCallback(() => {
+    const visibleOptionRows = Math.min(
+      MAX_VISIBLE_OPTION_ROWS,
+      recentVisibleOptions.length + displayOptions.length,
+    )
+
+    let nonOptionHeight = 0
+    if (showCreateHint) nonOptionHeight += CREATE_HINT_HEIGHT
+    if (recentVisibleOptions.length > 0) nonOptionHeight += SECTION_LABEL_HEIGHT
+    if (showRecentSection && displayOptions.length > 0) nonOptionHeight += SECTION_LABEL_HEIGHT
+    if (displayOptions.length === 0 && query.trim() && !showCreateOption) {
+      nonOptionHeight += EMPTY_STATE_HEIGHT
     }
-    if (allowClear && value != null) height += CLEAR_ROW_HEIGHT
-    return Math.max(OPTION_ROW_HEIGHT, height)
+    if (showCreateOption) {
+      nonOptionHeight += CREATE_ROW_HEIGHT
+      if (createError) nonOptionHeight += 24
+    }
+    if (allowClear && value != null) nonOptionHeight += CLEAR_ROW_HEIGHT
+
+    return Math.max(OPTION_ROW_HEIGHT, nonOptionHeight + visibleOptionRows * OPTION_ROW_HEIGHT)
   }, [
     allowClear,
     createError,
@@ -155,85 +160,61 @@ export default function DesktopDropdown({
     value,
   ])
 
+  const getResolvedContentViewportHeight = useCallback(
+    (availableHeight: number) => {
+      const contentAvailable = Math.max(OPTION_ROW_HEIGHT, availableHeight - SEARCH_SECTION_HEIGHT)
+      return Math.min(getDesiredContentViewportHeight(), contentAvailable)
+    },
+    [getDesiredContentViewportHeight],
+  )
+
   const updatePanelPosition = useCallback(() => {
     if (!triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    const spaceAbove = rect.top - DROPDOWN_VIEWPORT_MARGIN
-    const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_VIEWPORT_MARGIN
-    const openBelow =
-      spaceBelow >= DROPDOWN_PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
-    const directionalSpace = openBelow ? spaceBelow : spaceAbove
-    const availableHeight = Math.max(
-      OPTION_ROW_HEIGHT,
-      Math.min(DROPDOWN_PANEL_MAX_HEIGHT, directionalSpace),
+    const desiredPanelHeight = Math.min(
+      DROPDOWN_PANEL_MAX_HEIGHT,
+      SEARCH_SECTION_HEIGHT + getDesiredContentViewportHeight(),
     )
-    setPanelStyle({
-      top: openBelow ? rect.bottom + window.scrollY + DROPDOWN_GAP : rect.top + window.scrollY - DROPDOWN_GAP,
-      left: rect.left + window.scrollX,
-      width: rect.width,
-      availableHeight,
-      openBelow,
+    const nextPanelStyle = getDropdownFloatingPosition(rect, {
+      idealHeight: desiredPanelHeight,
+      maxHeight: DROPDOWN_PANEL_MAX_HEIGHT,
+      minUsableHeight: SEARCH_SECTION_HEIGHT + MIN_ROWS_BEFORE_FLIP * OPTION_ROW_HEIGHT,
+      matchTriggerWidth: true,
+      gap: DROPDOWN_GAP,
     })
-  }, [])
+    setPanelStyle(nextPanelStyle)
+  }, [getDesiredContentViewportHeight])
 
-  const contentHeight = getContentChromeHeight()
   const contentMaxHeight = useMemo(() => {
     if (!panelStyle) return OPTION_ROW_HEIGHT * 4
-    const contentAvailable = Math.max(
-      OPTION_ROW_HEIGHT,
-      panelStyle.availableHeight - SEARCH_SECTION_HEIGHT,
-    )
-    if (contentHeight <= contentAvailable) return contentHeight
-    return Math.max(
-      OPTION_ROW_HEIGHT,
-      Math.floor(contentAvailable / OPTION_ROW_HEIGHT) * OPTION_ROW_HEIGHT,
-    )
-  }, [contentHeight, panelStyle])
+    return getResolvedContentViewportHeight(panelStyle.availableHeight)
+  }, [getResolvedContentViewportHeight, panelStyle])
 
-  const panelHeight = SEARCH_SECTION_HEIGHT + contentMaxHeight
+  const panelHeight = useMemo(() => {
+    if (!panelStyle) return SEARCH_SECTION_HEIGHT + contentMaxHeight
+    return Math.min(SEARCH_SECTION_HEIGHT + contentMaxHeight, panelStyle.availableHeight)
+  }, [contentMaxHeight, panelStyle])
+  const visibleContentHeight = Math.max(OPTION_ROW_HEIGHT, panelHeight - SEARCH_SECTION_HEIGHT)
   const panelTop = panelStyle
-    ? panelStyle.openBelow
+    ? panelStyle.placement === 'bottom'
       ? panelStyle.top
-      : panelStyle.top - panelHeight
+      : panelStyle.bottom != null
+        ? window.innerHeight - panelStyle.bottom - panelHeight
+        : 0
     : 0
-  const opensAbove = panelStyle?.openBelow === false
-  const renderRecentOptions = opensAbove ? [...recentVisibleOptions].reverse() : recentVisibleOptions
-  const renderDisplayOptions = opensAbove ? [...displayOptions].reverse() : displayOptions
-  const defaultHighlightIndex = useMemo((): number => {
-    if (navigableItems.length === 0) return -1
-    if (!opensAbove) return 0
-
-    if (recentVisibleOptions.length > 0) {
-      return 0
-    }
-
-    if (displayOptions.length > 0) {
-      return recentVisibleOptions.length
-    }
-
-    for (let index = navigableItems.length - 1; index >= 0; index -= 1) {
-      const item = navigableItems[index]
-      if (item.type === 'recent' || item.type === 'option') {
-        return index
-      }
-    }
-
-    return navigableItems.length - 1
-  }, [displayOptions.length, navigableItems, opensAbove, recentVisibleOptions.length])
 
   useEffect(() => {
     if (!isOpen) {
       setPanelStyle(null)
       setQuery('')
-      setHighlightedIndex(0)
+      setHighlightedIndex(-1)
       setIsCreating(false)
       setCreateError(null)
       return
     }
     updatePanelPosition()
-    setHighlightedIndex((prev) => (prev === defaultHighlightIndex ? prev : defaultHighlightIndex))
     searchInputRef.current?.focus()
-  }, [defaultHighlightIndex, isOpen, updatePanelPosition])
+  }, [isOpen, updatePanelPosition])
 
   useEffect(() => {
     if (!isOpen) return
@@ -271,9 +252,9 @@ export default function DesktopDropdown({
       return
     }
     if (highlightedIndex < 0 || highlightedIndex >= navigableItems.length) {
-      setHighlightedIndex(defaultHighlightIndex)
+      setHighlightedIndex(-1)
     }
-  }, [defaultHighlightIndex, highlightedIndex, isOpen, navigableItems.length])
+  }, [highlightedIndex, isOpen, navigableItems.length])
 
   useEffect(() => {
     if (!isOpen || highlightedIndex < 0) return
@@ -283,18 +264,9 @@ export default function DesktopDropdown({
   }, [highlightedIndex, isOpen])
 
   useEffect(() => {
-    if (!isOpen || !opensAbove || !contentRef.current) return
-    contentRef.current.scrollTop = contentRef.current.scrollHeight
-  }, [
-    isOpen,
-    opensAbove,
-    query,
-    displayOptions.length,
-    recentVisibleOptions.length,
-    showCreateOption,
-    allowClear,
-    value,
-  ])
+    if (!isOpen || !contentRef.current) return
+    contentRef.current.scrollTop = 0
+  }, [isOpen])
 
   const handleSelect = (id: string | number) => {
     onChange(id)
@@ -329,19 +301,30 @@ export default function DesktopDropdown({
       case 'ArrowDown': {
         e.preventDefault()
         if (navigableItems.length === 0) return
-        setHighlightedIndex((prev) => (prev >= navigableItems.length - 1 ? 0 : prev + 1))
+        setHighlightedIndex((prev) => {
+          if (prev === -1 || prev >= navigableItems.length - 1) return 0
+          return prev + 1
+        })
         break
       }
       case 'ArrowUp': {
         e.preventDefault()
         if (navigableItems.length === 0) return
-        setHighlightedIndex((prev) => (prev <= 0 ? navigableItems.length - 1 : prev - 1))
+        setHighlightedIndex((prev) => {
+          if (prev === -1 || prev <= 0) return navigableItems.length - 1
+          return prev - 1
+        })
         break
       }
       case 'Enter': {
         e.preventDefault()
         const highlightedItem = navigableItems[highlightedIndex]
-        if (!highlightedItem) return
+        if (!highlightedItem) {
+          if (!query.trim() && value != null) {
+            handleClear()
+          }
+          break
+        }
         if (highlightedItem.type === 'create') {
           void handleCreate()
         } else if (highlightedItem.type === 'clear') {
@@ -388,8 +371,9 @@ export default function DesktopDropdown({
           <div
             ref={panelRef}
             style={{
-              position: 'absolute',
+              position: 'fixed',
               top: panelStyle ? panelTop : 0,
+              bottom: panelStyle?.placement === 'top' ? panelStyle.bottom : undefined,
               left: panelStyle?.left ?? 0,
               width: panelStyle?.width ?? 0,
               height: panelStyle ? panelHeight : DROPDOWN_PANEL_MAX_HEIGHT,
@@ -398,7 +382,7 @@ export default function DesktopDropdown({
             }}
             className={cn(
               'flex overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background text-theme-text shadow-xl shadow-black/10 ring-1 ring-[color:color-mix(in_srgb,var(--theme-primary)_10%,transparent)]',
-              panelStyle?.openBelow === false ? 'flex-col-reverse' : 'flex-col',
+              'flex-col',
             )}
           >
             <div className="border-b border-theme-border bg-theme-background-muted p-2">
@@ -408,7 +392,7 @@ export default function DesktopDropdown({
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value)
-                  setHighlightedIndex(defaultHighlightIndex)
+                  setHighlightedIndex(-1)
                 }}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Search..."
@@ -419,10 +403,10 @@ export default function DesktopDropdown({
             <div
               ref={contentRef}
               className="overflow-y-auto overscroll-contain"
-              style={{ maxHeight: contentMaxHeight }}
+              style={{ height: visibleContentHeight, maxHeight: visibleContentHeight }}
             >
               <div className="min-h-full">
-                {!opensAbove && showRecentSection && (
+                {showRecentSection && (
                   <div className="border-b border-theme-border px-2">
                     <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
                       {recentLabel}
@@ -456,7 +440,7 @@ export default function DesktopDropdown({
                   </div>
                 )}
 
-                {!opensAbove && showRecentSection && displayOptions.length > 0 && (
+                {showRecentSection && displayOptions.length > 0 && (
                   <div className="border-b border-theme-border px-2">
                     <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
                       All
@@ -490,7 +474,7 @@ export default function DesktopDropdown({
                   </div>
                 )}
 
-                {!opensAbove && !showRecentSection && displayOptions.length > 0 && (
+                {!showRecentSection && displayOptions.length > 0 && (
                   <div className="px-2">
                     {displayOptions.map((option) => (
                       <button
@@ -521,13 +505,13 @@ export default function DesktopDropdown({
                   </div>
                 )}
 
-                {!opensAbove && displayOptions.length === 0 && query.trim() && !showCreateOption && (
+                {displayOptions.length === 0 && query.trim() && !showCreateOption && (
                   <div className="flex min-h-[60px] items-center justify-center px-4 py-3 text-center text-sm text-theme-muted">
                     {emptyMessage}
                   </div>
                 )}
 
-                {!opensAbove && showCreateOption && (
+                {showCreateOption && (
                   <div className="border-t border-theme-border px-2">
                     <button
                       id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'create')}`}
@@ -561,13 +545,13 @@ export default function DesktopDropdown({
                     )}
                   </div>
                 )}
-                {!opensAbove && showCreateHint && (
+                {showCreateHint && (
                   <div className="flex min-h-[30px] items-center justify-center px-4 py-2 text-center text-[11px] text-theme-muted">
                     {createHint}
                   </div>
                 )}
 
-                {!opensAbove && allowClear && value != null && (
+                {allowClear && value != null && (
                   <div className="border-t border-theme-border px-2">
                     <button
                       id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'clear')}`}
@@ -586,138 +570,6 @@ export default function DesktopDropdown({
                     >
                       <span>{clearLabel}</span>
                     </button>
-                  </div>
-                )}
-
-                {opensAbove && allowClear && value != null && (
-                  <div className="border-b border-theme-border px-2">
-                    <button
-                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'clear')}`}
-                      type="button"
-                      onClick={handleClear}
-                      className={cn(
-                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background',
-                        isItemHighlighted({ type: 'clear', label: clearLabel }) &&
-                          highlightedItemClassName,
-                      )}
-                      onMouseEnter={() =>
-                        setHighlightedIndex(
-                          navigableItems.findIndex((item) => item.type === 'clear'),
-                        )
-                      }
-                    >
-                      <span>{clearLabel}</span>
-                    </button>
-                  </div>
-                )}
-                {opensAbove && showCreateHint && (
-                  <div className="flex min-h-[30px] items-center justify-center border-b border-theme-border px-4 py-2 text-center text-[11px] text-theme-muted">
-                    {createHint}
-                  </div>
-                )}
-                {opensAbove && showCreateOption && (
-                  <div className="border-b border-theme-border px-2">
-                    <button
-                      id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'create')}`}
-                      type="button"
-                      onClick={handleCreate}
-                      disabled={isCreating}
-                      className={cn(
-                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50',
-                        isItemHighlighted({ type: 'create', label: `Create "${query.trim()}"` }) &&
-                          highlightedItemClassName,
-                      )}
-                      onMouseEnter={() =>
-                        setHighlightedIndex(
-                          navigableItems.findIndex((item) => item.type === 'create'),
-                        )
-                      }
-                    >
-                      <svg
-                        className="h-4 w-4 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-                      </svg>
-                      <span>Create &quot;{query.trim()}&quot;</span>
-                    </button>
-                    {createError && (
-                      <p className="px-2 pb-1 text-xs text-theme-danger">{createError}</p>
-                    )}
-                  </div>
-                )}
-                {opensAbove && displayOptions.length === 0 && query.trim() && !showCreateOption && (
-                  <div className="flex min-h-[60px] items-center justify-center px-4 py-3 text-center text-sm text-theme-muted">
-                    {emptyMessage}
-                  </div>
-                )}
-                {opensAbove && renderDisplayOptions.map((option) => (
-                  <button
-                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option.id)}
-                    className={cn(
-                      'flex h-[30px] w-full items-center gap-2 border-b border-theme-border px-4 text-left text-sm transition-colors hover:bg-theme-background',
-                      isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
-                        highlightedItemClassName,
-                      option.id === value && 'font-semibold text-theme-primary',
-                    )}
-                    onMouseEnter={() =>
-                      setHighlightedIndex(
-                        navigableItems.findIndex(
-                          (item) => item.type === 'option' && item.id === option.id,
-                        ),
-                      )
-                    }
-                  >
-                    {option.isArchived && (
-                      <span className="text-xs text-theme-muted">(archived)</span>
-                    )}
-                    <span>{option.label}</span>
-                  </button>
-                ))}
-                {opensAbove && showRecentSection && displayOptions.length > 0 && (
-                  <div className="border-b border-theme-border px-2">
-                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
-                      All
-                    </div>
-                  </div>
-                )}
-                {opensAbove && renderRecentOptions.map((option) => (
-                  <button
-                    id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === option.id)}`}
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option.id)}
-                    className={cn(
-                      'flex h-[30px] w-full items-center gap-2 border-b border-theme-border px-4 text-left text-sm transition-colors hover:bg-theme-background',
-                      isItemHighlighted({ type: 'recent', id: option.id, label: option.label }) &&
-                        highlightedItemClassName,
-                      option.id === value && 'font-semibold text-theme-primary',
-                    )}
-                    onMouseEnter={() =>
-                      setHighlightedIndex(
-                        navigableItems.findIndex(
-                          (item) => item.type === 'recent' && item.id === option.id,
-                        ),
-                      )
-                    }
-                  >
-                    {option.isArchived && (
-                      <span className="text-xs text-theme-muted">(archived)</span>
-                    )}
-                    <span>{option.label}</span>
-                  </button>
-                ))}
-                {opensAbove && showRecentSection && (
-                  <div className="border-b border-theme-border px-2">
-                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
-                      {recentLabel}
-                    </div>
                   </div>
                 )}
               </div>

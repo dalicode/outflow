@@ -7,6 +7,10 @@ import ModalFooter from '../../components/ui/ModalFooter'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Category, Payee } from '../../types'
 import { cn } from '../../utils/cn'
+import {
+  getDropdownFloatingPosition,
+  type FloatingPosition,
+} from '../../utils/floatingPosition'
 import { toggleInSet } from '../../utils/setUtils'
 
 interface FilterDraft {
@@ -58,21 +62,21 @@ function MultiSelectDropdown({
   const containerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const isMobile = useViewportWidth() < 640
-  const [panelStyle, setPanelStyle] = useState<{
-    top: number
-    left: number
-    width: number
-  } | null>(null)
+  const [panelStyle, setPanelStyle] = useState<FloatingPosition | null>(null)
 
   const updatePanelPosition = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
 
-    setPanelStyle({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-    })
+    setPanelStyle(
+      getDropdownFloatingPosition(rect, {
+        idealHeight: 320,
+        maxHeight: 360,
+        minUsableHeight: 180,
+        matchTriggerWidth: true,
+        gap: 4,
+      }),
+    )
   }, [])
 
   useEffect(() => {
@@ -193,7 +197,7 @@ function MultiSelectDropdown({
   )
 
   const desktopOptionList = (
-    <div className="mt-2 max-h-52 overflow-y-auto scrollbar-auto-hide">{optionItems}</div>
+    <div className="mt-2 min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide">{optionItems}</div>
   )
 
   const mobileOptionList = (
@@ -290,24 +294,28 @@ function MultiSelectDropdown({
         createPortal(
           <div
             ref={panelRef}
-            className="fixed z-[70] rounded-theme-medium border border-theme-border bg-theme-background p-2 shadow-lg"
+            className="fixed z-[70] flex overflow-hidden rounded-theme-medium border border-theme-border bg-theme-background p-2 shadow-lg"
             style={{
               top: panelStyle.top,
+              bottom: panelStyle.placement === 'top' ? panelStyle.bottom : undefined,
               left: panelStyle.left,
               width: panelStyle.width,
+              maxHeight: panelStyle.maxHeight,
             }}
           >
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${label.toLowerCase()}...`}
-              className="input-md w-full"
-            />
+            <div className="flex min-h-0 flex-1 flex-col">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${label.toLowerCase()}...`}
+                className="input-md w-full"
+              />
 
-            {desktopOptionList}
-            <div className="mt-2">{selectionFooter}</div>
+              {desktopOptionList}
+              <div className="mt-2 shrink-0">{selectionFooter}</div>
+            </div>
           </div>,
           document.body,
         )}

@@ -14,6 +14,20 @@ describe('DatePicker', () => {
     vi.clearAllMocks()
   })
 
+  function mockRect(top: number, bottom: number, left = 40, width = 280): DOMRect {
+    return {
+      x: left,
+      y: top,
+      top,
+      bottom,
+      left,
+      right: left + width,
+      width,
+      height: bottom - top,
+      toJSON: () => ({}),
+    } as DOMRect
+  }
+
   it('opens popup and highlights active day when autoOpen is true', () => {
     render(<DatePicker value="2024-06-15" autoOpen onChange={vi.fn()} />)
 
@@ -154,5 +168,99 @@ describe('DatePicker', () => {
     fireEvent.click(screen.getByText('16'))
 
     expect(onChange).toHaveBeenCalledWith('2024-06-16')
+  })
+
+  it('opens below when the full calendar fits below', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      mockRect(120, 160),
+    )
+    vi.stubGlobal('innerHeight', 900)
+
+    render(<DatePicker value="2024-06-15" autoOpen onChange={vi.fn()} />)
+
+    const popup = screen.getByText('Jun 2024').closest('.fixed') as HTMLDivElement | null
+    expect(Number.parseFloat(popup?.style.top ?? '0')).toBe(164)
+    expect(popup?.style.bottom).toBe('')
+  })
+
+  it('opens above with a bottom pin when below does not fit but above does', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      mockRect(520, 560),
+    )
+    vi.stubGlobal('innerHeight', 620)
+
+    render(<DatePicker value="2024-06-15" autoOpen onChange={vi.fn()} />)
+
+    const popup = screen.getByText('Jun 2024').closest('.fixed') as HTMLDivElement | null
+    expect(popup?.style.top).toBe('')
+    expect(Number.parseFloat(popup?.style.bottom ?? '0')).toBe(104)
+  })
+
+  it('chooses the larger side when neither side fits the full calendar', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      mockRect(170, 210),
+    )
+    vi.stubGlobal('innerHeight', 400)
+
+    render(<DatePicker value="2024-06-15" autoOpen onChange={vi.fn()} />)
+
+    const popup = screen.getByText('Jun 2024').closest('.fixed') as HTMLDivElement | null
+    expect(Number.parseFloat(popup?.style.top ?? '0')).toBe(214)
+    expect(popup?.style.maxHeight).toBe('178px')
+  })
+
+  it('anchors inline popups to the table cell bottom-left edge when opened below', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      if (this.tagName === 'TD') {
+        return mockRect(520, 560)
+      }
+
+      return mockRect(120, 160, 60, 180)
+    })
+    vi.stubGlobal('innerHeight', 900)
+
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <td>
+              <DatePicker value="2024-06-15" variant="inline" autoOpen onChange={vi.fn()} />
+            </td>
+          </tr>
+        </tbody>
+      </table>,
+    )
+
+    const popup = screen.getByText('Jun 2024').closest('.fixed') as HTMLDivElement | null
+    expect(Number.parseFloat(popup?.style.top ?? '0')).toBe(564)
+    expect(Number.parseFloat(popup?.style.left ?? '0')).toBe(40)
+  })
+
+  it('anchors inline popups to the table cell top-left edge when opened above', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      if (this.tagName === 'TD') {
+        return mockRect(520, 560)
+      }
+
+      return mockRect(530, 550, 60, 180)
+    })
+    vi.stubGlobal('innerHeight', 620)
+
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <td>
+              <DatePicker value="2024-06-15" variant="inline" autoOpen onChange={vi.fn()} />
+            </td>
+          </tr>
+        </tbody>
+      </table>,
+    )
+
+    const popup = screen.getByText('Jun 2024').closest('.fixed') as HTMLDivElement | null
+    expect(popup?.style.top).toBe('')
+    expect(Number.parseFloat(popup?.style.bottom ?? '0')).toBe(104)
+    expect(Number.parseFloat(popup?.style.left ?? '0')).toBe(40)
   })
 })

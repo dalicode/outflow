@@ -25,43 +25,28 @@ import {
   startOfMonth,
   toISO,
 } from '../../utils/datePickerHelpers'
+import {
+  getCalendarFloatingPosition,
+  type FloatingPosition,
+} from '../../utils/floatingPosition'
 import { triggerHaptic } from '../../utils/haptics'
 
 const POPUP_MAX_HEIGHT = 320
-const VIEWPORT_MARGIN = 8
 const POPUP_GAP = 4
-
-function getPopupPosition(rect: DOMRect): {
-  top?: number
-  bottom?: number
-  left: number
-  width: number
-} {
-  const width = Math.max(280, Math.min(rect.width, window.innerWidth - VIEWPORT_MARGIN * 2))
-  const left = Math.min(
-    Math.max(rect.left, VIEWPORT_MARGIN),
-    window.innerWidth - VIEWPORT_MARGIN - width,
-  )
-
-  const spaceAbove = rect.top - VIEWPORT_MARGIN
-  const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN
-  const shouldOpenBelow = spaceBelow >= POPUP_MAX_HEIGHT || spaceBelow >= spaceAbove
-
-  if (shouldOpenBelow) {
-    return { top: rect.bottom + POPUP_GAP, left, width }
-  }
-
-  return { bottom: window.innerHeight - rect.top + POPUP_GAP, left, width }
-}
 
 function getAnchorRect(
   container: HTMLDivElement | null,
   variant: 'default' | 'inline',
-): DOMRect | null {
-  if (!container) return null
-  if (variant !== 'inline') return container.getBoundingClientRect()
-  const tableCell = container.closest('td,th')
-  if (tableCell) return tableCell.getBoundingClientRect()
+): DOMRect | undefined {
+  if (!container) return undefined
+
+  if (variant === 'inline') {
+    const tableCell = container.closest('td')
+    if (tableCell instanceof HTMLTableCellElement) {
+      return tableCell.getBoundingClientRect()
+    }
+  }
+
   return container.getBoundingClientRect()
 }
 
@@ -229,7 +214,7 @@ export default function DatePicker({
   const [isInvalid, setIsInvalid] = useState(false)
   const [popupState, setPopupState] = useState<{
     isOpen: boolean
-    pos: { top?: number; bottom?: number; left: number; width: number } | null
+    pos: FloatingPosition | null
   }>({ isOpen: false, pos: null })
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
 
@@ -275,7 +260,15 @@ export default function DatePicker({
     setViewDate(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1))
 
     const rect = getAnchorRect(containerRef.current, variant)
-    const pos = rect ? getPopupPosition(rect) : null
+    const pos = rect
+      ? getCalendarFloatingPosition(rect, {
+          idealHeight: POPUP_MAX_HEIGHT,
+          maxHeight: POPUP_MAX_HEIGHT,
+          minUsableHeight: 240,
+          minWidth: 280,
+          gap: POPUP_GAP,
+        })
+      : null
     setPopupState({ isOpen: true, pos })
   }, [disabled, value, dateFormat, variant])
 
@@ -335,7 +328,16 @@ export default function DatePicker({
     const updatePos = () => {
       const rect = getAnchorRect(containerRef.current, variant)
       if (!rect) return
-      setPopupState((prev) => ({ ...prev, pos: getPopupPosition(rect) }))
+      setPopupState((prev) => ({
+        ...prev,
+        pos: getCalendarFloatingPosition(rect, {
+          idealHeight: POPUP_MAX_HEIGHT,
+          maxHeight: POPUP_MAX_HEIGHT,
+          minUsableHeight: 240,
+          minWidth: 280,
+          gap: POPUP_GAP,
+        }),
+      }))
     }
     const handleClick = (e: MouseEvent) => {
       if (containerRef.current?.contains(e.target as Node)) return
@@ -423,6 +425,7 @@ export default function DatePicker({
         bottom: popupState.pos.bottom,
         left: popupState.pos.left,
         width: popupState.pos.width,
+        maxHeight: popupState.pos.maxHeight,
       }}
     >
       <CalendarGrid
