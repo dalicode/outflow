@@ -5,9 +5,12 @@ import DatePicker from '../../components/inputs/DatePicker'
 import MobileEntityPicker from '../../components/inputs/MobileEntityPicker'
 import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
+import MoneyInput from '../../components/inputs/MoneyInput'
+import { useSettings } from '../../context/settingsContext'
 import { StorageService } from '../../services/storageService'
 import { cn } from '../../utils/cn'
 import { toISODate, parseISODate } from '../../utils/historicalDataHelpers'
+import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 
 import { usePayees } from '../../hooks/useLocalData'
 import type { Schedule, FixedExpense, Category } from '../../types'
@@ -34,6 +37,7 @@ export default function ScheduleModal({
   onComplete,
   editSchedule = null,
 }: ScheduleModalProps) {
+  const { settings } = useSettings()
   const [type, setType] = useState<Schedule['type']>('income')
   const [targetId, setTargetId] = useState('')
   const [effectiveDate, setEffectiveDate] = useState('')
@@ -85,6 +89,7 @@ export default function ScheduleModal({
 
   const selectedCategoryName = categoryOptions.find((o) => o.id === Number(categoryId))?.label
   const selectedPayeeName = payeeOptions.find((o) => o.id === Number(payeeId))?.label
+  const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
 
   const reset = useCallback(() => {
     setType('income')
@@ -424,14 +429,15 @@ export default function ScheduleModal({
             {/* Amount */}
             <div className="space-y-1.5">
               <label className="text-sm text-theme-muted">Amount</label>
-              <input
-                type="number"
-                value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
+              <MoneyInput
+                value={Number.parseFloat(newValue || '0')}
+                onChange={(value) => setNewValue(value.toFixed(2))}
+                currency={moneyConfig.currency}
+                locale={moneyConfig.locale}
                 placeholder="0.00"
-                step="0.01"
+                size="md"
+                showCurrencyCode
                 disabled={isReadOnly}
-                className={cn(inputCls, isReadOnly && disabledCls)}
               />
             </div>
           </>
@@ -458,16 +464,29 @@ export default function ScheduleModal({
                     ? 'New Monthly Income'
                     : 'New Amount'}
               </label>
-              <input
-                type="number"
-                value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
-                placeholder={type === 'savingsRate' ? 'e.g. 25' : 'e.g. 6000'}
-                step={type === 'savingsRate' ? '0.1' : '0.01'}
-                className={cn(inputCls, isReadOnly && disabledCls)}
-                disabled={isReadOnly}
-                data-testid="schedule-value-input"
-              />
+              {type === 'savingsRate' ? (
+                <input
+                  type="number"
+                  value={newValue}
+                  onChange={(e) => setNewValue(e.target.value)}
+                  placeholder="e.g. 25"
+                  step="0.1"
+                  className={cn(inputCls, isReadOnly && disabledCls)}
+                  disabled={isReadOnly}
+                  data-testid="schedule-value-input"
+                />
+              ) : (
+                <MoneyInput
+                  value={Number.parseFloat(newValue || '0')}
+                  onChange={(value) => setNewValue(value.toFixed(2))}
+                  currency={moneyConfig.currency}
+                  locale={moneyConfig.locale}
+                  placeholder="e.g. 6000"
+                  size="md"
+                  showCurrencyCode
+                  disabled={isReadOnly}
+                />
+              )}
             </div>
 
             {/* Note */}

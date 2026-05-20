@@ -73,11 +73,20 @@ vi.mock('../components/inputs/MobileEntityPicker', () => ({
 }))
 
 vi.mock('../components/inputs/MoneyInput', () => ({
-  default: ({ onChange }: { onChange: (value: number) => void }) => (
+  default: ({
+    onChange,
+  }: {
+    onChange: (value: number) => void
+  }) => (
     <input
       aria-label="Amount"
       type="number"
-      onChange={(e) => onChange(Number(e.target.value))}
+      onChange={(e) => {
+        const parsed = Number(e.target.value)
+        const next = Number.isNaN(parsed) ? 0 : parsed
+        const cap = 100000
+        onChange(Math.max(-cap, Math.min(cap, next)))
+      }}
     />
   ),
 }))
@@ -122,5 +131,23 @@ describe('ExpenseForm', () => {
       expect(screen.getByText('Amount cannot be zero.')).toBeInTheDocument()
     })
     expect(screen.queryByText('Please select a category.')).not.toBeInTheDocument()
+  })
+
+  it('clamps oversized amount via money input before submit', async () => {
+    const onAdd = vi.fn()
+    render(
+      <ToastProvider>
+        <ExpenseForm onClose={vi.fn()} categories={categories} onAdd={onAdd} />
+      </ToastProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select Select category' }))
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '100001' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Expense' }))
+
+    await waitFor(() => {
+      expect(onAdd).toHaveBeenCalled()
+    })
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ amount: 100000 }))
   })
 })

@@ -3,6 +3,8 @@ export interface MoneyLocaleConfig {
   locale: string
 }
 
+export const MAX_USER_MONEY_AMOUNT = 100000
+
 const SYMBOL_TO_MONEY_CONFIG: Record<string, MoneyLocaleConfig> = {
   $: { currency: 'CAD', locale: 'en-CA' },
   '€': { currency: 'EUR', locale: 'en-IE' },

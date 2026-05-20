@@ -6,6 +6,7 @@ import {
   centsToSignedDollars,
   dollarsToCents,
   formatCurrencyFromCents,
+  MAX_USER_MONEY_AMOUNT,
   parseDecimalMoneyInput,
   parsePastedMoney,
   parsePastedMoneyInput,
@@ -27,10 +28,12 @@ function MoneyInputHarness({
   allowNegative = false,
   showSignToggle = false,
   entryMode = 'decimal',
+  maxAmount,
 }: {
   allowNegative?: boolean
   showSignToggle?: boolean
   entryMode?: 'cents' | 'decimal'
+  maxAmount?: number
 }) {
   const [value, setValue] = useState(0)
 
@@ -46,6 +49,7 @@ function MoneyInputHarness({
         positiveLabel="Expense"
         negativeIndicatorLabel="Refund"
         entryMode={entryMode}
+        maxAmount={maxAmount}
       />
       <output data-testid="amount-value">{value.toFixed(2)}</output>
     </div>
@@ -288,5 +292,105 @@ describe('MoneyInput', () => {
 
     fireEvent.change(input, { target: { value: '9' } })
     expect(input).toHaveValue('9')
+  })
+
+  it('clamps decimal entry to the configured max amount', () => {
+    render(<MoneyInputHarness entryMode="decimal" maxAmount={MAX_USER_MONEY_AMOUNT} />)
+
+    const input = screen.getByLabelText('Amount')
+    const output = screen.getByTestId('amount-value')
+
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '100001' } })
+    fireEvent.blur(input)
+
+    expect(output).toHaveTextContent('100000.00')
+    expect(input).toHaveValue(formatCurrencyFromCents(10000000))
+  })
+
+  it('clamps cents entry mode to the configured max amount', () => {
+    render(<MoneyInputHarness entryMode="cents" maxAmount={MAX_USER_MONEY_AMOUNT} />)
+
+    const input = screen.getByLabelText('Amount')
+    const output = screen.getByTestId('amount-value')
+
+    fireEvent.paste(input, {
+      clipboardData: {
+        getData: () => '100000000',
+      },
+    })
+
+    expect(output).toHaveTextContent('100000.00')
+    expect(input).toHaveValue(formatCurrencyFromCents(10000000))
+  })
+
+  it('clamps negative values by absolute max amount', () => {
+    render(
+      <MoneyInputHarness
+        allowNegative
+        showSignToggle
+        entryMode="decimal"
+        maxAmount={MAX_USER_MONEY_AMOUNT}
+      />,
+    )
+
+    const input = screen.getByLabelText('Amount')
+    const output = screen.getByTestId('amount-value')
+
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '100001' } })
+    fireEvent.keyDown(input, { key: '-' })
+    fireEvent.blur(input)
+
+    expect(output).toHaveTextContent('-100000.00')
+    expect(input).toHaveValue(formatCurrencyFromCents(10000000))
+  })
+
+  it('clamps pasted values above max in decimal mode', () => {
+    render(<MoneyInputHarness entryMode="decimal" maxAmount={MAX_USER_MONEY_AMOUNT} />)
+
+    const input = screen.getByLabelText('Amount')
+    const output = screen.getByTestId('amount-value')
+
+    fireEvent.focus(input)
+    fireEvent.paste(input, {
+      clipboardData: {
+        getData: () => '$100,001.00',
+      },
+    })
+    fireEvent.blur(input)
+
+    expect(output).toHaveTextContent('100000.00')
+    expect(input).toHaveValue(formatCurrencyFromCents(10000000))
+  })
+
+  it('shows max error while editing above cap, then normalizes on enter', () => {
+    render(<MoneyInputHarness entryMode="decimal" maxAmount={MAX_USER_MONEY_AMOUNT} />)
+
+    const input = screen.getByLabelText('Amount')
+    const output = screen.getByTestId('amount-value')
+
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '100001' } })
+    expect(screen.getByText('Amount cannot exceed 100,000.')).toBeInTheDocument()
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.queryByText('Amount cannot exceed 100,000.')).not.toBeInTheDocument()
+    expect(output).toHaveTextContent('100000.00')
+    expect(input).toHaveValue(formatCurrencyFromCents(10000000))
+  })
+
+  it('normalizes capped value on tab commit', () => {
+    render(<MoneyInputHarness entryMode="decimal" maxAmount={MAX_USER_MONEY_AMOUNT} />)
+
+    const input = screen.getByLabelText('Amount')
+    const output = screen.getByTestId('amount-value')
+
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '100001' } })
+    fireEvent.keyDown(input, { key: 'Tab' })
+
+    expect(output).toHaveTextContent('100000.00')
+    expect(input).toHaveValue(formatCurrencyFromCents(10000000))
   })
 })

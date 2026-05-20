@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 're
 import { useHaptics } from '../../hooks/useHaptics'
 import { cn } from '../../utils/cn'
 import {
+  MAX_USER_MONEY_AMOUNT,
   centsToSignedDollars,
   clampMoneyCents,
   dollarsToCents,
@@ -93,20 +94,24 @@ export default function MoneyInput({
   const [isNegative, setIsNegative] = useState(allowNegative && Number(value ?? 0) < 0)
   const [isEditing, setIsEditing] = useState(false)
   const [draftValue, setDraftValue] = useState('')
+  const [maxExceeded, setMaxExceeded] = useState(false)
   const [shouldSelectOnFocus, setShouldSelectOnFocus] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const effectiveMaxAmount = maxAmount ?? MAX_USER_MONEY_AMOUNT
+  const effectiveMaxCents = maxCents ?? dollarsToCents(effectiveMaxAmount)
+  const hasError = Boolean(error || maxExceeded)
+  const maxExceededMessage = `Amount cannot exceed ${effectiveMaxAmount.toLocaleString()}.`
 
   useEffect(() => {
     const nextCents = clampMoneyCents(dollarsToCents(value), {
       allowNegative: false,
-      maxCents,
-      maxAmount,
+      maxCents: effectiveMaxCents,
     })
     const nextIsNegative = allowNegative && Number(value ?? 0) < 0
 
     setAbsoluteCents((currentCents) => (currentCents === nextCents ? currentCents : nextCents))
     setIsNegative((current) => (current === nextIsNegative ? current : nextIsNegative))
-  }, [allowNegative, maxAmount, maxCents, value])
+  }, [allowNegative, effectiveMaxCents, value])
 
   const isNegativeMode = allowNegative && isNegative
   const editableValue = useMemo(() => {
@@ -145,13 +150,13 @@ export default function MoneyInput({
   const emitValue = (nextCents: number, nextIsNegative = isNegativeMode) => {
     const safeCents = clampMoneyCents(nextCents, {
       allowNegative: false,
-      maxCents,
-      maxAmount,
+      maxCents: effectiveMaxCents,
     })
     const safeIsNegative = allowNegative && nextIsNegative && safeCents !== 0
     const nextValue = centsToSignedDollars(safeCents, safeIsNegative)
     setAbsoluteCents(safeCents)
     setIsNegative(safeIsNegative)
+    setMaxExceeded(nextCents > safeCents)
     onChange(nextValue)
     onSignChange?.(safeIsNegative)
     return {
@@ -169,6 +174,7 @@ export default function MoneyInput({
     setDraftValue(
       `${committed.isNegative && !showSignToggle ? '-' : ''}${(committed.cents / 100).toFixed(2)}`,
     )
+    setMaxExceeded(false)
     return committed.value
   }
 
@@ -358,7 +364,7 @@ export default function MoneyInput({
           isNegativeMode
             ? 'focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-success)_14%,transparent)]'
             : 'focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]',
-          error &&
+          hasError &&
             'border-[color:color-mix(in_srgb,var(--theme-danger)_55%,var(--theme-border))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-danger)_18%,transparent)]',
           disabled && 'cursor-not-allowed opacity-60',
         )
@@ -442,12 +448,13 @@ export default function MoneyInput({
             }
 
             const nextDraft = event.target.value
-            setDraftValue(nextDraft)
+      setDraftValue(nextDraft)
 
-            const parsed = parseDecimalMoneyInput(nextDraft, { allowNegative })
-            if (!parsed.isValid) return
-            emitValue(parsed.cents, showSignToggle ? isNegativeMode : parsed.isNegative)
-          }}
+      const parsed = parseDecimalMoneyInput(nextDraft, { allowNegative })
+      if (!parsed.isValid) return
+      setMaxExceeded(parsed.cents > effectiveMaxCents)
+      emitValue(parsed.cents, showSignToggle ? isNegativeMode : parsed.isNegative)
+    }}
           className={cn(
             'w-full min-w-0 text-right font-semibold tabular-nums text-theme-text outline-none',
             'transition-[color,transform,background-color] duration-150',
@@ -461,11 +468,11 @@ export default function MoneyInput({
                 size === 'lg' && 'text-xl',
                 size === 'hero' && 'text-2xl',
               ),
-            error && variant === 'inline' && 'text-theme-danger',
+            hasError && variant === 'inline' && 'text-theme-danger',
             disabled && 'cursor-not-allowed',
             inputClassName,
           )}
-          aria-invalid={Boolean(error)}
+          aria-invalid={hasError}
           aria-label={label ?? 'Amount'}
           inputMode={entryMode === 'decimal' ? 'decimal' : allowNegative ? 'decimal' : 'numeric'}
         />
@@ -489,6 +496,8 @@ export default function MoneyInput({
 
       {error ? (
         <p className="mt-1 text-xs text-theme-danger">{error}</p>
+      ) : maxExceeded ? (
+        <p className="mt-1 text-xs text-theme-danger">{maxExceededMessage}</p>
       ) : helperText ? (
         <p className="mt-1 text-xs text-theme-muted">{helperText}</p>
       ) : null}
