@@ -41,6 +41,8 @@ export default function MultiMonthViewTable({
   emptyMessage,
 }: MultiMonthViewTableProps) {
   const reversedMonthKeys = useMemo(() => [...monthKeys].reverse(), [monthKeys])
+  const editableAmountButtonClass =
+    'font-semibold text-theme-text decoration-transparent underline-offset-2 transition-[color,text-decoration-color] hover:underline hover:decoration-current focus-visible:underline focus-visible:decoration-current'
 
   const now = new Date()
   const isFutureMonth = (mk: MonthKey | undefined) => {
@@ -157,9 +159,10 @@ export default function MultiMonthViewTable({
                         >
                           {amount !== 0 ? (
                             <button
+                              type="button"
                               onClick={() => onRowClick(name, dataIdx)}
                               className={cn(
-                                'font-semibold hover:underline',
+                                editableAmountButtonClass,
                                 getNumberColorClass(amount),
                               )}
                             >
@@ -190,9 +193,10 @@ export default function MultiMonthViewTable({
                     <td className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums">
                       {monthlyAmounts[0] !== 0 ? (
                         <button
+                          type="button"
                           onClick={() => onRowClick(name, 0)}
                           className={cn(
-                            'font-semibold hover:underline',
+                            editableAmountButtonClass,
                             getNumberColorClass(monthlyAmounts[0]),
                           )}
                         >
@@ -314,10 +318,13 @@ export default function MultiMonthViewTable({
                             </span>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => onIncomeClick(dataIdx)}
-                              className="font-semibold hover:underline text-theme-text"
+                              className={cn('group', editableAmountButtonClass)}
                             >
-                              <PrivateValue>{formatAmount(summary.income)}</PrivateValue>
+                              <PrivateValue className="group-hover:underline group-focus-visible:underline">
+                                {formatAmount(summary.income)}
+                              </PrivateValue>
                             </button>
                           )}
                         </td>
@@ -346,10 +353,13 @@ export default function MultiMonthViewTable({
                         </span>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => onIncomeClick(0)}
-                          className="font-semibold hover:underline text-theme-text"
+                          className={cn('group', editableAmountButtonClass)}
                         >
-                          <PrivateValue>{formatAmount(monthSummaries[0].income)}</PrivateValue>
+                          <PrivateValue className="group-hover:underline group-focus-visible:underline">
+                            {formatAmount(monthSummaries[0].income)}
+                          </PrivateValue>
                         </button>
                       )}
                     </td>
@@ -386,10 +396,13 @@ export default function MultiMonthViewTable({
                             </span>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => onSavingsClick(dataIdx)}
-                              className="font-semibold hover:underline text-theme-text"
+                              className={cn('group', editableAmountButtonClass)}
                             >
-                              <PrivateValue>{formatAmount(summary.autoSavings)}</PrivateValue>
+                              <PrivateValue className="group-hover:underline group-focus-visible:underline">
+                                {formatAmount(summary.autoSavings)}
+                              </PrivateValue>
                             </button>
                           )}
                         </td>
@@ -420,10 +433,11 @@ export default function MultiMonthViewTable({
                         </span>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => onSavingsClick(0)}
-                          className="font-semibold hover:underline text-theme-text"
+                          className={cn('group', editableAmountButtonClass)}
                         >
-                          <PrivateValue>
+                          <PrivateValue className="group-hover:underline group-focus-visible:underline">
                             {formatAmount(monthSummaries[0].autoSavings)}
                           </PrivateValue>
                         </button>

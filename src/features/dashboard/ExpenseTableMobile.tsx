@@ -50,7 +50,7 @@ export default function ExpenseTableMobile({
     <div>
       {groupedExpenses.map(([date, items]) => (
         <div key={date}>
-          <div className="px-3 py-2 text-xs text-theme-muted bg-theme-background border-b border-theme-muted-subtle">
+          <div className="px-1.5 py-2 text-xs text-theme-muted bg-theme-background border-b border-theme-muted-subtle">
             {formatDate(date)}
           </div>
           {items.map((exp) => {
@@ -66,9 +66,10 @@ export default function ExpenseTableMobile({
                 key={exp.id}
                 data-testid={`expense-row-mobile-${exp.id}`}
                 className={cn(
-                  'expense-row-mobile border-b border-theme-muted-subtle px-3 py-2',
+                  'expense-row-mobile border-b border-theme-muted-subtle px-1.5 py-2',
                   'grid grid-cols-[minmax(0,1fr)_6.5rem] grid-rows-[auto_auto] gap-x-3 gap-y-0.5',
-                  isSelected && 'selected-row bg-theme-primary-subtle border-l-4 border-theme-primary',
+                  isSelected &&
+                    'selected-row bg-theme-primary-subtle shadow-[inset_4px_0_0_var(--theme-primary)]',
                   'row-hover',
                 )}
                 onTouchStart={isInteractive ? (e) => onTouchStart(e, exp.id as number) : undefined}
