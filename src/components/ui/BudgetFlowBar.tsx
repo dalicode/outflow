@@ -84,6 +84,8 @@ interface AllocationRowProps {
   privatePercentage?: boolean
   onClick?: () => void
   ariaLabel?: string
+  showActionSlot?: boolean
+  showZeroPercent?: boolean
 }
 
 export function AllocationRow({
@@ -100,6 +102,8 @@ export function AllocationRow({
   privatePercentage = privateValue,
   onClick,
   ariaLabel,
+  showActionSlot = true,
+  showZeroPercent = false,
 }: AllocationRowProps) {
   const amount = (
     <>
@@ -107,6 +111,8 @@ export function AllocationRow({
       {formatAmount(value)}
     </>
   )
+
+  const percentageText = rowPct !== 0 || showZeroPercent ? `${rowPct.toFixed(0)}%` : '—'
 
   const content = (
     <>
@@ -118,9 +124,9 @@ export function AllocationRow({
       <div className="flex items-center justify-end gap-3">
         <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
           {privatePercentage ? (
-            <PrivateValue>{rowPct !== 0 ? `${rowPct.toFixed(0)}%` : '—'}</PrivateValue>
-          ) : rowPct !== 0 ? (
-            `${rowPct.toFixed(0)}%`
+            <PrivateValue>{percentageText}</PrivateValue>
+          ) : rowPct !== 0 || showZeroPercent ? (
+            percentageText
           ) : (
             '—'
           )}
@@ -132,15 +138,21 @@ export function AllocationRow({
           {privateValue ? <PrivateValue>{amount}</PrivateValue> : amount}
         </span>
       </div>
-      <span
-        className={cn('flex w-5 justify-end text-theme-muted', !onClick && 'invisible')}
-        aria-hidden="true"
-        data-testid={`allocation-action-slot-${label.toLowerCase().replace(/\s+/g, '-')}`}
-      >
-        <PencilIcon className="w-3.5 h-3.5" />
-      </span>
+      {showActionSlot ? (
+        <span
+          className={cn('flex w-5 justify-end text-theme-muted', !onClick && 'invisible')}
+          aria-hidden="true"
+          data-testid={`allocation-action-slot-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        >
+          <PencilIcon className="w-3.5 h-3.5" />
+        </span>
+      ) : null}
     </>
   )
+
+  const gridColumns = showActionSlot
+    ? 'grid-cols-[auto_minmax(0,1fr)_auto_auto]'
+    : 'grid-cols-[auto_minmax(0,1fr)_auto]'
 
   if (onClick) {
     return (
@@ -149,7 +161,8 @@ export function AllocationRow({
         onClick={onClick}
         aria-label={ariaLabel ?? label}
         className={cn(
-          'grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-theme-medium px-2 py-2.5 text-left transition-colors hover:bg-theme-background',
+          'grid w-full items-center gap-2 rounded-theme-medium px-2 py-2.5 text-left transition-colors hover:bg-theme-background',
+          gridColumns,
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30',
         )}
       >
@@ -158,11 +171,7 @@ export function AllocationRow({
     )
   }
 
-  return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-2 py-1.5">
-      {content}
-    </div>
-  )
+  return <div className={cn('grid items-center gap-2 px-2 py-1.5', gridColumns)}>{content}</div>
 }
 
 // ── Main component ────────────────────────────────────────────────────────────

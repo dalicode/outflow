@@ -4,7 +4,6 @@ import BudgetFlowBar, {
   getRemainingBarColor,
 } from '../../components/ui/BudgetFlowBar'
 import PrivateValue from '../../components/privacy/PrivateValue'
-import { cn } from '../../utils/cn'
 import { useThemeColors } from './AnalyticsCharts'
 
 const MONTH_LABELS = [
@@ -151,6 +150,7 @@ export default function IncomeFlowBar({
             formatAmount={formatAmount}
             privateValue
             privatePercentage={false}
+            showActionSlot={false}
           />
           <AllocationRow
             label="Fixed Expenses"
@@ -161,6 +161,7 @@ export default function IncomeFlowBar({
             formatAmount={formatAmount}
             privateValue
             privatePercentage={false}
+            showActionSlot={false}
           />
           <AllocationRow
             label="Variable Expenses"
@@ -171,37 +172,24 @@ export default function IncomeFlowBar({
             formatAmount={formatAmount}
             privateValue
             privatePercentage={false}
+            showActionSlot={false}
           />
 
           <div className="border-t border-theme-border my-2" />
 
-          <div className="flex items-center justify-between py-1.5">
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-block w-2 h-2 rounded-full shrink-0"
-                style={{
-                  backgroundColor: remaining >= 0 ? colors.success : colors.danger,
-                }}
-              />
-              <span className="text-sm text-theme-text">
-                {remaining >= 0 ? 'Remaining' : 'Over Budget'}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
-                {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
-              </span>
-              <span
-                className={cn('text-sm font-semibold tabular-nums w-24 text-right')}
-                style={{
-                  color: remaining >= 0 ? colors.success : colors.danger,
-                }}
-              >
-                {remaining >= 0 ? '+' : '−'}
-                <PrivateValue>{formatAmount(Math.abs(remaining))}</PrivateValue>
-              </span>
-            </div>
-          </div>
+          <AllocationRow
+            label={remaining >= 0 ? 'Remaining' : 'Over Budget'}
+            value={Math.abs(remaining)}
+            rowPct={income > 0 ? (remaining / income) * 100 : 0}
+            dotColor={remaining >= 0 ? colors.success : colors.danger}
+            textColor={remaining >= 0 ? colors.success : colors.danger}
+            prefix={remaining >= 0 ? '+' : '−'}
+            formatAmount={formatAmount}
+            privateValue
+            privatePercentage={false}
+            showActionSlot={false}
+            showZeroPercent
+          />
         </div>
       </BudgetFlowBar>
     </div>
