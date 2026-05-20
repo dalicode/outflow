@@ -6,6 +6,7 @@ import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { useSettings } from '../../context/settingsContext'
 import { useHaptics } from '../../hooks/useHaptics'
+import { useViewportWidth } from '../../hooks/useViewportWidth'
 import { useExpenses, usePayees } from '../../hooks/useLocalData'
 import { StorageService } from '../../services/storageService'
 import { getMostLikelyRelatedEntityId, getRecentEntityIds } from '../../utils/entityHistory'
@@ -71,6 +72,7 @@ export default function ExpenseForm({
   const { expenses } = useExpenses()
   const { payees, refresh: refreshPayees } = usePayees()
   const { settings } = useSettings()
+  const isMobileViewport = useViewportWidth() < 640
   const decimalPlaces = parseInt(settings.decimalPlaces, 10) || 2
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
 
@@ -472,10 +474,15 @@ export default function ExpenseForm({
             positiveLabel="Expense"
             negativeLabel="Refund"
             negativeIndicatorLabel="Refund"
-            helperText="Type numbers only - 1234 becomes $12.34"
+            helperText={
+              isMobileViewport
+                ? 'Type numbers only - 1234 becomes $12.34'
+                : 'Edit the amount directly, including cents.'
+            }
             showCurrencyCode
             autoFocus={!isEdit}
             size="lg"
+            entryMode={isMobileViewport ? 'cents' : 'decimal'}
           />
         </form>
       </Modal>

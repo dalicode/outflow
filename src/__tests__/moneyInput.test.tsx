@@ -6,6 +6,7 @@ import {
   centsToSignedDollars,
   dollarsToCents,
   formatCurrencyFromCents,
+  parseDecimalMoneyInput,
   parsePastedMoney,
   parsePastedMoneyInput,
 } from '../utils/moneyInput'
@@ -25,9 +26,11 @@ vi.mock('../hooks/useHaptics', () => ({
 function MoneyInputHarness({
   allowNegative = false,
   showSignToggle = false,
+  entryMode = 'decimal',
 }: {
   allowNegative?: boolean
   showSignToggle?: boolean
+  entryMode?: 'cents' | 'decimal'
 }) {
   const [value, setValue] = useState(0)
 
@@ -42,6 +45,7 @@ function MoneyInputHarness({
         negativeLabel="Refund"
         positiveLabel="Expense"
         negativeIndicatorLabel="Refund"
+        entryMode={entryMode}
       />
       <output data-testid="amount-value">{value.toFixed(2)}</output>
     </div>
@@ -74,11 +78,29 @@ describe('moneyInput helpers', () => {
     expect(centsToSignedDollars(12345, true)).toBe(-123.45)
     expect(centsToSignedDollars(0, true)).toBe(0)
   })
+
+  it('parses direct decimal editing values as dollars', () => {
+    expect(parseDecimalMoneyInput('1234', { allowNegative: true })).toEqual({
+      cents: 123400,
+      isNegative: false,
+      isValid: true,
+    })
+    expect(parseDecimalMoneyInput('$1,234.56', { allowNegative: true })).toEqual({
+      cents: 123456,
+      isNegative: false,
+      isValid: true,
+    })
+    expect(parseDecimalMoneyInput('(12.34)', { allowNegative: true })).toEqual({
+      cents: 1234,
+      isNegative: true,
+      isValid: true,
+    })
+  })
 })
 
 describe('MoneyInput', () => {
   it('shifts digits like a payment terminal', () => {
-    render(<MoneyInputHarness />)
+    render(<MoneyInputHarness entryMode="cents" />)
 
     const input = screen.getByLabelText('Amount')
     const output = screen.getByTestId('amount-value')
@@ -107,7 +129,7 @@ describe('MoneyInput', () => {
   })
 
   it('clears on delete and ctrl-a backspace', () => {
-    render(<MoneyInputHarness />)
+    render(<MoneyInputHarness entryMode="cents" />)
 
     const input = screen.getByLabelText('Amount') as HTMLInputElement
     const output = screen.getByTestId('amount-value')
@@ -129,7 +151,7 @@ describe('MoneyInput', () => {
   })
 
   it('parses pasted values and emits dollars', () => {
-    render(<MoneyInputHarness />)
+    render(<MoneyInputHarness entryMode="cents" />)
 
     const input = screen.getByLabelText('Amount')
     const output = screen.getByTestId('amount-value')
@@ -152,7 +174,7 @@ describe('MoneyInput', () => {
   })
 
   it('uses a text input with numeric keyboard hints', () => {
-    render(<MoneyInput label="Amount" value={0} onChange={() => {}} />)
+    render(<MoneyInput label="Amount" value={0} onChange={() => {}} entryMode="cents" />)
 
     const input = screen.getByLabelText('Amount')
     expect(input).toHaveAttribute('type', 'text')
@@ -160,7 +182,7 @@ describe('MoneyInput', () => {
   })
 
   it('supports toggling a negative amount when allowed', () => {
-    render(<MoneyInputHarness allowNegative showSignToggle />)
+    render(<MoneyInputHarness allowNegative showSignToggle entryMode="cents" />)
 
     const input = screen.getByRole('textbox', { name: 'Amount' })
     const output = screen.getByTestId('amount-value')
@@ -205,23 +227,66 @@ describe('MoneyInput', () => {
     )
 
     const input = screen.getByLabelText('Amount')
-    createTabKeyDownEvent(input, { shiftKey: true })
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true })
 
     expect(handleTabValue).toHaveBeenCalledWith(12.34, true)
   })
-})
 
-function createTabKeyDownEvent(
-  target: HTMLElement,
-  options?: { shiftKey?: boolean },
-): KeyboardEvent {
-  const event = new KeyboardEvent('keydown', {
-    bubbles: true,
-    cancelable: true,
-    key: 'Tab',
-    shiftKey: options?.shiftKey ?? false,
+  it('supports direct decimal editing with caret-friendly text entry', () => {
+    render(<MoneyInputHarness entryMode="decimal" />)
+
+    const input = screen.getByLabelText('Amount') as HTMLInputElement
+    const output = screen.getByTestId('amount-value')
+
+    expect(input).toHaveValue(formatCurrencyFromCents(0))
+
+    fireEvent.focus(input)
+    expect(input).toHaveValue('0.00')
+    expect(input.selectionStart).toBe(0)
+    expect(input.selectionEnd).toBe(input.value.length)
+
+    fireEvent.change(input, { target: { value: '12.34' } })
+    expect(input).toHaveValue('12.34')
+    expect(output).toHaveTextContent('12.34')
+
+    fireEvent.blur(input)
+    expect(input).toHaveValue(formatCurrencyFromCents(1234))
+    expect(output).toHaveTextContent('12.34')
   })
 
-  target.dispatchEvent(event)
-  return event
-}
+  it('commits pasted decimal values as dollars in decimal mode', () => {
+    render(<MoneyInputHarness allowNegative showSignToggle entryMode="decimal" />)
+
+    const input = screen.getByLabelText('Amount')
+    const output = screen.getByTestId('amount-value')
+
+    fireEvent.focus(input)
+    fireEvent.paste(input, {
+      clipboardData: {
+        getData: () => '$1,234.56',
+      },
+    })
+
+    expect(input).toHaveValue('1234.56')
+    expect(output).toHaveTextContent('1234.56')
+
+    fireEvent.keyDown(input, { key: '-' })
+    expect(output).toHaveTextContent('-1234.56')
+  })
+
+  it('replaces the highlighted decimal value when typing after focus', () => {
+    render(<MoneyInput label="Amount" value={45.67} onChange={() => {}} entryMode="decimal" />)
+
+    const input = screen.getByLabelText('Amount') as HTMLInputElement
+
+    expect(input).toHaveValue(formatCurrencyFromCents(4567))
+
+    fireEvent.focus(input)
+    expect(input).toHaveValue('45.67')
+    expect(input.selectionStart).toBe(0)
+    expect(input.selectionEnd).toBe(input.value.length)
+
+    fireEvent.change(input, { target: { value: '9' } })
+    expect(input).toHaveValue('9')
+  })
+})

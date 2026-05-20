@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useHaptics } from '../../hooks/useHaptics'
 import { cn } from '../../utils/cn'
 import {
@@ -6,10 +6,12 @@ import {
   clampMoneyCents,
   dollarsToCents,
   formatCurrencyFromCents,
+  parseDecimalMoneyInput,
   parsePastedMoneyInput,
 } from '../../utils/moneyInput'
 
 type MoneyInputSize = 'sm' | 'md' | 'lg' | 'hero'
+type MoneyInputEntryMode = 'cents' | 'decimal'
 
 interface MoneyInputProps {
   value: number | null | undefined
@@ -39,6 +41,7 @@ interface MoneyInputProps {
   onBlurValue?: (value: number) => void
   onEnterValue?: (value: number, shiftKey: boolean) => void
   onTabValue?: (value: number, shiftKey: boolean) => void
+  entryMode?: MoneyInputEntryMode
 }
 
 const SIZE_MAP: Record<MoneyInputSize, string> = {
@@ -76,6 +79,7 @@ export default function MoneyInput({
   onBlurValue,
   onEnterValue,
   onTabValue,
+  entryMode = 'decimal',
 }: MoneyInputProps) {
   const inputId = useId()
   const haptics = useHaptics()
@@ -87,6 +91,9 @@ export default function MoneyInput({
     }),
   )
   const [isNegative, setIsNegative] = useState(allowNegative && Number(value ?? 0) < 0)
+  const [isEditing, setIsEditing] = useState(false)
+  const [draftValue, setDraftValue] = useState('')
+  const [shouldSelectOnFocus, setShouldSelectOnFocus] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -102,6 +109,26 @@ export default function MoneyInput({
   }, [allowNegative, maxAmount, maxCents, value])
 
   const isNegativeMode = allowNegative && isNegative
+  const editableValue = useMemo(() => {
+    const signPrefix = isNegativeMode && !showSignToggle ? '-' : ''
+    return `${signPrefix}${(absoluteCents / 100).toFixed(2)}`
+  }, [absoluteCents, isNegativeMode, showSignToggle])
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftValue(editableValue)
+    }
+  }, [editableValue, isEditing])
+
+  useLayoutEffect(() => {
+    if (!shouldSelectOnFocus || entryMode !== 'decimal' || !isEditing) return
+
+    const input = inputRef.current
+    if (!input) return
+
+    input.setSelectionRange(0, input.value.length)
+    setShouldSelectOnFocus(false)
+  }, [draftValue, entryMode, isEditing, shouldSelectOnFocus])
 
   // When the sign toggle is shown, format as absolute value — the button
   // communicates the sign so we don't show it twice in the number itself.
@@ -122,11 +149,27 @@ export default function MoneyInput({
       maxAmount,
     })
     const safeIsNegative = allowNegative && nextIsNegative && safeCents !== 0
+    const nextValue = centsToSignedDollars(safeCents, safeIsNegative)
     setAbsoluteCents(safeCents)
     setIsNegative(safeIsNegative)
-    onChange(centsToSignedDollars(safeCents, safeIsNegative))
+    onChange(nextValue)
     onSignChange?.(safeIsNegative)
-    return safeCents
+    return {
+      cents: safeCents,
+      isNegative: safeIsNegative,
+      value: nextValue,
+    }
+  }
+
+  const commitDecimalDraft = () => {
+    const parsed = parseDecimalMoneyInput(draftValue, { allowNegative })
+    const nextValue = parsed.isValid ? parsed : { cents: 0, isNegative: false }
+    const nextIsNegative = showSignToggle ? isNegativeMode : nextValue.isNegative
+    const committed = emitValue(nextValue.cents, nextIsNegative)
+    setDraftValue(
+      `${committed.isNegative && !showSignToggle ? '-' : ''}${(committed.cents / 100).toFixed(2)}`,
+    )
+    return committed.value
   }
 
   const isFullySelected = () => {
@@ -137,6 +180,58 @@ export default function MoneyInput({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (disabled) return
+
+    if (entryMode === 'decimal') {
+      if (allowNegative && showSignToggle && event.key === '-') {
+        event.preventDefault()
+        haptics.selection()
+        if (absoluteCents === 0) {
+          setIsNegative(true)
+        } else {
+          const next = emitValue(absoluteCents, true)
+          setDraftValue(`${(next.cents / 100).toFixed(2)}`)
+        }
+        return
+      }
+
+      if (allowNegative && showSignToggle && event.key === '+') {
+        event.preventDefault()
+        haptics.selection()
+        if (absoluteCents === 0) {
+          setIsNegative(false)
+        } else {
+          const next = emitValue(absoluteCents, false)
+          setDraftValue(`${(next.cents / 100).toFixed(2)}`)
+        }
+        return
+      }
+
+      if (event.key === 'Enter') {
+        const committedValue = commitDecimalDraft()
+        setIsEditing(false)
+        onEnterValue?.(committedValue, event.shiftKey)
+        return
+      }
+
+      if (event.key === 'Escape') {
+        setDraftValue(editableValue)
+        setIsEditing(false)
+        onEscape?.()
+        return
+      }
+
+      if (event.key === 'Tab') {
+        const committedValue = commitDecimalDraft()
+        setIsEditing(false)
+        if (onTabValue) {
+          event.preventDefault()
+        }
+        onTabValue?.(committedValue, event.shiftKey)
+        return
+      }
+
+      return
+    }
 
     const isDigit = /^[0-9]$/.test(event.key)
 
@@ -221,6 +316,17 @@ export default function MoneyInput({
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
     event.preventDefault()
     const pastedText = event.clipboardData.getData('text')
+    if (entryMode === 'decimal') {
+      const parsed = parseDecimalMoneyInput(pastedText, { allowNegative })
+      if (!parsed.isValid) return
+      const nextIsNegative = showSignToggle ? isNegativeMode || parsed.isNegative : parsed.isNegative
+      setDraftValue(
+        `${nextIsNegative && !showSignToggle ? '-' : ''}${(parsed.cents / 100).toFixed(2)}`,
+      )
+      emitValue(parsed.cents, nextIsNegative)
+      return
+    }
+
     const parsed = parsePastedMoneyInput(pastedText, { allowNegative })
     emitValue(parsed.cents, parsed.isNegative)
   }
@@ -231,7 +337,12 @@ export default function MoneyInput({
     if (absoluteCents === 0) {
       setIsNegative((prev) => !prev)
     } else {
-      emitValue(absoluteCents, !isNegativeMode)
+      const next = emitValue(absoluteCents, !isNegativeMode)
+      if (entryMode === 'decimal') {
+        setDraftValue(
+          `${next.isNegative && !showSignToggle ? '-' : ''}${(next.cents / 100).toFixed(2)}`,
+        )
+      }
     }
   }
 
@@ -305,17 +416,37 @@ export default function MoneyInput({
           ref={inputRef}
           id={inputId}
           type="text"
-          inputMode={allowNegative ? 'decimal' : 'numeric'}
           autoFocus={autoFocus}
           disabled={disabled}
-          value={formattedValue || placeholder}
+          value={entryMode === 'decimal' && isEditing ? draftValue : formattedValue || placeholder}
+          onFocus={() => {
+            if (entryMode !== 'decimal') return
+            setDraftValue(editableValue)
+            setIsEditing(true)
+            setShouldSelectOnFocus(true)
+          }}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onBlur={() => {
+            if (entryMode === 'decimal') {
+              const committedValue = commitDecimalDraft()
+              setIsEditing(false)
+              onBlurValue?.(committedValue)
+              return
+            }
             onBlurValue?.(centsToSignedDollars(absoluteCents, isNegativeMode))
           }}
-          onChange={() => {
-            // Controlled via keyboard and paste handlers.
+          onChange={(event) => {
+            if (entryMode !== 'decimal') {
+              return
+            }
+
+            const nextDraft = event.target.value
+            setDraftValue(nextDraft)
+
+            const parsed = parseDecimalMoneyInput(nextDraft, { allowNegative })
+            if (!parsed.isValid) return
+            emitValue(parsed.cents, showSignToggle ? isNegativeMode : parsed.isNegative)
           }}
           className={cn(
             'w-full min-w-0 text-right font-semibold tabular-nums text-theme-text outline-none',
@@ -336,6 +467,7 @@ export default function MoneyInput({
           )}
           aria-invalid={Boolean(error)}
           aria-label={label ?? 'Amount'}
+          inputMode={entryMode === 'decimal' ? 'decimal' : allowNegative ? 'decimal' : 'numeric'}
         />
 
         {allowNegative &&

@@ -134,3 +134,51 @@ export function parsePastedMoneyInput(
     isNegative: isNegativePaste,
   }
 }
+
+export function parseDecimalMoneyInput(
+  text: string,
+  options?: { allowNegative?: boolean },
+): { cents: number; isNegative: boolean; isValid: boolean } {
+  const trimmedText = text.trim()
+
+  if (!trimmedText) {
+    return { cents: 0, isNegative: false, isValid: true }
+  }
+
+  const isNegative =
+    options?.allowNegative === true && (/^-/.test(trimmedText) || /^\(.*\)$/.test(trimmedText))
+
+  const normalized = trimmedText.replace(/[()]/g, '').replace(/[^0-9.,-]/g, '')
+
+  if (!/\d/.test(normalized)) {
+    return { cents: 0, isNegative: false, isValid: false }
+  }
+
+  const lastSeparatorIndex = Math.max(normalized.lastIndexOf('.'), normalized.lastIndexOf(','))
+
+  let parsedDollars = 0
+  if (lastSeparatorIndex === -1) {
+    const digitsOnly = normalized.replace(/\D/g, '')
+    parsedDollars = Number.parseFloat(digitsOnly)
+  } else {
+    const integerPart = normalized.slice(0, lastSeparatorIndex).replace(/[^\d]/g, '')
+    const decimalPart = normalized.slice(lastSeparatorIndex + 1).replace(/[^\d]/g, '')
+
+    if (decimalPart.length > 2) {
+      const digitsOnly = normalized.replace(/\D/g, '')
+      parsedDollars = Number.parseFloat(digitsOnly)
+    } else {
+      parsedDollars = Number.parseFloat(`${integerPart || '0'}.${decimalPart || '0'}`)
+    }
+  }
+
+  if (Number.isNaN(parsedDollars)) {
+    return { cents: 0, isNegative: false, isValid: false }
+  }
+
+  return {
+    cents: Math.round(Math.abs(parsedDollars) * 100),
+    isNegative,
+    isValid: true,
+  }
+}

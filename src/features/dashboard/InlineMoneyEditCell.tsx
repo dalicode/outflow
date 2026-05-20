@@ -30,6 +30,7 @@ export default function InlineMoneyEditCell({
         currency={currency}
         locale={locale}
         allowNegative
+        entryMode="decimal"
         autoFocus
         variant="inline"
         className="w-full"
