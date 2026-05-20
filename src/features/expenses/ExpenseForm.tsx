@@ -5,6 +5,7 @@ import MoneyInput from '../../components/inputs/MoneyInput'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { useSettings } from '../../context/settingsContext'
+import { useToasts } from '../../context/toastContext'
 import { useHaptics } from '../../hooks/useHaptics'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import { useExpenses, usePayees } from '../../hooks/useLocalData'
@@ -72,6 +73,7 @@ export default function ExpenseForm({
   const { expenses } = useExpenses()
   const { payees, refresh: refreshPayees } = usePayees()
   const { settings } = useSettings()
+  const { showToast } = useToasts()
   const isMobileViewport = useViewportWidth() < 640
   const decimalPlaces = parseInt(settings.decimalPlaces, 10) || 2
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
@@ -84,7 +86,6 @@ export default function ExpenseForm({
       amount: initialExpense.amount != null ? initialExpense.amount.toFixed(decimalPlaces) : '',
     }
   })
-  const [error, setError] = useState('')
   const [showCatModal, setShowCatModal] = useState(false)
   const [showPayeeModal, setShowPayeeModal] = useState(false)
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
@@ -214,12 +215,12 @@ export default function ExpenseForm({
     e.preventDefault()
     if (!form.categoryId) {
       haptics.error()
-      setError('Please select a category.')
+      showToast({ message: 'Please select a category.', tone: 'danger' })
       return
     }
     if (!form.amount || Number.isNaN(Number(form.amount)) || Number(form.amount) === 0) {
       haptics.error()
-      setError('Amount cannot be zero.')
+      showToast({ message: 'Amount cannot be zero.', tone: 'danger' })
       return
     }
     const payload = {
@@ -238,7 +239,6 @@ export default function ExpenseForm({
       onAdd?.(payload)
       setForm(EMPTY_FORM)
     }
-    setError('')
   }
 
   const inputCls = 'input-md w-full'
@@ -272,7 +272,6 @@ export default function ExpenseForm({
         }
       >
         <form id="expense-form" onSubmit={submit} className="space-y-4" data-testid="expense-form">
-          {error && <p className="text-theme-danger text-sm">{error}</p>}
           <div className="flex flex-col gap-1 text-sm text-theme-muted">
             <span>Date</span>
             <DatePicker
