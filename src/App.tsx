@@ -330,6 +330,12 @@ function AppShell() {
       if (navigator.onLine && supabase && user) {
         await syncNow()
       }
+
+      showToast({
+        message: 'Updated',
+        tone: 'success',
+        durationMs: 2500,
+      })
     } catch (error) {
       console.error('Pull refresh failed:', error)
       showToast({
@@ -707,7 +713,13 @@ function AppShell() {
             )}
             {showAuthModal && (
               <Modal isOpen={true} onClose={() => setShowAuthModal(false)} title="" size="sm">
-                <Suspense fallback={<div className="py-8 text-center text-sm text-theme-muted">Loading sign in...</div>}>
+                <Suspense
+                  fallback={
+                    <div className="py-8 text-center text-sm text-theme-muted">
+                      Loading sign in...
+                    </div>
+                  }
+                >
                   <AuthPage onClose={() => setShowAuthModal(false)} />
                 </Suspense>
               </Modal>

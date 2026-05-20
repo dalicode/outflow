@@ -16,7 +16,6 @@ import { cn } from '../../utils/cn'
 interface PullToRefreshContainerProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onRefresh'> {
   onRefresh: () => Promise<void>
   disabled?: boolean
-  indicatorLabel?: string
   scrollTargetRef?: RefObject<HTMLDivElement | null>
   scrollable?: boolean
 }
@@ -25,7 +24,8 @@ const PULL_THRESHOLD = 76
 const REFRESH_HOLD_DISTANCE = 64
 const MAX_PULL = 112
 const PULL_START_SLOP = 8
-const SUCCESS_VISIBLE_MS = 700
+const STATUS_FADE_MS = 220
+const INDICATOR_OPACITY_MS = 220
 
 function getResistedPullDistance(delta: number): number {
   if (delta <= 0) return 0
@@ -46,25 +46,23 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
       onRefresh,
       onScroll,
       disabled = false,
-      indicatorLabel = 'Refreshing',
       scrollTargetRef,
       scrollable = true,
       ...rest
     },
     forwardedRef,
   ) {
-    const { light, success } = useHaptics()
+    const { light, success, warning } = useHaptics()
     const containerRef = useRef<HTMLDivElement | null>(null)
     const startYRef = useRef<number | null>(null)
     const startXRef = useRef<number | null>(null)
     const draggingRef = useRef(false)
     const armedRef = useRef(false)
-    const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [pullDistance, setPullDistance] = useState(0)
     const [isDragging, setIsDragging] = useState(false)
     const [isArmed, setIsArmed] = useState(false)
     const [isRefreshing, setIsRefreshing] = useState(false)
-    const [showRefreshSuccess, setShowRefreshSuccess] = useState(false)
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
     useImperativeHandle(forwardedRef, () => containerRef.current as HTMLDivElement, [])
 
@@ -80,27 +78,22 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
 
     const beginRefresh = useCallback(async () => {
       let completed = false
+      let failed = false
       setIsRefreshing(true)
       setIsArmed(false)
-      setShowRefreshSuccess(false)
-      setPullDistance(REFRESH_HOLD_DISTANCE)
+      setPullDistance(0)
       try {
         await onRefresh()
         completed = true
         success()
-        setShowRefreshSuccess(true)
-        setIsRefreshing(false)
-        setPullDistance(REFRESH_HOLD_DISTANCE)
-        if (successTimeoutRef.current) {
-          clearTimeout(successTimeoutRef.current)
-        }
-        successTimeoutRef.current = setTimeout(() => {
-          setShowRefreshSuccess(false)
-          setPullDistance(0)
-        }, SUCCESS_VISIBLE_MS)
+        setPullDistance(0)
+      } catch {
+        failed = true
+        warning()
+        setPullDistance(0)
       } finally {
         setIsRefreshing(false)
-        if (!completed) {
+        if (!completed && !failed) {
           setPullDistance(0)
         }
         startYRef.current = null
@@ -110,7 +103,7 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
         setIsDragging(false)
         setIsArmed(false)
       }
-    }, [onRefresh, success])
+    }, [onRefresh, success, warning])
 
     const handleTouchStart = useCallback(
       (event: TouchEvent<HTMLDivElement>) => {
@@ -202,41 +195,37 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
       [isRefreshing, onScroll, pullDistance, resetPull, scrollTargetRef],
     )
 
-    useEffect(
-      () => () => {
-        if (successTimeoutRef.current) {
-          clearTimeout(successTimeoutRef.current)
-        }
-      },
-      [],
-    )
+    useEffect(() => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+      const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches)
+      syncPreference()
+
+      if (typeof mediaQuery.addEventListener === 'function') {
+        mediaQuery.addEventListener('change', syncPreference)
+        return () => mediaQuery.removeEventListener('change', syncPreference)
+      }
+
+      mediaQuery.addListener(syncPreference)
+      return () => mediaQuery.removeListener(syncPreference)
+    }, [])
 
     const indicatorProgress = Math.min(1, pullDistance / PULL_THRESHOLD)
-    const indicatorVisible = pullDistance > 4 || isRefreshing
+    const indicatorVisible = pullDistance > 4
     const instructionReveal = Math.min(1, Math.max(0, (indicatorProgress - 0.12) / 0.6))
-    const spinnerReveal = isRefreshing
-      ? 1
-      : Math.min(1, Math.max(0, (indicatorProgress - 0.9) / 0.1))
-    const instructionOpacity =
-      isRefreshing || showRefreshSuccess ? 0 : instructionReveal * (1 - spinnerReveal)
-    const contentOffset = isRefreshing || showRefreshSuccess
-      ? REFRESH_HOLD_DISTANCE
-      : Math.min(REFRESH_HOLD_DISTANCE, pullDistance * 0.78)
-    const refreshAreaHeight =
-      indicatorVisible || showRefreshSuccess || isRefreshing
-        ? Math.min(
-            MAX_PULL,
-            Math.max(44, pullDistance * 0.64 + (isRefreshing || showRefreshSuccess ? 18 : 10)),
-          )
-        : 0
+    const spinnerReveal = Math.min(1, Math.max(0, (indicatorProgress - 0.9) / 0.1))
+    const instructionOpacity = instructionReveal * (1 - spinnerReveal)
+    const contentOffset = Math.min(REFRESH_HOLD_DISTANCE, pullDistance * 0.78)
+    const refreshAreaHeight = indicatorVisible
+      ? Math.min(MAX_PULL, Math.max(44, pullDistance * 0.64 + 10))
+      : 0
     const contentStyle =
       pullDistance > 0 || isRefreshing
         ? {
             transform: `translateY(${contentOffset}px)`,
-            transition: isDragging
-              ? 'none'
-              : isRefreshing
-                ? 'transform 180ms ease'
+            transition:
+              isDragging || prefersReducedMotion
+                ? 'none'
                 : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)',
           }
         : undefined
@@ -254,6 +243,7 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
+        aria-busy={isRefreshing}
         {...rest}
       >
         <div
@@ -262,11 +252,10 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
           style={{
             height: `${refreshAreaHeight}px`,
             opacity: indicatorVisible ? 1 : 0,
-            transition: isDragging
-              ? 'none'
-              : isRefreshing
-                ? 'height 180ms ease, opacity 140ms ease'
-                : 'height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease',
+            transition:
+              isDragging || prefersReducedMotion
+                ? 'none'
+                : `height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${INDICATOR_OPACITY_MS}ms ease`,
           }}
         >
           <div
@@ -278,7 +267,7 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
               className="absolute inset-0 z-10 inline-flex items-center justify-center gap-1.5 text-theme-muted"
               style={{
                 opacity: instructionOpacity,
-                transition: 'opacity 140ms ease',
+                transition: prefersReducedMotion ? 'none' : `opacity ${STATUS_FADE_MS}ms ease`,
               }}
             >
               <svg
@@ -294,41 +283,26 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
                 <path d="M10 3v12" />
                 <path d="m5.5 10.5 4.5 4.5 4.5-4.5" />
               </svg>
-              <span>{isArmed ? 'Release to refresh' : 'Pull down to refresh'}</span>
+              {isArmed && <span className="sr-only">Release to update</span>}
             </span>
 
             <span
               className="absolute inset-0 z-20 inline-flex items-center justify-center gap-2"
               style={{
                 opacity: spinnerReveal,
-                transition: 'opacity 140ms ease',
+                transition: prefersReducedMotion ? 'none' : `opacity ${STATUS_FADE_MS}ms ease`,
               }}
             >
-              {showRefreshSuccess ? (
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-theme-success text-white">
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.25"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m3.5 8.5 2.5 2.5 6-6" />
-                  </svg>
-                </span>
-              ) : (
-                isRefreshing ||
-                (isArmed && (
-                  <span
-                    className="inline-block h-8 w-8 animate-spin rounded-full border-2"
-                    style={{
-                      borderColor: 'var(--theme-border)',
-                      borderTopColor: 'var(--theme-primary)',
-                    }}
-                  />
-                ))
+              {(isRefreshing || isArmed) && (
+                <span
+                  className="inline-block h-8 w-8 animate-spin rounded-full border-2"
+                  style={{
+                    borderColor: 'var(--theme-border)',
+                    borderTopColor: 'var(--theme-primary)',
+                    animation: prefersReducedMotion ? 'none' : undefined,
+                  }}
+                />
               )}
-              <span>{showRefreshSuccess && 'Updated just now'}</span>
             </span>
           </div>
         </div>
