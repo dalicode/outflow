@@ -88,9 +88,9 @@ function PaceBadge({
       borderColor: `color-mix(in srgb, ${colors.success} 22%, transparent)`,
     },
     warning: {
-      color: colors.secondary,
-      backgroundColor: `color-mix(in srgb, ${colors.secondary} 10%, transparent)`,
-      borderColor: `color-mix(in srgb, ${colors.secondary} 22%, transparent)`,
+      color: colors.warning,
+      backgroundColor: `color-mix(in srgb, ${colors.warning} 10%, transparent)`,
+      borderColor: `color-mix(in srgb, ${colors.warning} 22%, transparent)`,
     },
     danger: {
       color: colors.danger,
@@ -323,7 +323,7 @@ export default function BudgetPaceSection({
     statusTone === 'danger'
       ? currentTheme.colors.danger
       : statusTone === 'warning'
-        ? currentTheme.colors.secondary
+        ? currentTheme.colors.warning
         : statusTone === 'success'
           ? currentTheme.colors.success
           : currentTheme.colors.primary
@@ -391,7 +391,7 @@ export default function BudgetPaceSection({
             statusTone === 'danger'
               ? 'text-theme-danger'
               : statusTone === 'warning'
-                ? 'text-theme-secondary'
+                ? 'text-theme-warning'
                 : 'text-theme-success'
           }
         />
@@ -412,7 +412,7 @@ export default function BudgetPaceSection({
             statusTone === 'danger'
               ? 'text-theme-danger'
               : statusTone === 'warning'
-                ? 'text-theme-secondary'
+                ? 'text-theme-warning'
                 : statusTone === 'success'
                   ? 'text-theme-success'
                   : 'text-theme-text'

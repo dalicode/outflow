@@ -308,6 +308,7 @@ export interface ThemeConfig {
     surface: string
     primary: string
     secondary: string
+    warning: string
     text: string
     muted: string
     border: string

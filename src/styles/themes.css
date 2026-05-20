@@ -11,6 +11,9 @@
 .bg-theme-secondary {
   background-color: var(--theme-secondary);
 }
+.bg-theme-warning {
+  background-color: var(--theme-warning);
+}
 .bg-theme-danger {
   background-color: var(--theme-danger);
 }
@@ -29,6 +32,9 @@
 }
 .text-theme-secondary {
   color: var(--theme-secondary);
+}
+.text-theme-warning {
+  color: var(--theme-warning);
 }
 .text-theme-danger {
   color: var(--theme-danger);
@@ -855,6 +861,15 @@ th .expense-checkbox-wrapper {
 }
 .border-theme-danger-subtle {
   border-color: color-mix(in srgb, var(--theme-danger) 30%, transparent);
+}
+.bg-theme-warning-subtle {
+  background-color: color-mix(in srgb, var(--theme-warning) 5%, transparent);
+}
+.bg-theme-warning-muted {
+  background-color: color-mix(in srgb, var(--theme-warning) 10%, transparent);
+}
+.border-theme-warning-subtle {
+  border-color: color-mix(in srgb, var(--theme-warning) 30%, transparent);
 }
 .bg-theme-background-muted {
   background-color: color-mix(in srgb, var(--theme-background) 80%, transparent);

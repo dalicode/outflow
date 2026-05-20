@@ -22,6 +22,7 @@ vi.mock('../context/settingsContext', () => ({
         muted: '#6b7280',
         primary: '#2563eb',
         secondary: '#7c3aed',
+        warning: '#f59e0b',
         border: '#d1d5db',
         background: '#f9fafb',
         surface: '#ffffff',

@@ -61,11 +61,11 @@ function getToastToneStyle(tone: ToastTone | undefined): {
 
   if (tone === 'warning') {
     return {
-      borderColor: 'color-mix(in srgb, var(--theme-secondary) 34%, var(--theme-border))',
-      backgroundColor: 'color-mix(in srgb, var(--theme-secondary) 10%, var(--theme-surface))',
-      boxShadow: '0 14px 32px color-mix(in srgb, var(--theme-secondary) 12%, transparent)',
-      iconClassName: 'text-theme-secondary',
-      actionClassName: 'text-theme-secondary',
+      borderColor: 'color-mix(in srgb, var(--theme-warning) 34%, var(--theme-border))',
+      backgroundColor: 'color-mix(in srgb, var(--theme-warning) 10%, var(--theme-surface))',
+      boxShadow: '0 14px 32px color-mix(in srgb, var(--theme-warning) 12%, transparent)',
+      iconClassName: 'text-theme-warning',
+      actionClassName: 'text-theme-warning',
     }
   }
 
