@@ -17,7 +17,13 @@ import PrivateValue from '../../components/privacy/PrivateValue'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Expense, MonthlySummary } from '../../types'
 import { cn } from '../../utils/cn'
-import { type BudgetPaceSummary, getBudgetPaceSummary } from './utils/budgetPaceUtils'
+import {
+  type BudgetPaceSummary,
+  type ChartDensityMode,
+  formatDayLabel,
+  getDayTicks,
+  getBudgetPaceSummary,
+} from './utils/budgetPaceUtils'
 
 interface BudgetPaceSectionProps {
   expenses: Expense[]
@@ -41,20 +47,6 @@ function Metric({ label, value, subValue, valueClassName = 'text-theme-text' }: 
       {subValue && <span className="mt-0.5 text-[11px] text-theme-muted">{subValue}</span>}
     </div>
   )
-}
-
-function formatDayLabel(
-  day: number,
-  isMobile: boolean,
-  currentDay: number,
-  daysInMonth: number,
-): string {
-  if (!isMobile) {
-    return day === 1 || day === daysInMonth || day % 2 === 0 ? String(day) : ''
-  }
-
-  if (day === 1 || day === currentDay || day === daysInMonth) return String(day)
-  return day % 5 === 0 ? String(day) : ''
 }
 
 function getStatusTone(status: string): 'success' | 'warning' | 'danger' | 'muted' {
@@ -292,7 +284,8 @@ export default function BudgetPaceSection({
   const { formatAmount, formatShortMonth, currentTheme } = useSettings()
   const viewportWidth = useViewportWidth()
   const now = useMemo(() => new Date(), [])
-  const isMobile = viewportWidth < 640
+  const densityMode: ChartDensityMode =
+    viewportWidth < 640 ? 'compact' : viewportWidth < 1024 ? 'medium' : 'full'
   const year = selectedYear ?? now.getFullYear()
   const month = selectedMonth ?? now.getMonth()
 
@@ -316,8 +309,16 @@ export default function BudgetPaceSection({
   const hasBudget = pace.monthlyBudget != null && pace.monthlyBudget > 0
   const statusTone = getStatusTone(pace.status)
   const insight = useMemo(() => getInsight(pace, formatAmount), [pace, formatAmount])
-  const lineHeight = isMobile ? 240 : 300
-  const barHeight = isMobile ? 240 : 280
+  const isCompact = densityMode === 'compact'
+  const isMedium = densityMode === 'medium'
+  const lineHeight = isCompact ? 240 : 300
+  const barHeight = isCompact ? 240 : 280
+  const xTickFontSize = isCompact ? 10 : isMedium ? 10.5 : 11
+  const chartBottomMargin = isCompact ? 12 : isMedium ? 8 : 0
+  const xAxisTicks =
+    densityMode === 'full'
+      ? getDayTicks('compact', pace.currentDayForSummary, pace.daysInMonth)
+      : getDayTicks(densityMode, pace.currentDayForSummary, pace.daysInMonth)
   const monthProgressBarColor = currentTheme.colors.muted
   const budgetProgressBarColor =
     statusTone === 'danger'
@@ -469,7 +470,10 @@ export default function BudgetPaceSection({
           </p>
           {hasActualData || hasBudget ? (
             <ResponsiveContainer width="100%" height={lineHeight}>
-              <LineChart data={actualSeries} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <LineChart
+                data={actualSeries}
+                margin={{ top: 8, right: 12, left: 0, bottom: chartBottomMargin }}
+              >
                 <CartesianGrid
                   stroke={currentTheme.colors.border}
                   strokeDasharray="3 3"
@@ -478,13 +482,13 @@ export default function BudgetPaceSection({
                 />
                 <XAxis
                   dataKey="day"
+                  ticks={xAxisTicks}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: currentTheme.colors.muted, fontSize: 11 }}
+                  tick={{ fill: currentTheme.colors.muted, fontSize: xTickFontSize }}
                   tickFormatter={(value: number) =>
-                    formatDayLabel(value, isMobile, pace.currentDayForSummary, pace.daysInMonth)
+                    formatDayLabel(value, densityMode, pace.currentDayForSummary, pace.daysInMonth)
                   }
-                  interval={0}
                 />
                 <YAxis
                   tickLine={false}
@@ -566,7 +570,10 @@ export default function BudgetPaceSection({
           </p>
           {hasActualData ? (
             <ResponsiveContainer width="100%" height={barHeight}>
-              <BarChart data={dailySeries} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <BarChart
+                data={dailySeries}
+                margin={{ top: 8, right: 12, left: 0, bottom: chartBottomMargin }}
+              >
                 <CartesianGrid
                   stroke={currentTheme.colors.border}
                   strokeDasharray="3 3"
@@ -575,13 +582,13 @@ export default function BudgetPaceSection({
                 />
                 <XAxis
                   dataKey="day"
+                  ticks={xAxisTicks}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: currentTheme.colors.muted, fontSize: 11 }}
+                  tick={{ fill: currentTheme.colors.muted, fontSize: xTickFontSize }}
                   tickFormatter={(value: number) =>
-                    formatDayLabel(value, isMobile, pace.currentDayForSummary, pace.daysInMonth)
+                    formatDayLabel(value, densityMode, pace.currentDayForSummary, pace.daysInMonth)
                   }
-                  interval={0}
                 />
                 <YAxis
                   tickLine={false}

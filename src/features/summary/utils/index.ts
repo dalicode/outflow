@@ -1,5 +1,6 @@
-export type { BudgetPaceDailyRow, BudgetPaceSummary } from './budgetPaceUtils'
+export type { BudgetPaceDailyRow, BudgetPaceSummary, ChartDensityMode } from './budgetPaceUtils'
 export {
+  formatDayLabel,
   getDaysInMonth,
   getCurrentDayForSummary,
   getDailySpendingRows,

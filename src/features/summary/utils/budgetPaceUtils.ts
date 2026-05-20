@@ -43,8 +43,50 @@ interface BudgetPaceInput {
   now?: Date
 }
 
+export type ChartDensityMode = 'compact' | 'medium' | 'full'
+
+export function getDayTicks(
+  densityMode: ChartDensityMode,
+  currentDay: number,
+  daysInMonth: number,
+): number[] | undefined {
+  if (densityMode !== 'compact') return undefined
+
+  const ticks = new Set<number>([1, 14, 21, 28, daysInMonth])
+  if (currentDay > 0) ticks.add(currentDay)
+
+  return Array.from(ticks)
+    .filter((day) => day >= 1 && day <= daysInMonth)
+    .sort((a, b) => a - b)
+}
+
 function roundToCents(value: number): number {
   return Math.round(value * 100) / 100
+}
+
+export function formatDayLabel(
+  day: number,
+  densityMode: ChartDensityMode,
+  currentDay: number,
+  daysInMonth: number,
+): string {
+  const isLastDay = day === daysInMonth
+  const isFirstDay = day === 1
+
+  if (densityMode === 'compact') {
+    if (isFirstDay || isLastDay) return String(day)
+    if (day === currentDay) return String(day)
+    return [14, 21, 28].includes(day) ? String(day) : ''
+  }
+
+  if (densityMode === 'medium') {
+    if (isFirstDay || isLastDay) return String(day)
+    return day % 4 === 0 ? String(day) : ''
+  }
+
+  if (isFirstDay || isLastDay || day % 2 === 0) return String(day)
+  if (day === currentDay) return String(day)
+  return ''
 }
 
 function getMonthRelation(

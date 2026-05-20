@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  formatDayLabel,
+  getDayTicks,
   getBudgetPaceStatus,
   getBudgetPaceSummary,
   getCurrentDayForSummary,
@@ -165,5 +167,49 @@ describe('budgetPaceUtils', () => {
         isMonthComplete: false,
       }),
     ).toBe('No spending yet')
+  })
+
+  it('formats compact tick labels at weekly milestones and month boundaries', () => {
+    expect(formatDayLabel(1, 'compact', 18, 31)).toBe('1')
+    expect(formatDayLabel(7, 'compact', 18, 31)).toBe('')
+    expect(formatDayLabel(18, 'compact', 18, 31)).toBe('18')
+    expect(formatDayLabel(14, 'compact', 18, 31)).toBe('14')
+    expect(formatDayLabel(21, 'compact', 18, 31)).toBe('21')
+    expect(formatDayLabel(28, 'compact', 18, 31)).toBe('28')
+    expect(formatDayLabel(31, 'compact', 18, 31)).toBe('31')
+    expect(formatDayLabel(29, 'compact', 18, 30)).toBe('')
+    expect(formatDayLabel(30, 'compact', 18, 30)).toBe('30')
+  })
+
+  it('formats medium tick labels every 4 days plus month boundaries', () => {
+    expect(formatDayLabel(1, 'medium', 18, 28)).toBe('1')
+    expect(formatDayLabel(4, 'medium', 18, 28)).toBe('4')
+    expect(formatDayLabel(8, 'medium', 18, 28)).toBe('8')
+    expect(formatDayLabel(12, 'medium', 18, 28)).toBe('12')
+    expect(formatDayLabel(16, 'medium', 18, 28)).toBe('16')
+    expect(formatDayLabel(20, 'medium', 18, 28)).toBe('20')
+    expect(formatDayLabel(24, 'medium', 18, 28)).toBe('24')
+    expect(formatDayLabel(28, 'medium', 18, 28)).toBe('28')
+    expect(formatDayLabel(18, 'medium', 18, 28)).toBe('')
+  })
+
+  it('formats full tick labels densely while preserving current day and boundaries', () => {
+    expect(formatDayLabel(1, 'full', 19, 31)).toBe('1')
+    expect(formatDayLabel(2, 'full', 19, 31)).toBe('2')
+    expect(formatDayLabel(18, 'full', 19, 31)).toBe('18')
+    expect(formatDayLabel(19, 'full', 19, 31)).toBe('19')
+    expect(formatDayLabel(31, 'full', 19, 31)).toBe('31')
+    expect(formatDayLabel(17, 'full', 19, 31)).toBe('')
+  })
+
+  it('builds compact ticks that always include current day', () => {
+    expect(getDayTicks('compact', 18, 31)).toEqual([1, 14, 18, 21, 28, 31])
+    expect(getDayTicks('compact', 7, 31)).toEqual([1, 7, 14, 21, 28, 31])
+    expect(getDayTicks('compact', 30, 30)).toEqual([1, 14, 21, 28, 30])
+  })
+
+  it('returns no pinned ticks for non-compact density modes', () => {
+    expect(getDayTicks('medium', 18, 31)).toBeUndefined()
+    expect(getDayTicks('full', 18, 31)).toBeUndefined()
   })
 })
