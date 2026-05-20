@@ -3,6 +3,7 @@ import PrivacyToggle from '../../components/privacy/PrivacyToggle'
 import { useSettings } from '../../context/settingsContext'
 import type { MonthlySummary } from '../../types'
 import { cn } from '../../utils/cn'
+import { getRemainingDisplayState } from '../../utils/remainingDisplayState'
 
 interface DashboardHeaderProps {
   financialSummary: MonthlySummary | null
@@ -10,8 +11,11 @@ interface DashboardHeaderProps {
 }
 
 export default function DashboardHeader({ financialSummary, daysLeft }: DashboardHeaderProps) {
-  const { formatAmount } = useSettings()
+  const { formatAmount, currentTheme } = useSettings()
   const remaining = financialSummary?.remaining ?? 0
+  const remainingDisplayColor = financialSummary
+    ? getRemainingDisplayState(financialSummary, currentTheme.colors).remainingDisplayColor
+    : currentTheme.colors.muted
 
   return (
     <div className="flex items-start justify-between">
@@ -29,10 +33,8 @@ export default function DashboardHeader({ financialSummary, daysLeft }: Dashboar
         aria-hidden={!financialSummary}
       >
         <span
-          className={cn(
-            'text-2xl font-bold tabular-nums leading-none',
-            remaining >= 0 ? 'text-theme-success' : 'text-theme-danger',
-          )}
+          className="text-2xl font-bold tabular-nums leading-none"
+          style={{ color: remainingDisplayColor }}
         >
           <PrivateValue>{formatAmount(remaining)}</PrivateValue>
         </span>

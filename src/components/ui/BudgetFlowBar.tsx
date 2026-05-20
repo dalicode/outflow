@@ -86,6 +86,7 @@ interface AllocationRowProps {
   ariaLabel?: string
   showActionSlot?: boolean
   showZeroPercent?: boolean
+  density?: 'default' | 'compact'
 }
 
 export function AllocationRow({
@@ -104,6 +105,7 @@ export function AllocationRow({
   ariaLabel,
   showActionSlot = true,
   showZeroPercent = false,
+  density = 'default',
 }: AllocationRowProps) {
   const amount = (
     <>
@@ -153,6 +155,7 @@ export function AllocationRow({
   const gridColumns = showActionSlot
     ? 'grid-cols-[auto_minmax(0,1fr)_auto_auto]'
     : 'grid-cols-[auto_minmax(0,1fr)_auto]'
+  const rowPaddingY = density === 'compact' ? 'py-1.5' : 'py-2.5'
 
   if (onClick) {
     return (
@@ -161,7 +164,8 @@ export function AllocationRow({
         onClick={onClick}
         aria-label={ariaLabel ?? label}
         className={cn(
-          'grid w-full items-center gap-2 rounded-theme-medium px-2 py-2.5 text-left transition-colors hover:bg-theme-background',
+          'grid w-full items-center gap-2 rounded-theme-medium px-2 text-left transition-colors hover:bg-theme-background',
+          rowPaddingY,
           gridColumns,
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30',
         )}

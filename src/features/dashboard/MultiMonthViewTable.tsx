@@ -6,8 +6,10 @@ import type {
   MultiMonthFixedRow,
 } from '../../types'
 import PrivateValue from '../../components/privacy/PrivateValue'
+import { useSettings } from '../../context/settingsContext'
 import { cn } from '../../utils/cn'
 import { getSavingsGradientColor } from '../../utils/colorHelpers'
+import { getRemainingDisplayState } from '../../utils/remainingDisplayState'
 
 interface MultiMonthViewTableProps {
   entityLabel: string
@@ -40,6 +42,7 @@ export default function MultiMonthViewTable({
   getNumberColorClass,
   emptyMessage,
 }: MultiMonthViewTableProps) {
+  const { currentTheme } = useSettings()
   const reversedMonthKeys = useMemo(() => [...monthKeys].reverse(), [monthKeys])
   const editableAmountButtonClass =
     'font-semibold text-theme-text decoration-transparent underline-offset-2 transition-[color,text-decoration-color] hover:underline hover:decoration-current focus-visible:underline focus-visible:decoration-current'
@@ -73,17 +76,25 @@ export default function MultiMonthViewTable({
     return { grandTotal, color }
   }, [monthSummaries])
 
-  const remainingClasses = useMemo(() => {
-    return monthSummaries.map((summary) => {
-      const v = summary.remaining
-      return v > 0 ? 'text-theme-success' : v < 0 ? 'text-theme-danger' : 'text-theme-text'
-    })
-  }, [monthSummaries])
+  const remainingDisplayColors = useMemo(() => {
+    return monthSummaries.map(
+      (summary) => getRemainingDisplayState(summary, currentTheme.colors).remainingDisplayColor,
+    )
+  }, [currentTheme.colors, monthSummaries])
 
-  const remainingGrandTotalClass = useMemo(() => {
-    const v = monthSummaries.reduce((s, m) => s + m.remaining, 0)
-    return v > 0 ? 'text-theme-success' : v < 0 ? 'text-theme-danger' : 'text-theme-text'
-  }, [monthSummaries])
+  const remainingGrandTotalDisplayColor = useMemo(() => {
+    const grandTotalSummary: MonthlySummary = {
+      income: monthSummaries.reduce((s, m) => s + m.income, 0),
+      fixedExpensesTotal: monthSummaries.reduce((s, m) => s + m.fixedExpensesTotal, 0),
+      savingsRate: 0,
+      autoSavings: monthSummaries.reduce((s, m) => s + m.autoSavings, 0),
+      remaining: monthSummaries.reduce((s, m) => s + m.remaining, 0),
+      variableExpenses: monthSummaries.reduce((s, m) => s + m.variableExpenses, 0),
+      fixedExpenses: [],
+    }
+
+    return getRemainingDisplayState(grandTotalSummary, currentTheme.colors).remainingDisplayColor
+  }, [currentTheme.colors, monthSummaries])
 
   const colSpanCount = monthSpan > 1 ? 2 + monthSpan + (showGrandTotal ? 1 : 0) : 3
 
@@ -532,15 +543,15 @@ export default function MultiMonthViewTable({
                     </td>
                     {[...monthSummaries].reverse().map((summary, displayIdx) => {
                       const dataIdx = monthSummaries.length - 1 - displayIdx
-                      const cls = remainingClasses[dataIdx]
+                      const displayColor = remainingDisplayColors[dataIdx]
                       return (
                         <td
                           key={monthKeys[dataIdx].key}
                           className={cn(
                             'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold',
-                            cls,
                             displayIdx === 0 && 'border-l border-theme-border',
                           )}
+                          style={{ color: displayColor }}
                         >
                           <PrivateValue>{formatAmount(summary.remaining)}</PrivateValue>
                         </td>
@@ -548,10 +559,8 @@ export default function MultiMonthViewTable({
                     })}
                     {showGrandTotal && (
                       <td
-                        className={cn(
-                          'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold',
-                          remainingGrandTotalClass,
-                        )}
+                        className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
+                        style={{ color: remainingGrandTotalDisplayColor }}
                       >
                         <PrivateValue>
                           {formatAmount(monthSummaries.reduce((s, m) => s + m.remaining, 0))}
@@ -565,10 +574,8 @@ export default function MultiMonthViewTable({
                       —
                     </td>
                     <td
-                      className={cn(
-                        'px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold',
-                        remainingClasses[0],
-                      )}
+                      className="px-1.5 sm:px-2 md:px-3 py-1 text-right tabular-nums font-semibold"
+                      style={{ color: remainingDisplayColors[0] }}
                     >
                       <PrivateValue>{formatAmount(monthSummaries[0].remaining)}</PrivateValue>
                     </td>

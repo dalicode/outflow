@@ -1,13 +1,9 @@
 import { useState } from 'react'
-import BudgetFlowBar, {
-  AllocationRow,
-  barPct,
-  getRemainingBarColor,
-} from '../../components/ui/BudgetFlowBar'
+import BudgetFlowBar, { AllocationRow, barPct } from '../../components/ui/BudgetFlowBar'
 import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
 import type { FixedExpense, MonthlySummary } from '../../types'
-import { cn } from '../../utils/cn'
+import { getRemainingDisplayState } from '../../utils/remainingDisplayState'
 import { getCategoryColor } from '../../utils/summaryColorUtils'
 import { PencilIcon } from '../../components/ui/IconButton'
 import IncomeModalForm from '../dashboard/components/IncomeModalForm'
@@ -54,17 +50,13 @@ export default function BudgetFlow({
 
   const { income, fixedExpensesTotal, variableExpenses, autoSavings, remaining } = summary
 
-  const isOverBudget = remaining < 0
-  const baselineRemaining = Math.max(0, income - Math.max(0, autoSavings) - fixedExpensesTotal)
+  const { remainingBarColor, remainingDisplayColor, isOverBudget } = getRemainingDisplayState(
+    summary,
+    currentTheme.colors,
+  )
   const totalAllocated = fixedExpensesTotal + variableExpenses + Math.max(0, autoSavings)
   const spentPct = barPct(totalAllocated, income)
   const reservedSavingsColor = currentTheme.colors.text
-  const remainingColor = getRemainingBarColor(
-    remaining,
-    baselineRemaining,
-    currentTheme.colors.success,
-    currentTheme.colors.danger,
-  )
 
   const segments = [
     {
@@ -110,20 +102,11 @@ export default function BudgetFlow({
             <PrivateValue>{formatAmount(income)}</PrivateValue>
           </p>
         </button>
-        <div
-          className={cn(
-            'text-right',
-            isOverBudget
-              ? 'text-theme-danger'
-              : remaining === 0
-                ? 'text-theme-muted'
-                : 'text-theme-success',
-          )}
-        >
-          <p className="text-xs uppercase tracking-wider mb-0.5 opacity-70">
+        <div className="text-right text-theme-text">
+          <p className="text-xs uppercase tracking-wider mb-0.5 text-theme-muted">
             {isOverBudget ? 'Over budget' : 'Remaining'}
           </p>
-          <p className="text-2xl font-bold tabular-nums">
+          <p className="text-2xl font-bold tabular-nums" style={{ color: remainingDisplayColor }}>
             <PrivateValue>{formatAmount(remaining)}</PrivateValue>
           </p>
         </div>
@@ -135,7 +118,7 @@ export default function BudgetFlow({
           income={income}
           segments={segments}
           remaining={remaining}
-          remainingColor={remainingColor}
+          remainingColor={remainingBarColor}
           isOverBudget={isOverBudget}
           overflowAmt={isOverBudget ? Math.abs(remaining) : 0}
           spentPct={spentPct}
@@ -144,50 +127,55 @@ export default function BudgetFlow({
           formatAmount={formatAmount}
         >
           <div className="space-y-1 mt-3">
-            <AllocationRow
-              label="Fixed Expenses"
-              value={fixedExpensesTotal}
-              rowPct={barPct(fixedExpensesTotal, income)}
-              dotClass="bg-theme-primary"
-              textClass="text-theme-primary"
-              formatAmount={formatAmount}
-              privateValue
-              privatePercentage={false}
-              onClick={() => setShowFixedExpensesModal(true)}
-              ariaLabel="Edit fixed expenses"
-            />
-            <AllocationRow
-              label="Variable Expenses"
-              value={variableExpenses}
-              rowPct={barPct(variableExpenses, income)}
-              dotClass="bg-theme-danger"
-              textClass="text-theme-danger"
-              formatAmount={formatAmount}
-              privateValue
-              privatePercentage={false}
-            />
-            <AllocationRow
-              label="Auto Savings"
-              value={Math.max(0, autoSavings)}
-              rowPct={barPct(Math.max(0, autoSavings), income)}
-              dotColor={reservedSavingsColor}
-              textColor={reservedSavingsColor}
-              formatAmount={(amount) => formatAmount(amount)}
-              privateValue
-              privatePercentage={false}
-              onClick={() => setShowSavingsModal(true)}
-              ariaLabel="Edit savings goal"
-            />
+            <div>
+              <AllocationRow
+                label="Auto Savings"
+                value={Math.max(0, autoSavings)}
+                rowPct={barPct(Math.max(0, autoSavings), income)}
+                dotColor={reservedSavingsColor}
+                textClass="text-theme-success"
+                formatAmount={(amount) => formatAmount(amount)}
+                privateValue
+                privatePercentage={false}
+                onClick={() => setShowSavingsModal(true)}
+                ariaLabel="Edit savings goal"
+                density="compact"
+              />
+            </div>
+            <div className="space-y-1">
+              <AllocationRow
+                label="Fixed Expenses"
+                value={fixedExpensesTotal}
+                rowPct={barPct(fixedExpensesTotal, income)}
+                dotClass="bg-theme-primary"
+                textClass="text-theme-danger"
+                formatAmount={formatAmount}
+                privateValue
+                privatePercentage={false}
+                onClick={() => setShowFixedExpensesModal(true)}
+                ariaLabel="Edit fixed expenses"
+                density="compact"
+              />
+              <AllocationRow
+                label="Variable Expenses"
+                value={variableExpenses}
+                rowPct={barPct(variableExpenses, income)}
+                dotClass="bg-theme-danger"
+                textClass="text-theme-danger"
+                formatAmount={formatAmount}
+                privateValue
+                privatePercentage={false}
+                density="compact"
+              />
+            </div>
 
             <div className="border-t border-theme-border my-2" />
 
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-2 py-1.5">
               <div className="flex items-center gap-2 min-w-0">
                 <span
-                  className={cn(
-                    'inline-block w-2 h-2 rounded-full shrink-0',
-                    isOverBudget ? 'bg-theme-danger' : 'bg-theme-success',
-                  )}
+                  className="inline-block w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: remainingDisplayColor }}
                 />
                 <span className="text-sm font-medium text-theme-text truncate">
                   {isOverBudget ? 'Over Budget' : 'Remaining'}
@@ -198,10 +186,8 @@ export default function BudgetFlow({
                   {income > 0 ? `${((remaining / income) * 100).toFixed(0)}%` : '—'}
                 </span>
                 <span
-                  className={cn(
-                    'text-sm font-semibold tabular-nums w-24 text-right',
-                    isOverBudget ? 'text-theme-danger' : 'text-theme-success',
-                  )}
+                  className="text-sm font-semibold tabular-nums w-24 text-right"
+                  style={{ color: remainingDisplayColor }}
                 >
                   <PrivateValue>
                     {isOverBudget ? '−' : '+'}

@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from 'react'
+import { type CSSProperties, type ReactNode, useMemo } from 'react'
 import {
   Bar,
   BarChart,
@@ -15,6 +15,7 @@ import {
 import { useSettings } from '../../context/settingsContext'
 import PrivateValue from '../../components/privacy/PrivateValue'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
+import { getRemainingBarColor } from '../../components/ui/BudgetFlowBar'
 import type { Expense, MonthlySummary } from '../../types'
 import { cn } from '../../utils/cn'
 import {
@@ -37,13 +38,22 @@ interface MetricProps {
   value: ReactNode
   subValue?: string
   valueClassName?: string
+  valueStyle?: CSSProperties
 }
 
-function Metric({ label, value, subValue, valueClassName = 'text-theme-text' }: MetricProps) {
+function Metric({
+  label,
+  value,
+  subValue,
+  valueClassName = 'text-theme-text',
+  valueStyle,
+}: MetricProps) {
   return (
     <div className="summary-stat-card min-h-[4.75rem]">
       <span className="summary-label mb-1">{label}</span>
-      <span className={cn('text-lg font-semibold tabular-nums', valueClassName)}>{value}</span>
+      <span className={cn('text-lg font-semibold tabular-nums', valueClassName)} style={valueStyle}>
+        {value}
+      </span>
       {subValue && <span className="mt-0.5 text-[11px] text-theme-muted">{subValue}</span>}
     </div>
   )
@@ -130,7 +140,7 @@ function PaceProgressBar({
         </span>
       </div>
       <div
-        className="h-2 overflow-hidden rounded-full bg-theme-background"
+        className="h-2.5 overflow-hidden rounded-full border border-theme-border bg-theme-surface p-[1px]"
         role="progressbar"
         aria-label={ariaLabel}
         aria-valuenow={percent == null ? undefined : Math.round(percent * 100)}
@@ -320,14 +330,20 @@ export default function BudgetPaceSection({
       ? getDayTicks('compact', pace.currentDayForSummary, pace.daysInMonth)
       : getDayTicks(densityMode, pace.currentDayForSummary, pace.daysInMonth)
   const monthProgressBarColor = currentTheme.colors.muted
-  const budgetProgressBarColor =
-    statusTone === 'danger'
-      ? currentTheme.colors.danger
-      : statusTone === 'warning'
-        ? currentTheme.colors.warning
-        : statusTone === 'success'
-          ? currentTheme.colors.success
-          : currentTheme.colors.primary
+  const paceRemainingDisplayColor =
+    pace.budgetRemaining == null
+      ? currentTheme.colors.text
+      : pace.budgetRemaining < 0
+        ? currentTheme.colors.danger
+        : pace.budgetRemaining === 0
+          ? currentTheme.colors.muted
+          : getRemainingBarColor(
+              pace.budgetRemaining,
+              Math.max(0, monthlyBudget ?? 0),
+              currentTheme.colors.success,
+              currentTheme.colors.danger,
+            )
+  const budgetProgressBarColor = paceRemainingDisplayColor
 
   const actualSeries = pace.dailyRows.map((row) => ({
     day: row.day,
@@ -370,11 +386,8 @@ export default function BudgetPaceSection({
               <PrivateValue>{formatAmount(pace.budgetRemaining)}</PrivateValue>
             )
           }
-          valueClassName={
-            pace.budgetRemaining != null && pace.budgetRemaining < 0
-              ? 'text-theme-danger'
-              : 'text-theme-success'
-          }
+          valueClassName="text-theme-text"
+          valueStyle={{ color: paceRemainingDisplayColor }}
         />
         <Metric label="Days remaining" value={String(pace.daysRemaining)} />
         <Metric
@@ -388,13 +401,7 @@ export default function BudgetPaceSection({
               </>
             )
           }
-          valueClassName={
-            statusTone === 'danger'
-              ? 'text-theme-danger'
-              : statusTone === 'warning'
-                ? 'text-theme-warning'
-                : 'text-theme-success'
-          }
+          valueClassName="text-theme-text"
         />
         <Metric
           label="Current avg/day"
@@ -409,14 +416,9 @@ export default function BudgetPaceSection({
           value={
             pace.budgetUsedPercent == null ? '—' : `${(pace.budgetUsedPercent * 100).toFixed(0)}%`
           }
-          valueClassName={
-            statusTone === 'danger'
-              ? 'text-theme-danger'
-              : statusTone === 'warning'
-                ? 'text-theme-warning'
-                : statusTone === 'success'
-                  ? 'text-theme-success'
-                  : 'text-theme-text'
+          valueClassName="text-theme-text"
+          valueStyle={
+            pace.budgetUsedPercent == null ? undefined : { color: paceRemainingDisplayColor }
           }
         />
       </div>
@@ -441,11 +443,6 @@ export default function BudgetPaceSection({
             }
             ariaLabel="Budget used"
           />
-        </div>
-        <div className="text-sm text-theme-muted">
-          {pace.status === 'No budget set'
-            ? 'Set a monthly budget to compare your spending pace.'
-            : pace.status}
         </div>
         <p className="text-sm text-theme-text">{insight}</p>
       </div>
