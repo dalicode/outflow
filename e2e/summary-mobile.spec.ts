@@ -19,8 +19,8 @@ test.describe("Summary/Budget — mobile", () => {
     await fixedDialog.getByRole("textbox", { name: "Name" }).fill("Rent");
     const fixedAmountInput = fixedDialog.locator('[aria-label="Amount"]');
     await fixedAmountInput.click();
-    await fixedAmountInput.pressSequentially("120000");
-    await expect(fixedAmountInput).toHaveValue(/\$1,200\.00/);
+    await fixedAmountInput.fill("1200");
+    await expect(fixedAmountInput).toHaveValue("1200");
     await fixedDialog.getByRole("button", { name: "Add" }).click();
 
     const planButton = page.getByLabel("Edit monthly plan");
@@ -36,7 +36,7 @@ test.describe("Summary/Budget — mobile", () => {
     const incomeAmountInput = page.locator("#income-modal-form [aria-label='Amount']");
     await expect(incomeAmountInput).toBeVisible();
     await incomeAmountInput.click();
-    await incomeAmountInput.pressSequentially("500000");
+    await incomeAmountInput.fill("5000");
     await page.getByTestId("btn-save-income").click();
     await expect(page.locator("#income-modal-form")).not.toBeVisible({ timeout: 5000 });
     const incomeButton = planDialog.getByTestId("btn-open-income-modal");
@@ -76,7 +76,7 @@ test.describe("Summary/Budget — mobile", () => {
     await addFixedDialog.getByRole("textbox", { name: "Name" }).fill("Internet");
     const compactFixedAmountInput = addFixedDialog.locator('[aria-label="Amount"]');
     await compactFixedAmountInput.click();
-    await compactFixedAmountInput.pressSequentially("8500");
+    await compactFixedAmountInput.fill("85");
     await addFixedDialog.getByRole("button", { name: "Add" }).click();
     await expect(addFixedDialog).not.toBeVisible({ timeout: 5000 });
     await expect(fixedManageDialogAfterEdit).toBeVisible();

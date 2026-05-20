@@ -485,6 +485,39 @@ describe('CreatableCombobox', () => {
     })
   })
 
+  it('prefers the highlighted match over creating a new option on Tab', async () => {
+    const onChange = vi.fn()
+    const onTab = vi.fn()
+    const onCreate = vi.fn(async () => 77)
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[
+          { id: 1, label: 'Yonder Ledger' },
+          { id: 2, label: 'Zephyr Ledger' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        allowCreate
+        onCreate={onCreate}
+        onChange={onChange}
+        onTab={onTab}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'yon' } })
+    fireEvent.keyDown(input, { key: 'Tab' })
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(1)
+      expect(onCreate).not.toHaveBeenCalled()
+      expect(onTab).toHaveBeenCalledWith(false)
+    })
+  })
+
   it('renders recent and all sections in natural order when opening below', async () => {
     render(
       <CreatableCombobox

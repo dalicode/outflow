@@ -205,8 +205,10 @@ describe('DesktopDropdown', () => {
     const panel = search.closest('div[style]') as HTMLDivElement | null
     const content = panel?.querySelector('.overflow-y-auto') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(147)
-    expect(Number.parseFloat(content?.style.height ?? '0')).toBe(90)
+    await waitFor(() => {
+      expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(147)
+      expect(Number.parseFloat(content?.style.height ?? '0')).toBe(90)
+    })
   })
 
   it('opens below when the desired height fits below even if above has more space', async () => {
@@ -241,7 +243,9 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(344)
+    await waitFor(() => {
+      expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(344)
+    })
   })
 
   it('opens above when the desired height does not fit below but fits above', async () => {

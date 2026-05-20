@@ -30,17 +30,17 @@ test.describe("Keyboard navigation (desktop)", () => {
     await firstRow.locator("[data-field='amount']").click();
     const firstAmountInput = firstRow.locator('input[aria-label="Amount"]');
     await expect(firstAmountInput).toBeVisible();
-    await firstAmountInput.pressSequentially("1234");
+    await firstAmountInput.fill("12.34");
     await firstAmountInput.press("Enter");
 
     const secondAmountInput = secondRow.locator('input[aria-label="Amount"]');
     await expect(secondAmountInput).toBeVisible();
 
-    await secondAmountInput.pressSequentially("5678");
+    await secondAmountInput.fill("56.78");
     await secondAmountInput.press("Shift+Enter");
 
     await expect(firstAmountInput).toBeVisible();
-    await expect(firstAmountInput).toHaveValue(/\$?12\.34/);
+    await expect(firstAmountInput).toHaveValue("12.34");
     await expect(secondRow.locator("[data-field='amount']")).toContainText("56.78");
   });
 
@@ -56,6 +56,10 @@ test.describe("Keyboard navigation (desktop)", () => {
     await expect(firstPayeeInput).toBeVisible();
 
     await firstPayeeInput.fill("zep");
+    await expect(page.getByRole("option", { name: "Zephyr Ledger" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await firstPayeeInput.press("Enter");
 
     await expect(firstRow.locator("[data-field='payeeId']")).toContainText("Zephyr Ledger");
@@ -63,6 +67,10 @@ test.describe("Keyboard navigation (desktop)", () => {
     await expect(secondPayeeInput).toBeVisible();
 
     await secondPayeeInput.fill("yon");
+    await expect(page.getByRole("option", { name: "Yonder Ledger" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await secondPayeeInput.press("Tab");
 
     await expect(secondRow.locator("[data-field='payeeId']")).toContainText("Yonder Ledger");

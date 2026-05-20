@@ -24,11 +24,10 @@ test.describe("Expense form — full create/edit/delete flow (desktop)", () => {
     await page.getByPlaceholder("Search...").fill("Food");
     await page.getByText("Food").click();
 
-    // Fill amount: 1234 cents → $12.34
     const amountInput = page.locator('[aria-label="Amount"]');
     await amountInput.click();
-    await amountInput.pressSequentially("1234");
-    await expect(amountInput).toHaveValue(/\$?12\.34/);
+    await amountInput.fill("12.34");
+    await expect(amountInput).toHaveValue("12.34");
 
     // Save
     await page.getByTestId("btn-save-expense").click();

@@ -505,7 +505,10 @@ export default function CreatableCombobox({
           if (onTab) {
             e.preventDefault()
             const highlightedItem = navigableItems[highlightedIndex]
-            if (highlightedItem?.type === 'create') {
+            if (highlightedItem?.type === 'recent' || highlightedItem?.type === 'option') {
+              handleKeyboardSelection(highlightedItem.id, e.shiftKey, 'tab')
+              onTab(e.shiftKey)
+            } else if (highlightedItem?.type === 'create') {
               void handleCreate({
                 keyboardAction: 'tab',
                 shiftKey: e.shiftKey,

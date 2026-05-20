@@ -11,14 +11,13 @@ test.describe("Money input", () => {
     await page.getByTestId("btn-add-expense").first().click();
     await expect(page.getByTestId("expense-form")).toBeVisible();
 
-    // The MoneyInput has aria-label="Amount"
     const amountInput = page.locator('[aria-label="Amount"]');
     await amountInput.click();
-    await amountInput.pressSequentially("12345");
+    await amountInput.fill("123.45");
 
-    // After typing 12345, MoneyInput stores 12345 cents and displays $123.45
-    const displayValue = await amountInput.inputValue();
-    expect(displayValue).toMatch(/123\.45/);
+    await expect(amountInput).toHaveValue("123.45");
+    await amountInput.blur();
+    await expect(amountInput).toHaveValue(/\$?123\.45/);
   });
 
   test("backspace removes last digit from amount", async ({ page }) => {
@@ -27,13 +26,13 @@ test.describe("Money input", () => {
 
     const amountInput = page.locator('[aria-label="Amount"]');
     await amountInput.click();
-    await amountInput.pressSequentially("1234");
+    await amountInput.fill("12.34");
 
-    // Backspace: 1234 cents -> 123 cents -> displays $1.23
     await amountInput.press("Backspace");
 
-    const displayValue = await amountInput.inputValue();
-    expect(displayValue).toMatch(/1\.23/);
+    await expect(amountInput).toHaveValue("12.3");
+    await amountInput.blur();
+    await expect(amountInput).toHaveValue(/\$?12\.30/);
   });
 
   test("sign toggle switches between expense and refund", async ({ page }) => {
