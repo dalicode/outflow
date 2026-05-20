@@ -81,7 +81,7 @@ interface HistoricalYearTabsProps {
 
 function HistoricalYearTabs({ years, activeYear, dirtyYears, onSelect }: HistoricalYearTabsProps) {
   return (
-    <div className="flex items-end gap-0.5 overflow-x-auto scrollbar-auto-hide px-1 pb-0">
+    <div className="shrink-0 flex items-end gap-0.5 overflow-x-auto scrollbar-auto-hide px-1 pb-0">
       {years.map((y) => {
         const isActive = y === activeYear
         const isDirty = dirtyYears.has(y) && !isActive
@@ -1088,6 +1088,7 @@ export default function EditHistoricalDataModal({
       onClose={handleClose}
       title="Edit Historical Data"
       size="full"
+      bodyClassName="flex min-h-0 flex-col overflow-hidden"
       mobileActionLabel="Save"
       onMobileAction={handleConfirm}
       mobileActionDisabled={saving || Object.keys(errors).length > 0}
@@ -1111,16 +1112,26 @@ export default function EditHistoricalDataModal({
       }
     >
       {loading ? (
-        <div className="py-8 text-center text-sm text-theme-muted">Loading existing data…</div>
+        <div className="flex flex-1 items-center justify-center py-8 text-center text-sm text-theme-muted">
+          Loading existing data…
+        </div>
       ) : years.length === 0 ? (
-        <div className="py-8 text-center text-sm text-theme-muted">
+        <div className="flex flex-1 items-center justify-center py-8 text-center text-sm text-theme-muted">
           No historical data available. There are no past months to edit yet.
         </div>
       ) : (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 mb-2 px-3 py-2">
+            <p className="text-xs leading-relaxed text-theme-muted">
+              Use this to complete past months with budget details that imports do not include:
+              monthly income, savings rate, and fixed expenses. It saves historical snapshots for
+              summaries and analytics and does not import or change transactions.
+            </p>
+          </div>
+
           {/* Draft restored banner */}
           {restoredFromDraft && (
-            <div className="flex items-center justify-between gap-3 rounded-theme-medium border border-theme-primary bg-[color:color-mix(in_srgb,var(--theme-primary)_8%,transparent)] px-3 py-2 text-xs mb-2">
+            <div className="shrink-0 flex items-center justify-between gap-3 rounded-theme-medium border border-theme-primary bg-[color:color-mix(in_srgb,var(--theme-primary)_8%,transparent)] px-3 py-2 text-xs mb-2">
               <span className="text-theme-primary font-medium">
                 Unsaved changes restored from your last session.
               </span>
@@ -1144,7 +1155,7 @@ export default function EditHistoricalDataModal({
           )}
 
           {/* Containing card — anchors to the tabs above */}
-          <div className="rounded-theme-large bg-theme-surface border border-theme-border shadow-sm p-4 sm:p-5 space-y-5">
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-theme-large bg-theme-surface border border-theme-border shadow-sm p-4 sm:p-5 space-y-5">
             {activeYear && (
               <>
                 {/* Income ranges */}
@@ -1254,7 +1265,7 @@ export default function EditHistoricalDataModal({
               </p>
             )}
           </div>
-        </>
+        </div>
       )}
     </Modal>
   )
