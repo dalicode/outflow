@@ -54,6 +54,16 @@ describe('SettingsProvider settings-backed theme persistence', () => {
     expect(result.current.settings.visualTheme).toBe('sharpProfessionalDark')
   })
 
+  it('uses sharpProfessionalDark when no saved uiSettings exist', async () => {
+    const { result } = renderHook(() => useSettings(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.loaded).toBe(true)
+    })
+
+    expect(result.current.settings.visualTheme).toBe('sharpProfessionalDark')
+  })
+
   it('saves theme changes into uiSettings only', async () => {
     const { result } = renderHook(() => useSettings(), { wrapper })
 

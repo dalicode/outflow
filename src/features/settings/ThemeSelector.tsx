@@ -2,6 +2,14 @@ import type { ThemeConfig } from '../../types'
 import { cn } from '../../utils/cn'
 import { THEMES } from '../../utils/themeConfig'
 
+const THEME_ORDER = [
+  'sharpProfessionalDark',
+  'sharpProfessionalSteel',
+  'default',
+  'darkMinimal',
+  'runescapeClassic',
+] as const
+
 const themePreviews: Record<
   string,
   {
@@ -24,6 +32,13 @@ const themePreviews: Record<
     border: '#334155',
     primary: '#94a3b8',
     text: '#f1f5f9',
+    isDark: true,
+  },
+  sharpProfessionalSteel: {
+    background: '#101820',
+    border: '#2b3b47',
+    primary: '#8fb3c9',
+    text: '#edf4f8',
     isDark: true,
   },
   darkMinimal: {
@@ -53,6 +68,7 @@ function ThemeCard({ theme, isSelected, onClick }: ThemeCardProps) {
   const radiusMap: Record<string, string> = {
     default: '2px',
     sharpProfessionalDark: '2px',
+    sharpProfessionalSteel: '2px',
     darkMinimal: '6px',
     runescapeClassic: '6px',
   }
@@ -142,7 +158,9 @@ interface ThemeSelectorProps {
 }
 
 export default function ThemeSelector({ value, onChange }: ThemeSelectorProps) {
-  const themeList = Object.values(THEMES) as ThemeConfig[]
+  const themeList = THEME_ORDER.map((themeId) => THEMES[themeId]).filter(
+    (theme): theme is ThemeConfig => Boolean(theme),
+  )
 
   return (
     <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">

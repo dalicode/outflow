@@ -13,7 +13,7 @@ import type { AppSettings, ThemeConfig } from '../types'
 import { getCSSVariables, getTheme, THEMES } from '../utils/themeConfig'
 
 const DEFAULTS: AppSettings = {
-  visualTheme: 'default',
+  visualTheme: 'sharpProfessionalDark',
   font: 'system',
   fontSize: '1',
   currencySymbol: '$',

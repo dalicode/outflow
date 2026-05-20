@@ -64,6 +64,38 @@ export const THEMES: Record<string, ThemeConfig> = {
       zeroColor: 'var(--theme-muted)',
     },
   },
+  sharpProfessionalSteel: {
+    name: 'Sharp Professional Steel',
+    id: 'sharpProfessionalSteel',
+    isDark: true,
+    colors: {
+      background: '#101820',
+      surface: '#18232e',
+      primary: '#8fb3c9',
+      secondary: '#5f7f95',
+      text: '#edf4f8',
+      muted: '#a8bac6',
+      border: '#2b3b47',
+      danger: '#ff7a7a',
+      success: '#5ee0a1',
+    },
+    borderRadius: {
+      small: '2px',
+      medium: '4px',
+      large: '6px',
+    },
+    spacing: {
+      tight: '0.25rem',
+      normal: '0.75rem',
+      loose: '1rem',
+    },
+    numberStyle: {
+      currencyColor: 'var(--theme-text)',
+      positiveColor: 'var(--theme-text)',
+      negativeColor: 'var(--theme-success)',
+      zeroColor: 'var(--theme-muted)',
+    },
+  },
   darkMinimal: {
     name: 'Dark Minimal',
     id: 'darkMinimal',

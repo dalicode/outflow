@@ -31,7 +31,7 @@ describe('useSettings', () => {
       expect(result.current.loaded).toBe(true)
     })
 
-    expect(result.current.settings.visualTheme).toBe('default')
+    expect(result.current.settings.visualTheme).toBe('sharpProfessionalDark')
     expect(result.current.settings.font).toBe('system')
     expect(result.current.settings.currencySymbol).toBe('$')
     expect(result.current.settings.decimalPlaces).toBe('2')

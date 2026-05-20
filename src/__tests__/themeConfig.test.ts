@@ -9,7 +9,13 @@ import {
 
 describe('THEMES', () => {
   it('contains all expected theme IDs', () => {
-    const expectedIds = ['default', 'sharpProfessionalDark', 'darkMinimal', 'runescapeClassic']
+    const expectedIds = [
+      'default',
+      'sharpProfessionalDark',
+      'sharpProfessionalSteel',
+      'darkMinimal',
+      'runescapeClassic',
+    ]
     expectedIds.forEach((id) => {
       expect(THEMES[id]).toBeDefined()
       expect(THEMES[id].id).toBe(id)
@@ -57,6 +63,7 @@ describe('THEMES', () => {
 
   it('marks dark themes with isDark flag', () => {
     expect(THEMES.sharpProfessionalDark.isDark).toBe(true)
+    expect(THEMES.sharpProfessionalSteel.isDark).toBe(true)
     expect(THEMES.darkMinimal.isDark).toBe(true)
     expect(THEMES.runescapeClassic.isDark).toBe(true)
   })
