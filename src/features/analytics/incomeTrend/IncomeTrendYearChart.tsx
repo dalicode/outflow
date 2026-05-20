@@ -287,7 +287,7 @@ export default function IncomeTrendYearChart({
     if (visibleAllTimeRows && visibleAllTimeRows.length > 0) {
       // Brush mode: use all-time rows with per-point prior-year data
       return visibleAllTimeRows.map((row) => ({
-        month: row.label,
+        month: row.monthLabel,
         thisYear: row.cumulativeRemaining,
         monthlySaved: row.saved,
         priorSaved: row.priorSaved,
@@ -383,7 +383,30 @@ export default function IncomeTrendYearChart({
     return `${v}`
   }, [])
 
-  const chartHeight = isMobile ? 120 : 260
+  const chartHeight = isMobile ? 184 : 260
+  const xAxisTick = useMemo(
+    () => ({
+      fill: colors.muted,
+      fontSize: isMobile ? 10 : 12,
+    }),
+    [colors.muted, isMobile],
+  )
+  const yAxisTick = useMemo(
+    () => ({
+      fill: colors.muted,
+      fontSize: isMobile ? 10 : 12,
+    }),
+    [colors.muted, isMobile],
+  )
+  const chartMargin = useMemo(
+    () => ({
+      top: 10,
+      right: isMobile ? 16 : 0,
+      left: isMobile ? 0 : 0,
+      bottom: isMobile ? 20 : 0,
+    }),
+    [isMobile],
+  )
 
   if (rows.length === 0) {
     return (
@@ -422,34 +445,37 @@ export default function IncomeTrendYearChart({
       <ResponsiveContainer width="100%" height={chartHeight}>
         <ComposedChart
           data={chartData}
-          margin={{ top: 10, right: isMobile ? 16 : 0, left: isMobile ? 16 : 0, bottom: 0 }}
+          margin={chartMargin}
           onClick={handleChartClick}
           style={{ cursor: 'pointer' }}
         >
+          {!isMobile && <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />}
+          <XAxis
+            dataKey="month"
+            tick={xAxisTick}
+            axisLine={{ stroke: colors.grid }}
+            padding={{ left: 0, right: 0 }}
+            interval={0}
+            minTickGap={0}
+            tickMargin={isMobile ? 8 : 0}
+            height={isMobile ? 28 : undefined}
+          />
+          <YAxis
+            yAxisId="left"
+            orientation="left"
+            tick={yAxisTick}
+            axisLine={{ stroke: colors.grid }}
+            tickFormatter={yAxisFormatter}
+            width={isMobile ? 40 : 60}
+          />
           {!isMobile && (
-            <>
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} opacity={0.5} />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: colors.muted, fontSize: 12 }}
-                axisLine={{ stroke: colors.grid }}
-                padding={{ left: 0, right: 0 }}
-              />
-              <YAxis
-                yAxisId="left"
-                orientation="left"
-                tick={{ fill: colors.muted, fontSize: 12 }}
-                axisLine={{ stroke: colors.grid }}
-                tickFormatter={yAxisFormatter}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tick={{ fill: colors.muted, fontSize: 12 }}
-                axisLine={{ stroke: colors.grid }}
-                tickFormatter={yAxisFormatter}
-              />
-            </>
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={yAxisTick}
+              axisLine={{ stroke: colors.grid }}
+              tickFormatter={yAxisFormatter}
+            />
           )}
           {!isMobile && (
             <Tooltip content={<IncomeTrendTooltip colors={colors} formatAmount={formatAmount} />} />
