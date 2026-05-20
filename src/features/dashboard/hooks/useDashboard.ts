@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { DashboardView, MonthSpan } from '../constants'
 import type { Category, Expense, Payee } from '../../../types'
+import { compareExpensesByDateAscThenIdAsc } from '../../../utils/expenseOrdering'
 import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
@@ -116,7 +117,7 @@ export function useDashboard(
         const matchesCategory = filters.getExpenseCategoryName(e) === view.drilldownCategory
         return matchesMonth && matchesCategory
       })
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort(compareExpensesByDateAscThenIdAsc)
   }, [
     view.drilldownCategory,
     view.drilldownCategoryMonthIndex,
@@ -135,7 +136,7 @@ export function useDashboard(
         const matchesPayee = getExpensePayeeName(e) === view.drilldownPayee
         return matchesMonth && matchesPayee
       })
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort(compareExpensesByDateAscThenIdAsc)
   }, [
     view.drilldownPayee,
     view.drilldownPayeeMonthIndex,

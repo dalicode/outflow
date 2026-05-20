@@ -84,7 +84,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     (exp: Expense) => {
       const cat = catMap[exp.categoryId as number]
       if (cat) return cat.isArchived ? `${cat.name} (deleted)` : cat.name
-      return 'Uncategorized'
+      return 'No category'
     },
     [catMap],
   )
@@ -290,7 +290,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           resolveName={resolveName}
           resolvePayeeName={(exp) => {
             const p = payeeMap[exp.payeeId as number]
-            return p ? p.name : ''
+            return p ? p.name : 'No payee'
           }}
         />
       ) : (

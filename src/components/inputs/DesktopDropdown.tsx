@@ -60,6 +60,7 @@ export default function DesktopDropdown({
 }: DesktopDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [hasTyped, setHasTyped] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -68,6 +69,7 @@ export default function DesktopDropdown({
   const panelRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const lastAutoHighlightQueryRef = useRef('')
 
   useEffect(() => {
     if (!autoFocus) return
@@ -207,9 +209,11 @@ export default function DesktopDropdown({
     if (!isOpen) {
       setPanelStyle(null)
       setQuery('')
+      setHasTyped(false)
       setHighlightedIndex(-1)
       setIsCreating(false)
       setCreateError(null)
+      lastAutoHighlightQueryRef.current = ''
       return
     }
     updatePanelPosition()
@@ -255,6 +259,29 @@ export default function DesktopDropdown({
       setHighlightedIndex(-1)
     }
   }, [highlightedIndex, isOpen, navigableItems.length])
+
+  useEffect(() => {
+    if (!isOpen || !hasTyped) return
+    if (lastAutoHighlightQueryRef.current === query) return
+
+    if (!query.trim()) {
+      setHighlightedIndex(-1)
+      lastAutoHighlightQueryRef.current = query
+      return
+    }
+
+    const firstMatchIndex = navigableItems.findIndex(
+      (item) => item.type === 'recent' || item.type === 'option',
+    )
+    const createIndex =
+      firstMatchIndex === -1
+        ? navigableItems.findIndex((item) => item.type === 'create')
+        : -1
+    const nextIndex = firstMatchIndex !== -1 ? firstMatchIndex : createIndex
+
+    setHighlightedIndex(nextIndex)
+    lastAutoHighlightQueryRef.current = query
+  }, [hasTyped, isOpen, query, navigableItems])
 
   useEffect(() => {
     if (!isOpen || highlightedIndex < 0) return
@@ -391,8 +418,8 @@ export default function DesktopDropdown({
                 type="text"
                 value={query}
                 onChange={(e) => {
+                  setHasTyped(true)
                   setQuery(e.target.value)
-                  setHighlightedIndex(-1)
                 }}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Search..."

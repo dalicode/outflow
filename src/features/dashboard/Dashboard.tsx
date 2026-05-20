@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { cn } from '../../utils/cn'
+import { compareExpensesByDateAscThenIdAsc } from '../../utils/expenseOrdering'
 import './dashboard.css'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import MobileSelectionBanner from './components/MobileSelectionBanner'
@@ -116,7 +117,7 @@ export default function Dashboard({
         const matchesCategory = dash.getExpenseCategoryName(e) === dash.drilldownCategory
         return matchesMonth && matchesCategory
       })
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort(compareExpensesByDateAscThenIdAsc)
   }, [
     dash.drilldownCategory,
     dash.drilldownCategoryMonthIndex,

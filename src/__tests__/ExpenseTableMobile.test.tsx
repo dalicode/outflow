@@ -47,19 +47,19 @@ describe('ExpenseTableMobile', () => {
     expect(screen.getByText('Food · Lunch')).toBeInTheDocument()
   })
 
-  it('shows dash for missing payee and does not use description as payee fallback', () => {
+  it('shows no payee for missing payee and does not use description as payee fallback', () => {
     render(
       <ExpenseTableMobile
         expenses={[expenses[1]]}
         formatDate={(iso) => iso}
         formatAmount={(value) => `$${value.toFixed(2)}`}
-        resolveName={() => 'Other'}
-        resolvePayeeName={() => ''}
+        resolveName={() => 'No category'}
+        resolvePayeeName={() => 'No payee'}
       />,
     )
 
-    expect(screen.getByText('—')).toBeInTheDocument()
-    expect(screen.getByText('Other · Refund note')).toBeInTheDocument()
+    expect(screen.getByText('No payee')).toBeInTheDocument()
+    expect(screen.getByText('No category · Refund note')).toBeInTheDocument()
   })
 
   it('opens cell edit on tap when no rows are selected', () => {
@@ -116,4 +116,3 @@ describe('ExpenseTableMobile', () => {
     expect(onToggleSelect).toHaveBeenCalledWith(1)
   })
 })
-

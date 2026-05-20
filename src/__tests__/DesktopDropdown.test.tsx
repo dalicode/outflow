@@ -42,7 +42,7 @@ describe('DesktopDropdown', () => {
     })
   })
 
-  it('does not auto-highlight on type and supports arrow navigation', async () => {
+  it('auto-highlights the closest match on type and supports arrow navigation', async () => {
     const onChange = vi.fn()
 
     render(
@@ -66,25 +66,54 @@ describe('DesktopDropdown', () => {
     const gasOption = screen.getByRole('button', { name: 'Gas' })
     const groceriesOption = screen.getByRole('button', { name: 'Groceries' })
 
-    expect(gasOption.className).not.toContain('bg-theme-primary-muted')
-    expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
-
-    fireEvent.keyDown(search, { key: 'ArrowDown' })
     expect(gasOption.className).toContain('bg-theme-primary-muted')
     expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
 
     fireEvent.keyDown(search, { key: 'ArrowDown' })
-    expect(groceriesOption.className).toContain('bg-theme-primary-muted')
-    expect(gasOption.className).not.toContain('bg-theme-primary-muted')
+    await waitFor(() => {
+      expect(groceriesOption.className).toContain('bg-theme-primary-muted')
+      expect(gasOption.className).not.toContain('bg-theme-primary-muted')
+    })
 
     fireEvent.keyDown(search, { key: 'ArrowUp' })
-    expect(gasOption.className).toContain('bg-theme-primary-muted')
-    expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
+    await waitFor(() => {
+      expect(gasOption.className).toContain('bg-theme-primary-muted')
+      expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
+    })
 
     fireEvent.keyDown(search, { key: 'Enter' })
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith(3)
+    })
+  })
+
+  it('auto-highlights the create option when there are no matches', async () => {
+    const onCreate = vi.fn(async () => 99)
+
+    render(
+      <DesktopDropdown
+        value={undefined}
+        options={[{ id: 1, label: 'Coffee' }]}
+        placeholder="Select payee"
+        emptyMessage="No matches found."
+        allowCreate
+        autoFocus
+        onChange={vi.fn()}
+        onCreate={onCreate}
+      />,
+    )
+
+    const search = await screen.findByPlaceholderText('Search...')
+    fireEvent.change(search, { target: { value: 'New payee' } })
+
+    const createOption = screen.getByRole('button', { name: 'Create "New payee"' })
+    expect(createOption.className).toContain('bg-theme-primary-muted')
+
+    fireEvent.keyDown(search, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onCreate).toHaveBeenCalledWith('New payee')
     })
   })
 
@@ -132,7 +161,9 @@ describe('DesktopDropdown', () => {
     expect(gasOption.className).not.toContain('bg-theme-primary-muted')
 
     fireEvent.keyDown(search, { key: 'ArrowUp' })
-    expect(gasOption.className).toContain('bg-theme-primary-muted')
+    await waitFor(() => {
+      expect(gasOption.className).toContain('bg-theme-primary-muted')
+    })
 
     const panel = search.closest('div[style]')
     const content = panel?.querySelector('.overflow-y-auto') as HTMLDivElement | null
@@ -365,8 +396,10 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(134)
-    expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(78)
+    await waitFor(() => {
+      expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(134)
+      expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(78)
+    })
   })
 
   it('shrinks from the top while filtering above the trigger', async () => {

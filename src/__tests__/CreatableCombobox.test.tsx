@@ -159,6 +159,39 @@ describe('CreatableCombobox', () => {
     })
   })
 
+  it('calls onCancel when pressing Escape after the dropdown has closed', async () => {
+    const onCancel = vi.fn()
+    const onChange = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value={1}
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+        onCancel={onCancel}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    expect(onCancel).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
   it('does not auto-highlight on open and selects with ArrowDown + Enter', async () => {
     const onChange = vi.fn()
 
@@ -191,7 +224,7 @@ describe('CreatableCombobox', () => {
     })
   })
 
-  it('does not auto-highlight on type and allows arrow navigation', async () => {
+  it('auto-highlights the closest match on type and commits it on Enter', async () => {
     const onChange = vi.fn()
 
     render(
@@ -215,18 +248,6 @@ describe('CreatableCombobox', () => {
     const gasOption = screen.getByRole('option', { name: 'Gas' })
     const groceriesOption = screen.getByRole('option', { name: 'Groceries' })
 
-    expect(gasOption).toHaveAttribute('aria-selected', 'false')
-    expect(groceriesOption).toHaveAttribute('aria-selected', 'false')
-
-    fireEvent.keyDown(input, { key: 'ArrowDown' })
-    expect(gasOption).toHaveAttribute('aria-selected', 'true')
-    expect(groceriesOption).toHaveAttribute('aria-selected', 'false')
-
-    fireEvent.keyDown(input, { key: 'ArrowDown' })
-    expect(gasOption).toHaveAttribute('aria-selected', 'false')
-    expect(groceriesOption).toHaveAttribute('aria-selected', 'true')
-
-    fireEvent.keyDown(input, { key: 'ArrowUp' })
     expect(gasOption).toHaveAttribute('aria-selected', 'true')
     expect(groceriesOption).toHaveAttribute('aria-selected', 'false')
 
@@ -235,6 +256,31 @@ describe('CreatableCombobox', () => {
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith(3)
     })
+  })
+
+  it('auto-highlights the create option when there are no matches', async () => {
+    const onCreate = vi.fn(async () => 99)
+
+    render(
+      <CreatableCombobox
+        value=""
+        options={[{ id: 1, label: 'Coffee' }]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        allowCreate
+        onCreate={onCreate}
+        onChange={vi.fn()}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'New payee' } })
+
+    expect(screen.getByRole('option', { name: 'Add \"New payee\"' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
   })
 
   it('uses onEnterSelect for keyboard commit flow and passes shift state', async () => {
@@ -321,6 +367,58 @@ describe('CreatableCombobox', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith(2)
+    })
+  })
+
+  it('commits an empty value when the user clears the input and presses Enter', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value={2}
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(undefined)
+    })
+  })
+
+  it('commits an empty value on blur when the user clears the input', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <CreatableCombobox
+        value={2}
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        variant="inline"
+        autoOpen
+        autoFocus
+        onChange={onChange}
+      />,
+    )
+
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(undefined)
     })
   })
 

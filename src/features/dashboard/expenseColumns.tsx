@@ -249,8 +249,8 @@ export function getExpenseColumns({
             {exp.payeeId && payeeMap[exp.payeeId as number]
               ? payeeMap[exp.payeeId as number].name
               : exp.payeeId
-                ? (editing.getPendingName(exp.id as number, 'payeeId') ?? '—')
-                : '—'}
+                ? (editing.getPendingName(exp.id as number, 'payeeId') ?? 'No payee')
+                : 'No payee'}
           </span>
         )
       },
@@ -327,7 +327,7 @@ export function getExpenseColumns({
               ? catMap[exp.categoryId as number].isArchived
                 ? `${catMap[exp.categoryId as number].name} (deleted)`
                 : catMap[exp.categoryId as number].name
-              : (editing.getPendingName(exp.id as number, 'categoryId') ?? 'Uncategorized')}
+              : (editing.getPendingName(exp.id as number, 'categoryId') ?? 'No category')}
           </span>
         )
       },
