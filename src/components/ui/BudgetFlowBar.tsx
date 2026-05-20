@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom'
 import { GREEN_TO_RED_SCALE } from '../../utils/summaryColorUtils'
 import { cn } from '../../utils/cn'
 import PrivateValue from '../privacy/PrivateValue'
+import { PencilIcon } from './IconButton'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,8 @@ interface AllocationRowProps {
   formatAmount: (n: number) => string
   privateValue?: boolean
   privatePercentage?: boolean
+  onClick?: () => void
+  ariaLabel?: string
 }
 
 export function AllocationRow({
@@ -95,6 +98,8 @@ export function AllocationRow({
   formatAmount,
   privateValue = false,
   privatePercentage = privateValue,
+  onClick,
+  ariaLabel,
 }: AllocationRowProps) {
   const amount = (
     <>
@@ -103,14 +108,14 @@ export function AllocationRow({
     </>
   )
 
-  return (
-    <div className="flex items-center gap-2 py-1.5">
+  const content = (
+    <>
       <span
-        className={cn('inline-block w-2 h-2 rounded-full shrink-0', dotClass)}
+        className={cn('inline-block w-2 h-2 rounded-full shrink-0 mt-0.5', dotClass)}
         style={dotColor ? { backgroundColor: dotColor } : undefined}
       />
-      <span className="text-sm text-theme-text flex-1 min-w-0 truncate">{label}</span>
-      <div className="flex items-center gap-3">
+      <span className="text-sm text-theme-text min-w-0 truncate">{label}</span>
+      <div className="flex items-center justify-end gap-3">
         <span className="text-xs text-theme-muted tabular-nums w-10 text-right">
           {privatePercentage ? (
             <PrivateValue>{rowPct !== 0 ? `${rowPct.toFixed(0)}%` : '—'}</PrivateValue>
@@ -127,6 +132,35 @@ export function AllocationRow({
           {privateValue ? <PrivateValue>{amount}</PrivateValue> : amount}
         </span>
       </div>
+      <span
+        className={cn('flex w-5 justify-end text-theme-muted', !onClick && 'invisible')}
+        aria-hidden="true"
+        data-testid={`allocation-action-slot-${label.toLowerCase().replace(/\s+/g, '-')}`}
+      >
+        <PencilIcon className="w-3.5 h-3.5" />
+      </span>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel ?? label}
+        className={cn(
+          'grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-theme-medium px-2 py-2.5 text-left transition-colors hover:bg-theme-background',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30',
+        )}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-2 py-1.5">
+      {content}
     </div>
   )
 }

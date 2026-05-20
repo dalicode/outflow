@@ -1,10 +1,5 @@
 import { useSummary } from './hooks/useSummary'
-import { useState } from 'react'
-import { useSettings } from '../../context/settingsContext'
 import type { Expense } from '../../types'
-import Modal from '../../components/ui/Modal'
-import ModalFooter from '../../components/ui/ModalFooter'
-import PrivateValue from '../../components/privacy/PrivateValue'
 import PrivacyToggle from '../../components/privacy/PrivacyToggle'
 import FixedExpensesList from '../fixedExpenses/FixedExpensesList'
 import BudgetFlow from './BudgetFlow'
@@ -19,8 +14,6 @@ interface SummaryPageProps {
 }
 
 export default function SummaryPage({ expenses }: SummaryPageProps) {
-  const { formatAmount } = useSettings()
-  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
   const {
     incomeRaw,
     incomeFreq,
@@ -37,32 +30,6 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
   } = useSummary({ expenses })
 
   const incomeIsSet = parseFloat(String(incomeRaw || 0)) > 0
-  const hasFixedExpenses = fixedExpenses.some((item) => !item.isArchived)
-  const hasSavingsGoal = Number(savingsRate || 0) > 0
-  const hasBudgetSetup = incomeIsSet || hasSavingsGoal || hasFixedExpenses
-  const fixedExpenseTotal = fixedExpenses
-    .filter((item) => !item.isArchived)
-    .reduce((sum, item) => sum + item.amount, 0)
-  const savingsAmount = (Number(savingsRate || 0) / 100) * monthlyIncome
-  const allocatedTotal = fixedExpenseTotal + savingsAmount
-  const formatSummaryAmount = (amount: number) => formatAmount(amount).replace(/\.00$/, '')
-  const planSummaryParts = [
-    incomeIsSet ? (
-      <span key="income">
-        Inc. <PrivateValue>{formatSummaryAmount(monthlyIncome)}</PrivateValue>
-      </span>
-    ) : null,
-    hasSavingsGoal ? (
-      <span key="savings">
-        Sav. <PrivateValue>{formatSummaryAmount(savingsAmount)}</PrivateValue>
-      </span>
-    ) : null,
-    hasFixedExpenses ? (
-      <span key="fixed">
-        Fixed <PrivateValue>{formatSummaryAmount(fixedExpenseTotal)}</PrivateValue>
-      </span>
-    ) : null,
-  ].filter(Boolean)
 
   return (
     <main className="max-w-4xl w-full mx-auto px-4 py-6 space-y-6" data-testid="summary-page">
@@ -80,122 +47,20 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
           </div>
         )}
 
-        {hasBudgetSetup ? (
-          <>
-            <section className="md:hidden">
-              <button
-                type="button"
-                onClick={() => setIsPlanModalOpen(true)}
-                className="flex w-full items-center justify-between gap-3 rounded-theme-large border border-theme-border bg-theme-surface px-4 py-3 text-left"
-                aria-label="Edit monthly plan"
-              >
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-sm font-semibold text-theme-text">Plan</p>
-                  <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-theme-muted">
-                    {planSummaryParts.length > 0 ? (
-                      planSummaryParts.map((part, index) => (
-                        <span key={index} className="inline-flex items-center gap-1">
-                          {index > 0 && <span aria-hidden="true">·</span>}
-                          {part}
-                        </span>
-                      ))
-                    ) : (
-                      <span>Tap to configure your monthly plan</span>
-                    )}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {allocatedTotal > 0 && (
-                    <p className="text-xs font-medium text-theme-text">
-                      <PrivateValue>{formatAmount(allocatedTotal)}</PrivateValue> allocated
-                    </p>
-                  )}
-                  <span className="text-base text-theme-muted" aria-hidden="true">
-                    ›
-                  </span>
-                </div>
-              </button>
-            </section>
-
-            <Modal
-              isOpen={isPlanModalOpen}
-              onClose={() => setIsPlanModalOpen(false)}
-              title="Monthly Plan"
-              size="sm"
-              footer={
-                <ModalFooter>
-                  <button
-                    type="button"
-                    onClick={() => setIsPlanModalOpen(false)}
-                    className="btn-modal-primary flex-1"
-                  >
-                    Done
-                  </button>
-                </ModalFooter>
-              }
-            >
-              <div className="divide-y divide-theme-border">
-                <div className="py-2.5">
-                  <IncomeForm
-                    income={incomeRaw}
-                    frequency={incomeFreq}
-                    onSave={handleIncomeSave}
-                    compact
-                    mobileList
-                  />
-                </div>
-                <div className="py-2.5">
-                  <SavingsForm
-                    savingsRate={savingsRate}
-                    monthlyIncome={monthlyIncome}
-                    onSave={handleSavingsRateSave}
-                    compact
-                    mobileList
-                  />
-                </div>
-                <div className="py-2.5">
-                  <FixedExpensesList
-                    items={fixedExpenses}
-                    onAdd={handleAddFixed}
-                    onUpdate={handleUpdateFixed}
-                    onDelete={handleDeleteFixed}
-                    compact
-                    mobileList
-                  />
-                </div>
-              </div>
-            </Modal>
-
-            <section className="hidden md:block rounded-theme-large border border-theme-border bg-theme-surface p-3 md:p-4">
-              <div className="grid gap-2.5 md:grid-cols-3">
-                <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
-                  <IncomeForm
-                    income={incomeRaw}
-                    frequency={incomeFreq}
-                    onSave={handleIncomeSave}
-                    compact
-                  />
-                </div>
-                <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
-                  <SavingsForm
-                    savingsRate={savingsRate}
-                    monthlyIncome={monthlyIncome}
-                    onSave={handleSavingsRateSave}
-                    compact
-                  />
-                </div>
-                <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-3">
-                  <FixedExpensesList
-                    items={fixedExpenses}
-                    onAdd={handleAddFixed}
-                    onUpdate={handleUpdateFixed}
-                    onDelete={handleDeleteFixed}
-                    compact
-                  />
-                </div>
-              </div>
-            </section>
-          </>
+        {incomeIsSet ? (
+          <BudgetFlow
+            summary={financialSummary}
+            variableBreakdown={variableBreakdown}
+            incomeRaw={incomeRaw}
+            incomeFrequency={incomeFreq}
+            savingsRate={savingsRate}
+            fixedExpenses={fixedExpenses}
+            onSaveIncome={handleIncomeSave}
+            onSaveSavingsRate={handleSavingsRateSave}
+            onAddFixed={handleAddFixed}
+            onUpdateFixed={handleUpdateFixed}
+            onDeleteFixed={handleDeleteFixed}
+          />
         ) : (
           <>
             <div className="rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5">
@@ -219,10 +84,6 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
               />
             </div>
           </>
-        )}
-
-        {financialSummary && incomeIsSet && (
-          <BudgetFlow summary={financialSummary} variableBreakdown={variableBreakdown} />
         )}
 
         {financialSummary && <BudgetPaceSection expenses={expenses} summary={financialSummary} />}
