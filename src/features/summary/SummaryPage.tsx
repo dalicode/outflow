@@ -51,8 +51,6 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
           <BudgetFlow
             summary={financialSummary}
             variableBreakdown={variableBreakdown}
-            incomeRaw={incomeRaw}
-            incomeFrequency={incomeFreq}
             savingsRate={savingsRate}
             fixedExpenses={fixedExpenses}
             onSaveIncome={handleIncomeSave}

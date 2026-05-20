@@ -153,7 +153,7 @@ export default function Dashboard({
   }, [dash.selectedIds])
 
   // ── Income / Savings modal helpers ──
-  const modalMonthKey = dash.monthKeys[dash.modalTargetMonthIndex]
+  const modalTargetSummary = dash.monthSummaries[dash.modalTargetMonthIndex]
 
   return (
     <PullToRefreshContainer
@@ -401,9 +401,9 @@ export default function Dashboard({
         <IncomeModalForm
           isOpen={dash.isIncomeModalOpen}
           onClose={dash.closeIncomeModal}
-          title={`Edit Income — ${modalMonthKey?.name ?? ''} ${modalMonthKey?.year ?? ''}`}
-          size="sm"
-          initialAmount=""
+          title="Edit Income"
+          size="md"
+          initialAmount={dash.getInitialIncomeAmount()}
           initialFrequency="monthly"
           onSave={dash.handleIncomeSave}
           error={dash.incomeError}
@@ -414,12 +414,13 @@ export default function Dashboard({
         <SavingsModalForm
           isOpen={dash.isSavingsModalOpen}
           onClose={dash.closeSavingsModal}
-          title={`Edit Savings Rate — ${modalMonthKey?.name ?? ''} ${modalMonthKey?.year ?? ''}`}
-          size="sm"
+          title="Edit Auto Savings"
+          size="md"
           initialRate={dash.getInitialSavingsRate()}
+          monthlyIncome={modalTargetSummary?.income ?? 0}
           onSave={dash.handleSavingsSave}
           error={dash.savingsError}
-          description="Percentage of income automatically set aside. The remaining budget = income − fixed expenses − auto savings."
+          description="Percentage of income automatically set aside. Remaining budget = income − fixed expenses − auto savings."
         />
 
         {/* Filter modal */}

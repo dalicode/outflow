@@ -9,7 +9,7 @@ export function useDashboardData(
   selectedYear: number,
   selectedMonth: number,
   monthSpan: number,
-  _dataRefreshKey: number,
+  dataRefreshKey: number,
 ) {
   const [monthSummaries, setMonthSummaries] = useState<MonthlySummary[]>([])
   const [financialSummary, setFinancialSummary] = useState<MonthlySummary | null>(null)
@@ -109,7 +109,7 @@ export function useDashboardData(
       setMonthSummaries(summaries)
     }
     loadData()
-  }, [expenses, monthKeys])
+  }, [expenses, monthKeys, dataRefreshKey])
 
   // Always load current month summary for the header
   useEffect(() => {
@@ -157,7 +157,7 @@ export function useDashboardData(
       setFinancialSummary(summary)
     }
     loadCurrentMonthSummary()
-  }, [expenses])
+  }, [expenses, dataRefreshKey])
 
   const daysLeft = useMemo(() => {
     const today = new Date()

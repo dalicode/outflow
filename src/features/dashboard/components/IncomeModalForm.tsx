@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import MoneyInput from '../../../components/inputs/MoneyInput'
 import Modal from '../../../components/ui/Modal'
 import ModalFooter from '../../../components/ui/ModalFooter'
@@ -40,11 +40,19 @@ export default function IncomeModalForm({
   error: externalError,
 }: IncomeModalFormProps) {
   const { settings } = useSettings()
-  const [amt, setAmt] = useState<string>('')
-  const [freq, setFreq] = useState('monthly')
-  const [monthlyBase, setMonthlyBase] = useState<number>(0)
+  const [amt, setAmt] = useState<string>(initialAmount)
+  const [freq, setFreq] = useState(initialFrequency)
+  const [monthlyBase, setMonthlyBase] = useState<number>(() => {
+    const parsed = parseFloat(initialAmount || '0')
+    const mult = MULTIPLIERS[initialFrequency] || 1
+    return parsed * mult
+  })
   const [error, setError] = useState('')
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
+  const wasOpenRef = useRef(isOpen)
+  const isOpening = isOpen && !wasOpenRef.current
+  const displayAmt = isOpening ? initialAmount : amt
+  const displayFreq = isOpening ? initialFrequency : freq
 
   // Reset form when modal opens with new initial values
   useEffect(() => {
@@ -57,6 +65,10 @@ export default function IncomeModalForm({
       setError('')
     }
   }, [isOpen, initialAmount, initialFrequency])
+
+  useEffect(() => {
+    wasOpenRef.current = isOpen
+  }, [isOpen])
 
   const handleFreqChange = (newFreq: string) => {
     setFreq(newFreq)
@@ -138,7 +150,7 @@ export default function IncomeModalForm({
             onClick={focusMoneyInput}
           >
             <MoneyInput
-              value={Number.parseFloat(amt || '0')}
+              value={Number.parseFloat(displayAmt || '0')}
               onChange={(value) => handleAmtChange(value.toFixed(2))}
               currency={moneyConfig.currency}
               locale={moneyConfig.locale}
@@ -150,7 +162,7 @@ export default function IncomeModalForm({
             />
           </div>
           <select
-            value={freq}
+            value={displayFreq}
             onChange={(e) => handleFreqChange(e.target.value)}
             className={`${inputCls} w-full sm:w-auto min-w-0`}
           >

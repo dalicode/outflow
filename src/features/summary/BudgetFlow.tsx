@@ -13,8 +13,6 @@ import FixedExpenseManagerModal from '../fixedExpenses/FixedExpenseManagerModal'
 interface BudgetFlowProps {
   summary: MonthlySummary
   variableBreakdown: VariableBreakdownItem[]
-  incomeRaw: string
-  incomeFrequency: string
   savingsRate: number
   fixedExpenses: FixedExpense[]
   onSaveIncome: (data: { income: number; frequency: string; monthlyIncome: number }) => void
@@ -33,8 +31,6 @@ interface VariableBreakdownItem {
 export default function BudgetFlow({
   summary,
   variableBreakdown,
-  incomeRaw,
-  incomeFrequency,
   savingsRate,
   fixedExpenses,
   onSaveIncome,
@@ -208,8 +204,8 @@ export default function BudgetFlow({
         onClose={() => setShowIncomeModal(false)}
         title="Edit Income"
         size="md"
-        initialAmount={incomeRaw}
-        initialFrequency={incomeFrequency}
+        initialAmount={String(income || '')}
+        initialFrequency="monthly"
         onSave={(data) => {
           onSaveIncome(data)
           setShowIncomeModal(false)

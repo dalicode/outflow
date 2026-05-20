@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import BudgetFlow from '../features/summary/BudgetFlow'
 import type { MonthlySummary } from '../types'
@@ -44,8 +44,6 @@ function renderBudgetFlow() {
         { name: 'Groceries', amount: 300, pct: 37.5 },
         { name: 'Dining', amount: 500, pct: 62.5 },
       ]}
-      incomeRaw="5000"
-      incomeFrequency="monthly"
       savingsRate={10}
       fixedExpenses={[{ id: 1, name: 'Rent', amount: 1200, isArchived: false }]}
       onSaveIncome={vi.fn()}
@@ -64,6 +62,7 @@ describe('BudgetFlow', () => {
     fireEvent.click(screen.getByLabelText('Edit income'))
 
     expect(await screen.findByText('Edit Income')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('$5,000.00'))
   })
 
   it('opens the savings editor from the auto savings row', async () => {

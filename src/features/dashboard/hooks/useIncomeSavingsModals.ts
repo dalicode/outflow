@@ -121,6 +121,11 @@ export function useIncomeSavingsModals(
     return String(summary?.savingsRate ?? 0)
   }
 
+  const getInitialIncomeAmount = () => {
+    const summary = monthSummaries[modalTargetMonthIndex]
+    return summary?.income ? String(summary.income) : ''
+  }
+
   return {
     isIncomeModalOpen,
     isSavingsModalOpen,
@@ -133,6 +138,7 @@ export function useIncomeSavingsModals(
     closeSavingsModal,
     handleIncomeSave,
     handleSavingsSave,
+    getInitialIncomeAmount,
     getInitialSavingsRate,
   }
 }
