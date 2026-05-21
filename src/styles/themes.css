@@ -912,6 +912,76 @@ th .expense-checkbox-wrapper {
 }
 
 /* Strip navigation button (chevrons) */
+.month-strip-scroll,
+.year-strip-scroll {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  overflow-x: auto;
+  overflow-anchor: none;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.month-strip-scroll::-webkit-scrollbar,
+.year-strip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.month-strip-item,
+.year-strip-item {
+  flex-shrink: 0;
+  scroll-snap-align: center;
+}
+
+.month-pill,
+.year-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.625rem;
+  border-radius: var(--radius-small);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--theme-text);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.month-pill:active:not(:disabled),
+.year-pill:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.month-pill-selected,
+.year-pill-selected {
+  background-color: var(--theme-primary);
+  color: #ffffff;
+  z-index: 2;
+}
+
+.month-pill-current {
+  background-color: color-mix(in srgb, var(--theme-text) 15%, transparent);
+  font-weight: 700;
+  z-index: 1;
+}
+
+.year-pill-current {
+  background-color: color-mix(in srgb, var(--theme-text) 12%, transparent);
+  z-index: 1;
+}
+
 .strip-span-highlight {
   transition:
     transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -946,6 +1016,8 @@ th .expense-checkbox-wrapper {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .month-pill,
+  .year-pill,
   .strip-span-highlight {
     transition: none;
   }

@@ -93,7 +93,7 @@ export default function DashboardMonthStrip({
               aria-label={`${monthName} ${year}`}
               aria-current={isSelected ? 'date' : undefined}
             >
-              <span className={cn(!isSelected && isInSpan && 'opacity-70')}>{monthName}</span>
+              <span>{monthName}</span>
             </button>
           </div>
         )
