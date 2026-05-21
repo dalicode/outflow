@@ -2,7 +2,6 @@ import Dexie, { type Table } from 'dexie'
 import type {
   Category,
   CategoryMergeHistory,
-  Expense,
   FixedExpense,
   FixedExpenseSnapshot,
   IncomeSnapshot,
@@ -13,6 +12,7 @@ import type {
   SyncQueueItem,
 } from '../../types'
 import { buildDefaultCategories, buildDefaultPayees } from '../defaults'
+import { migrateV10CategoryPayeeIds } from './migrations'
 
 interface Setting {
   key: string
@@ -133,46 +133,7 @@ class OutflowDB extends Dexie {
         savingsSnapshots: '++id, [year+month], year, month',
       })
       .upgrade(async (tx) => {
-        // Migrate expense category/payee strings to IDs
-        const expenses = await tx.table('expenses').toArray()
-        const categories = await tx.table('categories').toArray()
-        const payees = await tx.table('payees').toArray()
-        const catByName = new Map(categories.map((c: Category) => [c.name.toLowerCase(), c.id]))
-        const payeeByName = new Map(payees.map((p: Payee) => [p.name.toLowerCase(), p.id]))
-
-        for (const exp of expenses) {
-          const updates: Partial<Expense> = {}
-          if (!exp.categoryId && (exp as Record<string, unknown>).category) {
-            const catId = catByName.get(
-              String((exp as Record<string, unknown>).category).toLowerCase(),
-            )
-            if (catId) updates.categoryId = catId
-          }
-          if (!exp.payeeId && (exp as Record<string, unknown>).payee) {
-            const payeeId = payeeByName.get(
-              String((exp as Record<string, unknown>).payee).toLowerCase(),
-            )
-            if (payeeId) updates.payeeId = payeeId
-          }
-          // Convert schedule.category string to categoryId
-          const schedules = await tx.table('schedules').toArray()
-          for (const s of schedules) {
-            if (
-              (s as Record<string, unknown>).category &&
-              !(s as Record<string, unknown>).categoryId
-            ) {
-              const catId = catByName.get(
-                String((s as Record<string, unknown>).category).toLowerCase(),
-              )
-              if (catId) {
-                await tx.table('schedules').update(s.id, { categoryId: catId })
-              }
-            }
-          }
-          if (Object.keys(updates).length > 0) {
-            await tx.table('expenses').update(exp.id, updates)
-          }
-        }
+        await migrateV10CategoryPayeeIds(tx)
       })
 
     this.version(11).stores({
