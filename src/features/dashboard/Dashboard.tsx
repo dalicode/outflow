@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { cn } from '../../utils/cn'
-import { compareExpensesByDateAscThenIdAsc } from '../../utils/expenseOrdering'
 import './dashboard.css'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import MobileSelectionBanner from './components/MobileSelectionBanner'
@@ -9,10 +8,6 @@ import { useSettings } from '../../context/settingsContext'
 import type { DashboardSessionState } from './hooks/useDashboard'
 import { useDashboard } from './hooks/useDashboard'
 import type { Category, Expense, Payee } from '../../types'
-import {
-  computeMultiMonthCategoryRows,
-  computeMultiMonthFixedRows,
-} from '../../utils/dashboardHelpers'
 import CategoryViewTable from './CategoryViewTable'
 import CheckInReminderCard from './CheckInReminderCard'
 import IncomeModalForm from './components/IncomeModalForm'
@@ -91,45 +86,6 @@ export default function Dashboard({
       dash.setView(VIEW_CYCLE[(VIEW_CYCLE.indexOf(dash.viewMode) + 1) % VIEW_CYCLE.length])
     })
   }, [dash.viewMode, registerCycleView, dash.setView, VIEW_CYCLE])
-  const payeeMap = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])
-
-  const multiCategoryRows = useMemo(
-    () =>
-      computeMultiMonthCategoryRows(
-        dash.filteredExpenses,
-        dash.monthKeys,
-        dash.getExpenseCategoryName,
-      ),
-    [dash.filteredExpenses, dash.monthKeys, dash.getExpenseCategoryName],
-  )
-
-  const multiFixedRows = useMemo(
-    () => computeMultiMonthFixedRows(dash.monthSummaries),
-    [dash.monthSummaries],
-  )
-
-  const drilldownExpenses = useMemo(() => {
-    if (!dash.drilldownCategory) return []
-    const mk = dash.monthKeys[dash.drilldownCategoryMonthIndex]
-    return dash.filteredExpenses
-      .filter((e) => {
-        const matchesMonth = e.date.startsWith(mk.key)
-        const matchesCategory = dash.getExpenseCategoryName(e) === dash.drilldownCategory
-        return matchesMonth && matchesCategory
-      })
-      .sort(compareExpensesByDateAscThenIdAsc)
-  }, [
-    dash.drilldownCategory,
-    dash.drilldownCategoryMonthIndex,
-    dash.filteredExpenses,
-    dash.monthKeys,
-    dash.getExpenseCategoryName,
-  ])
-
-  const spanVariableTotal = useMemo(
-    () => dash.monthSummaries.reduce((s, m) => s + m.variableExpenses, 0),
-    [dash.monthSummaries],
-  )
 
   const expenseTableRef = useRef<ExpenseTableHandle>(null)
 
@@ -256,7 +212,7 @@ export default function Dashboard({
                 <p className="text-sm text-theme-muted tabular-nums">
                   {dash.expensesInSelectedSpan.length} transaction
                   {dash.expensesInSelectedSpan.length !== 1 ? 's' : ''} ·{' '}
-                  <PrivateValue>{formatAmount(spanVariableTotal)}</PrivateValue>
+                  <PrivateValue>{formatAmount(dash.spanVariableTotal)}</PrivateValue>
                 </p>
               </div>
 
@@ -287,8 +243,8 @@ export default function Dashboard({
                   )}
                 >
                   <CategoryViewTable
-                    multiCategoryRows={multiCategoryRows}
-                    multiFixedRows={multiFixedRows}
+                    multiCategoryRows={dash.multiCategoryRows}
+                    multiFixedRows={dash.multiFixedRows}
                     monthSummaries={dash.monthSummaries}
                     monthKeys={dash.monthKeys}
                     monthSpan={dash.monthSpan}
@@ -301,19 +257,16 @@ export default function Dashboard({
                   />
 
                   {dash.drilldownCategory &&
-                    drilldownExpenses.length > 0 &&
+                    dash.drilldownExpenses.length > 0 &&
                     dash.monthKeys[dash.drilldownCategoryMonthIndex] && (
                       <ExpenseDrilldown
                         ref={dash.drilldownRef}
                         title={`${dash.drilldownCategory} — ${dash.monthKeys[dash.drilldownCategoryMonthIndex].name} ${dash.monthKeys[dash.drilldownCategoryMonthIndex].year}`}
-                        expenses={drilldownExpenses}
+                        expenses={dash.drilldownExpenses}
                         formatDate={formatDate}
                         formatAmount={formatAmount}
                         resolveName={dash.getExpenseCategoryName}
-                        resolvePayeeName={(exp) => {
-                          const p = payeeMap[exp.payeeId as number]
-                          return p ? p.name : ''
-                        }}
+                        resolvePayeeName={dash.getExpensePayeeName}
                         onClose={dash.closeDrilldown}
                         isMobile={isMobile}
                         secondColumn="payee"
@@ -330,7 +283,7 @@ export default function Dashboard({
                 >
                   <PayeeViewTable
                     multiPayeeRows={dash.multiPayeeRows}
-                    multiFixedRows={multiFixedRows}
+                    multiFixedRows={dash.multiFixedRows}
                     monthSummaries={dash.monthSummaries}
                     monthKeys={dash.monthKeys}
                     monthSpan={dash.monthSpan}
@@ -352,10 +305,7 @@ export default function Dashboard({
                         formatDate={formatDate}
                         formatAmount={formatAmount}
                         resolveName={dash.getExpenseCategoryName}
-                        resolvePayeeName={(exp) => {
-                          const p = payeeMap[exp.payeeId as number]
-                          return p ? p.name : ''
-                        }}
+                        resolvePayeeName={dash.getExpensePayeeName}
                         onClose={dash.closePayeeDrilldown}
                         isMobile={isMobile}
                         secondColumn="category"
