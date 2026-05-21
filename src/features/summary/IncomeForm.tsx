@@ -55,7 +55,13 @@ export default function IncomeForm({
           }
         >
           <div className={mobileList ? 'min-w-0 flex-1 space-y-0.5' : 'space-y-0.5'}>
-            <p className={mobileList ? 'text-sm font-medium text-theme-text' : 'text-xs text-theme-muted uppercase tracking-wider'}>
+            <p
+              className={
+                mobileList
+                  ? 'text-sm font-medium text-theme-text'
+                  : 'text-xs text-theme-muted uppercase tracking-wider'
+              }
+            >
               Income
             </p>
             {isSet ? (
@@ -65,8 +71,8 @@ export default function IncomeForm({
                     mobileList
                       ? 'text-sm font-semibold text-theme-text tabular-nums'
                       : compact
-                      ? 'text-base font-semibold text-theme-text tabular-nums'
-                      : 'text-xl font-bold text-theme-text tabular-nums'
+                        ? 'text-base font-semibold text-theme-text tabular-nums'
+                        : 'text-xl font-bold text-theme-text tabular-nums'
                   }
                 >
                   <PrivateValue>{formatAmount(monthly)}</PrivateValue>
@@ -75,8 +81,8 @@ export default function IncomeForm({
                       mobileList
                         ? 'ml-1 text-xs font-normal text-theme-muted'
                         : compact
-                        ? 'ml-1 text-xs font-normal text-theme-muted'
-                        : 'ml-1 text-sm font-normal text-theme-muted'
+                          ? 'ml-1 text-xs font-normal text-theme-muted'
+                          : 'ml-1 text-sm font-normal text-theme-muted'
                     }
                   >
                     /mo

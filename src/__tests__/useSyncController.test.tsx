@@ -2,19 +2,14 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSyncController } from '../hooks/useSyncController'
 
-const {
-  getSyncQueue,
-  flushSyncQueue,
-  pullFromSupabase,
-  migrateLocalToSupabase,
-  isSyncPaused,
-} = vi.hoisted(() => ({
-  getSyncQueue: vi.fn(),
-  flushSyncQueue: vi.fn(),
-  pullFromSupabase: vi.fn(),
-  migrateLocalToSupabase: vi.fn(),
-  isSyncPaused: vi.fn(),
-}))
+const { getSyncQueue, flushSyncQueue, pullFromSupabase, migrateLocalToSupabase, isSyncPaused } =
+  vi.hoisted(() => ({
+    getSyncQueue: vi.fn(),
+    flushSyncQueue: vi.fn(),
+    pullFromSupabase: vi.fn(),
+    migrateLocalToSupabase: vi.fn(),
+    isSyncPaused: vi.fn(),
+  }))
 
 vi.mock('../services/storageService', () => ({
   StorageService: {

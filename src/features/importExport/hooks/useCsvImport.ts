@@ -304,17 +304,16 @@ export function useCsvImport({
                   }
                 }
 
-                Object.assign(
-                  payeeMap,
-                  await StorageService.ensurePayeesForImport(unresolvedNames),
-                )
+                Object.assign(payeeMap, await StorageService.ensurePayeesForImport(unresolvedNames))
               }
 
               const categoryNames = [...new Set(toAdd.map((row) => row.category).filter(Boolean))]
               const categoryMap: Record<string, number> = {}
               if (categoryNames.length > 0) {
                 const existingCategories = await StorageService.getCategories()
-                const existingByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c]))
+                const existingByName = new Map(
+                  existingCategories.map((c) => [c.name.toLowerCase(), c]),
+                )
                 const unresolvedNames: string[] = []
 
                 for (const name of categoryNames) {
@@ -413,14 +412,7 @@ export function useCsvImport({
       }
       clearFileInput()
     },
-    [
-      onStatusChange,
-      onErrorsChange,
-      onImportComplete,
-      clearFileInput,
-      yieldToBrowser,
-      triggerSync,
-    ],
+    [onStatusChange, onErrorsChange, onImportComplete, clearFileInput, yieldToBrowser, triggerSync],
   )
 
   const handleFinalizeImport = useCallback(

@@ -1,7 +1,11 @@
 import db from './db/schema'
 import { supabase } from './supabase'
 
-export type RecoveryStatus = 'healthy' | 'warning' | 'rebuild_cloud_required' | 'local_repair_required'
+export type RecoveryStatus =
+  | 'healthy'
+  | 'warning'
+  | 'rebuild_cloud_required'
+  | 'local_repair_required'
 
 export interface TableCounts {
   expenses: number
@@ -89,7 +93,9 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
     settings: settings.length,
   }
 
-  const validCategoryIds = new Set(categories.filter((c) => c.id != null).map((c) => c.id as number))
+  const validCategoryIds = new Set(
+    categories.filter((c) => c.id != null).map((c) => c.id as number),
+  )
   const validPayeeIds = new Set(payees.filter((p) => p.id != null).map((p) => p.id as number))
 
   let brokenExpenseCategoryRefs = 0
@@ -168,8 +174,10 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
   if (brokenExpensePayeeRefs > 0) {
     issues.push(`${brokenExpensePayeeRefs} expenses reference missing payees`)
   }
-  if (duplicateIncomeSnapshots > 0) issues.push(`${duplicateIncomeSnapshots} duplicate income snapshots`)
-  if (duplicateSavingsSnapshots > 0) issues.push(`${duplicateSavingsSnapshots} duplicate savings snapshots`)
+  if (duplicateIncomeSnapshots > 0)
+    issues.push(`${duplicateIncomeSnapshots} duplicate income snapshots`)
+  if (duplicateSavingsSnapshots > 0)
+    issues.push(`${duplicateSavingsSnapshots} duplicate savings snapshots`)
   if (duplicateFixedExpenseSnapshots > 0) {
     issues.push(`${duplicateFixedExpenseSnapshots} duplicate fixed expense snapshots`)
   }
@@ -229,4 +237,3 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
     duplicatePayeeNames,
   }
 }
-

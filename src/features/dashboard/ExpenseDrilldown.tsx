@@ -39,10 +39,7 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
           <>
             <div className="px-1.5 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
-              <button
-                onClick={onClose}
-                className={closeButtonClassName}
-              >
+              <button onClick={onClose} className={closeButtonClassName}>
                 Close
               </button>
             </div>
@@ -60,10 +57,7 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
             <div className="min-w-full">
               <div className="px-3 pb-2 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
-                <button
-                  onClick={onClose}
-                  className={closeButtonClassName}
-                >
+                <button onClick={onClose} className={closeButtonClassName}>
                   Close
                 </button>
               </div>

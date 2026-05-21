@@ -25,10 +25,7 @@ import {
   startOfMonth,
   toISO,
 } from '../../utils/datePickerHelpers'
-import {
-  getCalendarFloatingPosition,
-  type FloatingPosition,
-} from '../../utils/floatingPosition'
+import { getCalendarFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
 import { triggerHaptic } from '../../utils/haptics'
 
 const POPUP_MAX_HEIGHT = 320

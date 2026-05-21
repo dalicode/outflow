@@ -83,6 +83,29 @@ const UPSERT_CONFLICT_MAP: Partial<Record<string, string>> = {
   fixed_expense_snapshots: 'user_id,fixed_expense_id,year,month',
 }
 
+type LocalCloudReference = {
+  id?: number
+  cloudId?: string
+}
+
+function hasLocalCloudReference<T extends LocalCloudReference>(
+  item: T,
+): item is T & { id: number; cloudId: string } {
+  return item.id != null && Boolean(item.cloudId)
+}
+
+function toLocalCloudMap<T extends LocalCloudReference>(items: T[]): Map<number, string> {
+  return new Map(items.filter(hasLocalCloudReference).map((item) => [item.id, item.cloudId]))
+}
+
+function fromCloudLocalMap<T extends LocalCloudReference>(items: T[]): Map<string, number> {
+  return new Map(items.filter(hasLocalCloudReference).map((item) => [item.cloudId, item.id]))
+}
+
+function hasLocalId<T extends { id?: number }>(item: T): item is T & { id: number } {
+  return item.id != null
+}
+
 function toNumberOrUndefined(value: unknown): number | undefined {
   if (value == null || value === '') return undefined
   const parsed = Number(value)
@@ -170,8 +193,7 @@ async function fetchAllRowsForUser(
   return rows
 }
 
-function chunkArray<T>(items: T[], size: number): T[][]
-{
+function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
   for (let index = 0; index < items.length; index += size) {
     chunks.push(items.slice(index, index + size))
@@ -212,10 +234,7 @@ async function upsertRowsInBatches(
   for (let index = 0; index < batches.length; index += 1) {
     assertSyncRunActive(options?.shouldContinue)
     const result = await supabase.from(table).upsert(batches[index], { onConflict })
-    assertNoSupabaseError(
-      result,
-      `Upsert ${table} batch ${index + 1}/${batches.length}`,
-    )
+    assertNoSupabaseError(result, `Upsert ${table} batch ${index + 1}/${batches.length}`)
   }
 }
 
@@ -226,10 +245,7 @@ function parseConflictColumns(onConflict: string): string[] {
     .filter((column) => column.length > 0)
 }
 
-function getConflictKey(
-  row: Record<string, unknown>,
-  columns: string[],
-): string | null {
+function getConflictKey(row: Record<string, unknown>, columns: string[]): string | null {
   const values: string[] = []
   for (const column of columns) {
     const value = row[column]
@@ -773,10 +789,7 @@ function fromCloud(
 }
 
 // ── Outgoing sync ─────────────────────────────────────────────────────────────
-export async function flushSyncQueue(
-  userId: string,
-  options?: SyncRunGuardOptions,
-): Promise<void> {
+export async function flushSyncQueue(userId: string, options?: SyncRunGuardOptions): Promise<void> {
   if (!supabase || !userId || isSyncPaused()) return
 
   await ensureCloudIdsForSync()
@@ -794,9 +807,8 @@ export async function flushSyncQueue(
   )
   if (fullSyncItems.length > 0) {
     const shouldReplaceCloud = fullSyncItems.some((item) => item.payload.replace === true)
-    const replaceTables =
-      fullSyncItems.find((item) => Array.isArray(item.payload.replaceTables))?.payload
-        .replaceTables as string[] | undefined
+    const replaceTables = fullSyncItems.find((item) => Array.isArray(item.payload.replaceTables))
+      ?.payload.replaceTables as string[] | undefined
     await runFullSyncUpload(userId, shouldReplaceCloud || Boolean(replaceTables), replaceTables)
     assertSyncRunActive(options?.shouldContinue)
     for (const item of fullSyncItems) {
@@ -816,19 +828,12 @@ export async function flushSyncQueue(
     StorageService.getFixedExpenses() as Promise<FixedExpense[]>,
   ])
   const maps: ToCloudMaps = {
-    categoryIdToCloudId: new Map(
-      categories.filter((c) => c.cloudId).map((c) => [c.id!, c.cloudId!]),
-    ),
-    payeeIdToCloudId: new Map(payees.filter((p) => p.cloudId).map((p) => [p.id!, p.cloudId!])),
-    fixedExpenseIdToCloudId: new Map(
-      fixedExpenses.filter((f) => f.cloudId).map((f) => [f.id!, f.cloudId!]),
-    ),
+    categoryIdToCloudId: toLocalCloudMap(categories),
+    payeeIdToCloudId: toLocalCloudMap(payees),
+    fixedExpenseIdToCloudId: toLocalCloudMap(fixedExpenses),
   }
 
-  const deleteItemsByCloudTable = new Map<
-    string,
-    Array<{ itemIds: number[]; cloudId: string }>
-  >()
+  const deleteItemsByCloudTable = new Map<string, Array<{ itemIds: number[]; cloudId: string }>>()
   const upsertItemsByCloudTable = new Map<
     string,
     Array<{ itemIds: number[]; row: Record<string, unknown> }>
@@ -889,7 +894,11 @@ export async function flushSyncQueue(
     for (const item of items) {
       try {
         assertSyncRunActive(options?.shouldContinue)
-        const result = await supabase.from(cloudTable).delete().eq('id', item.cloudId).eq('user_id', userId)
+        const result = await supabase
+          .from(cloudTable)
+          .delete()
+          .eq('id', item.cloudId)
+          .eq('user_id', userId)
         assertNoSupabaseError(result, `Delete ${cloudTable}`)
         assertSyncRunActive(options?.shouldContinue)
         for (const itemId of item.itemIds) {
@@ -917,7 +926,8 @@ async function mergeByCloudId(
   for (const row of cloudRows) {
     const cid = row.cloudId as string | undefined
     if (cid && localByCloudId.has(cid)) {
-      const local = localByCloudId.get(cid)!
+      const local = localByCloudId.get(cid)
+      if (!local) continue
       const cloudTime = new Date((row.updatedAt as string) || 0).getTime()
       const localTime = new Date((local.updatedAt as string) || 0).getTime()
       if (cloudTime > localTime) {
@@ -976,19 +986,13 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   const existingPayees = await db.payees.toArray()
   const existingFixed = await db.fixedExpenses.toArray()
   const catMap: FromCloudMaps = {
-    cloudIdToCategoryId: new Map(
-      existingCats.filter((c) => c.cloudId).map((c) => [c.cloudId!, c.id!]),
-    ),
+    cloudIdToCategoryId: fromCloudLocalMap(existingCats),
   }
   const payeeMap: FromCloudMaps = {
-    cloudIdToPayeeId: new Map(
-      existingPayees.filter((p) => p.cloudId).map((p) => [p.cloudId!, p.id!]),
-    ),
+    cloudIdToPayeeId: fromCloudLocalMap(existingPayees),
   }
   const fixedMap: FromCloudMaps = {
-    cloudIdToFixedExpenseId: new Map(
-      existingFixed.filter((f) => f.cloudId).map((f) => [f.cloudId!, f.id!]),
-    ),
+    cloudIdToFixedExpenseId: fromCloudLocalMap(existingFixed),
   }
   const combinedMaps: FromCloudMaps = { ...catMap, ...payeeMap, ...fixedMap }
 
@@ -1016,7 +1020,6 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     updatedPays.forEach((p) => {
       if (p.cloudId && p.id) payeeMap.cloudIdToPayeeId?.set(p.cloudId, p.id)
     })
-
   }
 
   const expenseResolutionMaps: FromCloudMaps = {
@@ -1062,10 +1065,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
         if (payeeId !== undefined) {
           // already resolved
         } else if (local.cloudPayeeId != null) {
-          const resolved = await resolveLocalPayeeId(
-            local.cloudPayeeId,
-            expenseResolutionMaps,
-          )
+          const resolved = await resolveLocalPayeeId(local.cloudPayeeId, expenseResolutionMaps)
           if (resolved !== undefined) {
             payeeId = resolved
           } else {
@@ -1186,8 +1186,8 @@ async function verifySyncIntegrity(): Promise<void> {
     db.payees.toArray(),
     db.expenses.toArray(),
   ])
-  const validCatIds = new Set(cats.filter((c) => c.id != null).map((c) => c.id!))
-  const validPayeeIds = new Set(pays.filter((p) => p.id != null).map((p) => p.id!))
+  const validCatIds = new Set(cats.filter(hasLocalId).map((c) => c.id))
+  const validPayeeIds = new Set(pays.filter(hasLocalId).map((p) => p.id))
 
   let brokenCats = 0
   let brokenPayees = 0
@@ -1345,13 +1345,9 @@ export async function migrateLocalToSupabase(
   ])
 
   // Build FK reference maps (local numeric ID → cloudId)
-  const categoryIdToCloudId = new Map(
-    categories.filter((c) => c.cloudId).map((c) => [c.id!, c.cloudId!]),
-  )
-  const payeeIdToCloudId = new Map(payees.filter((p) => p.cloudId).map((p) => [p.id!, p.cloudId!]))
-  const fixedExpenseIdToCloudId = new Map(
-    fixedExpenses.filter((f) => f.cloudId).map((f) => [f.id!, f.cloudId!]),
-  )
+  const categoryIdToCloudId = toLocalCloudMap(categories)
+  const payeeIdToCloudId = toLocalCloudMap(payees)
+  const fixedExpenseIdToCloudId = toLocalCloudMap(fixedExpenses)
   const maps: ToCloudMaps = {
     categoryIdToCloudId,
     payeeIdToCloudId,

@@ -88,16 +88,16 @@ function getToastToneStyle(tone: ToastTone | undefined): {
   }
 }
 
-function ToastToneIcon({
-  tone,
-  className,
-}: {
-  tone: ToastTone | undefined
-  className: string
-}) {
+function ToastToneIcon({ tone, className }: { tone: ToastTone | undefined; className: string }) {
   if (tone === 'success') {
     return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className={className}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7 9 18l-5-5" />
       </svg>
     )
@@ -105,7 +105,13 @@ function ToastToneIcon({
 
   if (tone === 'warning') {
     return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className={className}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -117,7 +123,13 @@ function ToastToneIcon({
 
   if (tone === 'danger') {
     return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className={className}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <circle cx="12" cy="12" r="9" />
         <path strokeLinecap="round" d="M12 8v5m0 3h.01" />
       </svg>
@@ -125,7 +137,13 @@ function ToastToneIcon({
   }
 
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"

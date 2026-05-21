@@ -7,10 +7,7 @@ import ModalFooter from '../../components/ui/ModalFooter'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Category, Payee } from '../../types'
 import { cn } from '../../utils/cn'
-import {
-  getDropdownFloatingPosition,
-  type FloatingPosition,
-} from '../../utils/floatingPosition'
+import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
 import { toggleInSet } from '../../utils/setUtils'
 
 interface FilterDraft {

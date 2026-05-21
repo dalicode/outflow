@@ -108,7 +108,9 @@ export async function importAllData(
     if (payload.fixedExpenses)
       await db.fixedExpenses.bulkPut(payload.fixedExpenses as FixedExpense[])
     if (payload.fixedExpenseSnapshots) {
-      await db.fixedExpenseSnapshots.bulkPut(payload.fixedExpenseSnapshots as FixedExpenseSnapshot[])
+      await db.fixedExpenseSnapshots.bulkPut(
+        payload.fixedExpenseSnapshots as FixedExpenseSnapshot[],
+      )
     }
     if (payload.incomeSnapshots) {
       await db.incomeSnapshots.bulkPut(payload.incomeSnapshots as IncomeSnapshot[])

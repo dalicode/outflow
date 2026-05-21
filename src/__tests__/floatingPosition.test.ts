@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import {
-  getCalendarFloatingPosition,
-  getDropdownFloatingPosition,
-} from '../utils/floatingPosition'
+import { getCalendarFloatingPosition, getDropdownFloatingPosition } from '../utils/floatingPosition'
 
 function makeRect({
   top,
@@ -96,12 +93,15 @@ describe('getDropdownFloatingPosition', () => {
     vi.stubGlobal('innerWidth', 320)
     vi.stubGlobal('innerHeight', 900)
 
-    const pos = getDropdownFloatingPosition(makeRect({ top: 120, bottom: 160, left: 220, width: 180 }), {
-      desiredWidth: 420,
-      maxWidth: 420,
-      minWidth: 240,
-      gap: 4,
-    })
+    const pos = getDropdownFloatingPosition(
+      makeRect({ top: 120, bottom: 160, left: 220, width: 180 }),
+      {
+        desiredWidth: 420,
+        maxWidth: 420,
+        minWidth: 240,
+        gap: 4,
+      },
+    )
 
     expect(pos.left).toBe(8)
     expect(pos.width).toBe(304)

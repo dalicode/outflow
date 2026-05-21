@@ -172,10 +172,7 @@ export default function MultiMonthViewTable({
                             <button
                               type="button"
                               onClick={() => onRowClick(name, dataIdx)}
-                              className={cn(
-                                editableAmountButtonClass,
-                                getNumberColorClass(amount),
-                              )}
+                              className={cn(editableAmountButtonClass, getNumberColorClass(amount))}
                             >
                               {formatAmount(amount)}
                             </button>
@@ -438,9 +435,7 @@ export default function MultiMonthViewTable({
                           className="font-semibold text-theme-text cursor-not-allowed opacity-70"
                           title="Use Schedule to change future values"
                         >
-                          <PrivateValue>
-                            {formatAmount(monthSummaries[0].autoSavings)}
-                          </PrivateValue>
+                          <PrivateValue>{formatAmount(monthSummaries[0].autoSavings)}</PrivateValue>
                         </span>
                       ) : (
                         <button

@@ -8,10 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import {
-  useSyncController,
-  type QueueSyncOptions,
-} from '../hooks/useSyncController'
+import { useSyncController, type QueueSyncOptions } from '../hooks/useSyncController'
 import {
   runRecoveryDiagnostics,
   type RecoveryReport,

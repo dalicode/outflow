@@ -135,7 +135,7 @@ export default function MoneyInput({
 
     input.setSelectionRange(0, input.value.length)
     setShouldSelectOnFocus(false)
-  }, [draftValue, entryMode, isEditing, shouldSelectOnFocus])
+  }, [entryMode, isEditing, shouldSelectOnFocus])
 
   // When the sign toggle is shown, format as absolute value — the button
   // communicates the sign so we don't show it twice in the number itself.
@@ -327,7 +327,9 @@ export default function MoneyInput({
     if (entryMode === 'decimal') {
       const parsed = parseDecimalMoneyInput(pastedText, { allowNegative })
       if (!parsed.isValid) return
-      const nextIsNegative = showSignToggle ? isNegativeMode || parsed.isNegative : parsed.isNegative
+      const nextIsNegative = showSignToggle
+        ? isNegativeMode || parsed.isNegative
+        : parsed.isNegative
       setDraftValue(
         `${nextIsNegative && !showSignToggle ? '-' : ''}${(parsed.cents / 100).toFixed(2)}`,
       )
@@ -450,13 +452,13 @@ export default function MoneyInput({
             }
 
             const nextDraft = event.target.value
-      setDraftValue(nextDraft)
+            setDraftValue(nextDraft)
 
-      const parsed = parseDecimalMoneyInput(nextDraft, { allowNegative })
-      if (!parsed.isValid) return
-      setMaxExceeded(parsed.cents > effectiveMaxCents)
-      emitValue(parsed.cents, showSignToggle ? isNegativeMode : parsed.isNegative)
-    }}
+            const parsed = parseDecimalMoneyInput(nextDraft, { allowNegative })
+            if (!parsed.isValid) return
+            setMaxExceeded(parsed.cents > effectiveMaxCents)
+            emitValue(parsed.cents, showSignToggle ? isNegativeMode : parsed.isNegative)
+          }}
           className={cn(
             'w-full min-w-0 text-right font-semibold tabular-nums text-theme-text outline-none',
             'transition-[color,transform,background-color] duration-150',

@@ -20,30 +20,34 @@ describe('SettingsProvider settings-backed theme persistence', () => {
   beforeEach(() => {
     vi.mocked(StorageService.getSetting).mockReset()
     vi.mocked(StorageService.setSetting).mockReset()
-    vi.mocked(StorageService.getSetting).mockImplementation(async (key: string, fallback?: unknown) => {
-      if (key === 'uiSettings') return null
-      if (key === 'localPrivacyModeEnabled') return false
-      return fallback ?? null
-    })
+    vi.mocked(StorageService.getSetting).mockImplementation(
+      async (key: string, fallback?: unknown) => {
+        if (key === 'uiSettings') return null
+        if (key === 'localPrivacyModeEnabled') return false
+        return fallback ?? null
+      },
+    )
   })
 
   it('hydrates theme from local uiSettings', async () => {
-    vi.mocked(StorageService.getSetting).mockImplementation(async (key: string, fallback?: unknown) => {
-      if (key === 'uiSettings') {
-        return {
-          visualTheme: 'sharpProfessionalDark',
-          font: 'system',
-          fontSize: '1',
-          currencySymbol: '$',
-          decimalPlaces: '2',
-          thousandSep: ',',
-          dateFormat: 'MM/DD/YYYY',
-          hapticsEnabled: true,
+    vi.mocked(StorageService.getSetting).mockImplementation(
+      async (key: string, fallback?: unknown) => {
+        if (key === 'uiSettings') {
+          return {
+            visualTheme: 'sharpProfessionalDark',
+            font: 'system',
+            fontSize: '1',
+            currencySymbol: '$',
+            decimalPlaces: '2',
+            thousandSep: ',',
+            dateFormat: 'MM/DD/YYYY',
+            hapticsEnabled: true,
+          }
         }
-      }
-      if (key === 'localPrivacyModeEnabled') return false
-      return fallback ?? null
-    })
+        if (key === 'localPrivacyModeEnabled') return false
+        return fallback ?? null
+      },
+    )
 
     const { result } = renderHook(() => useSettings(), { wrapper })
 

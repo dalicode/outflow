@@ -87,9 +87,7 @@ export default function ExpenseTableMobile({
                 <span className="col-start-1 row-start-1 min-w-0 truncate text-sm font-medium text-theme-text">
                   {payeeLabel}
                 </span>
-                <span
-                  className="col-start-2 row-span-2 row-start-1 self-center text-right text-sm font-semibold tabular-nums text-theme-text"
-                >
+                <span className="col-start-2 row-span-2 row-start-1 self-center text-right text-sm font-semibold tabular-nums text-theme-text">
                   {formatAmount(exp.amount)}
                 </span>
                 <span className="col-start-1 row-start-2 min-w-0 truncate text-xs text-theme-muted">

@@ -31,9 +31,7 @@ function getResistedPullDistance(delta: number): number {
   if (delta <= 0) return 0
 
   const distance =
-    delta <= PULL_THRESHOLD
-      ? delta
-      : PULL_THRESHOLD + (delta - PULL_THRESHOLD) * 0.28
+    delta <= PULL_THRESHOLD ? delta : PULL_THRESHOLD + (delta - PULL_THRESHOLD) * 0.28
 
   return Math.min(MAX_PULL, distance)
 }

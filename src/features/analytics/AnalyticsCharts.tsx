@@ -324,7 +324,10 @@ interface RankedCategoryTableProps {
 export const RankedCategoryTable = ({ data, focusMonth, focusLabel }: RankedCategoryTableProps) => {
   const rows = useMemo(() => {
     if (focusMonth == null) {
-      const yearVariableTotal = (data.variableRows || []).reduce((sum, row) => sum + row.yearTotal, 0)
+      const yearVariableTotal = (data.variableRows || []).reduce(
+        (sum, row) => sum + row.yearTotal,
+        0,
+      )
       return (data.variableRows || [])
         .filter((row) => row.yearTotal > 0)
         .map((row) => ({

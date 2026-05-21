@@ -1,5 +1,4 @@
-const DEBUG =
-  import.meta.env.DEV || import.meta.env.VITE_LOG_LEVEL === 'debug'
+const DEBUG = import.meta.env.DEV || import.meta.env.VITE_LOG_LEVEL === 'debug'
 
 export function debugLog(...args: unknown[]) {
   if (!DEBUG) return

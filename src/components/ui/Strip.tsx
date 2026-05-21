@@ -117,6 +117,9 @@ export default function Strip({
 
   // ── Auto-scroll to selected item ──────────────────────────────────────────
   useLayoutEffect(() => {
+    // selectedKey intentionally retriggers this measurement when the selected
+    // child changes even if callers provide a stable selector.
+    void selectedKey
     const container = containerRef.current
     if (!container) return
     const target = container.querySelector(scrollSelector) as HTMLElement | null
@@ -266,19 +269,15 @@ export default function Strip({
         {children}
       </div>
       {afterScroll}
-      {hasNav && (
-        <>
-          {onStepForward && (
-            <button
-              onClick={handleStepForward}
-              disabled={disableStepForward}
-              className={cn('strip-nav-btn', disableStepForward && 'cursor-not-allowed opacity-40')}
-              aria-label={stepForwardLabel}
-            >
-              <ChevronRight />
-            </button>
-          )}
-        </>
+      {hasNav && onStepForward && (
+        <button
+          onClick={handleStepForward}
+          disabled={disableStepForward}
+          className={cn('strip-nav-btn', disableStepForward && 'cursor-not-allowed opacity-40')}
+          aria-label={stepForwardLabel}
+        >
+          <ChevronRight />
+        </button>
       )}
     </div>
   )

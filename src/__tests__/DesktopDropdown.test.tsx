@@ -447,8 +447,12 @@ describe('DesktopDropdown', () => {
 
     fireEvent.change(search, { target: { value: 'gas' } })
 
-    expect(Number.parseFloat(panel?.style.height ?? '0')).toBeLessThan(Number.parseFloat(initialHeight ?? '0'))
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBeGreaterThan(Number.parseFloat(initialTop ?? '0'))
+    expect(Number.parseFloat(panel?.style.height ?? '0')).toBeLessThan(
+      Number.parseFloat(initialHeight ?? '0'),
+    )
+    expect(Number.parseFloat(panel?.style.top ?? '0')).toBeGreaterThan(
+      Number.parseFloat(initialTop ?? '0'),
+    )
   })
 
   it('shrinks from the bottom while filtering below the trigger', async () => {
@@ -498,7 +502,9 @@ describe('DesktopDropdown', () => {
 
     fireEvent.change(search, { target: { value: 'gas' } })
 
-    expect(Number.parseFloat(panel?.style.height ?? '0')).toBeLessThan(Number.parseFloat(initialHeight ?? '0'))
+    expect(Number.parseFloat(panel?.style.height ?? '0')).toBeLessThan(
+      Number.parseFloat(initialHeight ?? '0'),
+    )
     expect(panel?.style.top).toBe(initialTop)
   })
 })

@@ -171,9 +171,7 @@ describe('DatePicker', () => {
   })
 
   it('opens below when the full calendar fits below', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
-      mockRect(120, 160),
-    )
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(mockRect(120, 160))
     vi.stubGlobal('innerHeight', 900)
 
     render(<DatePicker value="2024-06-15" autoOpen onChange={vi.fn()} />)
@@ -184,9 +182,7 @@ describe('DatePicker', () => {
   })
 
   it('opens above with a bottom pin when below does not fit but above does', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
-      mockRect(520, 560),
-    )
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(mockRect(520, 560))
     vi.stubGlobal('innerHeight', 620)
 
     render(<DatePicker value="2024-06-15" autoOpen onChange={vi.fn()} />)
@@ -197,9 +193,7 @@ describe('DatePicker', () => {
   })
 
   it('chooses the larger side when neither side fits the full calendar', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
-      mockRect(170, 210),
-    )
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(mockRect(170, 210))
     vi.stubGlobal('innerHeight', 400)
 
     render(<DatePicker value="2024-06-15" autoOpen onChange={vi.fn()} />)

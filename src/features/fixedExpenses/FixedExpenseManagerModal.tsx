@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import MoneyInput from '../../components/inputs/MoneyInput'
 import PrivateValue from '../../components/privacy/PrivateValue'
 import Modal from '../../components/ui/Modal'
@@ -51,7 +51,8 @@ export default function FixedExpenseManagerModal({
 
   const validate = (name: string, amount: string) => {
     if (!name.trim()) return 'Name is required.'
-    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) return 'Enter a positive amount.'
+    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0)
+      return 'Enter a positive amount.'
     return ''
   }
 
@@ -59,23 +60,23 @@ export default function FixedExpenseManagerModal({
     window.setTimeout(() => setShowManageModal(true), 0)
   }
 
-  const openAddModal = (returnToManage = false) => {
+  const openAddModal = useCallback((returnToManage = false) => {
     setModalMode('add')
     setEditId(null)
     setForm(EMPTY)
     setError('')
     setReturnToManageModal(returnToManage)
     setShowModal(true)
-  }
+  }, [])
 
-  const openEditModal = (item: FixedExpense, returnToManage = false) => {
+  const openEditModal = useCallback((item: FixedExpense, returnToManage = false) => {
     setModalMode('edit')
     setEditId(item.id as number)
     setForm({ name: item.name, amount: String(item.amount) })
     setError('')
     setReturnToManageModal(returnToManage)
     setShowModal(true)
-  }
+  }, [])
 
   const openAdd = () => {
     if (showManageModal) {
@@ -125,7 +126,7 @@ export default function FixedExpenseManagerModal({
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [pendingAction, showManageModal])
+  }, [openAddModal, openEditModal, pendingAction, showManageModal])
 
   const closeModal = ({ restoreManage = true, clearReturn = true } = {}) => {
     const shouldRestoreManage = restoreManage && returnToManageModal
@@ -152,9 +153,9 @@ export default function FixedExpenseManagerModal({
     }
 
     if (modalMode === 'add') {
-      void Promise.resolve(
-        onAdd({ name: form.name.trim(), amount: parseFloat(form.amount) }),
-      ).then(() => closeModal())
+      void Promise.resolve(onAdd({ name: form.name.trim(), amount: parseFloat(form.amount) })).then(
+        () => closeModal(),
+      )
       return
     }
 
@@ -187,7 +188,8 @@ export default function FixedExpenseManagerModal({
     >
       <form id="fixed-expense-form" onSubmit={handleSubmit} className="space-y-4">
         <p className="text-xs text-theme-muted">
-          Recurring monthly expense like rent or utilities. Applied to all active months automatically.
+          Recurring monthly expense like rent or utilities. Applied to all active months
+          automatically.
         </p>
         {error && <p className="text-theme-danger text-xs">{error}</p>}
         <label className="flex flex-col gap-1.5 text-sm text-theme-muted">
@@ -261,7 +263,8 @@ export default function FixedExpenseManagerModal({
       }
     >
       <p className="text-sm text-theme-muted">
-        This will remove the fixed expense from your budget. Existing snapshots for past months are kept.
+        This will remove the fixed expense from your budget. Existing snapshots for past months are
+        kept.
       </p>
     </Modal>
   )
@@ -317,7 +320,9 @@ export default function FixedExpenseManagerModal({
                     className="flex w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2.5 text-left transition-colors hover:border-theme-primary/40"
                     aria-label={`Edit ${item.name}`}
                   >
-                    <span className="truncate text-sm font-medium text-theme-text">{item.name}</span>
+                    <span className="truncate text-sm font-medium text-theme-text">
+                      {item.name}
+                    </span>
                     <span className="shrink-0 text-sm font-semibold text-theme-text tabular-nums">
                       <PrivateValue>{formatAmount(item.amount)}</PrivateValue>
                     </span>

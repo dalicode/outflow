@@ -52,7 +52,11 @@ describe('Strip', () => {
     const scrollContainer = container.querySelector('.month-strip-scroll') as HTMLDivElement
     Object.defineProperty(scrollContainer, 'clientWidth', { configurable: true, value: 120 })
     Object.defineProperty(scrollContainer, 'scrollWidth', { configurable: true, value: 240 })
-    Object.defineProperty(scrollContainer, 'scrollLeft', { configurable: true, writable: true, value: 0 })
+    Object.defineProperty(scrollContainer, 'scrollLeft', {
+      configurable: true,
+      writable: true,
+      value: 0,
+    })
     Object.defineProperty(scrollContainer, 'scrollTo', {
       configurable: true,
       value: ({ left }: { left: number }) => {
@@ -88,5 +92,4 @@ describe('Strip', () => {
     expect(scrollTo).toHaveBeenCalled()
     expect(scrollContainer.scrollLeft).toBeGreaterThan(0)
   })
-
 })

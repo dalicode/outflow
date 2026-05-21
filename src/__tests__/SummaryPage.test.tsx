@@ -52,6 +52,7 @@ vi.mock('../features/summary/SpendingBreakdown', () => ({
 }))
 
 const mockedUseSummary = vi.mocked(useSummary)
+type SummaryHookState = ReturnType<typeof useSummary>
 
 function makeSummary(): MonthlySummary {
   return {
@@ -80,7 +81,7 @@ describe('SummaryPage', () => {
       handleAddFixed: vi.fn(),
       handleUpdateFixed: vi.fn(),
       handleDeleteFixed: vi.fn(),
-    } as any)
+    } satisfies SummaryHookState)
 
     render(<SummaryPage expenses={[]} />)
 
@@ -105,7 +106,7 @@ describe('SummaryPage', () => {
       handleAddFixed: vi.fn(),
       handleUpdateFixed: vi.fn(),
       handleDeleteFixed: vi.fn(),
-    } as any)
+    } satisfies SummaryHookState)
 
     render(<SummaryPage expenses={[]} />)
 

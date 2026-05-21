@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const addCalls: Array<{ table: string; row: Record<string, unknown> }> = []
 const updateCalls: Array<{ table: string; id: number; row: Record<string, unknown> }> = []
-const upsertCalls: Array<{ table: string; rows: Record<string, unknown>[]; onConflict?: string }> = []
+const upsertCalls: Array<{ table: string; rows: Record<string, unknown>[]; onConflict?: string }> =
+  []
 const settingsPutMock = vi.hoisted(() => vi.fn())
 const syncQueueToArrayMock = vi.hoisted(() => vi.fn())
 const settingsGetMock = vi.hoisted(() => vi.fn())

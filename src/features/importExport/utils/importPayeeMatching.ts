@@ -51,7 +51,9 @@ export interface ImportRowInput {
 
 const DEFAULT_PAYEE_TERMS = DEFAULT_PAYEES.map((payee) => ({
   name: payee.name,
-  terms: [...new Set([payee.name, ...(payee.aliases ?? [])].map(normalizePayeeText).filter(Boolean))],
+  terms: [
+    ...new Set([payee.name, ...(payee.aliases ?? [])].map(normalizePayeeText).filter(Boolean)),
+  ],
 }))
 
 function getMatchReason(score: number, termCount: number): string {
@@ -104,7 +106,13 @@ export function findCanonicalDefaultPayeeName(description: string): string | nul
 }
 
 export function findCanonicalDefaultPayeeNames(descriptions: string[]): string[] {
-  return [...new Set(descriptions.map(findCanonicalDefaultPayeeName).filter((name): name is string => Boolean(name)))]
+  return [
+    ...new Set(
+      descriptions
+        .map(findCanonicalDefaultPayeeName)
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ]
 }
 
 export function findBestImportPayeeMatch(

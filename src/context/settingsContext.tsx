@@ -85,9 +85,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         if (cancelled) return
         const savedSettings =
           saved && typeof saved === 'object' ? (saved as Record<string, unknown>) : null
-        const next = saved
-          ? { ...DEFAULTS, ...savedSettings }
-          : { ...DEFAULTS }
+        const next = saved ? { ...DEFAULTS, ...savedSettings } : { ...DEFAULTS }
         setSettings(next as AppSettings)
         setPrivacyModeEnabled(Boolean(savedPrivacyMode))
         setLoaded(true)

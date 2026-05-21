@@ -277,7 +277,7 @@ describe('CreatableCombobox', () => {
     const input = screen.getByRole('combobox')
     fireEvent.change(input, { target: { value: 'New payee' } })
 
-    expect(screen.getByRole('option', { name: 'Add \"New payee\"' })).toHaveAttribute(
+    expect(screen.getByRole('option', { name: 'Add "New payee"' })).toHaveAttribute(
       'aria-selected',
       'true',
     )

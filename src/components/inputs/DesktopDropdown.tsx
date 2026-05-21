@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../utils/cn'
-import {
-  getDropdownFloatingPosition,
-  type FloatingPosition,
-} from '../../utils/floatingPosition'
+import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
 import SingleSelectTrigger from './SingleSelectTrigger'
 import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './comboboxUtils'
 
@@ -120,15 +117,7 @@ export default function DesktopDropdown({
     }
 
     return items
-  }, [
-    allowClear,
-    clearLabel,
-    displayOptions,
-    query,
-    recentVisibleOptions,
-    showCreateOption,
-    value,
-  ])
+  }, [allowClear, clearLabel, displayOptions, query, recentVisibleOptions, showCreateOption, value])
 
   const getDesiredContentViewportHeight = useCallback(() => {
     const visibleOptionRows = Math.min(
@@ -274,9 +263,7 @@ export default function DesktopDropdown({
       (item) => item.type === 'recent' || item.type === 'option',
     )
     const createIndex =
-      firstMatchIndex === -1
-        ? navigableItems.findIndex((item) => item.type === 'create')
-        : -1
+      firstMatchIndex === -1 ? navigableItems.findIndex((item) => item.type === 'create') : -1
     const nextIndex = firstMatchIndex !== -1 ? firstMatchIndex : createIndex
 
     setHighlightedIndex(nextIndex)
@@ -446,8 +433,11 @@ export default function DesktopDropdown({
                         onClick={() => handleSelect(option.id)}
                         className={cn(
                           'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
-                          isItemHighlighted({ type: 'recent', id: option.id, label: option.label }) &&
-                            highlightedItemClassName,
+                          isItemHighlighted({
+                            type: 'recent',
+                            id: option.id,
+                            label: option.label,
+                          }) && highlightedItemClassName,
                           option.id === value && 'font-semibold text-theme-primary',
                         )}
                         onMouseEnter={() =>
@@ -480,8 +470,11 @@ export default function DesktopDropdown({
                         onClick={() => handleSelect(option.id)}
                         className={cn(
                           'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
-                          isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
-                            highlightedItemClassName,
+                          isItemHighlighted({
+                            type: 'option',
+                            id: option.id,
+                            label: option.label,
+                          }) && highlightedItemClassName,
                           option.id === value && 'font-semibold text-theme-primary',
                         )}
                         onMouseEnter={() =>
@@ -511,8 +504,11 @@ export default function DesktopDropdown({
                         onClick={() => handleSelect(option.id)}
                         className={cn(
                           'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
-                          isItemHighlighted({ type: 'option', id: option.id, label: option.label }) &&
-                            highlightedItemClassName,
+                          isItemHighlighted({
+                            type: 'option',
+                            id: option.id,
+                            label: option.label,
+                          }) && highlightedItemClassName,
                           option.id === value && 'font-semibold text-theme-primary',
                         )}
                         onMouseEnter={() =>

@@ -21,20 +21,19 @@ const TONE_MAP: Record<SyncStatus, string> = {
   offline: 'text-theme-muted',
 }
 
-function CloudStatusIcon({
-  syncStatus,
-  compact,
-}: {
-  syncStatus: SyncStatus
-  compact: boolean
-}) {
+function CloudStatusIcon({ syncStatus, compact }: { syncStatus: SyncStatus; compact: boolean }) {
   const toneClass = TONE_MAP[syncStatus]
   const cloudClass = syncStatus === 'offline' ? 'text-theme-muted opacity-70' : 'text-theme-muted'
   const spinClass = syncStatus === 'syncing' ? 'animate-spin' : ''
   const badgeSize = compact ? 'w-2.5 h-2.5' : 'w-3 h-3'
 
   return (
-    <span className={cn('relative inline-flex items-center justify-center shrink-0', compact ? 'w-5 h-5' : 'w-6 h-6')}>
+    <span
+      className={cn(
+        'relative inline-flex items-center justify-center shrink-0',
+        compact ? 'w-5 h-5' : 'w-6 h-6',
+      )}
+    >
       <svg
         viewBox="0 0 24 24"
         className={cn('w-full h-full', cloudClass)}
@@ -129,10 +128,7 @@ export default function SyncIndicator({
 }: SyncIndicatorProps) {
   return (
     <div
-      className={cn(
-        'flex items-center shrink-0',
-        compact ? 'justify-center' : 'w-full gap-3',
-      )}
+      className={cn('flex items-center shrink-0', compact ? 'justify-center' : 'w-full gap-3')}
       title={LABEL_MAP[syncStatus]}
       aria-label={LABEL_MAP[syncStatus]}
     >

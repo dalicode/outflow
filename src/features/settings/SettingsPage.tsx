@@ -447,7 +447,9 @@ export default function SettingsPage({
               </p>
               <p className="mt-1 text-xs font-medium text-theme-text">
                 Health: {recoveryStatus}
-                {recoveryReport ? ` · ${recoveryReport.issues.length} issue${recoveryReport.issues.length === 1 ? '' : 's'}` : ''}
+                {recoveryReport
+                  ? ` · ${recoveryReport.issues.length} issue${recoveryReport.issues.length === 1 ? '' : 's'}`
+                  : ''}
               </p>
             </div>
             <button
@@ -744,7 +746,10 @@ export default function SettingsPage({
           size="md"
           footer={
             <ModalFooter>
-              <button onClick={() => setIsRecoveryModalOpen(false)} className="btn-cancel-sm flex-1">
+              <button
+                onClick={() => setIsRecoveryModalOpen(false)}
+                className="btn-cancel-sm flex-1"
+              >
                 Close
               </button>
               <button

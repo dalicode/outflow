@@ -23,6 +23,9 @@ export function useDashboardData(
 
   // Load data for the selected month span
   useEffect(() => {
+    // dataRefreshKey intentionally retriggers this async load after settings
+    // modals mutate persisted income/savings values.
+    void dataRefreshKey
     const loadData = async () => {
       const now = new Date()
       const neededYears = Array.from(new Set(monthKeys.map((m) => m.year)))
@@ -113,6 +116,9 @@ export function useDashboardData(
 
   // Always load current month summary for the header
   useEffect(() => {
+    // dataRefreshKey intentionally retriggers this async load after settings
+    // modals mutate persisted income/savings values.
+    void dataRefreshKey
     const loadCurrentMonthSummary = async () => {
       const today = new Date()
       const currentYear = today.getFullYear()

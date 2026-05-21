@@ -40,11 +40,7 @@ vi.mock('../components/ui/ModalFooter', () => ({
 
 vi.mock('../components/inputs/DatePicker', () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-    <input
-      aria-label="Date"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <input aria-label="Date" value={value} onChange={(e) => onChange(e.target.value)} />
   ),
 }))
 
@@ -73,11 +69,7 @@ vi.mock('../components/inputs/MobileEntityPicker', () => ({
 }))
 
 vi.mock('../components/inputs/MoneyInput', () => ({
-  default: ({
-    onChange,
-  }: {
-    onChange: (value: number) => void
-  }) => (
+  default: ({ onChange }: { onChange: (value: number) => void }) => (
     <input
       aria-label="Amount"
       type="number"

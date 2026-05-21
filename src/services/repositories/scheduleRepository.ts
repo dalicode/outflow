@@ -8,7 +8,10 @@ import {
   resolveScheduleValueForMonth,
 } from './common'
 
-function makeSettingRow(key: string, value: unknown): { key: string; value: unknown; updatedAt: string } {
+function makeSettingRow(
+  key: string,
+  value: unknown,
+): { key: string; value: unknown; updatedAt: string } {
   return {
     key,
     value,

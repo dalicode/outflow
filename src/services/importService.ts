@@ -57,9 +57,7 @@ export async function queueImportSyncMarker(
 
     await db.syncQueue.clear()
     if (preserved.length > 0) {
-      await db.syncQueue.bulkAdd(
-        preserved.map(({ id: _id, ...rest }: SyncQueueItem) => rest),
-      )
+      await db.syncQueue.bulkAdd(preserved.map(({ id: _id, ...rest }: SyncQueueItem) => rest))
     }
 
     await db.syncQueue.add({

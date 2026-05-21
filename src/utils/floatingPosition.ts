@@ -24,7 +24,10 @@ export interface FloatingPositionOptions {
   gap?: number
 }
 
-function getClampedWidth(anchorRect: DOMRect, options: FloatingPositionOptions): {
+function getClampedWidth(
+  anchorRect: DOMRect,
+  options: FloatingPositionOptions,
+): {
   left: number
   width: number
 } {
@@ -39,8 +42,7 @@ function getClampedWidth(anchorRect: DOMRect, options: FloatingPositionOptions):
   const viewportWidth = window.innerWidth
   const availableViewportWidth = Math.max(0, viewportWidth - viewportMargin * 2)
   const rawWidth =
-    desiredWidth ??
-    (matchTriggerWidth ? anchorRect.width : Math.max(minWidth, anchorRect.width))
+    desiredWidth ?? (matchTriggerWidth ? anchorRect.width : Math.max(minWidth, anchorRect.width))
   const width = Math.min(maxWidth, rawWidth, availableViewportWidth)
   const left = Math.min(
     Math.max(anchorRect.left, viewportMargin),
@@ -50,7 +52,11 @@ function getClampedWidth(anchorRect: DOMRect, options: FloatingPositionOptions):
   return { left, width }
 }
 
-function getViewportSpace(anchorRect: DOMRect, viewportMargin: number, gap: number): {
+function getViewportSpace(
+  anchorRect: DOMRect,
+  viewportMargin: number,
+  gap: number,
+): {
   above: number
   below: number
 } {

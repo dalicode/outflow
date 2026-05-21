@@ -2,10 +2,7 @@ import type { Expense } from '../../types'
 import db from '../db/schema'
 import { enqueue } from './common'
 import { queueImportSyncMarker } from '../importService'
-import {
-  CSV_IMPORT_QUEUE_REASON,
-  CSV_REPLACE_QUEUE_REASON,
-} from '../syncRuntime'
+import { CSV_IMPORT_QUEUE_REASON, CSV_REPLACE_QUEUE_REASON } from '../syncRuntime'
 
 export async function getAll(): Promise<Expense[]> {
   return db.expenses.orderBy('date').toArray()

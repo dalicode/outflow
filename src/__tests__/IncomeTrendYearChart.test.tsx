@@ -29,7 +29,9 @@ vi.mock('recharts', async () => {
     Customized: () => null,
     Legend: ({ payload }: { payload?: Array<{ value: string }> }) => (
       <div data-testid="legend">
-        {payload?.map((item) => <span key={item.value}>{item.value}</span>)}
+        {payload?.map((item) => (
+          <span key={item.value}>{item.value}</span>
+        ))}
       </div>
     ),
     Line: () => null,
@@ -40,8 +42,8 @@ vi.mock('recharts', async () => {
     Tooltip: () => <div data-testid="tooltip" />,
     XAxis: ({ dataKey }: { dataKey: string }) => (
       <div className="recharts-xAxis">
-        {activeChartData.map((row, index) => (
-          <span key={`${String(row[dataKey])}-${index}`} className="recharts-cartesian-axis-tick-value">
+        {activeChartData.map((row) => (
+          <span key={String(row[dataKey])} className="recharts-cartesian-axis-tick-value">
             {String(row[dataKey] ?? '')}
           </span>
         ))}
@@ -62,12 +64,15 @@ vi.mock('recharts', async () => {
         .filter((value) => !Number.isNaN(value))
 
       const max = values.length > 0 ? Math.max(...values) : 0
-      const ticks = [0, max > 0 ? Math.round(max / 2) : 0, max]
+      const ticks = Array.from(new Set([0, max > 0 ? Math.round(max / 2) : 0, max]))
 
       return (
         <div className="recharts-yAxis" data-axis-id={yAxisId ?? 'left'}>
-          {ticks.map((tick, index) => (
-            <span key={`${tick}-${index}`} className="recharts-cartesian-axis-tick-value">
+          {ticks.map((tick) => (
+            <span
+              key={`${yAxisId ?? 'left'}-${tick}`}
+              className="recharts-cartesian-axis-tick-value"
+            >
               {tickFormatter ? tickFormatter(tick) : String(tick)}
             </span>
           ))}

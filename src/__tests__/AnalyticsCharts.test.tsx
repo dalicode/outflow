@@ -28,12 +28,32 @@ function makeAnalyticsData(): AnalyticsData {
     year: 2026,
     monthlyIncome: Array(12).fill(0),
     variableRows: [
-      { key: 'groceries', name: 'Groceries', amounts: [120, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], yearTotal: 200 },
-      { key: 'transport', name: 'Transport', amounts: [50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], yearTotal: 50 },
+      {
+        key: 'groceries',
+        name: 'Groceries',
+        amounts: [120, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        yearTotal: 200,
+      },
+      {
+        key: 'transport',
+        name: 'Transport',
+        amounts: [50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        yearTotal: 50,
+      },
     ],
     payeeRows: [
-      { key: 'metro', name: 'Metro', amounts: [90, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], yearTotal: 100 },
-      { key: 'freshco', name: 'FreshCo', amounts: [70, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], yearTotal: 100 },
+      {
+        key: 'metro',
+        name: 'Metro',
+        amounts: [90, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        yearTotal: 100,
+      },
+      {
+        key: 'freshco',
+        name: 'FreshCo',
+        amounts: [70, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        yearTotal: 100,
+      },
     ],
     grid: {},
     fixedRows: [],
@@ -69,7 +89,9 @@ describe('AnalyticsCharts tables', () => {
   })
 
   it('shows payee year totals when focusMonth is null', () => {
-    render(<RankedPayeeTable data={makeAnalyticsData()} focusMonth={null} focusLabel="Year total" />)
+    render(
+      <RankedPayeeTable data={makeAnalyticsData()} focusMonth={null} focusLabel="Year total" />,
+    )
 
     expect(screen.getByText('Metro')).toBeInTheDocument()
     expect(screen.getByText('FreshCo')).toBeInTheDocument()

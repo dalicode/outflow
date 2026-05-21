@@ -822,6 +822,7 @@
 }
 .expense-checkbox-wrapper::before,
 .expense-checkbox-wrapper::after {
+  /* biome-ignore lint/complexity/noImportantStyles: neutralizes inherited nav pseudo-element decoration for checkbox labels */
   content: none !important;
 }
 .expense-checkbox-box {
@@ -829,8 +830,11 @@
 }
 .expense-checkbox-box::before,
 .expense-checkbox-box::after {
+  /* biome-ignore lint/complexity/noImportantStyles: neutralizes inherited pseudo-element decoration for checkbox labels */
   content: none !important;
+  /* biome-ignore lint/complexity/noImportantStyles: keeps checkbox border styling controlled by the checkbox element */
   border-color: inherit !important;
+  /* biome-ignore lint/complexity/noImportantStyles: keeps checkbox focus/hover styling controlled by the checkbox element */
   box-shadow: none !important;
 }
 tr:hover .expense-checkbox-wrapper,

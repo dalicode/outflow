@@ -94,7 +94,9 @@ export default function DesktopSidebar({
               <span className="flex h-6 w-6 shrink-0 items-center justify-center">
                 <img src="/icon.svg" alt="" className="h-6 w-6" />
               </span>
-              <span className={cn('text-md font-semibold leading-none text-theme-primary', labelClass)}>
+              <span
+                className={cn('text-md font-semibold leading-none text-theme-primary', labelClass)}
+              >
                 Outflow
               </span>
             </div>
@@ -189,7 +191,9 @@ export default function DesktopSidebar({
           aria-label="Add expense"
         >
           <PlusIcon />
-          {!collapsed && <span className={cn('text-sm font-medium truncate', labelClass)}>Add</span>}
+          {!collapsed && (
+            <span className={cn('text-sm font-medium truncate', labelClass)}>Add</span>
+          )}
         </button>
 
         {onSignOut && (

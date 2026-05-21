@@ -57,8 +57,14 @@ describe('runRecoveryDiagnostics', () => {
 
   it('returns local_repair_required when local duplicates and broken refs exist', async () => {
     mockDb.expenses.toArray.mockResolvedValue([{ id: 1, categoryId: 999, payeeId: 888 }])
-    mockDb.categories.toArray.mockResolvedValue([{ id: 10, name: 'Food' }, { id: 11, name: 'food' }])
-    mockDb.payees.toArray.mockResolvedValue([{ id: 20, name: 'Cafe' }, { id: 21, name: '  cafe  ' }])
+    mockDb.categories.toArray.mockResolvedValue([
+      { id: 10, name: 'Food' },
+      { id: 11, name: 'food' },
+    ])
+    mockDb.payees.toArray.mockResolvedValue([
+      { id: 20, name: 'Cafe' },
+      { id: 21, name: '  cafe  ' },
+    ])
     mockDb.incomeSnapshots.toArray.mockResolvedValue([
       { year: 2026, month: 1, amountSnapshot: 1000 },
       { year: 2026, month: 1, amountSnapshot: 1200 },

@@ -248,11 +248,7 @@ export default function Modal({
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (
-        closeOnBackdropClick &&
-        e.target === e.currentTarget &&
-        backdropPointerDownRef.current
-      ) {
+      if (closeOnBackdropClick && e.target === e.currentTarget && backdropPointerDownRef.current) {
         closeModal()
       }
       backdropPointerDownRef.current = false

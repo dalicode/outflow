@@ -112,7 +112,9 @@ vi.mock('../features/settings/AboutSection', () => ({
 describe('SettingsPage', () => {
   beforeEach(() => {
     vi.mocked(StorageService.getCategories).mockResolvedValue([])
-    vi.mocked(StorageService.getSetting).mockImplementation(async (_key: string, fallback?: unknown) => fallback)
+    vi.mocked(StorageService.getSetting).mockImplementation(
+      async (_key: string, fallback?: unknown) => fallback,
+    )
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 'user-1', email: 'user@example.com' },
       signOut: vi.fn().mockResolvedValue({ error: null }),

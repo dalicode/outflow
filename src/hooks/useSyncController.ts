@@ -261,7 +261,7 @@ export function useSyncController({
         throw error
       })
     },
-    [runSyncNow, scheduleRetry, shouldRunFreshnessSync, userId],
+    [runSyncNow, scheduleRetry, shouldRunFreshnessSync, shouldRunRecentPullSync, userId],
   )
 
   const syncNow = useCallback(

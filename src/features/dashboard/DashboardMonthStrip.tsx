@@ -85,7 +85,9 @@ export default function DashboardMonthStrip({
               onClick={handleClick}
               className={cn(
                 'month-pill motion-safe:active:scale-[0.98]',
-                monthSpan > 1 ? isInSpan && 'month-pill-span-active' : isSelected && 'month-pill-selected',
+                monthSpan > 1
+                  ? isInSpan && 'month-pill-span-active'
+                  : isSelected && 'month-pill-selected',
                 !isSelected && !isInSpan && isRealCurrent && 'month-pill-current',
               )}
               aria-label={`${monthName} ${year}`}

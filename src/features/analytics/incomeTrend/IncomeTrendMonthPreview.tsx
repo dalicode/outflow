@@ -86,7 +86,10 @@ const IncomeTrendMonthPreview = forwardRef<HTMLDivElement, IncomeTrendMonthPrevi
         </div>
 
         <div className="grid grid-cols-2 gap-3 px-4 pb-3 sm:grid-cols-4 sm:px-5">
-          <StatChip label="Income" value={<PrivateValue>{formatAmount(row.income)}</PrivateValue>} />
+          <StatChip
+            label="Income"
+            value={<PrivateValue>{formatAmount(row.income)}</PrivateValue>}
+          />
           <StatChip
             label="Expenses"
             value={<PrivateValue>{formatAmount(row.expenses)}</PrivateValue>}

@@ -228,12 +228,7 @@ const SignInIcon = () => (
       stroke="var(--theme-primary)"
       strokeWidth="1.75"
     />
-    <path
-      d="M12 12h8"
-      stroke="var(--theme-primary)"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-    />
+    <path d="M12 12h8" stroke="var(--theme-primary)" strokeWidth="1.75" strokeLinecap="round" />
     <path
       d="m17 7 5 5-5 5"
       stroke="var(--theme-primary)"
