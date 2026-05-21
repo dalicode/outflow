@@ -99,7 +99,7 @@ describe('Navbar', () => {
     fireEvent.click(within(sidebar).getByTitle('Expand'))
 
     expect(within(sidebar).getByLabelText('Cloud synced')).toBeInTheDocument()
-    expect(within(sidebar).getByText('All devices up to date')).toBeInTheDocument()
+    expect(within(sidebar).getByText('Cloud synced')).toBeInTheDocument()
   })
 
   it('calls onSignOut when sign out clicked', () => {
