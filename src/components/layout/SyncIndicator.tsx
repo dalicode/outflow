@@ -143,15 +143,6 @@ export default function SyncIndicator({
           <p className="text-[0.6875rem] font-semibold leading-none text-theme-text">
             {LABEL_MAP[syncStatus]}
           </p>
-          <p className="mt-1 text-[0.625rem] leading-none text-theme-muted">
-            {syncStatus === 'idle'
-              ? 'All devices up to date'
-              : syncStatus === 'syncing'
-                ? 'Checking cloud changes'
-                : syncStatus === 'error'
-                  ? 'Retrying shortly'
-                  : 'Local changes stay on this device'}
-          </p>
         </div>
       )}
     </div>

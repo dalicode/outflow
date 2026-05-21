@@ -1,5 +1,19 @@
 import type { ThemeConfig } from '../types'
 
+function hexToRgbChannels(hex: string): string {
+  const normalized = hex.trim().replace('#', '')
+  if (normalized.length !== 6) {
+    return '0 0 0'
+  }
+  const r = parseInt(normalized.slice(0, 2), 16)
+  const g = parseInt(normalized.slice(2, 4), 16)
+  const b = parseInt(normalized.slice(4, 6), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
+    return '0 0 0'
+  }
+  return `${r} ${g} ${b}`
+}
+
 export const THEMES: Record<string, ThemeConfig> = {
   default: {
     name: 'Sharp Professional',
@@ -183,15 +197,25 @@ export function getCSSVariables(theme: ThemeConfig): Record<string, string> {
   const vars: Record<string, string> = {}
   const entries: [string, string][] = [
     ['--theme-background', theme.colors.background],
+    ['--theme-background-rgb', hexToRgbChannels(theme.colors.background)],
     ['--theme-surface', theme.colors.surface],
+    ['--theme-surface-rgb', hexToRgbChannels(theme.colors.surface)],
     ['--theme-primary', theme.colors.primary],
+    ['--theme-primary-rgb', hexToRgbChannels(theme.colors.primary)],
     ['--theme-secondary', theme.colors.secondary],
+    ['--theme-secondary-rgb', hexToRgbChannels(theme.colors.secondary)],
     ['--theme-warning', theme.colors.warning],
+    ['--theme-warning-rgb', hexToRgbChannels(theme.colors.warning)],
     ['--theme-text', theme.colors.text],
+    ['--theme-text-rgb', hexToRgbChannels(theme.colors.text)],
     ['--theme-muted', theme.colors.muted],
+    ['--theme-muted-rgb', hexToRgbChannels(theme.colors.muted)],
     ['--theme-border', theme.colors.border],
+    ['--theme-border-rgb', hexToRgbChannels(theme.colors.border)],
     ['--theme-danger', theme.colors.danger],
+    ['--theme-danger-rgb', hexToRgbChannels(theme.colors.danger)],
     ['--theme-success', theme.colors.success],
+    ['--theme-success-rgb', hexToRgbChannels(theme.colors.success)],
     ['--radius-small', theme.borderRadius.small],
     ['--radius-medium', theme.borderRadius.medium],
     ['--radius-large', theme.borderRadius.large],

@@ -105,6 +105,14 @@ describe('getCSSVariables', () => {
     expect(vars['--theme-border']).toBe('#cbd5e1')
     expect(vars['--theme-danger']).toBe('#b91c1c')
     expect(vars['--theme-success']).toBe('#15803d')
+    expect(vars['--theme-primary-rgb']).toBe('51 65 85')
+    expect(vars['--theme-background-rgb']).toBe('241 245 249')
+  })
+
+  it('generates RGB channel variables for dark themes', () => {
+    const vars = getCSSVariables(THEMES.sharpProfessionalDark)
+    expect(vars['--theme-background-rgb']).toBe('15 23 42')
+    expect(vars['--theme-text-rgb']).toBe('241 245 249')
   })
 
   it('generates radius variables', () => {

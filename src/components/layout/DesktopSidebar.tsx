@@ -53,9 +53,10 @@ export default function DesktopSidebar({
   )
 
   const sidebarWidth = collapsed ? 'w-14' : 'w-44'
-  const footerItemClass = collapsed
-    ? 'min-h-10 justify-center px-2'
-    : 'min-h-[3.25rem] gap-3 px-3 mx-2'
+  const sidebarItemClass = collapsed
+    ? 'w-full justify-center py-2.5 px-2'
+    : 'w-[calc(100%-1rem)] gap-3 py-2.5 px-3 mx-2'
+  const navButtonToneClass = 'text-theme-muted hover:text-theme-text hover:bg-theme-background'
   const labelClass = cn(
     'transition-opacity duration-200',
     labelsVisible ? 'opacity-100' : 'opacity-0',
@@ -176,7 +177,7 @@ export default function DesktopSidebar({
       </nav>
 
       {/* Actions Footer */}
-      <div className="pb-4 space-y-1">
+      <div className="pb-4 px-2 space-y-1">
         {/* Add expense */}
         <button
           onClick={(e) => {
@@ -185,8 +186,9 @@ export default function DesktopSidebar({
           }}
           data-testid="btn-add-expense"
           className={cn(
-            'w-full flex items-center rounded-theme-medium text-theme-primary nav-item-hover hover:bg-theme-primary-subtle active:scale-95',
-            footerItemClass,
+            'flex items-center rounded-theme-medium nav-item-hover',
+            navButtonToneClass,
+            sidebarItemClass,
           )}
           aria-label="Add expense"
         >
@@ -199,8 +201,8 @@ export default function DesktopSidebar({
         {onSignOut && (
           <div
             className={cn(
-              'w-full flex items-center rounded-theme-medium text-theme-muted',
-              footerItemClass,
+              'flex items-center rounded-theme-medium text-theme-muted',
+              sidebarItemClass,
             )}
           >
             <SyncIndicator syncStatus={syncStatus} compact={collapsed} showLabel={labelsVisible} />
@@ -214,21 +216,15 @@ export default function DesktopSidebar({
               onSignOut()
             }}
             className={cn(
-              'w-full flex items-center rounded-theme-medium nav-item-hover text-theme-muted hover:text-theme-danger hover:bg-theme-danger-subtle',
-              footerItemClass,
+              'flex items-center rounded-theme-medium nav-item-hover',
+              navButtonToneClass,
+              sidebarItemClass,
             )}
             title={userEmail}
           >
             <SignOutIcon />
             {!collapsed && (
-              <div className={cn('text-left overflow-hidden', labelClass)}>
-                <span className="text-sm font-medium block truncate">Sign out</span>
-                {userEmail && (
-                  <span className="text-[0.6875rem] text-theme-muted block truncate">
-                    {userEmail}
-                  </span>
-                )}
-              </div>
+              <span className={cn('text-sm font-medium truncate', labelClass)}>Sign out</span>
             )}
           </button>
         ) : showSignIn && onSignIn ? (
@@ -238,8 +234,9 @@ export default function DesktopSidebar({
               onSignIn()
             }}
             className={cn(
-              'w-full flex items-center rounded-theme-medium nav-item-hover text-theme-primary hover:bg-theme-primary-subtle',
-              footerItemClass,
+              'flex items-center rounded-theme-medium nav-item-hover',
+              navButtonToneClass,
+              sidebarItemClass,
             )}
             title="Sign in to sync data across devices"
           >
