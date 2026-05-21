@@ -18,6 +18,7 @@ import PayeesPage from './features/payees/PayeesPage'
 import SettingsPage from './features/settings/SettingsPage'
 import SummaryPage from './features/summary/SummaryPage'
 import { useAppRefresh } from './hooks/useAppRefresh'
+import { usePassiveResumeToast } from './hooks/usePassiveResumeToast'
 import { useAppSessionState } from './hooks/useAppSessionState'
 import { useCategories, useExpenses, usePayees } from './hooks/useLocalData'
 import { useOptimisticExpenseDelete } from './hooks/useOptimisticExpenseDelete'
@@ -26,6 +27,7 @@ import { StorageService } from './services/storageService'
 import { supabase } from './services/supabase'
 import type { Expense } from './types'
 import { cn } from './utils/cn'
+import { DEFAULT_PASSIVE_RESUME_THRESHOLD_MS } from './utils/visibilityResume'
 
 const AuthPage = lazy(() => import('./features/auth/AuthPage'))
 const ExpenseForm = lazy(() => import('./features/expenses/ExpenseForm'))
@@ -154,6 +156,7 @@ function AppShell() {
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false)
   const lastWelcomedSignInRef = useRef<number | null>(null)
   const { snapshotsReady, announceAppliedScheduleUpdates } = useStartupSnapshots({ showToast })
+  const isReady = !loading && settingsLoaded && snapshotsReady
 
   useEffect(() => {
     if (!user || lastSignInAt === null) return
@@ -166,6 +169,18 @@ function AppShell() {
       durationMs: 3500,
     })
   }, [lastSignInAt, showToast, user])
+
+  usePassiveResumeToast({
+    enabled: Boolean(user) && isReady,
+    minHiddenDurationMs: DEFAULT_PASSIVE_RESUME_THRESHOLD_MS,
+    onPassiveResume: () => {
+      showToast({
+        message: 'Welcome back.',
+        tone: 'success',
+        durationMs: 2500,
+      })
+    },
+  })
 
   // Ref that Dashboard registers its cycleView fn into, so Navbar can call it
   const cycleDashboardViewRef = useRef<(() => void) | null>(null)
@@ -273,8 +288,6 @@ function AppShell() {
   useEffect(() => {
     if (user) setShowAuthModal(false)
   }, [user])
-
-  const isReady = !loading && settingsLoaded && snapshotsReady
 
   return (
     <BrowserRouter>

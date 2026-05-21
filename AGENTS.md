@@ -22,6 +22,13 @@ npx vitest run   # must pass before finishing
 npm run dev      # localhost:5173
 ```
 
+## Delegation Preference
+
+When the user explicitly says `IMPLEMENT PLAN` or otherwise clearly asks to implement an already-written plan, treat that as an explicit delegation request:
+- Use the `codebase-cleanup-delegator` skill
+- Delegate implementation to a `gpt-5.3-codex` worker first unless the user asks for a different model
+- Keep the main thread responsible for review, preserving unrelated worktree changes, and running required verification before reporting completion
+
 ## Architecture Decisions
 
 ### Financial Data Flow

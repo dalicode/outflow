@@ -52,11 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [recoveryReport, setRecoveryReport] = useState<RecoveryReport | null>(null)
   const [authEvent, setAuthEvent] = useState<string | null>(null)
   const authEventRef = useRef<string | null>(null)
+  const currentUserRef = useRef<User | null>(null)
   const lastStartupSyncUserRef = useRef<string | null>(null)
 
   useEffect(() => {
     authEventRef.current = authEvent
   }, [authEvent])
+
+  useEffect(() => {
+    currentUserRef.current = user
+  }, [user])
 
   const runRecoveryCheck = useCallback(async () => {
     const report = await runRecoveryDiagnostics(user?.id)
@@ -148,13 +153,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabaseClient.auth.onAuthStateChange((event, session) => {
       // Keep this callback synchronous — no awaits, no supabase calls
+      const previousUser = currentUserRef.current
       const nextUser = session?.user ?? null
+      currentUserRef.current = nextUser
       if (!nextUser) lastStartupSyncUserRef.current = null
       setUser(nextUser)
       setLoading(false)
       setAuthEvent(event)
       if (event === 'SIGNED_IN' && nextUser) {
-        setLastSignInAt(Date.now())
+        const isExplicitSignIn = !previousUser || previousUser.id !== nextUser.id
+        if (isExplicitSignIn) {
+          setLastSignInAt(Date.now())
+        }
       }
       debugLog('[auth] state change', event, Boolean(session))
     })

@@ -246,7 +246,7 @@ function ToastViewport({
       className={cn(
         'pointer-events-none fixed z-[80] flex justify-center px-3',
         isMobile
-          ? 'inset-x-0 top-[env(safe-area-inset-top)] pt-1'
+          ? 'inset-x-0 top-[calc(env(safe-area-inset-top)+0.5rem)] pt-1'
           : 'top-4 right-4 justify-end sm:justify-end sm:px-6',
       )}
     >
