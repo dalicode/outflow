@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import OfflineStatusBadge from './components/pwa/OfflineStatusBadge'
@@ -17,16 +17,15 @@ import Dashboard from './features/dashboard/Dashboard'
 import PayeesPage from './features/payees/PayeesPage'
 import SettingsPage from './features/settings/SettingsPage'
 import SummaryPage from './features/summary/SummaryPage'
-import { DASHBOARD_VIEWS } from './features/dashboard/constants'
-import type { AnalyticsSessionState } from './features/analytics/hooks/useAnalytics'
-import type { DashboardSessionState } from './features/dashboard/hooks/useDashboard'
+import { useAppRefresh } from './hooks/useAppRefresh'
+import { useAppSessionState } from './hooks/useAppSessionState'
 import { useCategories, useExpenses, usePayees } from './hooks/useLocalData'
+import { useOptimisticExpenseDelete } from './hooks/useOptimisticExpenseDelete'
+import { useStartupSnapshots } from './hooks/useStartupSnapshots'
 import { StorageService } from './services/storageService'
 import { supabase } from './services/supabase'
 import type { Expense } from './types'
 import { cn } from './utils/cn'
-import { summarizeScheduleMaterializationNotices } from './utils/scheduleNotificationUtils'
-import { parseTrendDrilldownParam, parseTrendMonthParam, parseYearParam } from './utils/urlParams'
 
 const AuthPage = lazy(() => import('./features/auth/AuthPage'))
 const ExpenseForm = lazy(() => import('./features/expenses/ExpenseForm'))
@@ -153,10 +152,8 @@ function AppShell() {
   } = useScrollDirection()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false)
-  const [snapshotsReady, setSnapshotsReady] = useState(false)
-  const [pendingExpenseDeleteIds, setPendingExpenseDeleteIds] = useState<number[]>([])
-  const pendingExpenseDeleteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
   const lastWelcomedSignInRef = useRef<number | null>(null)
+  const { snapshotsReady, announceAppliedScheduleUpdates } = useStartupSnapshots({ showToast })
 
   useEffect(() => {
     if (!user || lastSignInAt === null) return
@@ -170,118 +167,15 @@ function AppShell() {
     })
   }, [lastSignInAt, showToast, user])
 
-  const announceAppliedScheduleUpdates = useCallback(
-    (notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>) => {
-      if (!notices || notices.length === 0) return
-      showToast({
-        message: summarizeScheduleMaterializationNotices(notices),
-        tone: 'success',
-        durationMs: 6500,
-      })
-    },
-    [showToast],
-  )
-
   // Ref that Dashboard registers its cycleView fn into, so Navbar can call it
   const cycleDashboardViewRef = useRef<(() => void) | null>(null)
 
-  // Session state — persists across route changes within the same app session
-  const now = new Date()
-  const [dashboardSession, setDashboardSession] = useState<DashboardSessionState>({
-    selectedYear: now.getFullYear(),
-    selectedMonth: now.getMonth(),
-    monthSpan: 1,
-    showGrandTotal: false,
-    viewMode: DASHBOARD_VIEWS.CATEGORIES,
-    filters: {
-      filterGlobal: '',
-      filterDateFrom: '',
-      filterDateTo: '',
-      filterDescription: '',
-      filterAmount: '',
-      selectedCategories: [],
-      selectedPayees: [],
-    },
-  })
-  const [analyticsSession, setAnalyticsSession] = useState<AnalyticsSessionState>(() => {
-    const params = new URLSearchParams(window.location.search)
-    const year = parseYearParam(params.get('year'), now.getFullYear())
-    const trendMonthParsed = parseTrendMonthParam(params.get('trendMonth'))
-    const trendKey =
-      trendMonthParsed && trendMonthParsed.year === year ? params.get('trendMonth') : null
-    const trendDrilldown =
-      trendKey !== null && parseTrendDrilldownParam(params.get('trendDrilldown'))
-    return {
-      year,
-      trendKey,
-      trendDrilldown,
-    }
-  })
-
-  const handleDashboardSessionChange = useCallback((patch: Partial<DashboardSessionState>) => {
-    setDashboardSession((prev) => ({ ...prev, ...patch }))
-  }, [])
-
-  const handleAnalyticsSessionChange = useCallback(
-    (patch: Partial<AnalyticsSessionState>) => {
-      setAnalyticsSession((prev) => {
-        const next = { ...prev, ...patch }
-
-        const params = new URLSearchParams(window.location.search)
-
-        if (next.year !== now.getFullYear()) {
-          params.set('year', String(next.year))
-        } else {
-          params.delete('year')
-        }
-
-        if (next.trendKey !== null) {
-          params.set('trendMonth', next.trendKey)
-        } else {
-          params.delete('trendMonth')
-          params.delete('trendDrilldown')
-        }
-
-        if (next.trendDrilldown && next.trendKey !== null) {
-          params.set('trendDrilldown', '1')
-        } else {
-          params.delete('trendDrilldown')
-        }
-
-        const newSearch = params.toString()
-        const newUrl = newSearch
-          ? `${window.location.pathname}?${newSearch}`
-          : window.location.pathname
-
-        const isDrilldownEntry = next.trendDrilldown && !prev.trendDrilldown
-        if (isDrilldownEntry) {
-          history.pushState(null, '', newUrl)
-        } else {
-          history.replaceState(null, '', newUrl)
-        }
-
-        return next
-      })
-    },
-    [now],
-  )
-
-  useEffect(() => {
-    const handlePop = () => {
-      const params = new URLSearchParams(window.location.search)
-      const trendDrilldown = parseTrendDrilldownParam(params.get('trendDrilldown'))
-
-      if (!trendDrilldown && analyticsSession.trendDrilldown) {
-        setAnalyticsSession((prev) => ({
-          ...prev,
-          trendDrilldown: false,
-        }))
-      }
-    }
-
-    window.addEventListener('popstate', handlePop)
-    return () => window.removeEventListener('popstate', handlePop)
-  }, [analyticsSession.trendDrilldown])
+  const {
+    dashboardSession,
+    analyticsSession,
+    handleDashboardSessionChange,
+    handleAnalyticsSessionChange,
+  } = useAppSessionState()
 
   const handlePageScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -291,82 +185,17 @@ function AppShell() {
     [handleScroll, handleScrollDirection],
   )
 
-  // Refresh all local data after every sync so the UI reflects cloud changes
-  // without requiring a manual page reload.
-  useEffect(() => {
-    if (syncCount === 0) return
-    refreshExpenses()
-    refreshCategories()
-    refreshPayees()
-    loadSettings()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncCount, refreshPayees, refreshExpenses, refreshCategories, loadSettings])
-
-  useEffect(() => {
-    const init = async () => {
-      const hasVisited = localStorage.getItem('outflow:hasVisited') === 'true'
-      const fakeDelay = (window as unknown as { outflowTestApi?: unknown }).outflowTestApi
-        ? 0
-        : hasVisited
-          ? 0 // returning user: no delay needed
-          : 800 // first visit: brief animation
-      const startTime = Date.now()
-
-      const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(
-        console.error,
-      )
-      await StorageService.rolloverSnapshots?.().catch(console.error)
-
-      const remaining = Math.max(0, fakeDelay - (Date.now() - startTime))
-      if (remaining > 0) {
-        await new Promise((r) => setTimeout(r, remaining))
-      }
-
-      setSnapshotsReady(true)
-      announceAppliedScheduleUpdates(appliedNotices ?? [])
-      if (!hasVisited) {
-        localStorage.setItem('outflow:hasVisited', 'true')
-      }
-    }
-    init()
-  }, [announceAppliedScheduleUpdates])
-
-  const handlePullRefresh = useCallback(async () => {
-    try {
-      const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(
-        console.error,
-      )
-      await StorageService.rolloverSnapshots?.().catch(console.error)
-      await Promise.all([refreshExpenses(), refreshCategories(), refreshPayees()])
-
-      announceAppliedScheduleUpdates(appliedNotices ?? [])
-
-      if (navigator.onLine && supabase && user) {
-        await syncNow()
-      }
-
-      showToast({
-        message: 'Updated',
-        tone: 'success',
-        durationMs: 2500,
-      })
-    } catch (error) {
-      console.error('Pull refresh failed:', error)
-      showToast({
-        message: "Refresh didn't finish. Try again in a moment.",
-        tone: 'warning',
-        durationMs: 4000,
-      })
-    }
-  }, [
-    refreshCategories,
+  const { handlePullRefresh } = useAppRefresh({
+    syncCount,
     refreshExpenses,
+    refreshCategories,
     refreshPayees,
+    loadSettings,
     announceAppliedScheduleUpdates,
     showToast,
     syncNow,
     user,
-  ])
+  })
 
   const handleCategoriesChange = async (
     action: 'add' | 'update' | 'delete' | 'merge',
@@ -433,131 +262,13 @@ function AppShell() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    const expense = expenses.find((item) => item.id === id)
-    if (!expense) return
-    const removedIndex = expenses.findIndex((item) => item.id === id)
-
-    const timer = setTimeout(async () => {
-      try {
-        await StorageService.remove(id)
-        triggerSync?.()
-        await refreshExpenses()
-      } finally {
-        pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
-          (item) => item !== timer,
-        )
-        setPendingExpenseDeleteIds((current) => current.filter((pendingId) => pendingId !== id))
-      }
-    }, 2000)
-
-    pendingExpenseDeleteTimersRef.current.push(timer)
-    setPendingExpenseDeleteIds((current) => [...new Set([...current, id])])
-    setExpenses((prev) => prev.filter((item) => item.id !== id))
-    showUndoToast(`Deleted ${expense.description?.trim() || 'expense'}.`, async () => {
-      clearTimeout(timer)
-      pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
-        (item) => item !== timer,
-      )
-
-      // Remove from pending delete set, and detect if timer already fired
-      let timerFired = false
-      setPendingExpenseDeleteIds((current) => {
-        timerFired = !current.includes(id)
-        return current.filter((pendingId) => pendingId !== id)
-      })
-
-      if (timerFired) {
-        // Timer already fired — expense was deleted from DB and synced.
-        // Re-create it locally and push the re-creation to the cloud.
-        await StorageService.add(expense)
-        triggerSync?.()
-      }
-      setExpenses((prev) => {
-        if (prev.some((item) => item.id === id)) return prev
-        const restored = [...prev]
-        restored.splice(Math.min(removedIndex, restored.length), 0, expense)
-        return restored
-      })
-    })
-  }
-
-  const handleBulkDelete = async (ids: number[]) => {
-    const selected = expenses.filter((expense) => ids.includes(expense.id as number))
-    if (selected.length === 0) return
-
-    const selectedIdSet = new Set(ids)
-    const positions = selected.map((expense) => ({
-      expense,
-      index: expenses.findIndex((item) => item.id === expense.id),
-    }))
-
-    const timer = setTimeout(async () => {
-      try {
-        await StorageService.removeMany(ids)
-        triggerSync?.()
-        await refreshExpenses()
-      } finally {
-        pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
-          (item) => item !== timer,
-        )
-        setPendingExpenseDeleteIds((current) =>
-          current.filter((pendingId) => !selectedIdSet.has(pendingId)),
-        )
-      }
-    }, 2000)
-
-    pendingExpenseDeleteTimersRef.current.push(timer)
-    setPendingExpenseDeleteIds((current) => [...new Set([...current, ...ids])])
-    setExpenses((prev) => prev.filter((expense) => !selectedIdSet.has(expense.id as number)))
-    showUndoToast(`Deleted ${selected.length} expenses.`, async () => {
-      clearTimeout(timer)
-      pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
-        (item) => item !== timer,
-      )
-
-      let timerFired = false
-      setPendingExpenseDeleteIds((current) => {
-        timerFired = !ids.some((id) => current.includes(id))
-        return current.filter((pendingId) => !selectedIdSet.has(pendingId))
-      })
-
-      if (timerFired) {
-        // Timer already fired — expenses were deleted from DB and synced.
-        // Re-create them locally and push the re-creation to the cloud.
-        for (const expense of selected) {
-          await StorageService.add(expense)
-        }
-        triggerSync?.()
-      }
-      setExpenses((prev) => {
-        const restored = [...prev]
-        positions
-          .slice()
-          .sort((a, b) => a.index - b.index)
-          .forEach(({ expense, index }) => {
-            if (restored.some((item) => item.id === expense.id)) return
-            restored.splice(Math.min(index, restored.length), 0, expense)
-          })
-        return restored
-      })
-    })
-  }
-
-  useEffect(
-    () => () => {
-      pendingExpenseDeleteTimersRef.current.forEach((timer) => {
-        clearTimeout(timer)
-      })
-      pendingExpenseDeleteTimersRef.current = []
-    },
-    [],
-  )
-
-  const visibleExpenses = useMemo(
-    () => expenses.filter((expense) => !pendingExpenseDeleteIds.includes(expense.id as number)),
-    [expenses, pendingExpenseDeleteIds],
-  )
+  const { visibleExpenses, handleDelete, handleBulkDelete } = useOptimisticExpenseDelete({
+    expenses,
+    setExpenses,
+    refreshExpenses,
+    triggerSync,
+    showUndoToast,
+  })
 
   useEffect(() => {
     if (user) setShowAuthModal(false)
