@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import IncomeTrendYearChart from '../features/analytics/incomeTrend/IncomeTrendYearChart'
 import type { ThemeColors } from '../features/analytics/AnalyticsCharts'
@@ -19,12 +19,26 @@ vi.mock('recharts', async () => {
     ComposedChart: ({
       children,
       data,
+      onClick,
     }: {
       children: ReactNode
       data: Array<Record<string, string | number | null>>
+      onClick?: (state: { activePayload?: Array<{ payload: Record<string, string | number | null> }> }) => void
     }) => {
       activeChartData = data
-      return <div data-testid="composed-chart">{children}</div>
+      return (
+        <div data-testid="composed-chart">
+          {data.map((row) => (
+            <button
+              key={String(row.monthKey ?? row.month)}
+              type="button"
+              data-testid={`chart-click-${String(row.monthKey)}`}
+              onClick={() => onClick?.({ activePayload: [{ payload: row }] })}
+            />
+          ))}
+          {children}
+        </div>
+      )
     },
     Customized: () => null,
     Legend: ({ payload }: { payload?: Array<{ value: string }> }) => (
@@ -42,8 +56,8 @@ vi.mock('recharts', async () => {
     Tooltip: () => <div data-testid="tooltip" />,
     XAxis: ({ dataKey }: { dataKey: string }) => (
       <div className="recharts-xAxis">
-        {activeChartData.map((row) => (
-          <span key={String(row[dataKey])} className="recharts-cartesian-axis-tick-value">
+        {activeChartData.map((row, index) => (
+          <span key={`${String(row[dataKey])}-${index}`} className="recharts-cartesian-axis-tick-value">
             {String(row[dataKey] ?? '')}
           </span>
         ))}
@@ -225,5 +239,53 @@ describe('IncomeTrendYearChart', () => {
     expect(container.querySelector('[data-brush-overview]')).not.toBeInTheDocument()
     expect(screen.queryByText('Saved (this year)')).not.toBeInTheDocument()
     expect(screen.queryByText('Saved (2025)')).not.toBeInTheDocument()
+  })
+
+  it('uses full monthKey for chart click selection and toggle, including past-year keys', () => {
+    const onSelectMonth = vi.fn()
+    const pastYearRows: YearTrendRow[] = [
+      {
+        ...rows[0],
+        monthIndex: 4,
+        monthKey: '2024-05',
+        monthLabel: 'May',
+      },
+      {
+        ...rows[1],
+        monthIndex: 4,
+        monthKey: '2026-05',
+        monthLabel: 'May',
+      },
+    ]
+
+    const { rerender } = render(
+      <IncomeTrendYearChart
+        rows={pastYearRows}
+        priorRows={null}
+        selectedMonth={null}
+        onSelectMonth={onSelectMonth}
+        colors={colors}
+        formatAmount={(n) => `$${n.toFixed(2)}`}
+        selectedYear={2026}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('chart-click-2024-05'))
+    expect(onSelectMonth).toHaveBeenLastCalledWith('2024-05')
+
+    rerender(
+      <IncomeTrendYearChart
+        rows={pastYearRows}
+        priorRows={null}
+        selectedMonth="2024-05"
+        onSelectMonth={onSelectMonth}
+        colors={colors}
+        formatAmount={(n) => `$${n.toFixed(2)}`}
+        selectedYear={2026}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('chart-click-2024-05'))
+    expect(onSelectMonth).toHaveBeenLastCalledWith(null)
   })
 })

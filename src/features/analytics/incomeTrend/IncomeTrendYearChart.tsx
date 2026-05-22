@@ -349,23 +349,11 @@ export default function IncomeTrendYearChart({
     return items
   }, [hasPriorData, priorYear, colors.primary, priorLineColor])
 
-  const dotSelectedMonth = useMemo(() => {
-    if (!selectedMonth) return null
-    return parseInt(selectedMonth.split('-')[1], 10) - 1
-  }, [selectedMonth])
-
   const handleDotSelect = useCallback(
-    (monthIndex: number | null) => {
-      if (monthIndex == null) {
-        onSelectMonth(null)
-        return
-      }
-      const dotRow = chartData.find((d) => d.monthIndex === monthIndex)
-      if (dotRow?.monthKey) {
-        onSelectMonth(dotRow.monthKey)
-      }
+    (monthKey: string | null) => {
+      onSelectMonth(monthKey)
     },
-    [onSelectMonth, chartData],
+    [onSelectMonth],
   )
 
   const handleChartClick = useCallback(
@@ -579,8 +567,8 @@ export default function IncomeTrendYearChart({
               <ColoredCumulativeLine
                 {...(props as ColoredCumulativeLineProps)}
                 colors={colors}
-                selectedMonth={dotSelectedMonth}
-                onSelectMonth={handleDotSelect}
+                selectedMonthKey={selectedMonth}
+                onSelectMonthKey={handleDotSelect}
               />
             )}
           />
