@@ -64,7 +64,17 @@ export async function getAllFixedExpenseSnapshots(): Promise<FixedExpenseSnapsho
 }
 
 export function bulkUpsertSnapshots(rows: FixedExpenseSnapshot[]): Promise<number> {
-  return db.fixedExpenseSnapshots.bulkPut(rows)
+  return db.transaction('rw', db.fixedExpenseSnapshots, async () => {
+    const upsertRows: FixedExpenseSnapshot[] = []
+    for (const row of rows) {
+      const existing = await db.fixedExpenseSnapshots
+        .where('[fixedExpenseId+year+month]')
+        .equals([row.fixedExpenseId, row.year, row.month])
+        .first()
+      upsertRows.push(existing ? { ...row, id: existing.id } : row)
+    }
+    return db.fixedExpenseSnapshots.bulkPut(upsertRows)
+  })
 }
 
 export function deleteSnapshotsForYear(year: number): Promise<number> {

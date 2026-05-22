@@ -18,7 +18,17 @@ export async function getAllIncomeSnapshots(): Promise<IncomeSnapshot[]> {
 }
 
 export function bulkUpsertIncomeSnapshots(rows: IncomeSnapshot[]): Promise<number> {
-  return db.incomeSnapshots.bulkPut(rows)
+  return db.transaction('rw', db.incomeSnapshots, async () => {
+    const upsertRows: IncomeSnapshot[] = []
+    for (const row of rows) {
+      const existing = await db.incomeSnapshots
+        .where('[year+month]')
+        .equals([row.year, row.month])
+        .first()
+      upsertRows.push(existing ? { ...row, id: existing.id } : row)
+    }
+    return db.incomeSnapshots.bulkPut(upsertRows)
+  })
 }
 
 export function deleteIncomeSnapshotsForYear(year: number): Promise<number> {
@@ -41,7 +51,17 @@ export async function getAllSavingsSnapshots(): Promise<SavingsSnapshot[]> {
 }
 
 export function bulkUpsertSavingsSnapshots(rows: SavingsSnapshot[]): Promise<number> {
-  return db.savingsSnapshots.bulkPut(rows)
+  return db.transaction('rw', db.savingsSnapshots, async () => {
+    const upsertRows: SavingsSnapshot[] = []
+    for (const row of rows) {
+      const existing = await db.savingsSnapshots
+        .where('[year+month]')
+        .equals([row.year, row.month])
+        .first()
+      upsertRows.push(existing ? { ...row, id: existing.id } : row)
+    }
+    return db.savingsSnapshots.bulkPut(upsertRows)
+  })
 }
 
 export function deleteSavingsSnapshotsForYear(year: number): Promise<number> {

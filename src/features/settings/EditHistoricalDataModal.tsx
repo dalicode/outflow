@@ -523,12 +523,115 @@ function PreviewTable({ yearConfig, variableTotals, formatAmount }: PreviewTable
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
+type HistoricalStorage = Pick<
+  typeof StorageService,
+  | 'bulkUpsertIncomeSnapshots'
+  | 'bulkUpsertSavingsSnapshots'
+  | 'bulkUpsertSnapshots'
+  | 'deleteIncomeSnapshotsForYear'
+  | 'deleteSavingsSnapshotsForYear'
+  | 'deleteSnapshotsForYear'
+  | 'addArchivedFixedExpense'
+>
+
+interface SaveHistoricalDataConfigsParams {
+  storage: HistoricalStorage
+  dirtyYears: Set<number>
+  yearConfigs: Record<number, YearConfig>
+  saveMode: 'merge' | 'replace'
+}
+
+export async function saveHistoricalDataConfigs({
+  storage,
+  dirtyYears,
+  yearConfigs,
+  saveMode,
+}: SaveHistoricalDataConfigsParams): Promise<void> {
+  for (const year of dirtyYears) {
+    const config = yearConfigs[year]
+    if (!config) continue
+
+    const hasData =
+      config.incomeRanges.length > 0 ||
+      config.savingsRanges.length > 0 ||
+      config.fixedItems.length > 0
+    if (!hasData) continue
+
+    const incomeMap = flattenRangesToMonthMap(config.incomeRanges)
+    const savingsMap = flattenRangesToMonthMap(config.savingsRanges)
+    if (saveMode === 'replace') {
+      await storage.deleteIncomeSnapshotsForYear(year)
+      await storage.deleteSavingsSnapshotsForYear(year)
+    }
+
+    const incomeSnapshots = Object.entries(incomeMap).map(([month, amount]) => ({
+      year,
+      month: parseInt(month, 10),
+      amountSnapshot: amount as number,
+    }))
+    const savingsSnapshots = Object.entries(savingsMap).map(([month, rate]) => ({
+      year,
+      month: parseInt(month, 10),
+      rateSnapshot: rate as number,
+    }))
+    if (incomeSnapshots.length > 0) {
+      await storage.bulkUpsertIncomeSnapshots(incomeSnapshots)
+    }
+    if (savingsSnapshots.length > 0) {
+      await storage.bulkUpsertSavingsSnapshots(savingsSnapshots)
+    }
+
+    const validFixedItems = config.fixedItems.filter(
+      (i) =>
+        i.name.trim() &&
+        !Number.isNaN(parseFloat(String(i.amount))) &&
+        parseFloat(String(i.amount)) !== 0,
+    )
+
+    if (saveMode === 'replace') {
+      await storage.deleteSnapshotsForYear(year)
+    }
+
+    if (validFixedItems.length === 0) {
+      continue
+    }
+
+    const newSnapshots: FixedExpenseSnapshot[] = []
+    for (const item of validFixedItems) {
+      const fixedAmount = parseFloat(String(item.amount))
+      const fixedName = item.name.trim()
+      const existingId = item.existingFixedExpenseId
+      const fixedExpenseId =
+        existingId ??
+        (await storage.addArchivedFixedExpense({
+          name: fixedName,
+          amount: fixedAmount,
+        }))
+      const sm = clamp(parseInt(String(item.startMonth), 10) || 1, 1, 12)
+      const em = clamp(parseInt(String(item.endMonth), 10) || 12, 1, 12)
+      for (let m = sm; m <= em; m++) {
+        newSnapshots.push({
+          fixedExpenseId,
+          year,
+          month: m,
+          amountSnapshot: fixedAmount,
+          nameSnapshot: fixedName,
+        })
+      }
+    }
+
+    if (newSnapshots.length > 0) {
+      await storage.bulkUpsertSnapshots(newSnapshots)
+    }
+  }
+}
+
 interface EditHistoricalDataModalProps {
   isOpen: boolean
   onClose: () => void
   years: number[]
   expenses?: Expense[]
-  onComplete?: () => void
+  onComplete?: () => void | Promise<void>
   defaultIncome?: string
   defaultSavingsRate?: string
 }
@@ -931,119 +1034,13 @@ export default function EditHistoricalDataModal({
     if (!validate()) return
     setSaving(true)
     try {
-      const dexieDb = StorageService.db
-      let _totalSnapshots = 0
-
-      for (const year of dirtyYears) {
-        const config = yearConfigs[year]
-        if (!config) continue
-
-        const hasData =
-          config.incomeRanges.length > 0 ||
-          config.savingsRanges.length > 0 ||
-          config.fixedItems.length > 0
-        if (!hasData) continue
-
-        // 1. Income & Savings snapshots
-        const incomeMap = flattenRangesToMonthMap(config.incomeRanges)
-        const savingsMap = flattenRangesToMonthMap(config.savingsRanges)
-        if (saveMode === 'replace') {
-          await StorageService.deleteIncomeSnapshotsForYear(year)
-          await StorageService.deleteSavingsSnapshotsForYear(year)
-        }
-        const incomeSnapshots = Object.entries(incomeMap).map(([month, amount]) => ({
-          year,
-          month: parseInt(month, 10),
-          amountSnapshot: amount as number,
-        }))
-        const savingsSnapshots = Object.entries(savingsMap).map(([month, rate]) => ({
-          year,
-          month: parseInt(month, 10),
-          rateSnapshot: rate as number,
-        }))
-        if (incomeSnapshots.length > 0) {
-          await StorageService.bulkUpsertIncomeSnapshots(incomeSnapshots)
-        }
-        if (savingsSnapshots.length > 0) {
-          await StorageService.bulkUpsertSavingsSnapshots(savingsSnapshots)
-        }
-
-        // 4. Fixed expenses & snapshots
-        const validFixedItems = config.fixedItems.filter(
-          (i) =>
-            i.name.trim() &&
-            !Number.isNaN(parseFloat(String(i.amount))) &&
-            parseFloat(String(i.amount)) !== 0,
-        )
-        if (validFixedItems.length > 0) {
-          if (saveMode === 'replace') {
-            // Atomic: delete old snapshots then insert new ones
-            await dexieDb.transaction('rw', dexieDb.fixedExpenseSnapshots, async () => {
-              await StorageService.deleteSnapshotsForYear(year)
-              const newSnapshots: Array<{
-                fixedExpenseId: number
-                year: number
-                month: number
-                amountSnapshot: number
-                nameSnapshot: string
-              }> = []
-              for (const item of validFixedItems) {
-                const newId = await StorageService.addArchivedFixedExpense({
-                  name: item.name.trim(),
-                  amount: parseFloat(String(item.amount)),
-                })
-                const sm = clamp(parseInt(String(item.startMonth), 10) || 1, 1, 12)
-                const em = clamp(parseInt(String(item.endMonth), 10) || 12, 1, 12)
-                for (let m = sm; m <= em; m++) {
-                  newSnapshots.push({
-                    fixedExpenseId: newId,
-                    year,
-                    month: m,
-                    amountSnapshot: parseFloat(String(item.amount)),
-                    nameSnapshot: item.name.trim(),
-                  })
-                }
-              }
-              if (newSnapshots.length > 0) {
-                await StorageService.bulkUpsertSnapshots(newSnapshots)
-              }
-              _totalSnapshots += newSnapshots.length
-            })
-          } else {
-            // Merge: create new definitions + snapshots, leave old ones untouched
-            const newSnapshots: Array<{
-              fixedExpenseId: number
-              year: number
-              month: number
-              amountSnapshot: number
-              nameSnapshot: string
-            }> = []
-            for (const item of validFixedItems) {
-              const newId = await StorageService.addArchivedFixedExpense({
-                name: item.name.trim(),
-                amount: parseFloat(String(item.amount)),
-              })
-              const sm = clamp(parseInt(String(item.startMonth), 10) || 1, 1, 12)
-              const em = clamp(parseInt(String(item.endMonth), 10) || 12, 1, 12)
-              for (let m = sm; m <= em; m++) {
-                newSnapshots.push({
-                  fixedExpenseId: newId,
-                  year,
-                  month: m,
-                  amountSnapshot: parseFloat(String(item.amount)),
-                  nameSnapshot: item.name.trim(),
-                })
-              }
-            }
-            if (newSnapshots.length > 0) {
-              await StorageService.bulkUpsertSnapshots(newSnapshots)
-            }
-            _totalSnapshots += newSnapshots.length
-          }
-        }
-      }
-
-      onComplete?.()
+      await saveHistoricalDataConfigs({
+        storage: StorageService,
+        dirtyYears,
+        yearConfigs,
+        saveMode,
+      })
+      await onComplete?.()
       clearDraft()
       setYearConfigs({})
       setActiveYear(years.length > 0 ? years[0] : null)
