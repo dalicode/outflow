@@ -363,4 +363,65 @@ export async function getFirstExpenseId(page: Page): Promise<number> {
   return expenses[0]?.id ?? 0;
 }
 
+export async function setFakeSignedInUser(
+  page: Page,
+  userId: string,
+  email: string,
+): Promise<void> {
+  await page.evaluate(async ({ nextUserId, nextEmail }) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.setFakeSignedInUser(nextUserId, nextEmail);
+  }, { nextUserId: userId, nextEmail: email });
+}
+
+export async function resetFakeCloud(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.resetFakeCloud();
+  });
+}
+
+export async function seedFakeCloudExpenses(
+  page: Page,
+  userId: string,
+  entries: Array<Record<string, unknown>>,
+): Promise<void> {
+  await page.evaluate(async ({ nextUserId, nextEntries }) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.seedFakeCloudExpenses(nextUserId, nextEntries);
+  }, { nextUserId: userId, nextEntries: entries });
+}
+
+export async function inspectFakeCloudExpenses(
+  page: Page,
+  userId: string,
+): Promise<Array<Record<string, unknown>>> {
+  return page.evaluate(async (nextUserId) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.inspectFakeCloudExpenses(nextUserId);
+  }, userId);
+}
+
+export async function triggerManualSync(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.triggerManualSync();
+  });
+}
+
 export { expect };

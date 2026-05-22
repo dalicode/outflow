@@ -1,4 +1,5 @@
 import { StorageService } from '../services/storageService'
+import { fakeSupabase } from '../services/fakeSupabase'
 import type { Expense, Schedule } from '../types'
 
 declare global {
@@ -8,6 +9,16 @@ declare global {
 }
 
 export const testApi = {
+  syncHandlers: {
+    syncNow: null as null | (() => Promise<void>),
+    syncLocalThenPull: null as null | (() => Promise<void>),
+  },
+
+  setSyncHandlers: (handlers: { syncNow: () => Promise<void>; syncLocalThenPull: () => Promise<void> }) => {
+    testApi.syncHandlers.syncNow = handlers.syncNow
+    testApi.syncHandlers.syncLocalThenPull = handlers.syncLocalThenPull
+  },
+
   clearAllData: () => StorageService.clearAllData(),
 
   seedExpenses: async (
@@ -52,6 +63,31 @@ export const testApi = {
   deleteSchedule: (id: number) => StorageService.deleteSchedule(id),
 
   materializePendingSnapshots: () => StorageService.materializePendingSnapshots(),
+
+  setFakeSignedInUser: async (userId: string, email: string) => {
+    await fakeSupabase.auth.signInWithPassword({ email, password: 'test-password' })
+    fakeSupabase.auth.setSessionForTests(userId, email)
+  },
+
+  resetFakeCloud: async () => {
+    await fakeSupabase.resetFakeCloud()
+  },
+
+  seedFakeCloudExpenses: async (
+    userId: string,
+    entries: Array<Record<string, unknown>>,
+  ) => {
+    await fakeSupabase.seedFakeCloudExpenses(userId, entries)
+  },
+
+  inspectFakeCloudExpenses: async (userId: string) => fakeSupabase.inspectFakeCloudExpenses(userId),
+
+  triggerManualSync: async () => {
+    if (!testApi.syncHandlers.syncLocalThenPull) {
+      throw new Error('syncLocalThenPull handler is not installed')
+    }
+    await testApi.syncHandlers.syncLocalThenPull()
+  },
 }
 
 export function installTestApi(): void {

@@ -8,6 +8,7 @@ import LoadingOverlay from './components/ui/LoadingOverlay'
 import Modal from './components/ui/Modal'
 import PullToRefreshContainer from './components/ui/PullToRefreshContainer'
 import { installTestApi } from './test/testApi'
+import { testApi } from './test/testApi'
 import { ROUTES } from './constants/routes'
 import { useAuth } from './context/authContext'
 import { FinanceDataProvider, useFinanceActions } from './context/financeDataContext'
@@ -139,7 +140,21 @@ function AppShell() {
     }
   }, [])
 
-  const { user, loading, syncStatus, syncCount, syncNow, triggerSync, signOut } = useAuth()
+  const {
+    user,
+    loading,
+    syncStatus,
+    syncCount,
+    syncNow,
+    syncLocalThenPull,
+    syncLocalChanges,
+    signOut,
+  } = useAuth()
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    testApi.setSyncHandlers({ syncNow, syncLocalThenPull })
+  }, [syncLocalThenPull, syncNow])
   const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
@@ -208,7 +223,7 @@ function AppShell() {
           mergedIntoCategoryId: null,
         })
         await refreshCategories()
-        triggerSync?.()
+        void syncLocalChanges()
       })
     } else if (action === 'merge') {
       // Merge already archives source + reassigns expenses in the repository.
@@ -216,7 +231,7 @@ function AppShell() {
       await refreshExpenses()
     }
     await refreshCategories()
-    triggerSync?.()
+    void syncLocalChanges()
     return newId
   }
 
@@ -227,7 +242,7 @@ function AppShell() {
       lastCheckInCompletedAt: new Date().toISOString(),
     }).catch((error) => console.warn('Check-in completion stamp failed:', error))
     setShowForm(false)
-    triggerSync?.()
+    void syncLocalChanges()
   }
 
   const handleUpdate = async (id: number, changes: Partial<Expense>) => {
@@ -243,7 +258,7 @@ function AppShell() {
 
     try {
       await StorageService.update(id, changes)
-      triggerSync?.()
+      void syncLocalChanges()
     } catch (error) {
       if (previousExpense) {
         setExpenses((prev) =>
@@ -258,7 +273,7 @@ function AppShell() {
     expenses,
     setExpenses,
     refreshExpenses,
-    triggerSync,
+    triggerSync: syncLocalChanges,
     showUndoToast,
   })
 
@@ -382,7 +397,10 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <PayeesPage refreshExpenses={refreshExpenses} triggerSync={triggerSync} />
+                      <PayeesPage
+                        refreshExpenses={refreshExpenses}
+                        triggerSync={syncLocalChanges}
+                      />
                     </ScrollablePage>
                   }
                 />
@@ -404,8 +422,10 @@ function AppShell() {
                           await refreshPayees()
                           forceFinanceDataRefresh()
                         }}
-                        triggerSync={triggerSync}
+                        triggerSync={syncLocalChanges}
                         syncNow={syncNow}
+                        syncLocalThenPull={syncLocalThenPull}
+                        syncLocalChanges={syncLocalChanges}
                         showSignIn={!!supabase && !user}
                         onSignIn={() => setShowAuthModal(true)}
                       />
@@ -423,7 +443,7 @@ function AppShell() {
                   onCategoriesChange={handleCategoriesChange}
                   refreshPayees={refreshPayees}
                   refreshExpenses={refreshExpenses}
-                  triggerSync={triggerSync}
+                  triggerSync={syncLocalChanges}
                 />
               </Suspense>
             )}

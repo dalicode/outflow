@@ -32,6 +32,8 @@ interface AuthContextValue {
   runRecoveryCheck: () => Promise<void>
   rebuildCloudFromLocal: () => Promise<void>
   syncNow: () => Promise<void>
+  syncLocalThenPull: () => Promise<void>
+  syncLocalChanges: () => Promise<void>
   triggerSync: () => void
   signOut: () => Promise<{ error: AuthError | null }>
 }
@@ -78,6 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncCount,
     queueSync,
     syncNow,
+    syncLocalThenPull,
+    syncLocalChanges,
     triggerSync,
     clearSyncTimers,
     setExternalSyncStatus,
@@ -230,6 +234,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         runRecoveryCheck,
         rebuildCloudFromLocal,
         syncNow,
+        syncLocalThenPull,
+        syncLocalChanges,
         triggerSync,
         signOut,
       }}

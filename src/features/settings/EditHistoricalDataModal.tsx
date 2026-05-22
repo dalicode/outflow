@@ -3,8 +3,10 @@ import MoneyInput from '../../components/inputs/MoneyInput'
 import PercentInput from '../../components/inputs/PercentInput'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
+import { useFinanceActions } from '../../context/financeDataContext'
 import { useSettings } from '../../context/settingsContext'
 import { StorageService } from '../../services/storageService'
+import type { HistoricalFixedItem, HistoricalYearConfig } from '../../services/repositories/historicalSnapshotRepository'
 import type { Expense, FixedExpense, FixedExpenseSnapshot } from '../../types'
 import { cn } from '../../utils/cn'
 import {
@@ -27,20 +29,8 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 let _idCounter = 0
 const nextId = () => `tmp-${++_idCounter}`
 
-interface FixedItem {
-  id: string
-  name: string
-  amount: string | number
-  startMonth: number
-  endMonth: number
-  existingFixedExpenseId?: number
-}
-
-interface YearConfig {
-  incomeRanges: import('../../utils/historicalDataHelpers').RangeItem[]
-  savingsRanges: import('../../utils/historicalDataHelpers').RangeItem[]
-  fixedItems: FixedItem[]
-}
+type FixedItem = HistoricalFixedItem
+type YearConfig = HistoricalYearConfig
 
 // ── Reusable sub-components (defined inside same file for cohesion) ──────────
 
@@ -521,110 +511,51 @@ function PreviewTable({ yearConfig, variableTotals, formatAmount }: PreviewTable
   )
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
+function fixedSnapshotsToItems(snapshots: FixedExpenseSnapshot[]): FixedItem[] {
+  const byDefinition = new Map<number, FixedExpenseSnapshot[]>()
+  for (const snapshot of snapshots) {
+    const existing = byDefinition.get(snapshot.fixedExpenseId) ?? []
+    existing.push(snapshot)
+    byDefinition.set(snapshot.fixedExpenseId, existing)
+  }
 
-type HistoricalStorage = Pick<
-  typeof StorageService,
-  | 'bulkUpsertIncomeSnapshots'
-  | 'bulkUpsertSavingsSnapshots'
-  | 'bulkUpsertSnapshots'
-  | 'deleteIncomeSnapshotsForYear'
-  | 'deleteSavingsSnapshotsForYear'
-  | 'deleteSnapshotsForYear'
-  | 'addArchivedFixedExpense'
->
+  const fixedItems: FixedItem[] = []
+  for (const [fixedExpenseId, rows] of byDefinition) {
+    const sortedRows = [...rows].sort((a, b) => a.month - b.month)
+    let current: FixedItem | null = null
 
-interface SaveHistoricalDataConfigsParams {
-  storage: HistoricalStorage
-  dirtyYears: Set<number>
-  yearConfigs: Record<number, YearConfig>
-  saveMode: 'merge' | 'replace'
-}
+    for (const row of sortedRows) {
+      const name = row.nameSnapshot || 'Unknown'
+      const amount = row.amountSnapshot
+      const isContinuation =
+        current != null &&
+        current.endMonth + 1 === row.month &&
+        current.name === name &&
+        Number(current.amount) === amount
 
-export async function saveHistoricalDataConfigs({
-  storage,
-  dirtyYears,
-  yearConfigs,
-  saveMode,
-}: SaveHistoricalDataConfigsParams): Promise<void> {
-  for (const year of dirtyYears) {
-    const config = yearConfigs[year]
-    if (!config) continue
+      if (isContinuation && current) {
+        current.endMonth = row.month
+        continue
+      }
 
-    const hasData =
-      config.incomeRanges.length > 0 ||
-      config.savingsRanges.length > 0 ||
-      config.fixedItems.length > 0
-    if (!hasData) continue
-
-    const incomeMap = flattenRangesToMonthMap(config.incomeRanges)
-    const savingsMap = flattenRangesToMonthMap(config.savingsRanges)
-    if (saveMode === 'replace') {
-      await storage.deleteIncomeSnapshotsForYear(year)
-      await storage.deleteSavingsSnapshotsForYear(year)
-    }
-
-    const incomeSnapshots = Object.entries(incomeMap).map(([month, amount]) => ({
-      year,
-      month: parseInt(month, 10),
-      amountSnapshot: amount as number,
-    }))
-    const savingsSnapshots = Object.entries(savingsMap).map(([month, rate]) => ({
-      year,
-      month: parseInt(month, 10),
-      rateSnapshot: rate as number,
-    }))
-    if (incomeSnapshots.length > 0) {
-      await storage.bulkUpsertIncomeSnapshots(incomeSnapshots)
-    }
-    if (savingsSnapshots.length > 0) {
-      await storage.bulkUpsertSavingsSnapshots(savingsSnapshots)
-    }
-
-    const validFixedItems = config.fixedItems.filter(
-      (i) =>
-        i.name.trim() &&
-        !Number.isNaN(parseFloat(String(i.amount))) &&
-        parseFloat(String(i.amount)) !== 0,
-    )
-
-    if (saveMode === 'replace') {
-      await storage.deleteSnapshotsForYear(year)
-    }
-
-    if (validFixedItems.length === 0) {
-      continue
-    }
-
-    const newSnapshots: FixedExpenseSnapshot[] = []
-    for (const item of validFixedItems) {
-      const fixedAmount = parseFloat(String(item.amount))
-      const fixedName = item.name.trim()
-      const existingId = item.existingFixedExpenseId
-      const fixedExpenseId =
-        existingId ??
-        (await storage.addArchivedFixedExpense({
-          name: fixedName,
-          amount: fixedAmount,
-        }))
-      const sm = clamp(parseInt(String(item.startMonth), 10) || 1, 1, 12)
-      const em = clamp(parseInt(String(item.endMonth), 10) || 12, 1, 12)
-      for (let m = sm; m <= em; m++) {
-        newSnapshots.push({
-          fixedExpenseId,
-          year,
-          month: m,
-          amountSnapshot: fixedAmount,
-          nameSnapshot: fixedName,
-        })
+      if (current) fixedItems.push(current)
+      current = {
+        id: nextId(),
+        name,
+        amount,
+        startMonth: row.month,
+        endMonth: row.month,
+        existingFixedExpenseId: fixedExpenseId,
       }
     }
 
-    if (newSnapshots.length > 0) {
-      await storage.bulkUpsertSnapshots(newSnapshots)
-    }
+    if (current) fixedItems.push(current)
   }
+
+  return fixedItems
 }
+
+// ── Main Component ───────────────────────────────────────────────────────────
 
 interface EditHistoricalDataModalProps {
   isOpen: boolean
@@ -646,6 +577,7 @@ export default function EditHistoricalDataModal({
   defaultSavingsRate = '',
 }: EditHistoricalDataModalProps) {
   const { formatAmount } = useSettings()
+  const { saveHistoricalSnapshotConfigs } = useFinanceActions()
   // Filter out current year if it has 0 editable months (e.g., January)
   const years = useMemo(
     () =>
@@ -661,14 +593,13 @@ export default function EditHistoricalDataModal({
   )
   const [yearConfigs, setYearConfigs] = useState<Record<number, YearConfig>>({})
   const [dirtyYears, setDirtyYears] = useState<Set<number>>(new Set())
-  const [saveMode, setSaveMode] = useState<'merge' | 'replace'>('merge')
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState(false)
   const [resultMsg, setResultMsg] = useState('')
   const [currentFixedDefs, setCurrentFixedDefs] = useState<FixedExpense[]>([])
   const [restoredFromDraft, setRestoredFromDraft] = useState(false)
-  const [_reloadKey, setReloadKey] = useState(0)
+  const [reloadKey, setReloadKey] = useState(0)
   // Track the id of the most recently added range so its input gets focused
   const [focusedIncomeRangeId, setFocusedIncomeRangeId] = useState<string | null>(null)
   const [focusedSavingsRangeId, setFocusedSavingsRangeId] = useState<string | null>(null)
@@ -677,7 +608,7 @@ export default function EditHistoricalDataModal({
   // Key includes sorted years so drafts from different year sets don't collide.
   const draftKey = `outflow:editHistoricalDraft:${years.slice().sort().join(',')}`
 
-  // Persist draft to localStorage whenever configs/mode change (debounced 500ms)
+  // Persist draft to localStorage whenever configs change (debounced 500ms)
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (dirtyYears.size === 0) return // nothing to persist yet
@@ -689,7 +620,6 @@ export default function EditHistoricalDataModal({
           JSON.stringify({
             yearConfigs,
             dirtyYears: [...dirtyYears],
-            saveMode,
           }),
         )
       } catch {
@@ -699,7 +629,7 @@ export default function EditHistoricalDataModal({
     return () => {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
     }
-  }, [yearConfigs, dirtyYears, saveMode, draftKey])
+  }, [yearConfigs, dirtyYears, draftKey])
 
   const clearDraft = () => {
     try {
@@ -727,10 +657,6 @@ export default function EditHistoricalDataModal({
           StorageService.getAllFixedExpenseSnapshots(),
         ])
 
-        const defMap = new Map(
-          (fixedDefs as Array<{ id?: number; name: string }>).map((f) => [f.id, f]),
-        )
-
         const configs: Record<number, YearConfig> = {}
 
         for (const year of years) {
@@ -748,31 +674,7 @@ export default function EditHistoricalDataModal({
 
           // Fixed expenses from snapshots
           const snapshots = allFixedSnaps.filter((s) => s.year === year)
-          const byDef = new Map<number, FixedExpenseSnapshot[]>()
-          for (const s of snapshots) {
-            if (!byDef.has(s.fixedExpenseId)) byDef.set(s.fixedExpenseId, [])
-            byDef.get(s.fixedExpenseId)?.push(s)
-          }
-          const fixedItems: FixedItem[] = []
-          for (const [defId, snaps] of byDef) {
-            const def = defMap.get(defId)
-            const monthMap: Record<number, number> = {}
-            for (const s of snaps) monthMap[s.month] = s.amountSnapshot
-            const ranges = monthMapToRanges(monthMap)
-            for (const r of ranges) {
-              fixedItems.push({
-                id: nextId(),
-                name:
-                  (def as { name?: string } | undefined)?.name ||
-                  snaps[0]?.nameSnapshot ||
-                  'Unknown',
-                amount: r.amount,
-                startMonth: r.startMonth,
-                endMonth: r.endMonth,
-                existingFixedExpenseId: defId,
-              })
-            }
-          }
+          const fixedItems = fixedSnapshotsToItems(snapshots)
 
           configs[year] = { incomeRanges, savingsRanges, fixedItems }
         }
@@ -786,7 +688,7 @@ export default function EditHistoricalDataModal({
               const draft = JSON.parse(raw) as {
                 yearConfigs: Record<number, YearConfig>
                 dirtyYears: number[]
-                saveMode: 'merge' | 'replace'
+                saveMode?: 'merge' | 'replace'
               }
               // Merge draft on top of DB-loaded configs (draft wins for dirty years)
               const merged = { ...configs }
@@ -796,7 +698,6 @@ export default function EditHistoricalDataModal({
               }
               setYearConfigs(merged)
               setDirtyYears(new Set(draft.dirtyYears))
-              setSaveMode(draft.saveMode ?? 'merge')
               restoredFromDraft = true
             }
           } catch {
@@ -806,7 +707,6 @@ export default function EditHistoricalDataModal({
           if (!restoredFromDraft) {
             setYearConfigs(configs)
             setDirtyYears(new Set())
-            setSaveMode('merge')
           }
           setRestoredFromDraft(restoredFromDraft)
           setActiveYear(years[0])
@@ -825,7 +725,7 @@ export default function EditHistoricalDataModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, years, draftKey])
+  }, [isOpen, years, draftKey, reloadKey])
 
   const updateYearConfig = (year: number, patch: Partial<YearConfig>) => {
     setYearConfigs((prev) => ({
@@ -836,6 +736,7 @@ export default function EditHistoricalDataModal({
     setErrors((prev) => {
       const next = { ...prev }
       delete next[year]
+      delete next._global
       return next
     })
   }
@@ -975,7 +876,12 @@ export default function EditHistoricalDataModal({
   const validate = (): boolean => {
     const nextErrors: Record<string, string[]> = {}
     let hasError = false
-    let hasAnyData = false
+
+    if (dirtyYears.size === 0) {
+      nextErrors._global = ['No changes to save.']
+      setErrors(nextErrors)
+      return false
+    }
 
     for (const year of dirtyYears) {
       const config = yearConfigs[year]
@@ -1009,21 +915,10 @@ export default function EditHistoricalDataModal({
           yearErrors.push('Fixed expense start month must be ≤ end month.')
       }
 
-      const yearHasData =
-        config.incomeRanges.length > 0 ||
-        config.savingsRanges.length > 0 ||
-        config.fixedItems.length > 0
-      if (yearHasData) hasAnyData = true
-
       if (yearErrors.length) {
         nextErrors[year] = yearErrors
         hasError = true
       }
-    }
-
-    if (!hasAnyData) {
-      nextErrors._global = ['Select at least one year and configure data for it.']
-      hasError = true
     }
 
     setErrors(nextErrors)
@@ -1034,18 +929,15 @@ export default function EditHistoricalDataModal({
     if (!validate()) return
     setSaving(true)
     try {
-      await saveHistoricalDataConfigs({
-        storage: StorageService,
+      await saveHistoricalSnapshotConfigs({
         dirtyYears,
         yearConfigs,
-        saveMode,
       })
       await onComplete?.()
       clearDraft()
       setYearConfigs({})
       setActiveYear(years.length > 0 ? years[0] : null)
       setDirtyYears(new Set())
-      setSaveMode('merge')
       setErrors({})
       setResultMsg('')
       onClose()
@@ -1061,7 +953,6 @@ export default function EditHistoricalDataModal({
     setYearConfigs({})
     setActiveYear(years.length > 0 ? years[0] : null)
     setDirtyYears(new Set())
-    setSaveMode('merge')
     setErrors({})
     setResultMsg('')
     onClose()
@@ -1203,38 +1094,9 @@ export default function EditHistoricalDataModal({
               </>
             )}
 
-            {/* Save mode — segmented control */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-theme-muted">Save mode</span>
-              <div className="inline-flex rounded-theme-medium bg-theme-background border border-theme-border p-0.5">
-                <button
-                  onClick={() => setSaveMode('merge')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-theme-medium transition-all ${
-                    saveMode === 'merge'
-                      ? 'bg-theme-surface text-theme-primary shadow-sm'
-                      : 'text-theme-muted hover:text-theme-text'
-                  }`}
-                >
-                  Merge
-                </button>
-                <button
-                  onClick={() => setSaveMode('replace')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-theme-medium transition-all ${
-                    saveMode === 'replace'
-                      ? 'bg-theme-surface text-theme-primary shadow-sm'
-                      : 'text-theme-muted hover:text-theme-text'
-                  }`}
-                >
-                  Replace
-                </button>
-              </div>
-            </div>
             <p className="text-xs text-theme-muted leading-relaxed">
-              <strong className="text-theme-text">Merge</strong>: New values overwrite existing
-              months. Unchanged months keep their old values. Old snapshots remain.
-              <br />
-              <strong className="text-theme-text">Replace</strong>: All existing snapshots for the
-              year are deleted and replaced. Income/savings overrides are fully rewritten.
+              Saving applies only the differences for each edited year: changed months are updated,
+              removed months are deleted, and unchanged snapshots are left as-is.
             </p>
 
             {/* Validation errors */}
