@@ -5,6 +5,11 @@ import './auth.css'
 
 type AuthMode = 'login' | 'signup'
 
+interface AuthPageProps {
+  onClose?: () => void
+  onSignInSuccess?: (email?: string) => void
+}
+
 function PasswordField({
   value,
   onChange,
@@ -70,7 +75,7 @@ function PasswordField({
   )
 }
 
-export default function AuthPage({ onClose }: { onClose?: () => void }) {
+export default function AuthPage({ onClose, onSignInSuccess }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -108,7 +113,11 @@ export default function AuthPage({ onClose }: { onClose?: () => void }) {
         setError(err.message)
         return
       }
-      if (mode === 'signup') setMessage('Check your email to confirm your account.')
+      if (mode === 'signup') {
+        setMessage('Check your email to confirm your account.')
+      } else {
+        onSignInSuccess?.(email)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed. Please try again.')
     } finally {

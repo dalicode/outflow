@@ -24,7 +24,6 @@ import { withTimeout } from '../utils/withTimeout'
 interface AuthContextValue {
   user: User | null
   loading: boolean
-  lastSignInAt: number | null
   syncStatus: SyncStatus
   hasSynced: boolean
   syncCount: number
@@ -47,7 +46,6 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [lastSignInAt, setLastSignInAt] = useState<number | null>(null)
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | 'recovering'>('healthy')
   const [recoveryReport, setRecoveryReport] = useState<RecoveryReport | null>(null)
   const [authEvent, setAuthEvent] = useState<string | null>(null)
@@ -153,19 +151,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabaseClient.auth.onAuthStateChange((event, session) => {
       // Keep this callback synchronous — no awaits, no supabase calls
-      const previousUser = currentUserRef.current
       const nextUser = session?.user ?? null
       currentUserRef.current = nextUser
       if (!nextUser) lastStartupSyncUserRef.current = null
       setUser(nextUser)
       setLoading(false)
       setAuthEvent(event)
-      if (event === 'SIGNED_IN' && nextUser) {
-        const isExplicitSignIn = !previousUser || previousUser.id !== nextUser.id
-        if (isExplicitSignIn) {
-          setLastSignInAt(Date.now())
-        }
-      }
       debugLog('[auth] state change', event, Boolean(session))
     })
 
@@ -231,7 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
-        lastSignInAt,
         syncStatus,
         hasSynced,
         syncCount,
