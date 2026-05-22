@@ -144,7 +144,7 @@ function AppShell() {
     user,
     loading,
     syncStatus,
-    syncCount,
+    pullAppliedCount,
     syncNow,
     syncLocalThenPull,
     syncLocalChanges,
@@ -192,7 +192,7 @@ function AppShell() {
   )
 
   const { handlePullRefresh } = useAppRefresh({
-    syncCount,
+    pullAppliedCount,
     refreshExpenses,
     refreshCategories,
     refreshPayees,

@@ -27,6 +27,7 @@ interface AuthContextValue {
   syncStatus: SyncStatus
   hasSynced: boolean
   syncCount: number
+  pullAppliedCount: number
   recoveryStatus: RecoveryStatus | 'recovering'
   recoveryReport: RecoveryReport | null
   runRecoveryCheck: () => Promise<void>
@@ -78,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncStatus,
     hasSynced,
     syncCount,
+    pullAppliedCount,
     queueSync,
     syncNow,
     syncLocalThenPull,
@@ -229,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         syncStatus,
         hasSynced,
         syncCount,
+        pullAppliedCount,
         recoveryStatus,
         recoveryReport,
         runRecoveryCheck,

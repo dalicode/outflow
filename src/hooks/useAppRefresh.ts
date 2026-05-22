@@ -3,7 +3,7 @@ import { StorageService } from '../services/storageService'
 import { supabase } from '../services/supabase'
 
 interface UseAppRefreshParams {
-  syncCount: number
+  pullAppliedCount: number
   refreshExpenses: () => Promise<void>
   refreshCategories: () => Promise<void>
   refreshPayees: () => Promise<void>
@@ -22,7 +22,7 @@ interface UseAppRefreshParams {
 }
 
 export function useAppRefresh({
-  syncCount,
+  pullAppliedCount,
   refreshExpenses,
   refreshCategories,
   refreshPayees,
@@ -36,7 +36,7 @@ export function useAppRefresh({
   handlePullRefresh: () => Promise<void>
 } {
   useEffect(() => {
-    if (syncCount === 0) return
+    if (pullAppliedCount === 0) return
     void Promise.all([
       refreshExpenses(),
       refreshCategories(),
@@ -44,7 +44,7 @@ export function useAppRefresh({
       loadSettings(),
     ]).then(() => forceFinanceDataRefresh?.())
   }, [
-    syncCount,
+    pullAppliedCount,
     refreshPayees,
     refreshExpenses,
     refreshCategories,

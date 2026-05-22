@@ -40,6 +40,7 @@ interface UseSyncControllerResult {
   syncStatus: SyncStatus
   hasSynced: boolean
   syncCount: number
+  pullAppliedCount: number
   queueSync: (options: QueueSyncOptions) => Promise<void>
   syncNow: () => Promise<void>
   syncLocalThenPull: () => Promise<void>
@@ -111,6 +112,7 @@ export function useSyncController({
 }: UseSyncControllerParams): UseSyncControllerResult {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
   const [syncCount, setSyncCount] = useState(0)
+  const [pullAppliedCount, setPullAppliedCount] = useState(0)
   const [hasSynced, setHasSynced] = useState(false)
 
   const syncingRef = useRef(false)
@@ -204,12 +206,21 @@ export function useSyncController({
         } else if (options.mode === 'flush-then-pull') {
           await flushQueuedChanges(id, generation)
           await withTimeout(pullFromSupabase(id), 30000)
+          if (isCurrentSyncRun(generation)) {
+            setPullAppliedCount((c) => c + 1)
+          }
         } else if (options.mode === 'full-upload-after-pull') {
           await withTimeout(pullFromSupabase(id), 30000)
+          if (isCurrentSyncRun(generation)) {
+            setPullAppliedCount((c) => c + 1)
+          }
           await withTimeout(migrateLocalToSupabase(id), 45000)
           await flushQueuedChanges(id, generation)
         } else {
           await withTimeout(pullFromSupabase(id), 30000)
+          if (isCurrentSyncRun(generation)) {
+            setPullAppliedCount((c) => c + 1)
+          }
           await flushQueuedChanges(id, generation)
         }
 
@@ -361,6 +372,7 @@ export function useSyncController({
     syncStatus,
     hasSynced,
     syncCount,
+    pullAppliedCount,
     queueSync,
     syncNow,
     syncLocalThenPull,

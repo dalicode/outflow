@@ -21,7 +21,7 @@ VITE_SUPABASE_ANON_KEY=your-local-anon-key
 
 ```toml
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173"]
+additional_redirect_urls = ["http://localhost:5173", "http://192.168.0.184:5173"]
 ```
 
 3. Start or reset local Supabase so the migration is applied:
@@ -35,6 +35,32 @@ If you need a clean local database:
 ```bash
 supabase db reset
 ```
+
+## Testing on a phone (same Wi-Fi)
+
+- `localhost` and `127.0.0.1` only work on the Mac itself. They do not point to your Mac from a phone.
+- Use your Mac's actual LAN IP in URLs (for example `192.168.0.184`), not a subnet `.0` address.
+- Your phone and Mac must be connected to the same local network/Wi-Fi.
+- Start Vite so it listens on your LAN interface:
+
+```bash
+npm run dev -- --host
+```
+
+### Troubleshooting phone sync/network failures
+
+- After changing Supabase config, restart local Supabase:
+
+```bash
+supabase stop
+supabase start
+```
+
+- Verify auth health on the Mac:
+`http://127.0.0.1:54321/auth/v1/health`
+- Verify auth health from the phone using your Mac LAN IP:
+`http://<LAN-IP>:54321/auth/v1/health`
+- If Vite loads on the phone but the Supabase health URL does not, treat it as network/runtime exposure (firewall, Wi-Fi/client isolation, or local service exposure), not app sync logic.
 
 ## Remote project setup
 

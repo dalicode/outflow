@@ -269,4 +269,74 @@ describe('useSyncController', () => {
 
     expect(callOrder).toEqual(['flush', 'pull'])
   })
+
+  it('increments pullAppliedCount immediately after pull in full-upload-after-pull mode', async () => {
+    let resolvePull: (() => void) | null = null
+    let resolveMigrate: (() => void) | null = null
+    pullFromSupabase.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePull = resolve
+        }),
+    )
+    migrateLocalToSupabase.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveMigrate = resolve
+        }),
+    )
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    let syncPromise: Promise<void> | undefined
+    await act(async () => {
+      syncPromise = result.current.queueSync({
+        reason: 'sign-in',
+        mode: 'full-upload-after-pull',
+        force: true,
+      })
+      await Promise.resolve()
+    })
+
+    expect(result.current.pullAppliedCount).toBe(0)
+    expect(result.current.syncCount).toBe(0)
+
+    await act(async () => {
+      resolvePull?.()
+      await Promise.resolve()
+    })
+
+    expect(result.current.pullAppliedCount).toBe(1)
+    expect(result.current.syncCount).toBe(0)
+
+    await act(async () => {
+      resolveMigrate?.()
+      await syncPromise
+    })
+
+    expect(result.current.syncCount).toBe(1)
+  })
+
+  it('does not increment pullAppliedCount for flush-only syncs', async () => {
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.syncLocalChanges()
+    })
+
+    expect(result.current.pullAppliedCount).toBe(0)
+    expect(result.current.syncCount).toBe(1)
+  })
 })
