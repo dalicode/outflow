@@ -286,7 +286,6 @@ function makeDash(overrides: Partial<DashboardState> = {}): DashboardState {
     mobileEditTrigger: null,
     refreshData: vi.fn(),
     triggerMobileEdit: vi.fn(),
-    dataRefreshKey: 0,
     setMobileEditTrigger: vi.fn(),
     ...overrides,
   } as DashboardState

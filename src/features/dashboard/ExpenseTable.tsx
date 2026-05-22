@@ -1,5 +1,15 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
+import {
+  forwardRef,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import LoadingOverlay from '../../components/ui/LoadingOverlay'
 import ContextMenu from './components/ContextMenu'
 import DataTable from './components/DataTable'
 import { useSettings } from '../../context/settingsContext'
@@ -8,11 +18,12 @@ import { useContextMenu } from './hooks/useContextMenu'
 import type { Category, Expense, Payee } from '../../types'
 import { cn } from '../../utils/cn'
 import { copyExpensesToClipboard } from '../../utils/copyExpenses'
-import ExpenseForm from '../expenses/ExpenseForm'
 import BulkEditExpensesModal from './BulkEditExpensesModal'
 import ExpenseTableMobile from './ExpenseTableMobile'
 import { getExpenseColumns } from './expenseColumns'
 import { useExpenseCellEditing } from './useExpenseCellEditing'
+
+const ExpenseForm = lazy(() => import('../expenses/ExpenseForm'))
 
 interface ExpenseTableProps {
   expenses: Expense[]
@@ -305,14 +316,16 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       )}
 
       {showMobileEditModal && mobileEditExpense && (
-        <ExpenseForm
-          initialExpense={mobileEditExpense}
-          onUpdate={onUpdate}
-          onClose={cancelMobileEdit}
-          categories={categories}
-          refreshCategories={refreshCategories}
-          refreshPayees={refreshPayees}
-        />
+        <Suspense fallback={<LoadingOverlay isOpen={true} message="Loading form..." />}>
+          <ExpenseForm
+            initialExpense={mobileEditExpense}
+            onUpdate={onUpdate}
+            onClose={cancelMobileEdit}
+            categories={categories}
+            refreshCategories={refreshCategories}
+            refreshPayees={refreshPayees}
+          />
+        </Suspense>
       )}
 
       <BulkEditExpensesModal

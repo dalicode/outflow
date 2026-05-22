@@ -1,16 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { StorageService } from '../../../services/storageService'
-import type {
-  AnalyticsData,
-  Category,
-  Expense,
-  FixedExpense,
-  FixedExpenseSnapshot,
-  IncomeSnapshot,
-  Payee,
-  SavingsSnapshot,
-  Schedule,
-} from '../../../types'
+import { useCallback, useMemo, useState } from 'react'
+import { useFinanceData } from '../../../context/financeDataContext'
+import type { AnalyticsData, Category, Expense, Payee } from '../../../types'
 import { getYearFinancialSummary, getYearVariableGrid } from '../../../utils/financeEngine'
 
 export interface AnalyticsSessionState {
@@ -24,20 +14,6 @@ interface UseAnalyticsParams {
   categories: Category[]
   sessionState?: AnalyticsSessionState
   onSessionStateChange?: (patch: Partial<AnalyticsSessionState>) => void
-}
-
-// ---------------------------------------------------------------------------
-// Shared DB state fetched once for all years
-// ---------------------------------------------------------------------------
-interface SharedAnalyticsDB {
-  fixedDefs: FixedExpense[]
-  allFixedSnaps: FixedExpenseSnapshot[]
-  allIncomeSnaps: IncomeSnapshot[]
-  allSavingsSnaps: SavingsSnapshot[]
-  globalIncome: number
-  globalRate: number
-  schedules: Schedule[]
-  payees: Payee[]
 }
 
 function makeEmptyAnalyticsData(year: number): AnalyticsData {
@@ -73,7 +49,16 @@ function buildAnalyticsDataForYear(
   year: number,
   expenses: Expense[],
   categories: Category[],
-  db: SharedAnalyticsDB,
+  db: {
+    fixedDefs: ReturnType<typeof useFinanceData>['fixedExpenses']
+    allFixedSnaps: ReturnType<typeof useFinanceData>['fixedExpenseSnapshots']
+    allIncomeSnaps: ReturnType<typeof useFinanceData>['incomeSnapshots']
+    allSavingsSnaps: ReturnType<typeof useFinanceData>['savingsSnapshots']
+    globalIncome: number
+    globalRate: number
+    schedules: ReturnType<typeof useFinanceData>['activeSchedules']
+    payees: Payee[]
+  },
   now: Date,
 ): AnalyticsData {
   const incomeSnaps = db.allIncomeSnaps.filter((s) => s.year === year)
@@ -162,6 +147,7 @@ export function useAnalytics({
   sessionState,
   onSessionStateChange,
 }: UseAnalyticsParams) {
+  const financeData = useFinanceData()
   const now = useMemo(() => new Date(), [])
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth()
@@ -206,53 +192,22 @@ export function useAnalytics({
     return result
   }, [earliestYear, year])
 
-  // Single DB fetch for all shared data
-  const [db, setDb] = useState<SharedAnalyticsDB | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([
-      StorageService.getFixedExpenses(),
-      StorageService.getAllFixedExpenseSnapshots(),
-      StorageService.getAllIncomeSnapshots(),
-      StorageService.getAllSavingsSnapshots(),
-      StorageService.getSetting('monthlyIncome', 0),
-      StorageService.getSetting('savingsRate', 0),
-      StorageService.getActiveSchedules(),
-      StorageService.getPayees(),
-    ]).then(
-      ([
-        fixedDefs,
-        allFixedSnaps,
-        allIncomeSnaps,
-        allSavingsSnaps,
-        globalIncome,
-        globalRate,
-        schedules,
-        payees,
-      ]) => {
-        if (!cancelled) {
-          setDb({
-            fixedDefs: fixedDefs as FixedExpense[],
-            allFixedSnaps: allFixedSnaps as FixedExpenseSnapshot[],
-            allIncomeSnaps: allIncomeSnaps as IncomeSnapshot[],
-            allSavingsSnaps: allSavingsSnaps as SavingsSnapshot[],
-            globalIncome: (globalIncome as number | null) ?? 0,
-            globalRate: (globalRate as number | null) ?? 0,
-            schedules: schedules as Schedule[],
-            payees: payees as Payee[],
-          })
-        }
-      },
-    )
-    return () => {
-      cancelled = true
-    }
-  }, []) // re-fetch when expenses change (new data may have been saved)
+  const db = useMemo(
+    () => ({
+      fixedDefs: financeData.fixedExpenses,
+      allFixedSnaps: financeData.fixedExpenseSnapshots,
+      allIncomeSnaps: financeData.incomeSnapshots,
+      allSavingsSnaps: financeData.savingsSnapshots,
+      globalIncome: financeData.engineData.globalIncome,
+      globalRate: financeData.engineData.globalSavingsRate,
+      schedules: financeData.activeSchedules,
+      payees: financeData.payees,
+    }),
+    [financeData],
+  )
 
   // Compute AnalyticsData for every year in one pass
   const multiYearData = useMemo<AnalyticsData[]>(() => {
-    if (!db) return yearsToLoad.map(makeEmptyAnalyticsData)
     return yearsToLoad.map((y) => buildAnalyticsDataForYear(y, expenses, categories, db, now))
   }, [db, yearsToLoad, expenses, categories, now])
 

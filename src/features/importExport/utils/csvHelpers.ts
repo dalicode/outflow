@@ -34,14 +34,76 @@ export function downloadCSV(rows: (string | number)[][], filename: string) {
 }
 
 export function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.trim().split('\n')
-  if (lines.length < 2) return []
-  const headers = lines[0].split(',').map((h) => h.replace(/^"|"$/g, '').trim().toLowerCase())
-  return lines.slice(1).map((line) => {
-    const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) ?? []
-    const clean = vals.map((v) => v.replace(/^"|"$/g, '').trim())
-    return Object.fromEntries(headers.map((h, i) => [h, clean[i] ?? '']))
+  const rows = parseCsvRows(text).filter((row) => !row.every((value) => value.trim() === ''))
+  if (rows.length < 2) return []
+
+  const headers = rows[0].map((header) => header.trim().toLowerCase())
+
+  return rows.slice(1).map((row) => {
+    const clean = row.map((value) => value.trim())
+    return Object.fromEntries(headers.map((header, index) => [header, clean[index] ?? '']))
   })
+}
+
+function parseCsvRows(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let inQuotes = false
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          field += '"'
+          index += 1
+        } else {
+          inQuotes = false
+        }
+      } else {
+        field += char
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inQuotes = true
+      continue
+    }
+
+    if (char === ',') {
+      row.push(field)
+      field = ''
+      continue
+    }
+
+    if (char === '\n') {
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ''
+      continue
+    }
+
+    if (char === '\r') {
+      if (text[index + 1] === '\n') {
+        index += 1
+      }
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ''
+      continue
+    }
+
+    field += char
+  }
+
+  row.push(field)
+  rows.push(row)
+  return rows
 }
 
 export function parseDateInput(raw: string): string | null {

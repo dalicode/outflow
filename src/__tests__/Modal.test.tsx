@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import Modal from '../components/ui/Modal'
@@ -287,13 +287,12 @@ describe('Modal', () => {
         )
       }
 
-      const { rerender } = render(<Trigger />)
+      render(<Trigger />)
       const trigger = screen.getByTestId('trigger')
 
       // Focus the trigger, then open the modal
       trigger.focus()
-      trigger.click()
-      rerender(<Trigger />)
+      fireEvent.click(trigger)
 
       // Wait for focus to move into modal
       await new Promise((resolve) => requestAnimationFrame(resolve))
@@ -303,12 +302,10 @@ describe('Modal', () => {
       expect(document.activeElement).toBe(closeBtn)
 
       // Close the modal
-      closeBtn.click()
-      rerender(<Trigger />)
+      fireEvent.click(closeBtn)
 
       // Wait for focus restoration
-      await new Promise((resolve) => setTimeout(resolve, 10))
-      expect(document.activeElement).toBe(trigger)
+      await waitFor(() => expect(document.activeElement).toBe(trigger))
     })
   })
 })

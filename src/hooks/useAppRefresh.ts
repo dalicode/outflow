@@ -18,6 +18,7 @@ interface UseAppRefreshParams {
   }) => string
   syncNow: () => Promise<void>
   user: unknown
+  forceFinanceDataRefresh?: () => void
 }
 
 export function useAppRefresh({
@@ -30,16 +31,26 @@ export function useAppRefresh({
   showToast,
   syncNow,
   user,
+  forceFinanceDataRefresh,
 }: UseAppRefreshParams): {
   handlePullRefresh: () => Promise<void>
 } {
   useEffect(() => {
     if (syncCount === 0) return
-    void refreshExpenses()
-    void refreshCategories()
-    void refreshPayees()
-    void loadSettings()
-  }, [syncCount, refreshPayees, refreshExpenses, refreshCategories, loadSettings])
+    void Promise.all([
+      refreshExpenses(),
+      refreshCategories(),
+      refreshPayees(),
+      loadSettings(),
+    ]).then(() => forceFinanceDataRefresh?.())
+  }, [
+    syncCount,
+    refreshPayees,
+    refreshExpenses,
+    refreshCategories,
+    loadSettings,
+    forceFinanceDataRefresh,
+  ])
 
   const handlePullRefresh = useCallback(async () => {
     try {
@@ -48,6 +59,7 @@ export function useAppRefresh({
       )
       await StorageService.rolloverSnapshots?.().catch(console.error)
       await Promise.all([refreshExpenses(), refreshCategories(), refreshPayees()])
+      forceFinanceDataRefresh?.()
 
       announceAppliedScheduleUpdates(appliedNotices ?? [])
 
@@ -76,6 +88,7 @@ export function useAppRefresh({
     syncNow,
     showToast,
     user,
+    forceFinanceDataRefresh,
   ])
 
   return { handlePullRefresh }

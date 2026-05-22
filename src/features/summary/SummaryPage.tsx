@@ -27,7 +27,7 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
     handleAddFixed,
     handleUpdateFixed,
     handleDeleteFixed,
-  } = useSummary({ expenses })
+  } = useSummary()
 
   const incomeIsSet = parseFloat(String(incomeRaw || 0)) > 0
 

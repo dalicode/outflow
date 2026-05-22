@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { StorageService } from '../../../services/storageService'
-import type { Expense, MonthlySummary } from '../../../types'
+import { useMemo } from 'react'
+import { useFinanceActions, useFinanceData } from '../../../context/financeDataContext'
+import type { Expense } from '../../../types'
 import { getMonthKeys } from '../../../utils/dashboardHelpers'
+import { getMonthEngineData } from '../../../utils/financeDataHelpers'
 import { getMonthlyFinancialSummary } from '../../../utils/financeEngine'
 
 export function useDashboardData(
@@ -9,161 +10,45 @@ export function useDashboardData(
   selectedYear: number,
   selectedMonth: number,
   monthSpan: number,
-  dataRefreshKey: number,
 ) {
-  const [monthSummaries, setMonthSummaries] = useState<MonthlySummary[]>([])
-  const [financialSummary, setFinancialSummary] = useState<MonthlySummary | null>(null)
-  const [incomeRaw, setIncomeRaw] = useState('')
-  const [incomeFrequency, setIncomeFrequency] = useState('monthly')
+  const { engineData, incomeAmount, incomeFrequency } = useFinanceData()
+  const { forceFinanceDataRefresh } = useFinanceActions()
+  const now = useMemo(() => new Date(), [])
 
   const monthKeys = useMemo(
     () => getMonthKeys(selectedYear, selectedMonth, monthSpan),
     [selectedYear, selectedMonth, monthSpan],
   )
 
-  // Load data for the selected month span
-  useEffect(() => {
-    // dataRefreshKey intentionally retriggers this async load after settings
-    // modals mutate persisted income/savings values.
-    void dataRefreshKey
-    const loadData = async () => {
-      const now = new Date()
-      const neededYears = Array.from(new Set(monthKeys.map((m) => m.year)))
+  const monthSummaries = useMemo(
+    () =>
+      monthKeys.map((mk) => {
+        const monthData = getMonthEngineData(
+          { ...engineData, expenses },
+          mk.year,
+          mk.month,
+          new Date(),
+        )
+        return getMonthlyFinancialSummary(mk.year, mk.month, monthData)
+      }),
+    [monthKeys, engineData, expenses],
+  )
 
-      const [allFixed, globalIncome, globalRate, schedules, incomeAmount, incomeFreq] =
-        await Promise.all([
-          StorageService.getFixedExpenses(),
-          StorageService.getSetting('monthlyIncome', 0),
-          StorageService.getSetting('savingsRate', 0),
-          StorageService.getActiveSchedules(),
-          StorageService.getSetting('incomeAmount', ''),
-          StorageService.getSetting('incomeFrequency', 'monthly'),
-        ])
+  const financialSummary = useMemo(() => {
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth()
+    const monthData = getMonthEngineData(
+      { ...engineData, expenses },
+      currentYear,
+      currentMonth,
+      now,
+    )
 
-      setIncomeRaw(incomeAmount as string)
-      setIncomeFrequency(incomeFreq as string)
-
-      const allSnapshotsByYear: Record<
-        number,
-        Awaited<ReturnType<typeof StorageService.getSnapshotsForYear>>
-      > = {}
-      const incomeSnapsByYear: Record<
-        number,
-        Awaited<ReturnType<typeof StorageService.getIncomeSnapshotsForYear>>
-      > = {}
-      const savingsSnapsByYear: Record<
-        number,
-        Awaited<ReturnType<typeof StorageService.getSavingsSnapshotsForYear>>
-      > = {}
-
-      await Promise.all(
-        neededYears.map(async (year) => {
-          const [snaps, incSnaps, savSnaps] = await Promise.all([
-            StorageService.getSnapshotsForYear(year),
-            StorageService.getIncomeSnapshotsForYear(year),
-            StorageService.getSavingsSnapshotsForYear(year),
-          ])
-          allSnapshotsByYear[year] = snaps
-          incomeSnapsByYear[year] = incSnaps
-          savingsSnapsByYear[year] = savSnaps
-        }),
-      )
-
-      const summaries: MonthlySummary[] = monthKeys.map((mk) => {
-        const isCurrentOrFuture =
-          mk.year > now.getFullYear() ||
-          (mk.year === now.getFullYear() && mk.month >= now.getMonth())
-
-        const allSnapshots = allSnapshotsByYear[mk.year] || []
-        let monthSnapshots: {
-          fixedExpenseId: number
-          year: number
-          month: number
-          amountSnapshot: number
-          nameSnapshot: string
-        }[]
-        if (isCurrentOrFuture) {
-          const active = allFixed.filter((f) => f.isArchived !== true)
-          monthSnapshots = active.map((f) => ({
-            fixedExpenseId: f.id as number,
-            year: mk.year,
-            month: mk.month + 1,
-            amountSnapshot: f.amount,
-            nameSnapshot: f.name,
-          }))
-        } else {
-          monthSnapshots = allSnapshots.filter((s) => s.month === mk.month + 1)
-        }
-
-        const data = {
-          expenses,
-          snapshots: monthSnapshots,
-          fixedExpenses: allFixed,
-          globalIncome: globalIncome as number,
-          globalSavingsRate: globalRate as number,
-          schedules,
-          incomeSnapshots: incomeSnapsByYear[mk.year] || [],
-          savingsSnapshots: savingsSnapsByYear[mk.year] || [],
-        }
-
-        return getMonthlyFinancialSummary(mk.year, mk.month, data)
-      })
-
-      setMonthSummaries(summaries)
-    }
-    loadData()
-  }, [expenses, monthKeys, dataRefreshKey])
-
-  // Always load current month summary for the header
-  useEffect(() => {
-    // dataRefreshKey intentionally retriggers this async load after settings
-    // modals mutate persisted income/savings values.
-    void dataRefreshKey
-    const loadCurrentMonthSummary = async () => {
-      const today = new Date()
-      const currentYear = today.getFullYear()
-      const currentMonth = today.getMonth()
-
-      const [allFixed, globalIncome, globalRate, schedules] = await Promise.all([
-        StorageService.getFixedExpenses(),
-        StorageService.getSetting('monthlyIncome', 0),
-        StorageService.getSetting('savingsRate', 0),
-        StorageService.getActiveSchedules(),
-      ])
-
-      const [incSnaps, savSnaps] = await Promise.all([
-        StorageService.getIncomeSnapshotsForYear(currentYear),
-        StorageService.getSavingsSnapshotsForYear(currentYear),
-      ])
-
-      const active = allFixed.filter((f) => f.isArchived !== true)
-      const monthSnapshots = active.map((f) => ({
-        fixedExpenseId: f.id as number,
-        year: currentYear,
-        month: currentMonth + 1,
-        amountSnapshot: f.amount,
-        nameSnapshot: f.name,
-      }))
-
-      const data = {
-        expenses,
-        snapshots: monthSnapshots,
-        fixedExpenses: allFixed,
-        globalIncome: globalIncome as number,
-        globalSavingsRate: globalRate as number,
-        schedules,
-        incomeSnapshots: incSnaps,
-        savingsSnapshots: savSnaps,
-      }
-
-      const summary = getMonthlyFinancialSummary(currentYear, currentMonth, data, {
-        currentYear,
-        currentMonth,
-      })
-      setFinancialSummary(summary)
-    }
-    loadCurrentMonthSummary()
-  }, [expenses, dataRefreshKey])
+    return getMonthlyFinancialSummary(currentYear, currentMonth, monthData, {
+      currentYear,
+      currentMonth,
+    })
+  }, [engineData, expenses, now])
 
   const daysLeft = useMemo(() => {
     const today = new Date()
@@ -176,7 +61,8 @@ export function useDashboardData(
     monthKeys,
     financialSummary,
     daysLeft,
-    incomeRaw,
+    incomeRaw: incomeAmount,
     incomeFrequency,
+    forceFinanceDataRefresh,
   }
 }

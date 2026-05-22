@@ -32,7 +32,6 @@ export function useDashboard(
   sessionState?: DashboardSessionState,
   onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void,
 ) {
-  const [dataRefreshKey, setDataRefreshKey] = useState(0)
   const [mobileEditTrigger, setMobileEditTrigger] = useState<number | null>(null)
 
   const monthNav = useDashboardMonthNav(
@@ -50,7 +49,6 @@ export function useDashboard(
     monthNav.selectedYear,
     monthNav.selectedMonth,
     monthNav.monthSpan,
-    dataRefreshKey,
   )
   const filters = useDashboardFilters(
     expenses,
@@ -71,13 +69,11 @@ export function useDashboard(
     (v) => onSessionStateChange?.({ viewMode: v }),
     monthNav.monthSpan,
   )
-  const modals = useIncomeSavingsModals(data.monthSummaries, data.monthKeys, () =>
-    setDataRefreshKey((k) => k + 1),
-  )
+  const modals = useIncomeSavingsModals(data.monthSummaries, data.monthKeys)
 
   const refreshData = useCallback(() => {
-    setDataRefreshKey((k) => k + 1)
-  }, [])
+    data.forceFinanceDataRefresh()
+  }, [data])
 
   const multiCategoryRows = useMemo(
     () =>
@@ -192,7 +188,6 @@ export function useDashboard(
     mobileEditTrigger,
     refreshData,
     triggerMobileEdit,
-    dataRefreshKey,
     setMobileEditTrigger,
   }
 }

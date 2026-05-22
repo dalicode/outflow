@@ -109,9 +109,14 @@ describe('useSettings', () => {
   })
 
   it('throws when used outside provider', () => {
-    expect(() => renderHook(() => useSettings())).toThrow(
-      'useSettings must be used within SettingsProvider',
-    )
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      expect(() => renderHook(() => useSettings())).toThrow(
+        'useSettings must be used within SettingsProvider',
+      )
+    } finally {
+      consoleError.mockRestore()
+    }
   })
 })
 
@@ -130,6 +135,11 @@ describe('useAuth', () => {
   })
 
   it('throws when used outside provider', () => {
-    expect(() => renderHook(() => useAuth())).toThrow('useAuth must be used within AuthProvider')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      expect(() => renderHook(() => useAuth())).toThrow('useAuth must be used within AuthProvider')
+    } finally {
+      consoleError.mockRestore()
+    }
   })
 })

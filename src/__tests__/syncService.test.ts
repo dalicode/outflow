@@ -523,6 +523,7 @@ describe('flushSyncQueue', () => {
 
   it('does not remove queue items when a sync run becomes stale after upload', async () => {
     let shouldContinue = true
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
       {
@@ -548,13 +549,17 @@ describe('flushSyncQueue', () => {
       },
     }))
 
-    await expect(
-      flushSyncQueue('user-1', {
-        shouldContinue: () => shouldContinue,
-      }),
-    ).rejects.toThrow('Sync run superseded')
+    try {
+      await expect(
+        flushSyncQueue('user-1', {
+          shouldContinue: () => shouldContinue,
+        }),
+      ).rejects.toThrow('Sync run superseded')
 
-    expect(upsertCalls).toHaveLength(1)
-    expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
+      expect(upsertCalls).toHaveLength(1)
+      expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
+    } finally {
+      consoleWarn.mockRestore()
+    }
   })
 })

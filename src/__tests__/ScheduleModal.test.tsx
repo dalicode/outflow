@@ -67,9 +67,10 @@ describe('ScheduleModal', () => {
     vi.clearAllMocks()
   })
 
-  it('renders expense type option in dropdown', () => {
+  it('renders expense type option in dropdown', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     expect(screen.getByText('Expense')).toBeInTheDocument()
+    await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
   })
 
   it('shows expense fields (date, payee, category, description, amount) when type is expense', async () => {
@@ -119,15 +120,17 @@ describe('ScheduleModal', () => {
     })
   })
 
-  it('shows note field for non-expense types', () => {
+  it('shows note field for non-expense types', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     // Default type is income
     expect(screen.getByText('Note')).toBeInTheDocument()
+    await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
   })
 
-  it('shows effective date label for non-expense types', () => {
+  it('shows effective date label for non-expense types', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     expect(screen.getByText('Effective Date')).toBeInTheDocument()
+    await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
   })
 
   it('clamps oversized amount via money input before schedule save', async () => {

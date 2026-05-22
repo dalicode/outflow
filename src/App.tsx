@@ -10,6 +10,7 @@ import PullToRefreshContainer from './components/ui/PullToRefreshContainer'
 import { installTestApi } from './test/testApi'
 import { ROUTES } from './constants/routes'
 import { useAuth } from './context/authContext'
+import { FinanceDataProvider, useFinanceActions } from './context/financeDataContext'
 import { useSettings } from './context/settingsContext'
 import { ToastProvider, useToasts } from './context/toastContext'
 import AnalyticsPage from './features/analytics/AnalyticsPage'
@@ -60,7 +61,9 @@ function useScrollVisibility() {
 export default function App() {
   return (
     <ToastProvider>
-      <AppShell />
+      <FinanceDataProvider>
+        <AppShell />
+      </FinanceDataProvider>
     </ToastProvider>
   )
 }
@@ -144,6 +147,7 @@ function AppShell() {
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
   const { payees, refresh: refreshPayees } = usePayees()
+  const { forceFinanceDataRefresh } = useFinanceActions()
   const { showToast, showUndoToast } = useToasts()
   const [showForm, setShowForm] = useState(false)
   const { isScrolling, handleScroll } = useScrollVisibility()
@@ -210,6 +214,7 @@ function AppShell() {
     showToast,
     syncNow,
     user,
+    forceFinanceDataRefresh,
   })
 
   const handleCategoriesChange = async (
@@ -425,6 +430,7 @@ function AppShell() {
                           await refreshExpenses()
                           await refreshCategories()
                           await refreshPayees()
+                          forceFinanceDataRefresh()
                         }}
                         triggerSync={triggerSync}
                         syncNow={syncNow}

@@ -1,139 +1,103 @@
-import { renderHook, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { FinanceEngineData } from '../types'
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
-import { StorageService } from '../services/storageService'
-import type { Expense } from '../types'
 
-vi.mock('../services/storageService', () => ({
-  StorageService: {
-    getFixedExpenses: vi.fn(),
-    getSnapshotsForYear: vi.fn(),
-    getSetting: vi.fn(),
-    getActiveSchedules: vi.fn(),
-    getIncomeSnapshotsForYear: vi.fn(),
-    getSavingsSnapshotsForYear: vi.fn(),
-  },
+const mockUseFinanceData = vi.fn()
+const mockUseFinanceActions = vi.fn()
+
+vi.mock('../context/financeDataContext', () => ({
+  useFinanceData: () => mockUseFinanceData(),
+  useFinanceActions: () => mockUseFinanceActions(),
 }))
 
-function makeExpense(date: string, amount: number): Expense {
-  return { date, amount }
+function makeEngineData(): FinanceEngineData {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
+  return {
+    expenses: [],
+    snapshots: [
+      {
+        fixedExpenseId: 1,
+        nameSnapshot: 'Rent',
+        amountSnapshot: 1000,
+        year: currentYear - 1,
+        month: 12,
+      },
+    ],
+    fixedExpenses: [
+      { id: 1, name: 'Rent', amount: 1500 },
+      { id: 2, name: 'Archived', amount: 999, isArchived: true },
+    ],
+    globalIncome: 5000,
+    globalSavingsRate: 20,
+    schedules: [],
+    incomeSnapshots: [{ year: currentYear, month: currentMonth + 1, amountSnapshot: 8000 }],
+    savingsSnapshots: [{ year: currentYear, month: currentMonth + 1, rateSnapshot: 30 }],
+  }
 }
 
 describe('useDashboardData', () => {
   beforeEach(() => {
-    vi.mocked(StorageService.getFixedExpenses).mockResolvedValue([
-      { id: 1, name: 'Rent', amount: 1500 },
-    ])
-    vi.mocked(StorageService.getSnapshotsForYear).mockResolvedValue([])
-    vi.mocked(StorageService.getSetting).mockImplementation(
-      async (key: string, fallback: unknown) => {
-        if (key === 'monthlyIncome') return 5000
-        if (key === 'savingsRate') return 20
-        if (key === 'incomeAmount') return ''
-        if (key === 'incomeFrequency') return 'monthly'
-        return fallback
-      },
-    )
-    vi.mocked(StorageService.getActiveSchedules).mockResolvedValue([])
-    vi.mocked(StorageService.getIncomeSnapshotsForYear).mockResolvedValue([
-      { year: 2026, month: 5, amountSnapshot: 8000 },
-    ])
-    vi.mocked(StorageService.getSavingsSnapshotsForYear).mockResolvedValue([
-      { year: 2026, month: 5, rateSnapshot: 30 },
-    ])
+    mockUseFinanceActions.mockReturnValue({ forceFinanceDataRefresh: vi.fn() })
+    mockUseFinanceData.mockReturnValue({
+      engineData: makeEngineData(),
+      incomeAmount: '',
+      incomeFrequency: 'monthly',
+    })
   })
 
-  afterEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('uses active fixed definitions for the current month header summary', async () => {
-    const current = new Date()
-    const currentYear = current.getFullYear()
-    const currentMonth = current.getMonth()
-
-    vi.mocked(StorageService.getFixedExpenses).mockResolvedValue([
-      { id: 1, name: 'Rent', amount: 1500 },
-    ])
-    vi.mocked(StorageService.getIncomeSnapshotsForYear).mockResolvedValue([
-      { year: currentYear, month: currentMonth + 1, amountSnapshot: 8000 },
-    ])
-    vi.mocked(StorageService.getSavingsSnapshotsForYear).mockResolvedValue([
-      { year: currentYear, month: currentMonth + 1, rateSnapshot: 30 },
-    ])
-
-    const { result } = renderHook(() =>
+  it('uses active fixed definitions for the current month header summary', () => {
+    const now = new Date()
+    const result = renderHook(() =>
       useDashboardData(
-        [makeExpense(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-03`, 42)],
-        currentYear,
-        currentMonth,
+        [
+          {
+            date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-03`,
+            amount: 42,
+          },
+        ],
+        now.getFullYear(),
+        now.getMonth(),
         1,
-        0,
       ),
     )
 
-    await waitFor(() => {
-      expect(result.current.financialSummary).not.toBeNull()
-    })
-
-    expect(result.current.financialSummary?.income).toBe(8000)
-    expect(result.current.financialSummary?.savingsRate).toBe(30)
-    expect(result.current.financialSummary?.autoSavings).toBe(2400)
-    expect(result.current.financialSummary?.fixedExpensesTotal).toBe(1500)
+    expect(result.result.current.financialSummary?.income).toBe(8000)
+    expect(result.result.current.financialSummary?.savingsRate).toBe(30)
+    expect(result.result.current.financialSummary?.autoSavings).toBe(2400)
+    expect(result.result.current.financialSummary?.fixedExpensesTotal).toBe(1500)
   })
 
-  it('reloads dashboard summaries when dataRefreshKey changes after income/savings edits', async () => {
-    const current = new Date()
-    const currentYear = current.getFullYear()
-    const currentMonth = current.getMonth()
-    const currentMonthDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-03`
-
-    let incomeSnapshotAmount = 6000
-    let savingsSnapshotRate = 10
-
-    vi.mocked(StorageService.getIncomeSnapshotsForYear).mockImplementation(async (year: number) => {
-      if (year !== currentYear) return []
-      return [{ year: currentYear, month: currentMonth + 1, amountSnapshot: incomeSnapshotAmount }]
-    })
-
-    vi.mocked(StorageService.getSavingsSnapshotsForYear).mockImplementation(
-      async (year: number) => {
-        if (year !== currentYear) return []
-        return [{ year: currentYear, month: currentMonth + 1, rateSnapshot: savingsSnapshotRate }]
+  it('uses historical snapshots for past months', () => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    mockUseFinanceData.mockReturnValue({
+      engineData: {
+        ...makeEngineData(),
+        snapshots: [
+          {
+            fixedExpenseId: 1,
+            nameSnapshot: 'Rent',
+            amountSnapshot: 950,
+            year: currentYear - 1,
+            month: 12,
+          },
+        ],
+        incomeSnapshots: [{ year: currentYear - 1, month: 12, amountSnapshot: 7000 }],
+        savingsSnapshots: [{ year: currentYear - 1, month: 12, rateSnapshot: 10 }],
       },
-    )
-
-    const { result, rerender } = renderHook(
-      ({ refreshKey }) =>
-        useDashboardData(
-          [makeExpense(currentMonthDate, 42)],
-          currentYear,
-          currentMonth,
-          1,
-          refreshKey,
-        ),
-      { initialProps: { refreshKey: 0 } },
-    )
-
-    await waitFor(() => {
-      expect(result.current.financialSummary).not.toBeNull()
+      incomeAmount: '',
+      incomeFrequency: 'monthly',
     })
 
-    expect(result.current.financialSummary?.income).toBe(6000)
-    expect(result.current.financialSummary?.savingsRate).toBe(10)
-    expect(result.current.monthSummaries[0]?.income).toBe(6000)
-    expect(result.current.monthSummaries[0]?.savingsRate).toBe(10)
+    const result = renderHook(() =>
+      useDashboardData([{ date: `${currentYear - 1}-12-03`, amount: 42 }], currentYear - 1, 11, 1),
+    )
 
-    incomeSnapshotAmount = 7500
-    savingsSnapshotRate = 25
-    rerender({ refreshKey: 1 })
-
-    await waitFor(() => {
-      expect(result.current.financialSummary?.income).toBe(7500)
-    })
-
-    expect(result.current.financialSummary?.savingsRate).toBe(25)
-    expect(result.current.monthSummaries[0]?.income).toBe(7500)
-    expect(result.current.monthSummaries[0]?.savingsRate).toBe(25)
+    expect(result.result.current.monthSummaries[0]?.fixedExpensesTotal).toBe(950)
+    expect(result.result.current.monthSummaries[0]?.income).toBe(7000)
+    expect(result.result.current.monthSummaries[0]?.savingsRate).toBe(10)
   })
 })
