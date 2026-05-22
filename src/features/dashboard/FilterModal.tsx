@@ -329,11 +329,12 @@ export default function FilterModal({
   payees,
 }: FilterModalProps) {
   const [draft, setDraft] = useState<FilterDraft>(EMPTY_DRAFT)
+  const draftRef = useRef<FilterDraft>(EMPTY_DRAFT)
 
   // Sync draft from applied filters when opening
   useEffect(() => {
     if (isOpen) {
-      setDraft({
+      const nextDraft = {
         filterGlobal: appliedFilters.filterGlobal,
         filterDateFrom: appliedFilters.filterDateFrom,
         filterDateTo: appliedFilters.filterDateTo,
@@ -341,29 +342,55 @@ export default function FilterModal({
         selectedPayees: new Set(appliedFilters.selectedPayees),
         filterDescription: appliedFilters.filterDescription,
         filterAmount: appliedFilters.filterAmount,
-      })
+      }
+      draftRef.current = nextDraft
+      setDraft(nextDraft)
     }
-  }, [isOpen, appliedFilters])
+  }, [
+    isOpen,
+    appliedFilters.filterGlobal,
+    appliedFilters.filterDateFrom,
+    appliedFilters.filterDateTo,
+    appliedFilters.selectedCategories,
+    appliedFilters.selectedPayees,
+    appliedFilters.filterDescription,
+    appliedFilters.filterAmount,
+  ])
 
   const set = (field: keyof FilterDraft) => (val: string) =>
-    setDraft((d) => ({ ...d, [field]: val }))
+    setDraft((d) => {
+      const nextDraft = { ...d, [field]: val }
+      draftRef.current = nextDraft
+      return nextDraft
+    })
 
   const toggleCategory = (name: string) =>
-    setDraft((d) => ({
-      ...d,
-      selectedCategories: toggleInSet(d.selectedCategories, name),
-    }))
+    setDraft((d) => {
+      const nextDraft = {
+        ...d,
+        selectedCategories: toggleInSet(d.selectedCategories, name),
+      }
+      draftRef.current = nextDraft
+      return nextDraft
+    })
 
   const togglePayee = (name: string) =>
-    setDraft((d) => ({
-      ...d,
-      selectedPayees: toggleInSet(d.selectedPayees, name),
-    }))
+    setDraft((d) => {
+      const nextDraft = {
+        ...d,
+        selectedPayees: toggleInSet(d.selectedPayees, name),
+      }
+      draftRef.current = nextDraft
+      return nextDraft
+    })
 
-  const handleClearAll = () => setDraft(EMPTY_DRAFT)
+  const handleClearAll = () => {
+    draftRef.current = EMPTY_DRAFT
+    setDraft(EMPTY_DRAFT)
+  }
 
   const handleDone = () => {
-    onApply(draft)
+    onApply(draftRef.current)
     onClose()
   }
 
@@ -434,7 +461,13 @@ export default function FilterModal({
           items={activePayees}
           selected={draft.selectedPayees}
           onToggle={togglePayee}
-          onClear={() => setDraft((d) => ({ ...d, selectedPayees: new Set() }))}
+          onClear={() =>
+            setDraft((d) => {
+              const nextDraft = { ...d, selectedPayees: new Set<string>() }
+              draftRef.current = nextDraft
+              return nextDraft
+            })
+          }
         />
 
         <MultiSelectDropdown
@@ -442,7 +475,13 @@ export default function FilterModal({
           items={activeCategories}
           selected={draft.selectedCategories}
           onToggle={toggleCategory}
-          onClear={() => setDraft((d) => ({ ...d, selectedCategories: new Set() }))}
+          onClear={() =>
+            setDraft((d) => {
+              const nextDraft = { ...d, selectedCategories: new Set<string>() }
+              draftRef.current = nextDraft
+              return nextDraft
+            })
+          }
         />
 
         <div>

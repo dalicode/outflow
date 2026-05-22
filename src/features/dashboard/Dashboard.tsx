@@ -387,13 +387,15 @@ export default function Dashboard({
             filterAmount: dash.filterAmount,
           }}
           onApply={(draft) => {
-            dash.setFilterGlobal(draft.filterGlobal)
-            dash.setFilterDateFrom(draft.filterDateFrom)
-            dash.setFilterDateTo(draft.filterDateTo)
-            dash.setSelectedCategories(draft.selectedCategories)
-            dash.setSelectedPayees(draft.selectedPayees)
-            dash.setFilterDescription(draft.filterDescription)
-            dash.setFilterAmount(draft.filterAmount)
+            dash.applyDashboardFilters({
+              filterGlobal: draft.filterGlobal,
+              filterDateFrom: draft.filterDateFrom,
+              filterDateTo: draft.filterDateTo,
+              filterDescription: draft.filterDescription,
+              filterAmount: draft.filterAmount,
+              selectedCategories: Array.from(draft.selectedCategories),
+              selectedPayees: Array.from(draft.selectedPayees),
+            })
           }}
           categories={categories}
           payees={payees}

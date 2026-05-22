@@ -102,6 +102,20 @@ export function useDashboardFilters(
     [onFiltersChange],
   )
 
+  const applyDashboardFilters = useCallback(
+    (nextFilters: DashboardFiltersState) => {
+      setFilterGlobalState(nextFilters.filterGlobal)
+      setFilterDateFromState(nextFilters.filterDateFrom)
+      setFilterDateToState(nextFilters.filterDateTo)
+      setFilterDescriptionState(nextFilters.filterDescription)
+      setFilterAmountState(nextFilters.filterAmount)
+      setSelectedCategoriesState(new Set(nextFilters.selectedCategories))
+      setSelectedPayeesState(new Set(nextFilters.selectedPayees))
+      onFiltersChange?.(nextFilters)
+    },
+    [onFiltersChange],
+  )
+
   const categoryById = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])),
     [categories],
@@ -223,6 +237,7 @@ export function useDashboardFilters(
     setSelectedCategories,
     selectedPayees,
     setSelectedPayees,
+    applyDashboardFilters,
     filteredExpenses,
     activeFilterCount,
     clearAllFilters,

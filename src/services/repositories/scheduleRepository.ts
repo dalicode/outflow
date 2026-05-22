@@ -399,7 +399,14 @@ export async function rolloverSnapshots() {
   // Batch write everything in one transaction
   await db.transaction(
     'rw',
-    [db.incomeSnapshots, db.savingsSnapshots, db.fixedExpenseSnapshots, db.settings, db.syncQueue],
+    [
+      db.incomeSnapshots,
+      db.savingsSnapshots,
+      db.fixedExpenseSnapshots,
+      db.schedules,
+      db.settings,
+      db.syncQueue,
+    ],
     async () => {
       if (incomeToAdd.length) await db.incomeSnapshots.bulkAdd(incomeToAdd)
       if (savingsToAdd.length) await db.savingsSnapshots.bulkAdd(savingsToAdd)

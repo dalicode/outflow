@@ -282,6 +282,25 @@ class OutflowDB extends Dexie {
       this.table('categories').bulkAdd(buildDefaultCategories(now))
       this.table('payees').bulkAdd(buildDefaultPayees(now))
     })
+
+    this.on('versionchange', (event) => {
+      console.warn(
+        '[db] versionchange detected, closing existing connection',
+        event.oldVersion,
+        '->',
+        event.newVersion,
+      )
+      this.close()
+    })
+
+    this.on('blocked', (event) => {
+      console.warn(
+        '[db] open blocked during upgrade. Another tab may still hold an old connection.',
+        event.oldVersion,
+        '->',
+        event.newVersion,
+      )
+    })
   }
 }
 
