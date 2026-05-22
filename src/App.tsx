@@ -139,16 +139,7 @@ function AppShell() {
     }
   }, [])
 
-  const {
-    user,
-    loading,
-    syncStatus,
-    syncCount,
-    syncNow,
-    syncLocalThenPull,
-    syncLocalChanges,
-    signOut,
-  } = useAuth()
+  const { user, loading, syncStatus, syncCount, syncNow, triggerSync, signOut } = useAuth()
   const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
@@ -217,7 +208,7 @@ function AppShell() {
           mergedIntoCategoryId: null,
         })
         await refreshCategories()
-        void syncLocalChanges()
+        triggerSync?.()
       })
     } else if (action === 'merge') {
       // Merge already archives source + reassigns expenses in the repository.
@@ -225,7 +216,7 @@ function AppShell() {
       await refreshExpenses()
     }
     await refreshCategories()
-    void syncLocalChanges()
+    triggerSync?.()
     return newId
   }
 
@@ -236,7 +227,7 @@ function AppShell() {
       lastCheckInCompletedAt: new Date().toISOString(),
     }).catch((error) => console.warn('Check-in completion stamp failed:', error))
     setShowForm(false)
-    void syncLocalChanges()
+    triggerSync?.()
   }
 
   const handleUpdate = async (id: number, changes: Partial<Expense>) => {
@@ -252,7 +243,7 @@ function AppShell() {
 
     try {
       await StorageService.update(id, changes)
-      void syncLocalChanges()
+      triggerSync?.()
     } catch (error) {
       if (previousExpense) {
         setExpenses((prev) =>
@@ -267,7 +258,7 @@ function AppShell() {
     expenses,
     setExpenses,
     refreshExpenses,
-    triggerSync: syncLocalChanges,
+    triggerSync,
     showUndoToast,
   })
 
@@ -391,10 +382,7 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <PayeesPage
-                        refreshExpenses={refreshExpenses}
-                        triggerSync={syncLocalChanges}
-                      />
+                      <PayeesPage refreshExpenses={refreshExpenses} triggerSync={triggerSync} />
                     </ScrollablePage>
                   }
                 />
@@ -416,10 +404,8 @@ function AppShell() {
                           await refreshPayees()
                           forceFinanceDataRefresh()
                         }}
-                        triggerSync={syncLocalChanges}
+                        triggerSync={triggerSync}
                         syncNow={syncNow}
-                        syncLocalThenPull={syncLocalThenPull}
-                        syncLocalChanges={syncLocalChanges}
                         showSignIn={!!supabase && !user}
                         onSignIn={() => setShowAuthModal(true)}
                       />
@@ -437,7 +423,7 @@ function AppShell() {
                   onCategoriesChange={handleCategoriesChange}
                   refreshPayees={refreshPayees}
                   refreshExpenses={refreshExpenses}
-                  triggerSync={syncLocalChanges}
+                  triggerSync={triggerSync}
                 />
               </Suspense>
             )}

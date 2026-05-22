@@ -58,8 +58,6 @@ interface SettingsPageProps {
   onRefreshAll?: () => Promise<void> | void
   triggerSync?: () => void
   syncNow?: () => Promise<void>
-  syncLocalThenPull?: () => Promise<void>
-  syncLocalChanges?: () => Promise<void>
   showSignIn?: boolean
   onSignIn?: () => void
 }
@@ -69,8 +67,6 @@ export default function SettingsPage({
   onRefreshAll,
   triggerSync,
   syncNow,
-  syncLocalThenPull,
-  syncLocalChanges,
   showSignIn,
   onSignIn,
 }: SettingsPageProps) {
@@ -104,22 +100,12 @@ export default function SettingsPage({
   const [isRebuildingCloud, setIsRebuildingCloud] = useState(false)
   const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = useState(false)
 
-  const queueLocalSync = useCallback(() => {
-    if (syncLocalChanges) {
-      void syncLocalChanges()
-      return
-    }
-    triggerSync?.()
-  }, [syncLocalChanges, triggerSync])
-
-  const { schedules, loadSchedules, deleteSchedule } = useScheduleList({
-    onLocalMutation: queueLocalSync,
-  })
+  const { schedules, loadSchedules, deleteSchedule } = useScheduleList()
   const backup = useBackup({
     user,
     onStatus: setImportStatus,
     onRefreshAll,
-    triggerSync: queueLocalSync,
+    triggerSync,
   })
 
   const handleImportComplete = async (importedYears: number[]) => {
@@ -134,7 +120,7 @@ export default function SettingsPage({
     onImportComplete: handleImportComplete,
     onStatusChange: setImportStatus,
     onErrorsChange: setImportErrors,
-    triggerSync: queueLocalSync,
+    triggerSync,
   })
 
   useEffect(() => {
@@ -191,23 +177,7 @@ export default function SettingsPage({
   const handleDismissAppliedScheduleNotices = async () => {
     await StorageService.setSetting('scheduleMaterializationLog', [])
     setAppliedScheduleNotices([])
-    queueLocalSync()
   }
-
-  const saveSyncedSettings = useCallback(
-    async (patch: Parameters<typeof save>[0]) => {
-      await save(patch)
-      queueLocalSync()
-    },
-    [queueLocalSync, save],
-  )
-
-  const handleDeleteSchedule = useCallback(
-    async (id: number) => {
-      await deleteSchedule(id)
-    },
-    [deleteSchedule],
-  )
 
   const handleClearAll = async () => {
     try {
@@ -275,10 +245,7 @@ export default function SettingsPage({
       <div className="mx-auto md:max-w-3xl flex flex-col space-y-6">
         {/* ── APPEARANCE ── */}
         <Card title="Appearance">
-          <ThemeSelector
-            value={settings.visualTheme}
-            onChange={(v) => void saveSyncedSettings({ visualTheme: v })}
-          />
+          <ThemeSelector value={settings.visualTheme} onChange={(v) => save({ visualTheme: v })} />
           <div className="flex items-center gap-2 text-xs text-theme-muted mt-2">
             <span className="inline-block w-2 h-2 rounded-full bg-theme-success" />
             Active: <span className="font-medium text-theme-text">{currentTheme.name}</span>
@@ -292,7 +259,7 @@ export default function SettingsPage({
           <Row
             label="Font"
             value={settings.font}
-            onChange={(v) => void saveSyncedSettings({ font: v })}
+            onChange={(v) => save({ font: v })}
             options={[
               ['system', 'System UI'],
               ['sans', 'Sans-serif'],
@@ -306,7 +273,7 @@ export default function SettingsPage({
           <Row
             label="Font size"
             value={settings.fontSize}
-            onChange={(v) => void saveSyncedSettings({ fontSize: v })}
+            onChange={(v) => save({ fontSize: v })}
             options={[
               ['0.85', 'Small'],
               ['1', 'Medium'],
@@ -317,7 +284,7 @@ export default function SettingsPage({
           <Row
             label="Currency"
             value={settings.currencySymbol}
-            onChange={(v) => void saveSyncedSettings({ currencySymbol: v })}
+            onChange={(v) => save({ currencySymbol: v })}
             options={[
               ['$', '$ Dollar'],
               ['€', '€ Euro'],
@@ -329,7 +296,7 @@ export default function SettingsPage({
           <Row
             label="Decimals"
             value={settings.decimalPlaces}
-            onChange={(v) => void saveSyncedSettings({ decimalPlaces: v })}
+            onChange={(v) => save({ decimalPlaces: v })}
             options={[
               ['0', '0'],
               ['1', '1'],
@@ -339,7 +306,7 @@ export default function SettingsPage({
           <Row
             label="Separator"
             value={settings.thousandSep}
-            onChange={(v) => void saveSyncedSettings({ thousandSep: v })}
+            onChange={(v) => save({ thousandSep: v })}
             options={[
               [',', '1,000'],
               ['.', '1.000'],
@@ -349,7 +316,7 @@ export default function SettingsPage({
           <Row
             label="Date format"
             value={settings.dateFormat}
-            onChange={(v) => void saveSyncedSettings({ dateFormat: v })}
+            onChange={(v) => save({ dateFormat: v })}
             options={[
               ['MM/DD/YYYY', 'MM/DD/YYYY'],
               ['DD/MM/YYYY', 'DD/MM/YYYY'],
@@ -374,9 +341,7 @@ export default function SettingsPage({
               type="button"
               role="switch"
               aria-checked={settings.hapticsEnabled}
-              onClick={() =>
-                void saveSyncedSettings({ hapticsEnabled: !settings.hapticsEnabled })
-              }
+              onClick={() => save({ hapticsEnabled: !settings.hapticsEnabled })}
               className="settings-toggle"
             >
               <span className="settings-toggle-thumb" />
@@ -455,7 +420,7 @@ export default function SettingsPage({
             schedules={schedules}
             categories={categories}
             onEdit={handleEditSchedule}
-            onDelete={handleDeleteSchedule}
+            onDelete={deleteSchedule}
           />
           <div className="flex items-center justify-between">
             <p className="text-xs text-theme-muted">
@@ -1017,7 +982,7 @@ export default function SettingsPage({
             setEditHistoricalDataYears([])
             setShowHistoricalCompletionPrompt(false)
             onRefreshAll?.()
-            void (syncLocalThenPull ?? syncNow)?.()
+            void syncNow?.()
           }}
         />
 
@@ -1059,7 +1024,6 @@ export default function SettingsPage({
           onComplete={() => {
             loadSchedules()
             onRefreshAll?.()
-            queueLocalSync()
           }}
         />
       </div>

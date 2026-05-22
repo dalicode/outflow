@@ -33,7 +33,6 @@ vi.mock('../services/storageService', () => ({
     addFixedExpense: vi.fn(),
     updateFixedExpense: vi.fn(),
     removeFixedExpense: vi.fn(),
-    saveHistoricalSnapshotConfigs: vi.fn(),
   },
 }))
 
@@ -153,29 +152,5 @@ describe('FinanceDataProvider', () => {
       'monthlyIncomeUpdatedAt',
       expect.stringMatching(/^\d{4}-\d{2}$/),
     )
-  })
-
-  it('saves historical snapshot configs through StorageService and refreshes live queries', async () => {
-    mockLiveResults([[], [], [], [], [], [], [], [], []])
-    vi.mocked(StorageService.saveHistoricalSnapshotConfigs).mockResolvedValue(undefined)
-
-    const { result } = renderHook(() => useFinanceActions(), { wrapper })
-    const params = {
-      dirtyYears: new Set([2025]),
-      yearConfigs: {
-        2025: {
-          incomeRanges: [],
-          savingsRanges: [],
-          fixedItems: [],
-        },
-      },
-    }
-
-    await act(async () => {
-      await result.current.saveHistoricalSnapshotConfigs(params)
-    })
-
-    expect(StorageService.saveHistoricalSnapshotConfigs).toHaveBeenCalledWith(params)
-    expect(mockUseLiveQuery.mock.calls[9]?.[1]).toEqual([1])
   })
 })

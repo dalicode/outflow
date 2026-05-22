@@ -15,7 +15,6 @@ type SyncReason =
   | 'startup'
   | 'sign-in'
   | 'local-change'
-  | 'historical-data'
   | 'manual'
   | 'focus'
   | 'visible'
@@ -27,7 +26,7 @@ type SyncReason =
 
 interface QueueSyncOptions {
   reason: SyncReason
-  mode?: 'pull-and-flush' | 'flush-only' | 'flush-then-pull' | 'full-upload-after-pull'
+  mode?: 'pull-and-flush' | 'flush-only' | 'full-upload-after-pull'
   force?: boolean
 }
 
@@ -42,8 +41,6 @@ interface UseSyncControllerResult {
   syncCount: number
   queueSync: (options: QueueSyncOptions) => Promise<void>
   syncNow: () => Promise<void>
-  syncLocalThenPull: () => Promise<void>
-  syncLocalChanges: () => Promise<void>
   triggerSync: () => void
   shouldRunFreshnessSync: (force?: boolean) => boolean
   clearSyncTimers: () => void
@@ -63,21 +60,9 @@ function shouldApplyRecentPullCooldown(reason: SyncReason): boolean {
   )
 }
 
-function shouldGuardPullFirstWithPendingQueue(reason: SyncReason): boolean {
-  return (
-    reason === 'focus' ||
-    reason === 'visible' ||
-    reason === 'online' ||
-    reason === 'periodic' ||
-    reason === 'token-refresh'
-  )
-}
-
 function getModeRank(mode: QueueSyncOptions['mode']): number {
   switch (mode) {
     case 'full-upload-after-pull':
-      return 4
-    case 'flush-then-pull':
       return 3
     case 'pull-and-flush':
     case undefined:
@@ -160,12 +145,6 @@ export function useSyncController({
     setSyncStatus(status)
   }, [])
 
-  const getHasPendingLocalChanges = useCallback(async (): Promise<boolean> => {
-    if (isSyncPaused()) return false
-    const queue = await StorageService.getSyncQueue()
-    return queue.length > 0
-  }, [])
-
   const flushQueuedChanges = useCallback(
     async (id: string, generation: number): Promise<boolean> => {
       if (isSyncPaused()) return false
@@ -201,9 +180,6 @@ export function useSyncController({
       try {
         if (options.mode === 'flush-only') {
           await flushQueuedChanges(id, generation)
-        } else if (options.mode === 'flush-then-pull') {
-          await flushQueuedChanges(id, generation)
-          await withTimeout(pullFromSupabase(id), 30000)
         } else if (options.mode === 'full-upload-after-pull') {
           await withTimeout(pullFromSupabase(id), 30000)
           await withTimeout(migrateLocalToSupabase(id), 45000)
@@ -243,28 +219,22 @@ export function useSyncController({
       if (!options.force && shouldApplyFreshnessGate(options.reason) && !shouldRunFreshnessSync()) {
         return
       }
-      const guardedOptions =
-        (options.mode ?? 'pull-and-flush') === 'pull-and-flush' &&
-        shouldGuardPullFirstWithPendingQueue(options.reason) &&
-        (await getHasPendingLocalChanges())
-          ? { ...options, mode: 'flush-then-pull' as const }
-          : options
-      debugLog('[sync] queued', guardedOptions.reason, guardedOptions.mode ?? 'pull-and-flush')
+      debugLog('[sync] queued', options.reason, options.mode ?? 'pull-and-flush')
 
       if (activeSyncPromiseRef.current) {
         followUpSyncRequestedRef.current = true
         pendingFollowUpOptionsRef.current = mergeQueuedOptions(
           pendingFollowUpOptionsRef.current,
-          guardedOptions,
+          options,
         )
-        debugLog('[sync] follow-up requested', guardedOptions.reason)
+        debugLog('[sync] follow-up requested', options.reason)
         return activeSyncPromiseRef.current
       }
 
       const run = async () => {
         const generation = syncRunGenerationRef.current + 1
         syncRunGenerationRef.current = generation
-        let nextOptions: QueueSyncOptions | null = guardedOptions
+        let nextOptions: QueueSyncOptions | null = options
 
         do {
           followUpSyncRequestedRef.current = false
@@ -273,7 +243,7 @@ export function useSyncController({
           nextOptions = followUpSyncRequestedRef.current
             ? (pendingFollowUpOptionsRef.current ?? {
                 reason: 'queued-follow-up',
-                mode: 'flush-then-pull',
+                mode: 'pull-and-flush',
                 force: true,
               })
             : null
@@ -286,33 +256,16 @@ export function useSyncController({
 
       return activeSyncPromiseRef.current.catch((error) => {
         scheduleRetry(() => {
-          if (userId) void queueSync({ reason: 'retry', mode: 'flush-then-pull', force: true })
+          if (userId) void queueSync({ reason: 'retry', mode: 'pull-and-flush', force: true })
         })
         throw error
       })
     },
-    [
-      getHasPendingLocalChanges,
-      runSyncNow,
-      scheduleRetry,
-      shouldRunFreshnessSync,
-      shouldRunRecentPullSync,
-      userId,
-    ],
+    [runSyncNow, scheduleRetry, shouldRunFreshnessSync, shouldRunRecentPullSync, userId],
   )
 
   const syncNow = useCallback(
-    () => queueSync({ reason: 'manual', mode: 'flush-then-pull', force: true }),
-    [queueSync],
-  )
-
-  const syncLocalThenPull = useCallback(
-    () => queueSync({ reason: 'historical-data', mode: 'flush-then-pull', force: true }),
-    [queueSync],
-  )
-
-  const syncLocalChanges = useCallback(
-    () => queueSync({ reason: 'local-change', mode: 'flush-only', force: true }),
+    () => queueSync({ reason: 'manual', mode: 'pull-and-flush', force: true }),
     [queueSync],
   )
 
@@ -331,7 +284,7 @@ export function useSyncController({
   useEffect(() => {
     if (!userId) return
 
-    const maybePull = async (
+    const maybePull = (
       reason: Extract<SyncReason, 'focus' | 'online' | 'periodic' | 'visible'>,
     ) => {
       if (document.visibilityState !== 'visible') return
@@ -363,8 +316,6 @@ export function useSyncController({
     syncCount,
     queueSync,
     syncNow,
-    syncLocalThenPull,
-    syncLocalChanges,
     triggerSync,
     shouldRunFreshnessSync,
     clearSyncTimers,

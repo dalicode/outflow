@@ -51,14 +51,7 @@ describe('useSyncController', () => {
     })
   })
 
-  it('syncNow flushes local changes before pulling remote rows', async () => {
-    const callOrder: string[] = []
-    flushSyncQueue.mockImplementation(async () => {
-      callOrder.push('flush')
-    })
-    pullFromSupabase.mockImplementation(async () => {
-      callOrder.push('pull')
-    })
+  it('flushes local changes even when the last sync was recent', async () => {
     const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
     const { result } = renderHook(() =>
       useSyncController({
@@ -71,24 +64,15 @@ describe('useSyncController', () => {
       await result.current.syncNow()
     })
 
-    expect(callOrder).toEqual(['flush', 'pull'])
-  })
-
-  it('syncLocalChanges only flushes queued local changes', async () => {
-    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() =>
-      useSyncController({
-        userId: 'user-1',
-        runRecoveryCheck,
-      }),
-    )
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+    expect(flushSyncQueue).toHaveBeenCalledTimes(1)
 
     await act(async () => {
-      await result.current.syncLocalChanges()
+      result.current.triggerSync()
+      await vi.advanceTimersByTimeAsync(2000)
     })
 
-    expect(flushSyncQueue).toHaveBeenCalledTimes(1)
-    expect(pullFromSupabase).not.toHaveBeenCalled()
+    expect(flushSyncQueue).toHaveBeenCalledTimes(2)
   })
 
   it('promotes queued follow-up syncs to the stronger later request', async () => {
@@ -139,8 +123,7 @@ describe('useSyncController', () => {
     expect(flushSyncQueue).toHaveBeenCalledTimes(2)
   })
 
-  it('background freshness pulls first when there are no pending local changes', async () => {
-    getSyncQueue.mockResolvedValue([])
+  it('runs an immediate pull when the app comes back online even if sync was recent', async () => {
     const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
     renderHook(() =>
       useSyncController({
@@ -162,18 +145,9 @@ describe('useSyncController', () => {
     })
 
     expect(pullFromSupabase).toHaveBeenCalledTimes(2)
-    expect(flushSyncQueue).toHaveBeenCalledTimes(0)
   })
 
-  it('background freshness flushes before pull when local changes are pending', async () => {
-    const callOrder: string[] = []
-    flushSyncQueue.mockImplementation(async () => {
-      callOrder.push('flush')
-    })
-    pullFromSupabase.mockImplementation(async () => {
-      callOrder.push('pull')
-    })
-
+  it('periodically pulls while the tab stays visible', async () => {
     const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
     renderHook(() =>
       useSyncController({
@@ -182,16 +156,18 @@ describe('useSyncController', () => {
       }),
     )
 
+    expect(pullFromSupabase).toHaveBeenCalledTimes(0)
+
     await act(async () => {
-      window.dispatchEvent(new Event('online'))
+      await Promise.resolve()
+      await vi.advanceTimersToNextTimerAsync()
       await Promise.resolve()
     })
 
-    expect(callOrder).toEqual(['flush', 'pull'])
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
   })
 
   it('suppresses focus and token-refresh pull bursts right after a successful sync', async () => {
-    getSyncQueue.mockResolvedValue([])
     const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
     const { result } = renderHook(() =>
       useSyncController({
@@ -223,7 +199,6 @@ describe('useSyncController', () => {
   })
 
   it('still allows online pulls immediately after a recent successful sync', async () => {
-    getSyncQueue.mockResolvedValue([])
     const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
     const { result } = renderHook(() =>
       useSyncController({
@@ -244,29 +219,5 @@ describe('useSyncController', () => {
     })
 
     expect(pullFromSupabase).toHaveBeenCalledTimes(2)
-  })
-
-  it('flushes before pull when using syncLocalThenPull', async () => {
-    const callOrder: string[] = []
-    flushSyncQueue.mockImplementation(async () => {
-      callOrder.push('flush')
-    })
-    pullFromSupabase.mockImplementation(async () => {
-      callOrder.push('pull')
-    })
-
-    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() =>
-      useSyncController({
-        userId: 'user-1',
-        runRecoveryCheck,
-      }),
-    )
-
-    await act(async () => {
-      await result.current.syncLocalThenPull()
-    })
-
-    expect(callOrder).toEqual(['flush', 'pull'])
   })
 })

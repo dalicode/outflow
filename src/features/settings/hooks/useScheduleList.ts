@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { StorageService } from '../../../services/storageService'
 import type { Schedule } from '../../../types'
 
-interface UseScheduleListParams {
-  onLocalMutation?: () => void
-}
-
-export function useScheduleList({ onLocalMutation }: UseScheduleListParams = {}) {
+export function useScheduleList() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
 
   const loadSchedules = useCallback(async () => {
@@ -22,9 +18,8 @@ export function useScheduleList({ onLocalMutation }: UseScheduleListParams = {})
     async (id: number) => {
       await StorageService.deleteSchedule(id)
       await loadSchedules()
-      onLocalMutation?.()
     },
-    [loadSchedules, onLocalMutation],
+    [loadSchedules],
   )
 
   return {

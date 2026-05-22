@@ -64,83 +64,19 @@ export async function getAllFixedExpenseSnapshots(): Promise<FixedExpenseSnapsho
 }
 
 export function bulkUpsertSnapshots(rows: FixedExpenseSnapshot[]): Promise<number> {
-  return db.transaction('rw', db.fixedExpenseSnapshots, db.syncQueue, async () => {
-    const now = new Date().toISOString()
-    let changed = 0
-
+  return db.transaction('rw', db.fixedExpenseSnapshots, async () => {
+    const upsertRows: FixedExpenseSnapshot[] = []
     for (const row of rows) {
       const existing = await db.fixedExpenseSnapshots
         .where('[fixedExpenseId+year+month]')
         .equals([row.fixedExpenseId, row.year, row.month])
         .first()
-
-      if (existing) {
-        const id = existing.id as number
-        await db.fixedExpenseSnapshots.put({
-          ...existing,
-          ...row,
-          id,
-          cloudId: row.cloudId ?? existing.cloudId,
-          createdAt: row.createdAt ?? existing.createdAt,
-          updatedAt: now,
-        })
-        const updated = await db.fixedExpenseSnapshots.get(id)
-        await enqueue(
-          'fixedExpenseSnapshots',
-          'update',
-          updated as unknown as Record<string, unknown>,
-        )
-        changed += 1
-        continue
-      }
-
-      const id = await db.fixedExpenseSnapshots.add({
-        ...row,
-        cloudId: row.cloudId ?? crypto.randomUUID(),
-        createdAt: row.createdAt ?? now,
-        updatedAt: now,
-      })
-      const inserted = await db.fixedExpenseSnapshots.get(id)
-      await enqueue(
-        'fixedExpenseSnapshots',
-        'insert',
-        inserted as unknown as Record<string, unknown>,
-      )
-      changed += 1
+      upsertRows.push(existing ? { ...row, id: existing.id } : row)
     }
-
-    return changed
+    return db.fixedExpenseSnapshots.bulkPut(upsertRows)
   })
 }
 
 export function deleteSnapshotsForYear(year: number): Promise<number> {
   return db.fixedExpenseSnapshots.where('year').equals(year).delete()
-}
-
-interface FixedExpenseSnapshotNaturalKey {
-  fixedExpenseId: number
-  year: number
-  month: number
-}
-
-export function deleteSnapshotsByNaturalKeys(
-  keys: FixedExpenseSnapshotNaturalKey[],
-): Promise<number> {
-  return db.transaction('rw', db.fixedExpenseSnapshots, db.syncQueue, async () => {
-    let deleted = 0
-    for (const key of keys) {
-      const existing = await db.fixedExpenseSnapshots
-        .where('[fixedExpenseId+year+month]')
-        .equals([key.fixedExpenseId, key.year, key.month])
-        .first()
-      if (!existing || existing.id == null) continue
-      await db.fixedExpenseSnapshots.delete(existing.id)
-      await enqueue('fixedExpenseSnapshots', 'delete', {
-        id: existing.id,
-        cloudId: existing.cloudId,
-      })
-      deleted += 1
-    }
-    return deleted
-  })
 }

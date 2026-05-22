@@ -351,9 +351,6 @@ export interface AuthContextValue {
   user: import('@supabase/supabase-js').User | null
   loading: boolean
   syncStatus: SyncStatus
-  syncNow: () => Promise<void>
-  syncLocalThenPull: () => Promise<void>
-  syncLocalChanges: () => Promise<void>
   triggerSync: () => void
   signOut: () => Promise<{ error: import('@supabase/supabase-js').AuthError | null }>
 }

@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { StorageService } from '../services/storageService'
-import type { SaveHistoricalSnapshotConfigsParams } from '../services/repositories/historicalSnapshotRepository'
 import type {
   Category,
   Expense,
@@ -41,14 +40,9 @@ interface FinanceActionsValue {
   saveCurrentSavingsRate: (rate: number) => Promise<void>
   saveIncomeSnapshot: (year: number, month: number, amount: number) => Promise<void>
   saveSavingsSnapshot: (year: number, month: number, rate: number) => Promise<void>
-  saveHistoricalSnapshotConfigs: (params: {
-    dirtyYears: Set<number>
-    yearConfigs: Record<number, HistoricalYearConfig>
-  }) => Promise<void>
   addFixedExpense: (item: Omit<FixedExpense, 'id'>) => Promise<void>
   updateFixedExpense: (id: number, changes: Partial<FixedExpense>) => Promise<void>
   removeFixedExpense: (id: number) => Promise<void>
-  saveHistoricalSnapshotConfigs: (params: SaveHistoricalSnapshotConfigsParams) => Promise<void>
 }
 
 interface FinanceStatusValue {
@@ -272,21 +266,6 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     [forceFinanceDataRefresh],
   )
 
-  const saveHistoricalSnapshotConfigs = useCallback(
-    async (params: SaveHistoricalSnapshotConfigsParams) => {
-      try {
-        setActionError(null)
-        await StorageService.saveHistoricalSnapshotConfigs(params)
-        forceFinanceDataRefresh()
-      } catch (error) {
-        const nextError = error instanceof Error ? error : new Error(String(error))
-        setActionError(nextError)
-        throw nextError
-      }
-    },
-    [forceFinanceDataRefresh],
-  )
-
   const actionsValue = useMemo<FinanceActionsValue>(
     () => ({
       forceFinanceDataRefresh,
@@ -297,7 +276,6 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addFixedExpense,
       updateFixedExpense,
       removeFixedExpense,
-      saveHistoricalSnapshotConfigs,
     }),
     [
       forceFinanceDataRefresh,
@@ -308,7 +286,6 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addFixedExpense,
       updateFixedExpense,
       removeFixedExpense,
-      saveHistoricalSnapshotConfigs,
     ],
   )
 

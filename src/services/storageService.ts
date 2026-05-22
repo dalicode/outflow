@@ -7,7 +7,6 @@ import * as categoryRepo from './repositories/categoryRepository'
 import * as payeeRepo from './repositories/payeeRepository'
 import * as syncRepo from './repositories/syncRepository'
 import * as backupRepo from './repositories/backupRepository'
-import * as historicalSnapshotRepo from './repositories/historicalSnapshotRepository'
 import { snapshotIncome, snapshotSavings } from './repositories/common'
 import db from './db/schema'
 
@@ -42,7 +41,6 @@ export const StorageService = {
   getAllFixedExpenseSnapshots: fixedExpenseRepo.getAllFixedExpenseSnapshots,
   bulkUpsertSnapshots: fixedExpenseRepo.bulkUpsertSnapshots,
   deleteSnapshotsForYear: fixedExpenseRepo.deleteSnapshotsForYear,
-  deleteSnapshotsByNaturalKeys: fixedExpenseRepo.deleteSnapshotsByNaturalKeys,
 
   // ── Income Snapshots ──────────────────────────────────────
   getIncomeSnapshot: snapshotRepo.getIncomeSnapshot,
@@ -51,7 +49,6 @@ export const StorageService = {
   getAllIncomeSnapshots: snapshotRepo.getAllIncomeSnapshots,
   bulkUpsertIncomeSnapshots: snapshotRepo.bulkUpsertIncomeSnapshots,
   deleteIncomeSnapshotsForYear: snapshotRepo.deleteIncomeSnapshotsForYear,
-  deleteIncomeSnapshotsByNaturalKeys: snapshotRepo.deleteIncomeSnapshotsByNaturalKeys,
 
   // ── Savings Snapshots ─────────────────────────────────────
   getSavingsSnapshot: snapshotRepo.getSavingsSnapshot,
@@ -60,8 +57,6 @@ export const StorageService = {
   getAllSavingsSnapshots: snapshotRepo.getAllSavingsSnapshots,
   bulkUpsertSavingsSnapshots: snapshotRepo.bulkUpsertSavingsSnapshots,
   deleteSavingsSnapshotsForYear: snapshotRepo.deleteSavingsSnapshotsForYear,
-  deleteSavingsSnapshotsByNaturalKeys: snapshotRepo.deleteSavingsSnapshotsByNaturalKeys,
-  saveHistoricalSnapshotConfigs: historicalSnapshotRepo.saveHistoricalSnapshotConfigs,
 
   // ── Schedule Materialization ──────────────────────────────
   materializePendingSnapshots: scheduleRepo.materializePendingSnapshots,
