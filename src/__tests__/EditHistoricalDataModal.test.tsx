@@ -1,10 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { FinanceEngineData, FixedExpenseSnapshot, IncomeSnapshot, SavingsSnapshot } from '../types'
-import EditHistoricalDataModal, {
-  saveHistoricalDataConfigs,
-} from '../features/settings/EditHistoricalDataModal'
-import { getMonthlyFinancialSummary } from '../utils/financeEngine'
+import EditHistoricalDataModal from '../features/settings/EditHistoricalDataModal'
 
 vi.mock('../context/settingsContext', () => ({
   useSettings: () => ({
@@ -12,274 +8,34 @@ vi.mock('../context/settingsContext', () => ({
   }),
 }))
 
-const { storageMock } = vi.hoisted(() => ({
+const { storageMock, saveHistoricalSnapshotConfigs } = vi.hoisted(() => ({
+  saveHistoricalSnapshotConfigs: vi.fn(async () => undefined),
   storageMock: {
     getFixedExpenses: vi.fn(async () => []),
     getAllIncomeSnapshots: vi.fn(async () => []),
     getAllSavingsSnapshots: vi.fn(async () => []),
     getAllFixedExpenseSnapshots: vi.fn(async () => []),
-    bulkUpsertIncomeSnapshots: vi.fn(async () => 0),
-    bulkUpsertSavingsSnapshots: vi.fn(async () => 0),
-    bulkUpsertSnapshots: vi.fn(async () => 0),
-    deleteIncomeSnapshotsForYear: vi.fn(async () => 0),
-    deleteSavingsSnapshotsForYear: vi.fn(async () => 0),
-    deleteSnapshotsForYear: vi.fn(async () => 0),
-    addArchivedFixedExpense: vi.fn(async () => 1),
   },
+}))
+
+vi.mock('../context/financeDataContext', () => ({
+  useFinanceActions: () => ({
+    saveHistoricalSnapshotConfigs,
+  }),
 }))
 
 vi.mock('../services/storageService', () => ({
   StorageService: storageMock,
 }))
 
-describe('saveHistoricalDataConfigs', () => {
-  const makeStorage = () => {
-    const incomeByKey = new Map<string, IncomeSnapshot>()
-    const savingsByKey = new Map<string, SavingsSnapshot>()
-    const fixedByKey = new Map<string, FixedExpenseSnapshot>()
-    let fixedIdCounter = 100
-    return {
-      incomeByKey,
-      savingsByKey,
-      fixedByKey,
-      storage: {
-        bulkUpsertIncomeSnapshots: vi.fn(async (rows: IncomeSnapshot[]) => {
-          for (const row of rows) incomeByKey.set(`${row.year}-${row.month}`, row)
-          return rows.length
-        }),
-        bulkUpsertSavingsSnapshots: vi.fn(async (rows: SavingsSnapshot[]) => {
-          for (const row of rows) savingsByKey.set(`${row.year}-${row.month}`, row)
-          return rows.length
-        }),
-        bulkUpsertSnapshots: vi.fn(async (rows: FixedExpenseSnapshot[]) => {
-          for (const row of rows) {
-            fixedByKey.set(`${row.fixedExpenseId}-${row.year}-${row.month}`, row)
-          }
-          return rows.length
-        }),
-        deleteIncomeSnapshotsForYear: vi.fn(async (year: number) => {
-          for (const key of [...incomeByKey.keys()]) {
-            if (key.startsWith(`${year}-`)) incomeByKey.delete(key)
-          }
-          return 0
-        }),
-        deleteSavingsSnapshotsForYear: vi.fn(async (year: number) => {
-          for (const key of [...savingsByKey.keys()]) {
-            if (key.startsWith(`${year}-`)) savingsByKey.delete(key)
-          }
-          return 0
-        }),
-        deleteSnapshotsForYear: vi.fn(async (year: number) => {
-          for (const key of [...fixedByKey.keys()]) {
-            if (key.includes(`-${year}-`)) fixedByKey.delete(key)
-          }
-          return 0
-        }),
-        addArchivedFixedExpense: vi.fn(async () => {
-          fixedIdCounter += 1
-          return fixedIdCounter
-        }),
-      },
-    }
-  }
-
-  it('prevents duplicate income snapshots and keeps engine income value updated', async () => {
-    const env = makeStorage()
-    const yearConfigs = {
-      2025: {
-        incomeRanges: [{ id: 'inc', amount: '5000', startMonth: 1, endMonth: 1 }],
-        savingsRanges: [{ id: 'sav', amount: '20', startMonth: 1, endMonth: 1 }],
-        fixedItems: [],
-      },
-    }
-
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs,
-      saveMode: 'merge',
-    })
-    yearConfigs[2025].incomeRanges[0].amount = '6000'
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs,
-      saveMode: 'merge',
-    })
-
-    expect(env.incomeByKey.size).toBe(1)
-    const data: FinanceEngineData = {
-      expenses: [],
-      snapshots: [],
-      fixedExpenses: [],
-      incomeSnapshots: [...env.incomeByKey.values()],
-      savingsSnapshots: [...env.savingsByKey.values()],
-      globalIncome: 0,
-      globalSavingsRate: 0,
-      schedules: [],
-    }
-    const summary = getMonthlyFinancialSummary(2025, 0, data)
-    expect(summary.income).toBe(6000)
-  })
-
-  it('prevents duplicate savings snapshots and keeps autoSavings updated', async () => {
-    const env = makeStorage()
-    const yearConfigs = {
-      2025: {
-        incomeRanges: [{ id: 'inc', amount: '4000', startMonth: 1, endMonth: 1 }],
-        savingsRanges: [{ id: 'sav', amount: '10', startMonth: 1, endMonth: 1 }],
-        fixedItems: [],
-      },
-    }
-
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs,
-      saveMode: 'merge',
-    })
-    yearConfigs[2025].savingsRanges[0].amount = '25'
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs,
-      saveMode: 'merge',
-    })
-
-    expect(env.savingsByKey.size).toBe(1)
-    const data: FinanceEngineData = {
-      expenses: [],
-      snapshots: [],
-      fixedExpenses: [],
-      incomeSnapshots: [...env.incomeByKey.values()],
-      savingsSnapshots: [...env.savingsByKey.values()],
-      globalIncome: 0,
-      globalSavingsRate: 0,
-      schedules: [],
-    }
-    const summary = getMonthlyFinancialSummary(2025, 0, data)
-    expect(summary.autoSavings).toBe(1000)
-  })
-
-  it('recalculates autoSavings when income changes with same savings rate', async () => {
-    const env = makeStorage()
-    const yearConfigs = {
-      2025: {
-        incomeRanges: [{ id: 'inc', amount: '5000', startMonth: 1, endMonth: 1 }],
-        savingsRanges: [{ id: 'sav', amount: '20', startMonth: 1, endMonth: 1 }],
-        fixedItems: [],
-      },
-    }
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs,
-      saveMode: 'merge',
-    })
-    yearConfigs[2025].incomeRanges[0].amount = '7000'
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs,
-      saveMode: 'merge',
-    })
-
-    const data: FinanceEngineData = {
-      expenses: [],
-      snapshots: [],
-      fixedExpenses: [],
-      incomeSnapshots: [...env.incomeByKey.values()],
-      savingsSnapshots: [...env.savingsByKey.values()],
-      globalIncome: 0,
-      globalSavingsRate: 0,
-      schedules: [],
-    }
-    const summary = getMonthlyFinancialSummary(2025, 0, data)
-    expect(summary.autoSavings).toBe(1400)
-  })
-
-  it('does not create or update fixed snapshots in merge mode when fixed data is invalid', async () => {
-    const env = makeStorage()
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs: {
-        2025: {
-          incomeRanges: [],
-          savingsRanges: [],
-          fixedItems: [{ id: 'fx', name: ' ', amount: '0', startMonth: 1, endMonth: 1 }],
-        },
-      },
-      saveMode: 'merge',
-    })
-    expect(env.storage.addArchivedFixedExpense).not.toHaveBeenCalled()
-    expect(env.storage.bulkUpsertSnapshots).not.toHaveBeenCalled()
-  })
-
-  it('updates fixed snapshots with existingFixedExpenseId in merge mode', async () => {
-    const env = makeStorage()
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs: {
-        2025: {
-          incomeRanges: [],
-          savingsRanges: [],
-          fixedItems: [
-            { id: 'fx', name: 'Rent', amount: '1200', startMonth: 1, endMonth: 2, existingFixedExpenseId: 7 },
-          ],
-        },
-      },
-      saveMode: 'merge',
-    })
-    expect(env.storage.addArchivedFixedExpense).not.toHaveBeenCalled()
-    expect([...env.fixedByKey.values()].every((row) => row.fixedExpenseId === 7)).toBe(true)
-  })
-
-  it('creates archived fixed definition for new merge fixed items', async () => {
-    const env = makeStorage()
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs: {
-        2025: {
-          incomeRanges: [],
-          savingsRanges: [],
-          fixedItems: [{ id: 'fx', name: 'Insurance', amount: '200', startMonth: 1, endMonth: 1 }],
-        },
-      },
-      saveMode: 'merge',
-    })
-    expect(env.storage.addArchivedFixedExpense).toHaveBeenCalledTimes(1)
-    expect([...env.fixedByKey.values()][0]?.fixedExpenseId).toBe(101)
-  })
-
-  it('clears fixed snapshots in replace mode even with no valid fixed rows', async () => {
-    const env = makeStorage()
-    await saveHistoricalDataConfigs({
-      storage: env.storage,
-      dirtyYears: new Set([2025]),
-      yearConfigs: {
-        2025: {
-          incomeRanges: [],
-          savingsRanges: [],
-          fixedItems: [{ id: 'fx', name: '', amount: '', startMonth: 1, endMonth: 1 }],
-        },
-      },
-      saveMode: 'replace',
-    })
-    expect(env.storage.deleteSnapshotsForYear).toHaveBeenCalledWith(2025)
-    expect(env.storage.bulkUpsertSnapshots).not.toHaveBeenCalled()
-  })
-})
-
 describe('EditHistoricalDataModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    saveHistoricalSnapshotConfigs.mockResolvedValue(undefined)
     localStorage.clear()
   })
 
-  it('awaits async onComplete before calling onClose', async () => {
+  it('restores legacy draft payloads that still include saveMode', async () => {
     localStorage.setItem(
       'outflow:editHistoricalDraft:2025',
       JSON.stringify({
@@ -291,40 +47,72 @@ describe('EditHistoricalDataModal', () => {
           },
         },
         dirtyYears: [2025],
-        saveMode: 'merge',
+        saveMode: 'replace',
       }),
     )
 
-    let resolveComplete: (() => void) | null = null
-    const onComplete = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveComplete = resolve
-        }),
-    )
-    const onClose = vi.fn()
+    render(<EditHistoricalDataModal isOpen onClose={() => {}} years={[2025]} expenses={[]} />)
 
-    render(
-      <EditHistoricalDataModal
-        isOpen
-        onClose={onClose}
-        years={[2025]}
-        expenses={[]}
-        onComplete={onComplete}
-      />,
-    )
+    await screen.findByText('Unsaved changes restored from your last session.')
+    expect(screen.queryByText('Save mode')).toBeNull()
+  })
 
+  it('reloads db-backed values after discarding restored draft', async () => {
+    storageMock.getAllIncomeSnapshots.mockResolvedValueOnce([{ year: 2025, month: 1, amountSnapshot: 4500 }])
+    localStorage.setItem(
+      'outflow:editHistoricalDraft:2025',
+      JSON.stringify({
+        yearConfigs: {
+          2025: {
+            incomeRanges: [{ id: 'i1', amount: '5000', startMonth: 1, endMonth: 1 }],
+            savingsRanges: [],
+            fixedItems: [],
+          },
+        },
+        dirtyYears: [2025],
+      }),
+    )
+    render(<EditHistoricalDataModal isOpen onClose={() => {}} years={[2025]} expenses={[]} />)
+    await screen.findByText('Unsaved changes restored from your last session.')
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    await waitFor(() => {
+      expect(screen.queryByText('Unsaved changes restored from your last session.')).toBeNull()
+    })
+    await waitFor(() => {
+      expect(storageMock.getAllIncomeSnapshots).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('clears global no-change validation error after editing', async () => {
+    render(<EditHistoricalDataModal isOpen onClose={() => {}} years={[2025]} expenses={[]} />)
     const saveButton = await screen.findByRole('button', { name: 'Confirm Save' })
     fireEvent.click(saveButton)
-
+    await screen.findByText('No changes to save.')
+    fireEvent.click(screen.getByRole('button', { name: '+ Add income range' }))
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(screen.queryByText('No changes to save.')).toBeNull()
     })
-    expect(onClose).not.toHaveBeenCalled()
+  })
 
-    resolveComplete?.()
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalledTimes(1)
-    })
+  it('loads fixed snapshot names when live fixed definition names differ', async () => {
+    storageMock.getFixedExpenses.mockResolvedValueOnce([{ id: 11, name: 'Live Name', amount: 999 }])
+    storageMock.getAllFixedExpenseSnapshots.mockResolvedValueOnce([
+      { fixedExpenseId: 11, year: 2025, month: 1, amountSnapshot: 1200, nameSnapshot: 'Snapshot Name' },
+    ])
+    render(<EditHistoricalDataModal isOpen onClose={() => {}} years={[2025]} expenses={[]} />)
+    expect(await screen.findByDisplayValue('Snapshot Name')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Live Name')).toBeNull()
+  })
+
+  it('keeps fixed snapshot name changes as separate historical rows', async () => {
+    storageMock.getAllFixedExpenseSnapshots.mockResolvedValueOnce([
+      { fixedExpenseId: 11, year: 2025, month: 1, amountSnapshot: 1200, nameSnapshot: 'Old Rent' },
+      { fixedExpenseId: 11, year: 2025, month: 2, amountSnapshot: 1200, nameSnapshot: 'New Rent' },
+    ])
+
+    render(<EditHistoricalDataModal isOpen onClose={() => {}} years={[2025]} expenses={[]} />)
+
+    expect(await screen.findByDisplayValue('Old Rent')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('New Rent')).toBeInTheDocument()
   })
 })
