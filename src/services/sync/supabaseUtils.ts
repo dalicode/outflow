@@ -86,6 +86,31 @@ export function dedupeRowsByConflictKey(
   return [...deduped.values(), ...passthrough]
 }
 
+function omitNullishId(row: Record<string, unknown>): Record<string, unknown> {
+  if (row.id != null || !Object.hasOwn(row, 'id')) return row
+  const { id: _id, ...rest } = row
+  return rest
+}
+
+function buildUpsertBatches(rows: Record<string, unknown>[]): Record<string, unknown>[][] {
+  const withExplicitId: Record<string, unknown>[] = []
+  const withoutExplicitId: Record<string, unknown>[] = []
+
+  for (const row of rows) {
+    const sanitizedRow = omitNullishId(row)
+    if (sanitizedRow.id != null) {
+      withExplicitId.push(sanitizedRow)
+    } else {
+      withoutExplicitId.push(sanitizedRow)
+    }
+  }
+
+  return [
+    ...chunkArray(withExplicitId, SYNC_BATCH_SIZE),
+    ...chunkArray(withoutExplicitId, SYNC_BATCH_SIZE),
+  ]
+}
+
 export function getIsoTimestampMs(value: unknown): number {
   if (typeof value !== 'string' || value.length === 0) return 0
   const parsed = Date.parse(value)
@@ -152,7 +177,7 @@ export async function upsertRowsInBatches(
   const dedupedRows = dedupeRowsByConflictKey(rows, onConflict)
   const returnedRows: Record<string, unknown>[] = []
 
-  const batches = chunkArray(dedupedRows, SYNC_BATCH_SIZE)
+  const batches = buildUpsertBatches(dedupedRows)
   for (let index = 0; index < batches.length; index += 1) {
     assertSyncRunActive(options?.shouldContinue)
     const upsertQuery = supabase.from(table).upsert(batches[index], { onConflict }) as

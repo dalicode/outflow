@@ -67,4 +67,47 @@ describe('supabaseUtils batching', () => {
     expect(upsertSpy.mock.calls[2][1]).toHaveLength(201)
     expect(result).toHaveLength(1201)
   })
+
+  it('separates rows with explicit cloud ids from new rows during upsert', async () => {
+    upsertSpy.mockImplementation((_table, rows: Array<Record<string, unknown>>) => ({
+      select: async () => ({ data: rows, error: null }),
+    }))
+
+    const result = await upsertRowsInBatches(
+      'payees',
+      [
+        {
+          id: 'cloud-payee-1',
+          local_id: 'payee-1',
+          user_id: 'user-1',
+          name: 'Cafe',
+          updated_at: '2026-05-20T00:00:00.000Z',
+        },
+        {
+          local_id: 'payee-2',
+          user_id: 'user-1',
+          name: 'Market',
+          updated_at: '2026-05-20T00:00:00.000Z',
+        },
+        {
+          id: null,
+          local_id: 'payee-3',
+          user_id: 'user-1',
+          name: 'Transit',
+          updated_at: '2026-05-20T00:00:00.000Z',
+        },
+      ],
+      'user_id,name',
+    )
+
+    expect(upsertSpy).toHaveBeenCalledTimes(2)
+    expect(upsertSpy.mock.calls[0][1]).toEqual([
+      expect.objectContaining({ id: 'cloud-payee-1', name: 'Cafe' }),
+    ])
+    expect(upsertSpy.mock.calls[1][1]).toEqual([
+      expect.not.objectContaining({ id: expect.anything() }),
+      expect.not.objectContaining({ id: expect.anything() }),
+    ])
+    expect(result).toHaveLength(3)
+  })
 })
