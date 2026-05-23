@@ -13,6 +13,7 @@ import {
   triggerManualSync,
   updateExpenseForSyncTest,
   updateExpenseForSyncTestWithTimestamp,
+  waitForSyncStatus,
   waitForSyncSettled,
   deleteExpenseForSyncTest,
   restoreExpenseForSyncTest,
@@ -79,7 +80,7 @@ test.describe("Live Supabase sync (UAT)", () => {
     try {
       await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password);
       await setContextOffline(pageA, true);
-      await expectSyncLabel(pageA, "Offline");
+      await waitForSyncStatus(pageA, "offline");
       await addSeedExpense(pageA, "uat-offline-create");
       await setContextOffline(pageA, false);
       await triggerManualSyncRounds([pageA, pageB], 2);
@@ -377,7 +378,7 @@ test.describe("Live Supabase sync (UAT)", () => {
       await resetLiveSyncState([page], liveUser.email, liveUser.password);
       await setContextOffline(page, true);
       await addSeedExpense(page, "uat-pending-restart", 66.6);
-      await expectSyncLabel(page, "Offline");
+      await waitForSyncStatus(page, "offline");
       expect((await getSyncMetadataCounts(page)).pending).toBeGreaterThan(0);
 
       await setContextOffline(page, false);

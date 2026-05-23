@@ -38,10 +38,16 @@ test.describe("Analytics page (desktop)", () => {
     // Navigate to 2025
     await year2025.click();
     await expect(page.getByTestId("income-trend-section")).toBeVisible({ timeout: 10000 });
+    await expect(trendSection.getByText("-$300.00", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Jun 2025 expense")).toBeVisible();
+    await expect(page.getByText("$200.00").first()).toBeVisible();
 
     // Navigate back to 2026
     await page.getByLabel("2026").click();
     await expect(page.getByTestId("income-trend-section")).toBeVisible({ timeout: 10000 });
+    await expect(trendSection.getByText("$4,725.00", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Mar 2026 expense")).toBeVisible();
+    await expect(page.getByText("$120.00").first()).toBeVisible();
 
     // Month bar click → preview → drilldown → back
     const monthBarRects = page.locator(".recharts-bar-rectangle rect");
@@ -52,6 +58,8 @@ test.describe("Analytics page (desktop)", () => {
 
       const monthPreview = page.getByTestId("income-trend-month-preview");
       await expect(monthPreview).toBeVisible({ timeout: 5000 });
+      await expect(monthPreview).toContainText("Jan 2026");
+      await expect(monthPreview).toContainText("-$350.00");
 
       const viewMonthBtn = page.getByTestId("income-trend-view-month-btn");
       await expect(viewMonthBtn).toBeVisible({ timeout: 3000 });
@@ -59,6 +67,9 @@ test.describe("Analytics page (desktop)", () => {
 
       const drilldown = page.getByTestId("income-trend-drilldown");
       await expect(drilldown).toBeVisible({ timeout: 5000 });
+      await expect(drilldown).toContainText("Jan");
+      await expect(drilldown).toContainText("-$350.00");
+      await expect(drilldown).toContainText("Jan 2026 expense");
 
       const backBtn = page.getByTestId("income-trend-back-btn");
       await expect(backBtn).toBeVisible();

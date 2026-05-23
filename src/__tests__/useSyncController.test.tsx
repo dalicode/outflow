@@ -144,6 +144,191 @@ describe('useSyncController', () => {
     expect(flushSyncQueue).toHaveBeenCalledTimes(1)
   })
 
+  it('invalidation clears timers and prevents queued follow-up sync execution', async () => {
+    let releaseUpload: (() => void) | null = null
+    flushSyncQueue.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseUpload = resolve
+        }),
+    )
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    let firstSyncPromise: Promise<void> | undefined
+    await act(async () => {
+      firstSyncPromise = result.current.queueSync({
+        reason: 'local-change',
+        mode: 'upload-only',
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      void result.current.queueSync({
+        reason: 'manual',
+        mode: 'pull-only',
+        force: true,
+      })
+      await Promise.resolve()
+      result.current.triggerSync()
+      result.current.invalidateSyncRun()
+      await vi.advanceTimersByTimeAsync(2_100)
+    })
+
+    await act(async () => {
+      releaseUpload?.()
+      await firstSyncPromise
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(0)
+    expect(flushSyncQueue).toHaveBeenCalledTimes(1)
+
+    pullFromSupabase.mockRejectedValueOnce(new Error('sync failed'))
+
+    await act(async () => {
+      await result.current.syncNow().catch(() => undefined)
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      result.current.invalidateSyncRun()
+      await vi.advanceTimersByTimeAsync(30_000)
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not continue to the success path after invalidating an in-flight sync', async () => {
+    let releasePull: (() => void) | null = null
+    pullFromSupabase.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releasePull = resolve
+        }),
+    )
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    let syncPromise: Promise<void> | undefined
+    await act(async () => {
+      syncPromise = result.current.queueSync({
+        reason: 'manual',
+        mode: 'pull-only',
+        force: true,
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      result.current.invalidateSyncRun()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      releasePull?.()
+      await syncPromise
+    })
+
+    expect(result.current.pullAppliedCount).toBe(0)
+    expect(result.current.syncCount).toBe(0)
+    expect(result.current.hasSynced).toBe(false)
+    expect(runRecoveryCheck).not.toHaveBeenCalled()
+  })
+
+  it('reports offline while syncing when the browser goes offline mid-run', async () => {
+    let releaseUpload: (() => void) | null = null
+    flushSyncQueue.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseUpload = resolve
+        }),
+    )
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    let syncPromise: Promise<void> | undefined
+    await act(async () => {
+      syncPromise = result.current.syncLocalChanges()
+      await Promise.resolve()
+    })
+
+    expect(result.current.syncStatus).toBe('syncing')
+
+    await act(async () => {
+      window.dispatchEvent(new Event('offline'))
+      await Promise.resolve()
+    })
+
+    expect(result.current.syncStatus).toBe('offline')
+
+    await act(async () => {
+      releaseUpload?.()
+      await syncPromise
+    })
+  })
+
+  it('allows a fresh sync run after invalidation', async () => {
+    let releaseUpload: (() => void) | null = null
+    flushSyncQueue.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseUpload = resolve
+        }),
+    )
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    let firstSyncPromise: Promise<void> | undefined
+    await act(async () => {
+      firstSyncPromise = result.current.syncLocalChanges()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      result.current.invalidateSyncRun()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      releaseUpload?.()
+      await firstSyncPromise
+    })
+
+    await act(async () => {
+      await result.current.syncLocalChanges()
+    })
+
+    expect(flushSyncQueue).toHaveBeenCalledTimes(2)
+    expect(result.current.syncCount).toBe(1)
+    expect(runRecoveryCheck).toHaveBeenCalledTimes(1)
+  })
+
   it('focus freshness performs a pull-only sync when there are no pending local changes', async () => {
     const callOrder: string[] = []
     pullFromSupabase.mockImplementation(async () => {

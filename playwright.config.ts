@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = Number(process.env.E2E_PORT ?? "4173");
 const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${e2ePort}`;
+const slowMo = Number(process.env.PLAYWRIGHT_SLOW_MO ?? "0");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -15,6 +16,9 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "on-first-retry",
+    launchOptions: {
+      slowMo,
+    },
   },
   projects: [
     {

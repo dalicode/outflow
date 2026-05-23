@@ -55,6 +55,7 @@ interface UseSyncControllerResult {
   triggerSync: () => void
   shouldRunFreshnessSync: (force?: boolean) => boolean
   clearSyncTimers: () => void
+  invalidateSyncRun: () => void
   setExternalSyncStatus: (status: SyncStatus) => void
 }
 
@@ -176,13 +177,13 @@ export function useSyncController({
 
   const updateAggregateSyncStatus = useCallback(
     (counts: { pending: number; failed: number }) => {
-      if (syncingRef.current) {
-        setSyncStatus('syncing')
+      if (!isBrowserOnline) {
+        setSyncStatus('offline')
         return
       }
 
-      if (!isBrowserOnline) {
-        setSyncStatus('offline')
+      if (syncingRef.current) {
+        setSyncStatus('syncing')
         return
       }
 
@@ -214,6 +215,16 @@ export function useSyncController({
     updateAggregateSyncStatus(counts)
     return counts
   }, [updateAggregateSyncStatus, userId])
+
+  const invalidateSyncRun = useCallback(() => {
+    syncRunGenerationRef.current += 1
+    syncingRef.current = false
+    followUpSyncRequestedRef.current = false
+    pendingFollowUpOptionsRef.current = null
+    activeSyncPromiseRef.current = null
+    clearSyncTimers()
+    void refreshAggregateSyncState()
+  }, [clearSyncTimers, refreshAggregateSyncState])
 
   const getHasPendingLocalChanges = useCallback(async (): Promise<boolean> => {
     if (isSyncPaused()) return false
@@ -277,6 +288,7 @@ export function useSyncController({
     async (id: string, options: QueueSyncOptions, generation: number) => {
       if (isSyncPaused()) return
       if (syncingRef.current) return
+      if (!isCurrentSyncRun(generation)) return
       syncingRef.current = true
       if (isCurrentSyncRun(generation)) {
         setSyncStatus('syncing')
@@ -287,29 +299,37 @@ export function useSyncController({
       try {
         if (mode === 'upload-only') {
           await flushQueuedChanges(id, generation)
+          if (!isCurrentSyncRun(generation)) return
         } else if (mode === 'upload-then-pull') {
           await flushQueuedChanges(id, generation)
+          if (!isCurrentSyncRun(generation)) return
           await withTimeout(pullFromSupabase(id), 30000)
+          if (!isCurrentSyncRun(generation)) return
           if (isCurrentSyncRun(generation)) {
             setPullAppliedCount((c) => c + 1)
           }
         } else if (mode === 'pull-only') {
           await withTimeout(pullFromSupabase(id), 30000)
+          if (!isCurrentSyncRun(generation)) return
           if (isCurrentSyncRun(generation)) {
             setPullAppliedCount((c) => c + 1)
           }
         } else if (mode === 'full-repair') {
           await withTimeout(pullFromSupabase(id), 30000)
+          if (!isCurrentSyncRun(generation)) return
           if (isCurrentSyncRun(generation)) {
             setPullAppliedCount((c) => c + 1)
           }
           await flushQueuedChanges(id, generation)
+          if (!isCurrentSyncRun(generation)) return
         } else {
           await withTimeout(pullFromSupabase(id), 30000)
+          if (!isCurrentSyncRun(generation)) return
           if (isCurrentSyncRun(generation)) {
             setPullAppliedCount((c) => c + 1)
           }
           await flushQueuedChanges(id, generation)
+          if (!isCurrentSyncRun(generation)) return
         }
 
         if (isCurrentSyncRun(generation)) {
@@ -367,9 +387,9 @@ export function useSyncController({
         return activeSyncPromiseRef.current
       }
 
-      const run = async () => {
-        const generation = syncRunGenerationRef.current + 1
-        syncRunGenerationRef.current = generation
+      const generation = syncRunGenerationRef.current + 1
+      syncRunGenerationRef.current = generation
+      const syncPromise = (async () => {
         let nextOptions: QueueSyncOptions | null = guardedOptions
 
         do {
@@ -383,21 +403,26 @@ export function useSyncController({
                 force: true,
               })
             : null
-        } while (nextOptions && !isSyncPaused())
-      }
-
-      activeSyncPromiseRef.current = run().finally(() => {
-        activeSyncPromiseRef.current = null
+        } while (nextOptions && !isSyncPaused() && isCurrentSyncRun(generation))
+      })()
+      const trackedPromise = syncPromise.finally(() => {
+        if (activeSyncPromiseRef.current === trackedPromise) {
+          activeSyncPromiseRef.current = null
+        }
       })
+      activeSyncPromiseRef.current = trackedPromise
 
-      return activeSyncPromiseRef.current.catch((error) => {
-        scheduleRetry(() => {
-          if (userId) void queueSync({ reason: 'retry', mode: 'upload-then-pull', force: true })
-        })
+      return trackedPromise.catch((error) => {
+        if (isCurrentSyncRun(generation)) {
+          scheduleRetry(() => {
+            if (userId) void queueSync({ reason: 'retry', mode: 'upload-then-pull', force: true })
+          })
+        }
         throw error
       })
     },
     [
+      isCurrentSyncRun,
       runSyncNow,
       resolveSyncMode,
       scheduleRetry,
@@ -492,6 +517,7 @@ export function useSyncController({
     triggerSync,
     shouldRunFreshnessSync,
     clearSyncTimers,
+    invalidateSyncRun,
     setExternalSyncStatus,
   }
 }

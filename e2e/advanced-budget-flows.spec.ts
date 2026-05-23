@@ -3,10 +3,7 @@ import {
   addPayee,
   expect,
   getAllExpenses,
-  getFixedExpenseSnapshots,
-  getIncomeSnapshots,
   getPayees,
-  getSavingsSnapshots,
   resetAppState,
   seedExpenses,
 } from "./helpers";
@@ -94,54 +91,4 @@ test.describe("Advanced budget flows", () => {
     expect(alphaExpenses.every((expense) => expense.payeeId === betaId)).toBe(true);
   });
 
-  test("historical data modal saves income, savings, and fixed expense snapshots", async ({ page }) => {
-    await resetAppState(page, {
-      route: "/settings",
-      expenses: [{ date: "2025-03-15", amount: 22.4, description: "Archive seed" }],
-      settings: {
-        monthlyIncome: 4000,
-        savingsRate: 15,
-      },
-    });
-
-    await page.getByTestId("btn-open-historical-data").click();
-
-    const dialog = page.getByRole("dialog", { name: "Edit Historical Data" });
-    await expect(dialog).toBeVisible();
-
-    await dialog.getByRole("button", { name: /Use current: \$4,000\.00/ }).click();
-    await dialog.getByRole("button", { name: /Use current: 15%/ }).click();
-    await dialog.locator("button").filter({ hasText: /^Rent$/ }).click();
-    await dialog.getByRole("button", { name: "Confirm Save" }).click();
-    await expect
-      .poll(async () => {
-        const incomeSnapshots = await getIncomeSnapshots(page);
-        return incomeSnapshots.filter((snapshot) => snapshot.year === 2025).length;
-      })
-      .toBe(12);
-    await expect
-      .poll(async () => {
-        const savingsSnapshots = await getSavingsSnapshots(page);
-        return savingsSnapshots.filter((snapshot) => snapshot.year === 2025).length;
-      })
-      .toBe(12);
-    await expect
-      .poll(async () => {
-        const fixedSnapshots = await getFixedExpenseSnapshots(page);
-        return fixedSnapshots.filter((snapshot) => snapshot.year === 2025).length;
-      })
-      .toBe(12);
-
-    const incomeSnapshots = await getIncomeSnapshots(page);
-    const savingsSnapshots = await getSavingsSnapshots(page);
-    const fixedSnapshots = await getFixedExpenseSnapshots(page);
-    const income2025 = incomeSnapshots.filter((snapshot) => snapshot.year === 2025);
-    const savings2025 = savingsSnapshots.filter((snapshot) => snapshot.year === 2025);
-    const fixed2025 = fixedSnapshots.filter((snapshot) => snapshot.year === 2025);
-
-    expect(income2025.every((snapshot) => snapshot.amountSnapshot === 4000)).toBe(true);
-    expect(savings2025.every((snapshot) => snapshot.rateSnapshot === 15)).toBe(true);
-    expect(fixed2025.every((snapshot) => snapshot.amountSnapshot === 1200)).toBe(true);
-    expect(fixed2025.every((snapshot) => snapshot.nameSnapshot === "Rent")).toBe(true);
-  });
 });

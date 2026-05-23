@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncLocalChanges,
     triggerSync,
     clearSyncTimers,
+    invalidateSyncRun,
     setExternalSyncStatus,
   } = useSyncController({
     userId: supabase ? user?.id : undefined,
@@ -168,7 +169,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabaseClient.auth.onAuthStateChange((event, session) => {
       // Keep this callback synchronous — no awaits, no supabase calls
+      const previousUserId = currentUserRef.current?.id ?? null
       const nextUser = session?.user ?? null
+      const nextUserId = nextUser?.id ?? null
+      const shouldInvalidateSyncRun =
+        (previousUserId != null && nextUserId == null) ||
+        (previousUserId != null && nextUserId != null && previousUserId !== nextUserId)
+
+      if (shouldInvalidateSyncRun) {
+        invalidateSyncRun()
+      }
+
       currentUserRef.current = nextUser
       if (!nextUser) lastStartupSyncUserRef.current = null
       setUser(nextUser)
@@ -182,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSyncTimers()
       subscription.unsubscribe()
     }
-  }, [clearSyncTimers])
+  }, [clearSyncTimers, invalidateSyncRun])
 
   // ─── Signed-in startup trigger (outside onAuthStateChange) ───────────
   useEffect(() => {
@@ -231,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     if (!supabase) return { error: null as AuthError | null }
+    invalidateSyncRun()
     return supabase.auth.signOut()
   }
 

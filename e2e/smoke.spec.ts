@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { clearAndSeed, waitForAppReady } from "./helpers";
+import { waitForAppReady } from "./helpers";
 
 test.describe("Smoke tests", () => {
   test("app loads and dashboard is visible", async ({ page }) => {
@@ -43,16 +43,18 @@ test.describe("Smoke tests", () => {
     await expect(page.getByTestId("expense-form")).toBeVisible();
   });
 
-  test("IndexedDB is initialized with default categories", async ({ page }) => {
+  test("default categories are visible through the expense form", async ({ page }) => {
     await page.goto("/");
     await waitForAppReady(page);
 
-    const categories = await page.evaluate(async () => {
-      const api = (window as unknown as { outflowTestApi?: typeof import("../src/test/testApi").testApi }).outflowTestApi;
-      if (!api) throw new Error("outflowTestApi not found");
-      return api.getCategories();
-    });
+    await page.getByTestId("btn-add-expense").first().click();
+    await expect(page.getByTestId("expense-form")).toBeVisible();
 
-    expect(categories.length).toBeGreaterThan(0);
+    const categoryDropdown = page.getByTestId("desktop-category-dropdown");
+    await categoryDropdown.getByRole("button").click();
+
+    await expect(page.getByPlaceholder("Search...")).toBeVisible();
+    await expect(page.getByText("Groceries", { exact: true })).toBeVisible();
+    await expect(page.getByText("Transportation", { exact: true })).toBeVisible();
   });
 });

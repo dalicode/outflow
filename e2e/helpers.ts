@@ -530,6 +530,22 @@ export async function getSyncDebugState(
   });
 }
 
+export async function waitForSyncStatus(
+  page: Page,
+  status: "idle" | "syncing" | "offline" | "error",
+  options?: { timeout?: number },
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const state = await getSyncDebugState(page);
+        return state.syncStatus;
+      },
+      { timeout: options?.timeout ?? 20000 },
+    )
+    .toBe(status);
+}
+
 export async function waitForSyncSettled(
   page: Page,
   options?: { allowFailed?: boolean; timeout?: number },

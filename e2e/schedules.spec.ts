@@ -12,6 +12,11 @@ import {
   waitForRouteReady,
 } from "./helpers";
 
+async function expectTableRowValue(page: Page, label: string, value: string): Promise<void> {
+  const row = page.locator("tr").filter({ has: page.getByText(label, { exact: true }) }).first();
+  await expect(row).toContainText(value);
+}
+
 function formatDateForInput(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -101,6 +106,11 @@ test.describe("Schedules — desktop", () => {
     await expect(page.getByText("(Boost savings)")).toBeVisible();
     await expect(page.getByText("(Lease renewal)")).toBeVisible();
     await expect(page.getByText("(Groceries)")).toBeVisible();
+    const scheduleItems = page.locator("[data-testid^='schedule-item-']");
+    await expect(scheduleItems.filter({ hasText: "Income" }).filter({ hasText: "$6000" })).toHaveCount(1);
+    await expect(scheduleItems.filter({ hasText: "Savings %" }).filter({ hasText: "20%" })).toHaveCount(1);
+    await expect(scheduleItems.filter({ hasText: "Fixed Exp." }).filter({ hasText: "$1350" })).toHaveCount(1);
+    await expect(scheduleItems.filter({ hasText: "Expense" }).filter({ hasText: "$42.5" })).toHaveCount(1);
 
     const schedules = await getSchedules(page);
     expect(schedules).toHaveLength(4);
@@ -268,5 +278,13 @@ test.describe("Schedules — desktop", () => {
 
     expect(materializationLog).toEqual(expect.any(Array));
     expect((materializationLog as unknown[])).toHaveLength(4);
+
+    await page.goto("/");
+    await waitForRouteReady(page, "/");
+    await expectTableRowValue(page, "Income", "$6,200.00");
+    await expectTableRowValue(page, "Auto Savings", "$1,116.00");
+    await expectTableRowValue(page, "Total Expenses", "$1,442.50");
+    await expectTableRowValue(page, "Remaining", "$3,641.50");
+    await expectTableRowValue(page, "Rent", "$1,400.00");
   });
 });

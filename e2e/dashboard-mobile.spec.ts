@@ -26,10 +26,9 @@ test.describe("Dashboard — mobile", () => {
 
   test("expanded second-row nav icons respond immediately", async ({ page }) => {
     await openMobileSecondaryNav(page);
-    await page.evaluate(() => {
-      const link = document.querySelector('.mobile-nav-row-secondary [data-testid="nav-settings"]') as HTMLAnchorElement;
-      if (link) link.click();
-    });
+    const settingsLink = page.locator(".mobile-nav-row-secondary").getByTestId("nav-settings");
+    await settingsLink.focus();
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/settings/);
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   });
