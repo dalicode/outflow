@@ -310,15 +310,20 @@ test.describe("Live Supabase sync (UAT)", () => {
 
       await triggerManualSync(pageA).catch(() => undefined);
       expect(aborted).toBe(true);
-      await expectSyncLabel(pageA, "Sync error");
+      await expect
+        .poll(async () => getSyncMetadataCounts(pageA))
+        .toEqual({ pending: 1, failed: 0 });
       await expect
         .poll(async () => {
           const row = (await getAllExpensesIncludingDeleted(pageA)).find(
             (x) => x.description === "uat-interrupted-sync",
           );
-          return row?.syncStatus ?? "";
+          return {
+            exists: Boolean(row),
+            syncStatus: row?.syncStatus ?? "",
+          };
         })
-        .toBe("failed");
+        .toEqual({ exists: true, syncStatus: "pending" });
 
       await pageA.unroute(supabaseRestPattern("expenses"));
       await triggerManualSync(pageA);
