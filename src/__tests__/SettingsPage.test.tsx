@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import SettingsPage from '../features/settings/SettingsPage'
 import { StorageService } from '../services/storageService'
@@ -8,6 +8,10 @@ const { settingsSave, loadSchedules, deleteSchedule } = vi.hoisted(() => ({
   settingsSave: vi.fn(),
   loadSchedules: vi.fn(),
   deleteSchedule: vi.fn(),
+}))
+
+const { showToast } = vi.hoisted(() => ({
+  showToast: vi.fn(),
 }))
 
 vi.mock('../context/authContext', () => ({
@@ -35,7 +39,7 @@ vi.mock('../context/settingsContext', () => ({
 
 vi.mock('../context/toastContext', () => ({
   useToasts: () => ({
-    showToast: vi.fn(),
+    showToast,
   }),
 }))
 
@@ -139,24 +143,41 @@ vi.mock('../features/settings/AboutSection', () => ({
   default: () => <div>About</div>,
 }))
 
+function makeAuthValue(
+  overrides: Partial<ReturnType<typeof useAuth>> = {},
+): ReturnType<typeof useAuth> {
+  return {
+    user: { id: 'user-1', email: 'user@example.com' } as ReturnType<typeof useAuth>['user'],
+    loading: false,
+    syncStatus: 'idle',
+    hasSynced: true,
+    syncCount: 0,
+    pullAppliedCount: 0,
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    recoveryStatus: 'healthy',
+    recoveryReport: null,
+    runRecoveryCheck: vi.fn(),
+    rebuildCloudFromLocal: vi.fn(),
+    syncNow: vi.fn(),
+    syncLocalThenPull: vi.fn(),
+    syncLocalChanges: vi.fn(),
+    triggerSync: vi.fn(),
+    ...overrides,
+  }
+}
+
 describe('SettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     settingsSave.mockResolvedValue(undefined)
     deleteSchedule.mockResolvedValue(undefined)
     loadSchedules.mockResolvedValue(undefined)
+    showToast.mockReset()
     vi.mocked(StorageService.getCategories).mockResolvedValue([])
     vi.mocked(StorageService.getSetting).mockImplementation(
       async (_key: string, fallback?: unknown) => fallback,
     )
-    vi.mocked(useAuth).mockReturnValue({
-      user: { id: 'user-1', email: 'user@example.com' },
-      signOut: vi.fn().mockResolvedValue({ error: null }),
-      recoveryStatus: 'healthy',
-      recoveryReport: null,
-      runRecoveryCheck: vi.fn(),
-      rebuildCloudFromLocal: vi.fn(),
-    } as ReturnType<typeof useAuth>)
+    vi.mocked(useAuth).mockReturnValue(makeAuthValue())
   })
 
   it('flushes local changes after appearance and preference settings saves', async () => {
@@ -207,14 +228,11 @@ describe('SettingsPage', () => {
 
   it('asks for confirmation before signing out', async () => {
     const signOut = vi.fn().mockResolvedValue({ error: null })
-    vi.mocked(useAuth).mockReturnValue({
-      user: { id: 'user-1', email: 'user@example.com' },
-      signOut,
-      recoveryStatus: 'healthy',
-      recoveryReport: null,
-      runRecoveryCheck: vi.fn(),
-      rebuildCloudFromLocal: vi.fn(),
-    } as ReturnType<typeof useAuth>)
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        signOut,
+      }),
+    )
 
     render(<SettingsPage expenses={[]} />)
 
@@ -229,6 +247,44 @@ describe('SettingsPage', () => {
 
     await waitFor(() => {
       expect(signOut).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('shows progress feedback while diagnostics are running', async () => {
+    let resolveDiagnostics: (() => void) | null = null
+    const runRecoveryCheck = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDiagnostics = resolve
+        }),
+    )
+
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        runRecoveryCheck,
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} />)
+
+    fireEvent.click(screen.getByTestId('btn-open-recovery-modal'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Run diagnostics' }))
+
+    expect(runRecoveryCheck).toHaveBeenCalledTimes(1)
+    expect(showToast).toHaveBeenCalledWith({
+      message: 'Checking local and cloud data...',
+      tone: 'default',
+      durationMs: 4000,
+    })
+    expect(screen.getByRole('button', { name: 'Run diagnostics' })).toBeDisabled()
+    expect(screen.queryByText('Checking local and cloud data...')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveDiagnostics?.()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Run diagnostics' })).toBeEnabled()
     })
   })
 })

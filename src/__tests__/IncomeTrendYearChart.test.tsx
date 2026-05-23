@@ -23,7 +23,9 @@ vi.mock('recharts', async () => {
     }: {
       children: ReactNode
       data: Array<Record<string, string | number | null>>
-      onClick?: (state: { activePayload?: Array<{ payload: Record<string, string | number | null> }> }) => void
+      onClick?: (state: {
+        activePayload?: Array<{ payload: Record<string, string | number | null> }>
+      }) => void
     }) => {
       activeChartData = data
       return (
@@ -57,7 +59,10 @@ vi.mock('recharts', async () => {
     XAxis: ({ dataKey }: { dataKey: string }) => (
       <div className="recharts-xAxis">
         {activeChartData.map((row, index) => (
-          <span key={`${String(row[dataKey])}-${index}`} className="recharts-cartesian-axis-tick-value">
+          <span
+            key={`${String(row[dataKey])}-${index}`}
+            className="recharts-cartesian-axis-tick-value"
+          >
             {String(row[dataKey] ?? '')}
           </span>
         ))}

@@ -43,7 +43,8 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
           ? 0
           : 800
       const startTime = Date.now()
-      let appliedNotices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>> = []
+      let appliedNotices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>> =
+        []
       let startupFailed = false
 
       try {

@@ -1,23 +1,63 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FULL_SYNC_DELETE_ORDER } from '../services/sync/constants'
+import type {
+  Category,
+  CategoryMergeHistory,
+  Expense,
+  FixedExpense,
+  FixedExpenseSnapshot,
+  IncomeSnapshot,
+  Payee,
+  PayeeMergeHistory,
+  SavingsSnapshot,
+  Schedule,
+  SyncedSettingRow,
+} from '../types'
 
 const deduplicateByNameMock = vi.hoisted(() => vi.fn(async () => undefined))
-const upsertRowsInBatchesMock = vi.hoisted(() => vi.fn(async () => []))
+type UpsertRowsInBatchesMock = (
+  table: string,
+  rows: Record<string, unknown>[],
+  onConflict: string,
+  options?: unknown,
+) => Promise<Record<string, unknown>[]>
+const upsertRowsInBatchesMock = vi.hoisted(() => vi.fn<UpsertRowsInBatchesMock>(async () => []))
 
-const getAllExpensesMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllCategoriesMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllPayeesMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllFixedExpensesMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllSettingsRowsMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllFixedExpenseSnapshotsMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllIncomeSnapshotsMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllSavingsSnapshotsMock = vi.hoisted(() => vi.fn(async () => []))
-const getAllSchedulesMock = vi.hoisted(() => vi.fn(async () => []))
-const categoryMergeHistoryToArrayMock = vi.hoisted(() => vi.fn(async () => []))
-const payeeMergeHistoryToArrayMock = vi.hoisted(() => vi.fn(async () => []))
-const supabaseDeleteEqMock = vi.hoisted(() => vi.fn(async () => ({ error: null })))
+const getAllExpensesMock = vi.hoisted(() => vi.fn(async (): Promise<Expense[]> => []))
+const getAllCategoriesMock = vi.hoisted(() => vi.fn(async (): Promise<Category[]> => []))
+const getAllPayeesMock = vi.hoisted(() => vi.fn(async (): Promise<Payee[]> => []))
+const getAllFixedExpensesMock = vi.hoisted(() => vi.fn(async (): Promise<FixedExpense[]> => []))
+const getAllSettingsRowsMock = vi.hoisted(() => vi.fn(async (): Promise<SyncedSettingRow[]> => []))
+const getAllFixedExpenseSnapshotsMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<FixedExpenseSnapshot[]> => []),
+)
+const getAllIncomeSnapshotsMock = vi.hoisted(() => vi.fn(async (): Promise<IncomeSnapshot[]> => []))
+const getAllSavingsSnapshotsMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<SavingsSnapshot[]> => []),
+)
+const getAllSchedulesMock = vi.hoisted(() => vi.fn(async (): Promise<Schedule[]> => []))
+const categoryMergeHistoryToArrayMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<CategoryMergeHistory[]> => []),
+)
+const payeeMergeHistoryToArrayMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<PayeeMergeHistory[]> => []),
+)
+const supabaseDeleteEqMock = vi.hoisted(() =>
+  vi.fn(
+    async (): Promise<{ error: { message: string; code?: string; details?: string } | null }> => ({
+      error: null,
+    }),
+  ),
+)
 const supabaseDeleteMock = vi.hoisted(() => vi.fn(() => ({ eq: supabaseDeleteEqMock })))
-const supabaseSelectInMock = vi.hoisted(() => vi.fn(async () => ({ data: [], error: null })))
+const supabaseSelectInMock = vi.hoisted(() =>
+  vi.fn(
+    async (): Promise<{ data: Record<string, unknown>[]; error: null }> => ({
+      data: [],
+      error: null,
+    }),
+  ),
+)
 const supabaseSelectEqMock = vi.hoisted(() =>
   vi.fn(() => ({
     in: supabaseSelectInMock,
@@ -38,7 +78,7 @@ const supabaseFromMock = vi.hoisted(() =>
 const tableUpdates = vi.hoisted(
   () => [] as Array<{ table: string; key: number | string; changes: Record<string, unknown> }>,
 )
-const tableRows = vi.hoisted(() => new Map<string, Map<number | string, Record<string, unknown>>>() )
+const tableRows = vi.hoisted(() => new Map<string, Map<number | string, Record<string, unknown>>>())
 const dbTableMock = vi.hoisted(() =>
   vi.fn((tableName: string) => ({
     get: vi.fn(async (key: number | string) => tableRows.get(tableName)?.get(key)),
@@ -127,7 +167,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     await migrateLocalToSupabase('user-1')
 
     const categoryUpserts = upsertRowsInBatchesMock.mock.calls.filter(
-      ([table]: [string]) => table === 'categories',
+      ([table]) => table === 'categories',
     )
     expect(categoryUpserts).toHaveLength(1)
     expect(categoryUpserts[0][1]).toHaveLength(2)
@@ -155,7 +195,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     await migrateLocalToSupabase('user-1')
 
     const settingsUpserts = upsertRowsInBatchesMock.mock.calls.filter(
-      ([table]: [string]) => table === 'settings',
+      ([table]) => table === 'settings',
     )
     expect(settingsUpserts).toHaveLength(1)
     expect(settingsUpserts[0][2]).toBe('user_id,key')
@@ -196,10 +236,11 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     await migrateLocalToSupabase('user-1')
 
     const expensesUpsert = upsertRowsInBatchesMock.mock.calls.find(
-      ([table]: [string]) => table === 'expenses',
+      ([table]) => table === 'expenses',
     )
     expect(expensesUpsert).toBeDefined()
     const payload = expensesUpsert?.[1]?.[0]
+    if (!payload) throw new Error('Expected expenses upload payload')
     expect(payload.deleted_at).toBe('2026-05-20T12:00:00.000Z')
     expect(payload.category_id).toBe('cloud-cat-10')
     expect(payload.payee_id).toBe('cloud-pay-20')
@@ -221,7 +262,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     await migrateLocalToSupabase('user-1')
 
     const categoryCalls = upsertRowsInBatchesMock.mock.calls.filter(
-      ([table]: [string]) => table === 'categories',
+      ([table]) => table === 'categories',
     )
     expect(categoryCalls).toHaveLength(2)
     expect(categoryCalls[0][2]).toBe('id')
@@ -281,7 +322,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
   })
 
   it('does not mark an older delete upload synced after a newer local restore', async () => {
-    const uploadedExpense = {
+    const uploadedExpense: Expense = {
       id: 100,
       localId: 'exp-100',
       cloudId: 'cloud-exp-100',
@@ -375,7 +416,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     await migrateLocalToSupabase('user-1', { shouldContinue })
 
     const categoryUpsert = upsertRowsInBatchesMock.mock.calls.find(
-      ([table]: [string]) => table === 'categories',
+      ([table]) => table === 'categories',
     )
     expect(categoryUpsert?.[3]).toEqual({ shouldContinue })
   })
@@ -408,7 +449,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
 
     expect(staleCloudRowsDetected).toBe(true)
     const expenseUpserts = upsertRowsInBatchesMock.mock.calls.filter(
-      ([table]: [string]) => table === 'expenses',
+      ([table]) => table === 'expenses',
     )
     expect(expenseUpserts).toHaveLength(0)
   })
@@ -448,13 +489,13 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     await runFullSyncUpload('user-1', true, ['categories'])
 
     const categoryUpserts = upsertRowsInBatchesMock.mock.calls.filter(
-      ([table]: [string]) => table === 'categories',
+      ([table]) => table === 'categories',
     )
     expect(categoryUpserts.length).toBeGreaterThan(0)
     expect(categoryUpserts.some((call) => call[1]?.length > 0)).toBe(true)
 
     const expenseUpserts = upsertRowsInBatchesMock.mock.calls.filter(
-      ([table]: [string]) => table === 'expenses',
+      ([table]) => table === 'expenses',
     )
     expect(expenseUpserts).toHaveLength(0)
   })

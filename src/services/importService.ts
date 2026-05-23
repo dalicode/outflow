@@ -9,6 +9,7 @@ interface QueueImportSyncMarkerOptions {
 }
 
 interface ImportSyncMarkerPayload {
+  [key: string]: unknown
   reason: string
   replace?: boolean
   replaceTables?: string[]

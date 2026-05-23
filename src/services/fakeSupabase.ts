@@ -28,7 +28,7 @@ type AuthChangeEvent =
   | 'PASSWORD_RECOVERY'
 
 type FakeSession = {
-  user: Pick<User, 'id' | 'email'>
+  user: User
 }
 
 type AuthListener = (event: AuthChangeEvent, session: FakeSession | null) => void
@@ -54,6 +54,19 @@ function writeStoredSession(session: FakeSession | null): void {
     return
   }
   window.localStorage.setItem(DEV_FAKE_KEY, JSON.stringify(session))
+}
+
+function makeFakeUser(email: string): User {
+  const normalizedEmail = email.trim().toLowerCase()
+  return {
+    id: `fake-user:${normalizedEmail}`,
+    email,
+    aud: 'authenticated',
+    role: 'authenticated',
+    app_metadata: {},
+    user_metadata: {},
+    created_at: new Date().toISOString(),
+  }
 }
 
 async function postQuery(payload: QueryPayload): Promise<QueryResult> {
@@ -101,6 +114,7 @@ class FakeQueryBuilder {
     return this
   }
 
+  // biome-ignore lint/suspicious/noThenProperty: Supabase query builders are awaitable thenables.
   then<TResult1 = QueryResult, TResult2 = never>(
     onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -155,9 +169,8 @@ class FakeAuthApi {
   }: {
     email: string
     password: string
-  }): Promise<{ data: { session: FakeSession; user: Pick<User, 'id' | 'email'> }; error: null }> {
-    const userId = `fake-user:${email.trim().toLowerCase()}`
-    this.session = { user: { id: userId, email } }
+  }): Promise<{ data: { session: FakeSession; user: User }; error: null }> {
+    this.session = { user: makeFakeUser(email) }
     writeStoredSession(this.session)
     this.emit('SIGNED_IN')
     return { data: { session: this.session, user: this.session.user }, error: null }
@@ -169,7 +182,7 @@ class FakeAuthApi {
   }: {
     email: string
     password: string
-  }): Promise<{ data: { session: FakeSession; user: Pick<User, 'id' | 'email'> }; error: null }> {
+  }): Promise<{ data: { session: FakeSession; user: User }; error: null }> {
     return this.signInWithPassword({ email, password })
   }
 
@@ -181,7 +194,7 @@ class FakeAuthApi {
   }
 
   setSessionForTests(userId: string, email: string): void {
-    this.session = { user: { id: userId, email } }
+    this.session = { user: { ...makeFakeUser(email), id: userId } }
     writeStoredSession(this.session)
     this.emit('SIGNED_IN')
   }

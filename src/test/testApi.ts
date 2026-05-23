@@ -98,10 +98,7 @@ export const testApi = {
     await fakeSupabase.resetFakeCloud()
   },
 
-  seedFakeCloudExpenses: async (
-    userId: string,
-    entries: Array<Record<string, unknown>>,
-  ) => {
+  seedFakeCloudExpenses: async (userId: string, entries: Array<Record<string, unknown>>) => {
     await fakeSupabase.seedFakeCloudExpenses(userId, entries)
   },
 

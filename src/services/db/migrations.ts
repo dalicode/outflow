@@ -17,9 +17,9 @@ function toLower(value: unknown): string {
 
 export async function migrateV10CategoryPayeeIds(tx: MigrationTx): Promise<void> {
   // Migrate expense category/payee strings to IDs.
-  const expenses = (await tx.table('expenses').toArray()) as Expense[]
-  const categories = (await tx.table('categories').toArray()) as Category[]
-  const payees = (await tx.table('payees').toArray()) as Payee[]
+  const expenses = (await tx.table('expenses').toArray()) as unknown as Expense[]
+  const categories = (await tx.table('categories').toArray()) as unknown as Category[]
+  const payees = (await tx.table('payees').toArray()) as unknown as Payee[]
   const schedules = await tx.table('schedules').toArray()
 
   const catByName = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]))
@@ -27,12 +27,13 @@ export async function migrateV10CategoryPayeeIds(tx: MigrationTx): Promise<void>
 
   for (const exp of expenses) {
     const updates: Partial<Expense> = {}
-    if (!exp.categoryId && (exp as Record<string, unknown>).category) {
-      const catId = catByName.get(toLower((exp as Record<string, unknown>).category))
+    const expRow = exp as unknown as Record<string, unknown>
+    if (!exp.categoryId && expRow.category) {
+      const catId = catByName.get(toLower(expRow.category))
       if (catId) updates.categoryId = catId
     }
-    if (!exp.payeeId && (exp as Record<string, unknown>).payee) {
-      const payeeId = payeeByName.get(toLower((exp as Record<string, unknown>).payee))
+    if (!exp.payeeId && expRow.payee) {
+      const payeeId = payeeByName.get(toLower(expRow.payee))
       if (payeeId) updates.payeeId = payeeId
     }
     if (Object.keys(updates).length > 0) {

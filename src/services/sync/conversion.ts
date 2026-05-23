@@ -15,7 +15,7 @@ import type { FromCloudMaps, ToCloudMaps } from './types'
 
 type LocalCloudReference = {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
 }
 
 function hasLocalCloudReference<T extends LocalCloudReference>(

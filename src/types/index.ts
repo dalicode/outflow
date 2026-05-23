@@ -24,7 +24,7 @@ export type SyncedRecord = Partial<SyncMetadata>
 
 export interface Expense extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   date: string
   amount: number
   categoryId?: number
@@ -66,7 +66,7 @@ export interface Payee extends SyncedRecord {
 
 export interface CategoryMergeHistory extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   sourceCategoryId: number
   targetCategoryId: number
   affectedExpenseIds: number[]
@@ -77,7 +77,7 @@ export interface CategoryMergeHistory extends SyncedRecord {
 
 export interface PayeeMergeHistory extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   sourcePayeeId: number
   targetPayeeId: number
   affectedExpenseIds: number[]
@@ -90,7 +90,7 @@ export interface PayeeMergeHistory extends SyncedRecord {
 
 export interface FixedExpense extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   name: string
   amount: number
   isArchived?: boolean
@@ -99,7 +99,7 @@ export interface FixedExpense extends SyncedRecord {
 
 export interface FixedExpenseSnapshot extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   fixedExpenseId: number
   nameSnapshot: string
   amountSnapshot: number
@@ -111,7 +111,7 @@ export interface FixedExpenseSnapshot extends SyncedRecord {
 
 export interface IncomeSnapshot extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   year: number
   month: number
   amountSnapshot: number
@@ -121,7 +121,7 @@ export interface IncomeSnapshot extends SyncedRecord {
 
 export interface SavingsSnapshot extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   year: number
   month: number
   rateSnapshot: number
@@ -135,14 +135,14 @@ export type ScheduleType = 'income' | 'savingsRate' | 'fixedExpense' | 'expense'
 
 export interface Schedule extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   type: ScheduleType
   targetId: number | null
   effectiveYear: number
   effectiveMonth: number
   newValue: number
   previousValue?: number | null
-  materializedAt?: string
+  materializedAt?: string | null
   isActive: number // IndexedDB cannot index booleans; stored as 1/0
   note?: string
   createdAt?: string

@@ -71,34 +71,34 @@ const {
   setPayee,
   clearLinkedRows,
 } = vi.hoisted(() => {
-    const categoryRows = new Map<number, { id: number; name: string; deletedAt?: string | null }>()
-    const payeeRows = new Map<number, { id: number; name: string; deletedAt?: string | null }>()
+  const categoryRows = new Map<number, { id: number; name: string; deletedAt?: string | null }>()
+  const payeeRows = new Map<number, { id: number; name: string; deletedAt?: string | null }>()
 
-    return {
-      table: createExpenseTable(),
-      transaction: vi.fn(async (_mode: string, ...args: unknown[]) => {
-        const scope = args[args.length - 1] as () => Promise<void>
-        await scope()
-      }),
-      queueImportSyncMarker: vi.fn(async () => undefined),
-      categories: {
-        get: vi.fn(async (id: number) => categoryRows.get(id)),
-      },
-      payees: {
-        get: vi.fn(async (id: number) => payeeRows.get(id)),
-      },
-      setCategory: (id: number, name: string) => {
-        categoryRows.set(id, { id, name, deletedAt: null })
-      },
-      setPayee: (id: number, name: string) => {
-        payeeRows.set(id, { id, name, deletedAt: null })
-      },
-      clearLinkedRows: () => {
-        categoryRows.clear()
-        payeeRows.clear()
-      },
-    }
-  })
+  return {
+    table: createExpenseTable(),
+    transaction: vi.fn(async (_mode: string, ...args: unknown[]) => {
+      const scope = args[args.length - 1] as () => Promise<void>
+      await scope()
+    }),
+    queueImportSyncMarker: vi.fn(async () => undefined),
+    categories: {
+      get: vi.fn(async (id: number) => categoryRows.get(id)),
+    },
+    payees: {
+      get: vi.fn(async (id: number) => payeeRows.get(id)),
+    },
+    setCategory: (id: number, name: string) => {
+      categoryRows.set(id, { id, name, deletedAt: null })
+    },
+    setPayee: (id: number, name: string) => {
+      payeeRows.set(id, { id, name, deletedAt: null })
+    },
+    clearLinkedRows: () => {
+      categoryRows.clear()
+      payeeRows.clear()
+    },
+  }
+})
 
 vi.mock('../services/db/schema', () => ({
   default: {

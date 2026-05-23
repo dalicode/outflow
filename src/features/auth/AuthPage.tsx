@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { supabase } from '../../services/supabase'
 import { withTimeout } from '../../utils/withTimeout'
 import './auth.css'
@@ -84,7 +84,7 @@ export default function AuthPage({ onClose, onSignInSuccess }: AuthPageProps) {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const submit = async (e: React.SubmitEvent) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setMessage('')
@@ -99,13 +99,13 @@ export default function AuthPage({ onClose, onSignInSuccess }: AuthPageProps) {
       setLoading(false)
       return
     }
-    const fn =
-      mode === 'login'
-        ? supabase.auth.signInWithPassword({ email, password })
-        : supabase.auth.signUp({ email, password })
     try {
+      const authRequest: Promise<{ error: { message: string } | null }> =
+        mode === 'login'
+          ? supabase.auth.signInWithPassword({ email, password })
+          : supabase.auth.signUp({ email, password })
       const { error: err } = await withTimeout(
-        fn,
+        authRequest,
         20000,
         'Authentication timed out. Please try again.',
       )

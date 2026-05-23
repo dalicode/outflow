@@ -135,9 +135,13 @@ function buildReturnedRowsBySettingsKey(
   return map
 }
 
-function normalizeRowName(row: { name?: unknown; normalizedName?: unknown } | Record<string, unknown>): string | null {
+function normalizeRowName(row: {
+  name?: unknown
+  normalizedName?: unknown
+  normalized_name?: unknown
+}): string | null {
   const normalizedName =
-    'normalizedName' in row ? row.normalizedName : (row.normalized_name as unknown)
+    typeof row.normalizedName === 'string' ? row.normalizedName : row.normalized_name
   if (typeof normalizedName === 'string' && normalizedName.trim().length > 0) {
     return normalizedName.trim().toLowerCase()
   }
@@ -237,7 +241,7 @@ async function markTableRowsFailed<T extends SyncableRow>(
   keepPending: boolean,
   options?: SyncRunGuardOptions,
 ): Promise<void> {
-  const table = db.table<T, number | string>(config.localTableName)
+  const table = db.table(config.localTableName)
   const failedAt = new Date().toISOString()
   for (const entry of entries) {
     assertSyncRunActive(options?.shouldContinue)
@@ -256,7 +260,7 @@ async function markTableRowsFailed<T extends SyncableRow>(
       continue
     }
 
-    const failed = markRecordFailed(entry.row, syncError, failedAt)
+    const failed = markRecordFailed(entry.row, syncError)
     await table.update(key, {
       syncStatus: failed.syncStatus,
       syncError: failed.syncError,
@@ -271,7 +275,7 @@ async function markTableRowsSynced<T extends SyncableRow>(
   returnedRows: Record<string, unknown>[],
   options?: SyncRunGuardOptions,
 ): Promise<void> {
-  const table = db.table<T, number | string>(config.localTableName)
+  const table = db.table(config.localTableName)
   const syncedAt = new Date().toISOString()
   const byLocalId = buildReturnedRowsByLocalId(returnedRows)
   const bySettingsKey = buildReturnedRowsBySettingsKey(returnedRows)
@@ -287,13 +291,12 @@ async function markTableRowsSynced<T extends SyncableRow>(
     const localId = getLocalId(entry.row)
     const returned =
       config.cloudTable === 'settings'
-        ? bySettingsKey.get(String((entry.row as SyncedSettingRow).key))
+        ? bySettingsKey.get(String((entry.row as unknown as SyncedSettingRow).key))
         : localId
           ? byLocalId.get(localId)
           : undefined
     const returnedByName =
-      (config.cloudTable === 'categories' || config.cloudTable === 'payees') &&
-      entry.row != null
+      (config.cloudTable === 'categories' || config.cloudTable === 'payees') && entry.row != null
         ? byNormalizedName.get(normalizeRowName(entry.row as NameLikeRow) ?? '')
         : undefined
     const matchedReturned = returned ?? returnedByName
@@ -368,7 +371,11 @@ async function deleteUserRowsForReplace(table: string, userId: string): Promise<
 
     if (!deleteResult.error) return
 
-    const isDeadlock = deleteResult.error.code === '40P01'
+    const isDeadlock =
+      typeof deleteResult.error === 'object' &&
+      deleteResult.error != null &&
+      'code' in deleteResult.error &&
+      deleteResult.error.code === '40P01'
     if (!isDeadlock || attempt === maxAttempts) {
       assertNoSupabaseError(deleteResult, `Delete ${table} rows for replace`)
     }

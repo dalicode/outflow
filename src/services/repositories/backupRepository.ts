@@ -112,28 +112,43 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
     categories,
     payees,
     fixedExpenses: asBackupRows(payload.fixedExpenses).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as FixedExpense,
+      (row) =>
+        ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as FixedExpense,
     ),
     fixedExpenseSnapshots: asBackupRows(payload.fixedExpenseSnapshots).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as FixedExpenseSnapshot,
+      (row) =>
+        ({
+          ...row,
+          ...normalizeImportedSyncMetadata(row, { now }),
+        }) as unknown as FixedExpenseSnapshot,
     ),
     incomeSnapshots: asBackupRows(payload.incomeSnapshots).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as IncomeSnapshot,
+      (row) =>
+        ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as IncomeSnapshot,
     ),
     savingsSnapshots: asBackupRows(payload.savingsSnapshots).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as SavingsSnapshot,
+      (row) =>
+        ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as SavingsSnapshot,
     ),
     schedules: asBackupRows(payload.schedules).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as Schedule,
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as Schedule,
     ),
     settings: asBackupRows(payload.settings).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as Setting,
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as Setting,
     ),
     categoryMergeHistory: asBackupRows(payload.categoryMergeHistory).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as CategoryMergeHistory,
+      (row) =>
+        ({
+          ...row,
+          ...normalizeImportedSyncMetadata(row, { now }),
+        }) as unknown as CategoryMergeHistory,
     ),
     payeeMergeHistory: asBackupRows(payload.payeeMergeHistory).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as PayeeMergeHistory,
+      (row) =>
+        ({
+          ...row,
+          ...normalizeImportedSyncMetadata(row, { now }),
+        }) as unknown as PayeeMergeHistory,
     ),
   }
 }

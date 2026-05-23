@@ -17,6 +17,7 @@ Outflow is a personal finance tracking dashboard. Users log expenses, set income
 ## Build & Test
 
 ```bash
+npm run typecheck # must pass before finishing
 npm run build    # must pass before finishing
 npx vitest run   # must pass before finishing
 npm run dev      # localhost:5173

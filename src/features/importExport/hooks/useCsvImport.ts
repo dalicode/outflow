@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { runLocalImport } from '../../../services/importService'
 import { StorageService } from '../../../services/storageService'
-import type { Payee } from '../../../types'
+import type { Expense, Payee } from '../../../types'
 import type { ImportReviewSelection } from '../ImportReviewModal'
 import { getCsvField, matchCategoryByName, parseCSV, parseDateInput } from '../utils/csvHelpers'
 import { DEFAULT_CATEGORIES } from '../../../services/defaults'
@@ -92,7 +92,7 @@ export function useCsvImport({
 
       let matchedPayees = 0
       let blankPayees = 0
-      const expenseRows = []
+      const expenseRows: Array<Omit<Expense, 'id'>> = []
 
       for (const row of toAdd) {
         const override = selectionMap.get(row.rowId)

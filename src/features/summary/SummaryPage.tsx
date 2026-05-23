@@ -47,7 +47,7 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
           </div>
         )}
 
-        {incomeIsSet ? (
+        {incomeIsSet && financialSummary ? (
           <BudgetFlow
             summary={financialSummary}
             variableBreakdown={variableBreakdown}

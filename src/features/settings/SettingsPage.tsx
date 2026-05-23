@@ -112,6 +112,7 @@ export default function SettingsPage({
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
   const [isRebuildCloudModalOpen, setIsRebuildCloudModalOpen] = useState(false)
   const [isRebuildingCloud, setIsRebuildingCloud] = useState(false)
+  const [isRunningRecoveryCheck, setIsRunningRecoveryCheck] = useState(false)
   const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = useState(false)
 
   const queueLocalSync = useCallback(() => {
@@ -264,6 +265,26 @@ export default function SettingsPage({
   const handleCloseCsvModal = () => {
     setShowCsvModal(false)
     setExportRange({ from: '', to: '' })
+  }
+
+  const handleRunRecoveryCheck = async () => {
+    setIsRunningRecoveryCheck(true)
+    try {
+      showToast({
+        message: 'Checking local and cloud data...',
+        tone: 'default',
+        durationMs: 4000,
+      })
+      await runRecoveryCheck()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      showToast({
+        message: `Failed to run diagnostics: ${message}`,
+        tone: 'danger',
+      })
+    } finally {
+      setIsRunningRecoveryCheck(false)
+    }
   }
 
   const availableYears = useMemo(() => {
@@ -809,11 +830,13 @@ export default function SettingsPage({
                 Close
               </button>
               <button
-                onClick={() => void runRecoveryCheck()}
-                className="settings-action-btn flex-1"
+                onClick={() => void handleRunRecoveryCheck()}
+                className="settings-action-btn relative flex-1"
+                disabled={isRunningRecoveryCheck}
+                aria-busy={isRunningRecoveryCheck}
                 data-testid="btn-run-diagnostics"
               >
-                Run diagnostics
+                <span>Run diagnostics</span>
               </button>
               <button
                 onClick={() => {

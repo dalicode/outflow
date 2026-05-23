@@ -99,7 +99,9 @@ export default function DesktopDropdown({
       return activeOptions
     }
 
-    return activeOptions.filter((option) => option.label.trim().toLowerCase().includes(normalizedQuery))
+    return activeOptions.filter((option) =>
+      option.label.trim().toLowerCase().includes(normalizedQuery),
+    )
   }, [options, preserveOrder, query])
   const topSectionHeight = searchable ? SEARCH_SECTION_HEIGHT : 0
   const showRecentSection = Boolean(recentOptions?.length && !query.trim())

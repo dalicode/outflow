@@ -204,7 +204,9 @@ describe('DatePicker', () => {
   })
 
   it('anchors inline popups to the table cell bottom-left edge when opened below', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
       if (this.tagName === 'TD') {
         return mockRect(520, 560)
       }
@@ -231,7 +233,9 @@ describe('DatePicker', () => {
   })
 
   it('anchors inline popups to the table cell top-left edge when opened above', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
       if (this.tagName === 'TD') {
         return mockRect(520, 560)
       }

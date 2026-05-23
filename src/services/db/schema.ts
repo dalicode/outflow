@@ -29,8 +29,8 @@ type MigrationTx = {
 export async function migrateV18SyncMetadata(tx: MigrationTx): Promise<void> {
   const now = new Date().toISOString()
 
-  const categories = (await tx.table('categories').toArray()) as Category[]
-  const payees = (await tx.table('payees').toArray()) as Payee[]
+  const categories = (await tx.table('categories').toArray()) as unknown as Category[]
+  const payees = (await tx.table('payees').toArray()) as unknown as Payee[]
   const categoryById = new Map<number, Category>()
   const payeeById = new Map<number, Payee>()
 
@@ -99,7 +99,7 @@ export async function migrateV18SyncMetadata(tx: MigrationTx): Promise<void> {
       }
 
       if (tableName === 'expenses') {
-        const expense = row as Expense
+        const expense = row as unknown as Expense
         if (
           (!expense.categoryNameSnapshot || expense.categoryNameSnapshot.length === 0) &&
           typeof expense.categoryId === 'number'
@@ -155,7 +155,7 @@ export async function migrateV19StripArchivedAt(tx: MigrationTx): Promise<void> 
   for (const tableName of tables) {
     const rows = await tx.table(tableName).toArray()
     for (const row of rows) {
-      if (!Object.prototype.hasOwnProperty.call(row, 'archivedAt')) continue
+      if (!Object.hasOwn(row, 'archivedAt')) continue
       await tx.table(tableName).update(row.id as number, {
         archivedAt: undefined,
       })

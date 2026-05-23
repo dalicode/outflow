@@ -10,7 +10,26 @@ interface VariableBreakdownItem {
   pct: number
 }
 
-export function useSummary() {
+export interface UseSummaryState {
+  incomeRaw: string
+  incomeFreq: string
+  monthlyIncome: number
+  savingsRate: number
+  fixedExpenses: FixedExpense[]
+  financialSummary: MonthlySummary | null
+  variableBreakdown: VariableBreakdownItem[]
+  handleIncomeSave: (input: {
+    income: number
+    frequency: string
+    monthlyIncome: number
+  }) => Promise<void>
+  handleSavingsRateSave: (rate: number) => Promise<void>
+  handleAddFixed: (item: Omit<FixedExpense, 'id'>) => Promise<void>
+  handleUpdateFixed: (id: number, changes: Partial<FixedExpense>) => Promise<void>
+  handleDeleteFixed: (id: number) => Promise<void>
+}
+
+export function useSummary(): UseSummaryState {
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth()

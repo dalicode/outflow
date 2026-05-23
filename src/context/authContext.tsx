@@ -26,12 +26,7 @@ const shouldBypassRecoveryPause =
   import.meta.env.DEV && import.meta.env.VITE_E2E_FAKE_SUPABASE === '1'
 
 function isIgnorableStartupSyncError(error: unknown): boolean {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : ''
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
   const normalizedMessage = message.toLowerCase()
 
   if (message === STALE_SYNC_RUN_MESSAGE) return true

@@ -62,12 +62,15 @@ export function createSyncMetadata(now: string = new Date().toISOString()): Sync
   }
 }
 
-type MetadataRecord = Partial<SyncMetadata>
+type MetadataRecord = Partial<Omit<SyncMetadata, 'localId' | 'cloudId'>> & {
+  localId?: string | null
+  cloudId?: string | null
+}
 
 export function markRecordPending<T extends MetadataRecord>(
   record: T,
   now: string = new Date().toISOString(),
-): T {
+): T & Pick<SyncMetadata, 'updatedAt' | 'syncStatus' | 'syncError' | 'deviceId'> {
   return {
     ...record,
     updatedAt: now,
@@ -80,7 +83,7 @@ export function markRecordPending<T extends MetadataRecord>(
 export function markRecordDeleted<T extends MetadataRecord>(
   record: T,
   now: string = new Date().toISOString(),
-): T {
+): T & Pick<SyncMetadata, 'updatedAt' | 'syncStatus' | 'syncError' | 'deviceId' | 'deletedAt'> {
   return {
     ...markRecordPending(record, now),
     deletedAt: now,
@@ -91,7 +94,9 @@ export function markRecordSynced<T extends MetadataRecord>(
   record: T,
   cloudFields?: { cloudId?: string | null; createdAt?: string; updatedAt?: string },
   now: string = new Date().toISOString(),
-): T {
+): T &
+  Pick<SyncMetadata, 'syncStatus' | 'lastSyncedAt' | 'syncError'> &
+  Partial<Pick<SyncMetadata, 'cloudId' | 'createdAt' | 'updatedAt'>> {
   return {
     ...record,
     ...cloudFields,
@@ -101,7 +106,10 @@ export function markRecordSynced<T extends MetadataRecord>(
   }
 }
 
-export function markRecordFailed<T extends MetadataRecord>(record: T, error: string): T {
+export function markRecordFailed<T extends MetadataRecord>(
+  record: T,
+  error: string,
+): T & Pick<SyncMetadata, 'syncStatus' | 'syncError' | 'deviceId'> {
   return {
     ...record,
     syncStatus: 'failed',

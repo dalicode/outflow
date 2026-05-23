@@ -237,7 +237,9 @@ describe('migrateV19StripArchivedAt', () => {
     const tx = new FakeTx({
       categories: [{ id: 1, name: 'Food', archivedAt: '2026-01-01T00:00:00.000Z' }],
       payees: [{ id: 2, name: 'Cafe', archivedAt: '2026-01-02T00:00:00.000Z' }],
-      fixedExpenses: [{ id: 3, name: 'Rent', amount: 1200, archivedAt: '2026-01-03T00:00:00.000Z' }],
+      fixedExpenses: [
+        { id: 3, name: 'Rent', amount: 1200, archivedAt: '2026-01-03T00:00:00.000Z' },
+      ],
       expenses: [{ id: 4, amount: 20, archivedAt: 'keep-me' }],
     })
 

@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../../utils/cn'
 
@@ -13,7 +14,7 @@ interface ContextMenuProps {
   y: number
   items: ContextMenuItem[]
   onClose: () => void
-  menuRef?: React.RefObject<HTMLDivElement | null>
+  menuRef?: Ref<HTMLDivElement>
 }
 
 export default function ContextMenu({ x, y, items, onClose, menuRef }: ContextMenuProps) {

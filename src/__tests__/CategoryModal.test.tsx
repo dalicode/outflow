@@ -60,13 +60,7 @@ vi.mock('../components/ui/EntityMergeDialog', () => ({
 }))
 
 vi.mock('../components/ui/DeleteEntityDialog', () => ({
-  default: ({
-    isOpen,
-    onConfirmDelete,
-  }: {
-    isOpen: boolean
-    onConfirmDelete: () => void
-  }) =>
+  default: ({ isOpen, onConfirmDelete }: { isOpen: boolean; onConfirmDelete: () => void }) =>
     isOpen ? (
       <button type="button" onClick={onConfirmDelete} data-testid="confirm-delete-entity">
         Confirm delete entity

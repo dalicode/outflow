@@ -6,13 +6,15 @@ import { queueImportSyncMarker } from '../importService'
 import { CSV_IMPORT_QUEUE_REASON, CSV_REPLACE_QUEUE_REASON } from '../syncRuntime'
 
 function normalizeExpenseForImport(expense: Omit<Expense, 'id'>, now: string): Expense {
-  return normalizeImportedSyncMetadata(expense as Record<string, unknown>, {
+  return normalizeImportedSyncMetadata(expense as unknown as Record<string, unknown>, {
     now,
     forcePending: true,
-  }) as Expense
+  }) as unknown as Expense
 }
 
-async function withResolvedNameSnapshots(expense: Omit<Expense, 'id'>): Promise<Omit<Expense, 'id'>> {
+async function withResolvedNameSnapshots(
+  expense: Omit<Expense, 'id'>,
+): Promise<Omit<Expense, 'id'>> {
   let categoryNameSnapshot = expense.categoryNameSnapshot
   if (typeof expense.categoryId === 'number') {
     const category = await db.categories.get(expense.categoryId)

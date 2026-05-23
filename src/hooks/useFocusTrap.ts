@@ -16,8 +16,8 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
   )
 }
 
-export function useFocusTrap(isActive: boolean): RefObject<HTMLDivElement | null> {
-  const containerRef = useRef<HTMLDivElement | null>(null)
+export function useFocusTrap(isActive: boolean): RefObject<HTMLDivElement> {
+  const containerRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
   // Store and restore focus

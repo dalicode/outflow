@@ -12,10 +12,9 @@ if (!url || !key) {
 }
 
 // null when env vars absent so the rest of the app can guard with `if (supabase)`
-export const supabase: SupabaseLikeClient | null =
-  shouldUseFakeSupabase
-    ? fakeSupabase
-    : url && key
+export const supabase: SupabaseLikeClient | null = shouldUseFakeSupabase
+  ? fakeSupabase
+  : url && key
     ? createClient(url, key, {
         auth: {
           persistSession: true,

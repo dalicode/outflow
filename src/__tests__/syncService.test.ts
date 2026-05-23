@@ -5,7 +5,7 @@ const updateCalls: Array<{ table: string; id: number; row: Record<string, unknow
 const settingsPutMock = vi.hoisted(() => vi.fn())
 const syncQueueToArrayMock = vi.hoisted(() => vi.fn())
 const settingsToArrayMock = vi.hoisted(() => vi.fn())
-const migrateLocalToSupabaseMock = vi.hoisted(() => vi.fn(async () => undefined))
+const migrateLocalToSupabaseMock = vi.hoisted(() => vi.fn(async (): Promise<boolean> => false))
 const runFullSyncUploadMock = vi.hoisted(() => vi.fn(async () => undefined))
 
 function makeTableMock() {

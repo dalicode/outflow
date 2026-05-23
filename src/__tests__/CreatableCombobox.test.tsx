@@ -993,7 +993,9 @@ describe('CreatableCombobox', () => {
   })
 
   it('anchors inline dropdowns to the table cell bottom edge when opened below', async () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
       if (this.tagName === 'TD') {
         return {
           x: 40,
@@ -1050,7 +1052,9 @@ describe('CreatableCombobox', () => {
   })
 
   it('anchors inline dropdowns to the table cell top edge when opened above', async () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
       if (this.tagName === 'TD') {
         return {
           x: 40,

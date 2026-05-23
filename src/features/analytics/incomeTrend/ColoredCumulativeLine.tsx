@@ -80,9 +80,7 @@ export default function ColoredCumulativeLine({
             strokeWidth={isSelected ? 2 : 0}
             style={{ cursor: 'pointer' }}
             onClick={() =>
-              onSelectMonthKey(
-                selectedMonthKey === p.payload.monthKey ? null : p.payload.monthKey,
-              )
+              onSelectMonthKey(selectedMonthKey === p.payload.monthKey ? null : p.payload.monthKey)
             }
           />
         )

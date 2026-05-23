@@ -7,6 +7,7 @@ import { SYNC_BATCH_SIZE } from './constants'
 import { verifySyncIntegrity } from './integrity'
 import { fetchAllRowsForUser, getIsoTimestampMs } from './supabaseUtils'
 import type { FromCloudMaps } from './types'
+import type { SyncedSettingRow } from '../../types'
 
 type SyncRow = Record<string, unknown> & {
   id?: number
@@ -247,7 +248,7 @@ async function mergeSettingsRows(rows: Record<string, unknown>[]): Promise<void>
       .filter((row): row is { key: string; updatedAt?: string; value: unknown } => !!row.key)
       .map((row) => [row.key, row]),
   )
-  const rowsToPut: Array<Record<string, unknown>> = []
+  const rowsToPut: SyncedSettingRow[] = []
 
   for (const row of rows) {
     const incoming = fromCloud('settings', row) as SyncRow & { key: string; value: unknown }
@@ -331,9 +332,12 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   const categories = await db.categories.toArray()
   const payees = await db.payees.toArray()
   const fixedExpenses = await db.fixedExpenses.toArray()
-  const identityMaps = buildRelationshipMaps(categories, payees, fixedExpenses)
-  const categoryNameToId = buildActiveNameToIdMap(categories)
-  const payeeNameToId = buildActiveNameToIdMap(payees)
+  const syncCategories = categories as unknown as SyncRow[]
+  const syncPayees = payees as unknown as SyncRow[]
+  const syncFixedExpenses = fixedExpenses as unknown as SyncRow[]
+  const identityMaps = buildRelationshipMaps(syncCategories, syncPayees, syncFixedExpenses)
+  const categoryNameToId = buildActiveNameToIdMap(syncCategories)
+  const payeeNameToId = buildActiveNameToIdMap(syncPayees)
 
   debugLog(
     '[sync] identity maps ready',

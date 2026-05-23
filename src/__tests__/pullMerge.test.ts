@@ -500,9 +500,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
     expect(localState.expenses.every((row) => row.categoryId === 1)).toBe(true)
     expect(localState.expenses.every((row) => row.payeeId === 1)).toBe(true)
     expect(
-      bulkWriteCalls.bulkAdd
-        .filter((call) => call.table === 'expenses')
-        .map((call) => call.count),
+      bulkWriteCalls.bulkAdd.filter((call) => call.table === 'expenses').map((call) => call.count),
     ).toEqual([500, 100])
   })
 })

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EditHistoricalDataModal from '../features/settings/EditHistoricalDataModal'
+import type { FixedExpense, FixedExpenseSnapshot, IncomeSnapshot, SavingsSnapshot } from '../types'
 
 vi.mock('../context/settingsContext', () => ({
   useSettings: () => ({
@@ -11,10 +12,10 @@ vi.mock('../context/settingsContext', () => ({
 const { storageMock, saveHistoricalSnapshotConfigs } = vi.hoisted(() => ({
   saveHistoricalSnapshotConfigs: vi.fn(async () => undefined),
   storageMock: {
-    getFixedExpenses: vi.fn(async () => []),
-    getIncomeSnapshots: vi.fn(async () => []),
-    getSavingsSnapshots: vi.fn(async () => []),
-    getFixedExpenseSnapshots: vi.fn(async () => []),
+    getFixedExpenses: vi.fn(async (): Promise<FixedExpense[]> => []),
+    getIncomeSnapshots: vi.fn(async (): Promise<IncomeSnapshot[]> => []),
+    getSavingsSnapshots: vi.fn(async (): Promise<SavingsSnapshot[]> => []),
+    getFixedExpenseSnapshots: vi.fn(async (): Promise<FixedExpenseSnapshot[]> => []),
   },
 }))
 

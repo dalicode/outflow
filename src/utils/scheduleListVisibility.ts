@@ -10,7 +10,11 @@ function isMaterializedActiveScheduleHidden(
   year: number,
   month: number,
 ): boolean {
-  return schedule.isActive === 1 && schedule.materializedAt != null && compareMonthKey(schedule, year, month) <= 0
+  return (
+    schedule.isActive === 1 &&
+    schedule.materializedAt != null &&
+    compareMonthKey(schedule, year, month) <= 0
+  )
 }
 
 export function partitionSchedulesForList(

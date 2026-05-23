@@ -52,7 +52,9 @@ vi.mock('../features/summary/SpendingBreakdown', () => ({
 }))
 
 const mockedUseSummary = vi.mocked(useSummary)
-type SummaryHookState = ReturnType<typeof useSummary>
+type SummaryHookState = Omit<ReturnType<typeof useSummary>, 'financialSummary'> & {
+  financialSummary: MonthlySummary | null
+}
 
 function makeSummary(): MonthlySummary {
   return {

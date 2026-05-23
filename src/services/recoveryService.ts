@@ -1,4 +1,5 @@
 import db from './db/schema'
+import { LOCAL_ONLY_SETTING_KEYS } from './sync/constants'
 import { supabase } from './supabase'
 
 export type RecoveryStatus =
@@ -33,6 +34,18 @@ export interface RecoveryReport {
   duplicatePayeeNames: number
 }
 
+const TABLE_LABELS: Record<keyof TableCounts, string> = {
+  expenses: 'Expenses',
+  categories: 'Categories',
+  payees: 'Payees',
+  fixedExpenses: 'Fixed expenses',
+  fixedExpenseSnapshots: 'Fixed expense snapshots',
+  incomeSnapshots: 'Income snapshots',
+  savingsSnapshots: 'Savings snapshots',
+  schedules: 'Schedules',
+  settings: 'Settings',
+}
+
 function normalizeName(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
@@ -56,6 +69,18 @@ async function getCloudCount(table: string, userId: string): Promise<number> {
     .eq('user_id', userId)
   if (result.error) throw new Error(`Cloud count ${table} failed: ${result.error.message}`)
   return result.count ?? 0
+}
+
+function isCloudSyncedSetting(setting: { key?: unknown }): boolean {
+  return !LOCAL_ONLY_SETTING_KEYS.has(String(setting.key))
+}
+
+async function getCloudSettingsCount(userId: string): Promise<number> {
+  if (!supabase) return 0
+  const result = await supabase.from('settings').select('key').eq('user_id', userId)
+  if (result.error) throw new Error(`Cloud count settings failed: ${result.error.message}`)
+  const rows = Array.isArray(result.data) ? (result.data as Array<{ key?: unknown }>) : []
+  return rows.filter(isCloudSyncedSetting).length
 }
 
 export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryReport> {
@@ -90,7 +115,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
     incomeSnapshots: incomeSnapshots.length,
     savingsSnapshots: savingsSnapshots.length,
     schedules: schedules.length,
-    settings: settings.length,
+    settings: settings.filter(isCloudSyncedSetting).length,
   }
 
   const validCategoryIds = new Set(
@@ -151,7 +176,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
       getCloudCount('income_snapshots', userId),
       getCloudCount('savings_snapshots', userId),
       getCloudCount('schedules', userId),
-      getCloudCount('settings', userId),
+      getCloudSettingsCount(userId),
     ])
 
     cloudCounts = {
@@ -198,10 +223,12 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
       'settings',
     ]
     for (const field of fields) {
-      if (cloudCounts[field] !== localCounts[field]) mismatchCount += 1
-    }
-    if (mismatchCount > 0) {
-      issues.push(`${mismatchCount} table count mismatches between local and cloud`)
+      if (cloudCounts[field] !== localCounts[field]) {
+        mismatchCount += 1
+        issues.push(
+          `${TABLE_LABELS[field]} count mismatch: local ${localCounts[field]}, cloud ${cloudCounts[field]}`,
+        )
+      }
     }
   }
 
