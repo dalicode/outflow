@@ -7,6 +7,8 @@ interface SingleSelectTriggerProps {
   onClick: () => void
   disabled?: boolean
   className?: string
+  ariaLabel?: string
+  size?: 'md' | 'sm'
 }
 
 export default function SingleSelectTrigger({
@@ -16,14 +18,18 @@ export default function SingleSelectTrigger({
   onClick,
   disabled,
   className,
+  ariaLabel,
+  size = 'md',
 }: SingleSelectTriggerProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={cn(
-        'flex min-h-11 w-full items-center justify-between gap-3 rounded-theme-medium border border-theme-border bg-theme-surface px-3 py-2.5 text-left text-sm font-semibold transition-colors focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]',
+        'flex w-full items-center justify-between rounded-theme-medium border border-theme-border bg-theme-surface text-left font-semibold transition-colors focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]',
+        size === 'sm' ? 'min-h-6 px-2 text-xs' : 'min-h-11 gap-3 px-3 py-2.5 text-sm',
         disabled && 'cursor-not-allowed opacity-60',
         className,
       )}
@@ -34,6 +40,7 @@ export default function SingleSelectTrigger({
       <svg
         className={cn(
           'h-4 w-4 shrink-0 text-theme-muted transition-transform',
+          size === 'sm' && 'h-3.5 w-3.5',
           isOpen && 'rotate-180',
         )}
         fill="none"

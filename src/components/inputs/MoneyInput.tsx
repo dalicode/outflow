@@ -435,6 +435,13 @@ export default function MoneyInput({
             setIsEditing(true)
             setShouldSelectOnFocus(true)
           }}
+          onMouseUp={(event) => {
+            if (entryMode !== 'decimal' || !shouldSelectOnFocus) return
+
+            event.preventDefault()
+            event.currentTarget.setSelectionRange(0, event.currentTarget.value.length)
+            setShouldSelectOnFocus(false)
+          }}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onBlur={() => {

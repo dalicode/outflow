@@ -294,6 +294,19 @@ describe('MoneyInput', () => {
     expect(input).toHaveValue('9')
   })
 
+  it('keeps the full decimal value selected after mouse focus', () => {
+    render(<MoneyInput label="Amount" value={45.67} onChange={() => {}} entryMode="decimal" />)
+
+    const input = screen.getByLabelText('Amount') as HTMLInputElement
+
+    fireEvent.focus(input)
+    fireEvent.mouseUp(input)
+
+    expect(input).toHaveValue('45.67')
+    expect(input.selectionStart).toBe(0)
+    expect(input.selectionEnd).toBe(input.value.length)
+  })
+
   it('clamps decimal entry to the configured max amount', () => {
     render(<MoneyInputHarness entryMode="decimal" maxAmount={MAX_USER_MONEY_AMOUNT} />)
 

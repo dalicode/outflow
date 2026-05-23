@@ -426,8 +426,8 @@ export default function ExpenseForm({
               />
             </div>
           </div>
-          <label className="flex flex-col gap-1 text-sm text-theme-muted">
-            Description
+          <div className="flex flex-col gap-1 text-sm text-theme-muted">
+            <span>Description</span>
             <input
               type="text"
               value={form.description}
@@ -436,7 +436,7 @@ export default function ExpenseForm({
               placeholder="Optional"
               className={inputCls}
             />
-          </label>
+          </div>
 
           {/* Payee suggestion banner */}
           {payeeSuggestion && !form.payeeId && payeeSuggestionConfidence === 'confirm' && (
@@ -464,27 +464,29 @@ export default function ExpenseForm({
             </div>
           )}
 
-          <MoneyInput
-            label="Amount"
-            value={Number.parseFloat(form.amount || '0')}
-            onChange={(amount) => setForm((f) => ({ ...f, amount: amount.toFixed(2) }))}
-            currency={moneyConfig.currency}
-            locale={moneyConfig.locale}
-            allowNegative
-            showSignToggle
-            positiveLabel="Expense"
-            negativeLabel="Refund"
-            negativeIndicatorLabel="Refund"
-            helperText={
-              isMobileViewport
-                ? 'Type numbers only - 1234 becomes $12.34'
-                : 'Edit the amount directly, including cents.'
-            }
-            showCurrencyCode
-            autoFocus={!isEdit}
-            size="lg"
-            entryMode={isMobileViewport ? 'cents' : 'decimal'}
-          />
+          <div className="flex flex-col gap-1 text-sm text-theme-muted">
+            <span>Amount</span>
+            <MoneyInput
+              value={Number.parseFloat(form.amount || '0')}
+              onChange={(amount) => setForm((f) => ({ ...f, amount: amount.toFixed(2) }))}
+              currency={moneyConfig.currency}
+              locale={moneyConfig.locale}
+              allowNegative
+              showSignToggle
+              positiveLabel="Expense"
+              negativeLabel="Refund"
+              negativeIndicatorLabel="Refund"
+              helperText={
+                isMobileViewport
+                  ? 'Type numbers only - 1234 becomes $12.34'
+                  : 'Edit the amount directly, including cents.'
+              }
+              showCurrencyCode
+              autoFocus={!isEdit}
+              size="lg"
+              entryMode={isMobileViewport ? 'cents' : 'decimal'}
+            />
+          </div>
         </form>
       </Modal>
       {showCatModal && (

@@ -172,6 +172,62 @@ describe('DesktopDropdown', () => {
     expect(panel?.className).not.toContain('flex-col-reverse')
   })
 
+  it('preserves the provided option order when preserveOrder is enabled', async () => {
+    render(
+      <DesktopDropdown
+        value="medium"
+        options={[
+          { id: 'small', label: 'Small' },
+          { id: 'medium', label: 'Medium' },
+          { id: 'large', label: 'Large' },
+        ]}
+        placeholder="Choose size"
+        emptyMessage="No sizes"
+        preserveOrder
+        onChange={() => {}}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medium' }))
+
+    const options = await screen.findAllByRole('button')
+    expect(options.slice(1, 4).map((option) => option.textContent)).toEqual([
+      'Small',
+      'Medium',
+      'Large',
+    ])
+  })
+
+  it('can disable search and still support keyboard selection', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <DesktopDropdown
+        value={undefined}
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+        ]}
+        placeholder="Select payee"
+        emptyMessage="No matches found."
+        searchable={false}
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select payee' }))
+
+    expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument()
+
+    const panel = screen.getByRole('button', { name: 'Coffee' }).closest('div[tabindex="-1"]')
+    fireEvent.keyDown(panel as HTMLDivElement, { key: 'ArrowDown' })
+    fireEvent.keyDown(panel as HTMLDivElement, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(1)
+    })
+  })
+
   it('sizes small result sets to their natural height', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       x: 40,

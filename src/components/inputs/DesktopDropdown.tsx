@@ -35,6 +35,10 @@ interface DesktopDropdownProps {
   clearLabel?: string
   autoFocus?: boolean
   disabled?: boolean
+  ariaLabel?: string
+  preserveOrder?: boolean
+  searchable?: boolean
+  triggerSize?: 'md' | 'sm'
   onChange: (id: string | number | undefined) => void
   onCreate?: (name: string) => Promise<string | number>
 }
@@ -52,6 +56,10 @@ export default function DesktopDropdown({
   clearLabel = 'Clear selection',
   autoFocus = false,
   disabled,
+  ariaLabel,
+  preserveOrder = false,
+  searchable = true,
+  triggerSize = 'md',
   onChange,
   onCreate,
 }: DesktopDropdownProps) {
@@ -79,7 +87,21 @@ export default function DesktopDropdown({
     [options, value],
   )
 
-  const filteredOptions = useMemo(() => getFilteredOptions(options, query), [options, query])
+  const filteredOptions = useMemo(() => {
+    if (!preserveOrder) {
+      return getFilteredOptions(options, query)
+    }
+
+    const activeOptions = options.filter((option) => !option.isArchived)
+    const normalizedQuery = query.trim().toLowerCase()
+
+    if (!normalizedQuery) {
+      return activeOptions
+    }
+
+    return activeOptions.filter((option) => option.label.trim().toLowerCase().includes(normalizedQuery))
+  }, [options, preserveOrder, query])
+  const topSectionHeight = searchable ? SEARCH_SECTION_HEIGHT : 0
   const showRecentSection = Boolean(recentOptions?.length && !query.trim())
   const recentVisibleOptions = showRecentSection
     ? (recentOptions ?? []).filter((option) => !option.isArchived)
@@ -153,10 +175,10 @@ export default function DesktopDropdown({
 
   const getResolvedContentViewportHeight = useCallback(
     (availableHeight: number) => {
-      const contentAvailable = Math.max(OPTION_ROW_HEIGHT, availableHeight - SEARCH_SECTION_HEIGHT)
+      const contentAvailable = Math.max(OPTION_ROW_HEIGHT, availableHeight - topSectionHeight)
       return Math.min(getDesiredContentViewportHeight(), contentAvailable)
     },
-    [getDesiredContentViewportHeight],
+    [getDesiredContentViewportHeight, topSectionHeight],
   )
 
   const updatePanelPosition = useCallback(() => {
@@ -164,17 +186,17 @@ export default function DesktopDropdown({
     const rect = triggerRef.current.getBoundingClientRect()
     const desiredPanelHeight = Math.min(
       DROPDOWN_PANEL_MAX_HEIGHT,
-      SEARCH_SECTION_HEIGHT + getDesiredContentViewportHeight(),
+      topSectionHeight + getDesiredContentViewportHeight(),
     )
     const nextPanelStyle = getDropdownFloatingPosition(rect, {
       idealHeight: desiredPanelHeight,
       maxHeight: DROPDOWN_PANEL_MAX_HEIGHT,
-      minUsableHeight: SEARCH_SECTION_HEIGHT + MIN_ROWS_BEFORE_FLIP * OPTION_ROW_HEIGHT,
+      minUsableHeight: topSectionHeight + MIN_ROWS_BEFORE_FLIP * OPTION_ROW_HEIGHT,
       matchTriggerWidth: true,
       gap: DROPDOWN_GAP,
     })
     setPanelStyle(nextPanelStyle)
-  }, [getDesiredContentViewportHeight])
+  }, [getDesiredContentViewportHeight, topSectionHeight])
 
   const contentMaxHeight = useMemo(() => {
     if (!panelStyle) return OPTION_ROW_HEIGHT * 4
@@ -182,10 +204,10 @@ export default function DesktopDropdown({
   }, [getResolvedContentViewportHeight, panelStyle])
 
   const panelHeight = useMemo(() => {
-    if (!panelStyle) return SEARCH_SECTION_HEIGHT + contentMaxHeight
-    return Math.min(SEARCH_SECTION_HEIGHT + contentMaxHeight, panelStyle.availableHeight)
-  }, [contentMaxHeight, panelStyle])
-  const visibleContentHeight = Math.max(OPTION_ROW_HEIGHT, panelHeight - SEARCH_SECTION_HEIGHT)
+    if (!panelStyle) return topSectionHeight + contentMaxHeight
+    return Math.min(topSectionHeight + contentMaxHeight, panelStyle.availableHeight)
+  }, [contentMaxHeight, panelStyle, topSectionHeight])
+  const visibleContentHeight = Math.max(OPTION_ROW_HEIGHT, panelHeight - topSectionHeight)
   const panelTop = panelStyle
     ? panelStyle.placement === 'bottom'
       ? panelStyle.top
@@ -206,8 +228,12 @@ export default function DesktopDropdown({
       return
     }
     updatePanelPosition()
-    searchInputRef.current?.focus()
-  }, [isOpen, updatePanelPosition])
+    if (searchable) {
+      searchInputRef.current?.focus()
+    } else {
+      panelRef.current?.focus()
+    }
+  }, [isOpen, searchable, updatePanelPosition])
 
   useEffect(() => {
     if (!isOpen) return
@@ -378,12 +404,16 @@ export default function DesktopDropdown({
         isOpen={isOpen}
         onClick={() => !disabled && setIsOpen((v) => !v)}
         disabled={disabled}
+        ariaLabel={ariaLabel}
+        size={triggerSize}
       />
 
       {isOpen &&
         createPortal(
           <div
             ref={panelRef}
+            tabIndex={-1}
+            onKeyDown={searchable ? undefined : handleInputKeyDown}
             style={{
               position: 'fixed',
               top: panelStyle ? panelTop : 0,
@@ -399,20 +429,22 @@ export default function DesktopDropdown({
               'flex-col',
             )}
           >
-            <div className="border-b border-theme-border bg-theme-background-muted p-2">
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={query}
-                onChange={(e) => {
-                  setHasTyped(true)
-                  setQuery(e.target.value)
-                }}
-                onKeyDown={handleInputKeyDown}
-                placeholder="Search..."
-                className="w-full rounded-theme-small border border-theme-border bg-theme-background px-2.5 py-1.5 text-sm outline-none focus:border-theme-primary"
-              />
-            </div>
+            {searchable && (
+              <div className="border-b border-theme-border bg-theme-background-muted p-2">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => {
+                    setHasTyped(true)
+                    setQuery(e.target.value)
+                  }}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder="Search..."
+                  className="w-full rounded-theme-small border border-theme-border bg-theme-background px-2.5 py-1.5 text-sm outline-none focus:border-theme-primary"
+                />
+              </div>
+            )}
 
             <div
               ref={contentRef}

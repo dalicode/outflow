@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import './settings.css'
 import DatePicker from '../../components/inputs/DatePicker'
+import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import Card from '../../components/ui/Card'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import LazyModalFallback from '../../components/ui/LazyModalFallback'
@@ -16,6 +17,7 @@ import { StorageService } from '../../services/storageService'
 import { clearUserCloudData } from '../../services/syncService'
 import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
+import type { ComboboxOption } from '../../components/inputs'
 import { useBackup } from '../importExport/hooks/useBackup'
 import { useCsvImport } from '../importExport/hooks/useCsvImport'
 import ImportLogPanel from '../importExport/ImportLogPanel'
@@ -32,24 +34,30 @@ interface RowProps {
   label: string
   value: string
   onChange: (value: string) => void
-  options: [string, string][]
+  options: ComboboxOption[]
 }
 
 function Row({ label, value, onChange, options }: RowProps) {
   return (
     <div className="flex items-center justify-between py-1">
-      <span className="text-sm text-theme-muted">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input-theme px-2.5 py-1 text-sm cursor-pointer"
-      >
-        {options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
+      <span className="text-xs text-theme-muted">{label}</span>
+      <div className="w-36">
+        <DesktopDropdown
+          value={value}
+          options={options}
+          onChange={(nextValue) => {
+            if (typeof nextValue === 'string') {
+              onChange(nextValue)
+            }
+          }}
+          placeholder={label}
+          emptyMessage={`No ${label.toLowerCase()} options available.`}
+          ariaLabel={label}
+          preserveOrder
+          searchable={false}
+          triggerSize="sm"
+        />
+      </div>
     </div>
   )
 }
@@ -296,13 +304,13 @@ export default function SettingsPage({
             value={settings.font}
             onChange={(v) => void saveSyncedSettings({ font: v })}
             options={[
-              ['system', 'System UI'],
-              ['sans', 'Sans-serif'],
-              ['serif', 'Serif'],
-              ['mono', 'Monospace'],
-              ['roboto', 'Roboto'],
-              ['georgia', 'Georgia'],
-              ['financeMono', 'Data Mono'],
+              { id: 'system', label: 'System UI' },
+              { id: 'sans', label: 'Sans-serif' },
+              { id: 'serif', label: 'Serif' },
+              { id: 'mono', label: 'Monospace' },
+              { id: 'roboto', label: 'Roboto' },
+              { id: 'georgia', label: 'Georgia' },
+              { id: 'financeMono', label: 'Data Mono' },
             ]}
           />
           <Row
@@ -310,10 +318,10 @@ export default function SettingsPage({
             value={settings.fontSize}
             onChange={(v) => void saveSyncedSettings({ fontSize: v })}
             options={[
-              ['0.85', 'Small'],
-              ['1', 'Medium'],
-              ['1.15', 'Large'],
-              ['1.3', 'X-Large'],
+              { id: '0.85', label: 'Small' },
+              { id: '1', label: 'Medium' },
+              { id: '1.15', label: 'Large' },
+              { id: '1.3', label: 'X-Large' },
             ]}
           />
           <Row
@@ -321,11 +329,11 @@ export default function SettingsPage({
             value={settings.currencySymbol}
             onChange={(v) => void saveSyncedSettings({ currencySymbol: v })}
             options={[
-              ['$', '$ Dollar'],
-              ['€', '€ Euro'],
-              ['£', '£ Pound'],
-              ['¥', '¥ Yen'],
-              ['₹', '₹ Rupee'],
+              { id: '$', label: '$ Dollar' },
+              { id: '€', label: '€ Euro' },
+              { id: '£', label: '£ Pound' },
+              { id: '¥', label: '¥ Yen' },
+              { id: '₹', label: '₹ Rupee' },
             ]}
           />
           <Row
@@ -333,9 +341,9 @@ export default function SettingsPage({
             value={settings.decimalPlaces}
             onChange={(v) => void saveSyncedSettings({ decimalPlaces: v })}
             options={[
-              ['0', '0'],
-              ['1', '1'],
-              ['2', '2'],
+              { id: '0', label: '0' },
+              { id: '1', label: '1' },
+              { id: '2', label: '2' },
             ]}
           />
           <Row
@@ -343,9 +351,9 @@ export default function SettingsPage({
             value={settings.thousandSep}
             onChange={(v) => void saveSyncedSettings({ thousandSep: v })}
             options={[
-              [',', '1,000'],
-              ['.', '1.000'],
-              [' ', '1 000'],
+              { id: ',', label: '1,000' },
+              { id: '.', label: '1.000' },
+              { id: ' ', label: '1 000' },
             ]}
           />
           <Row
@@ -353,9 +361,9 @@ export default function SettingsPage({
             value={settings.dateFormat}
             onChange={(v) => void saveSyncedSettings({ dateFormat: v })}
             options={[
-              ['MM/DD/YYYY', 'MM/DD/YYYY'],
-              ['DD/MM/YYYY', 'DD/MM/YYYY'],
-              ['YYYY-MM-DD', 'YYYY-MM-DD'],
+              { id: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+              { id: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+              { id: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
             ]}
           />
           <p className="text-xs text-theme-muted mt-2">
@@ -376,9 +384,7 @@ export default function SettingsPage({
               type="button"
               role="switch"
               aria-checked={settings.hapticsEnabled}
-              onClick={() =>
-                void saveSyncedSettings({ hapticsEnabled: !settings.hapticsEnabled })
-              }
+              onClick={() => void saveSyncedSettings({ hapticsEnabled: !settings.hapticsEnabled })}
               className="settings-toggle"
             >
               <span className="settings-toggle-thumb" />
