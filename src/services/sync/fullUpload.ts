@@ -6,7 +6,7 @@ import type {
   RecordSyncStatus,
   SyncedSettingRow,
 } from '../../types'
-import { markRecordFailed, markRecordSynced } from '../../utils/syncMetadata'
+import { markRecordFailed, markRecordPending, markRecordSynced } from '../../utils/syncMetadata'
 import db from '../db/schema'
 import { StorageService } from '../storageService'
 import { supabase } from '../supabase'
@@ -83,6 +83,20 @@ function getReadableError(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) return error.message
   if (typeof error === 'string' && error.trim().length > 0) return error
   return 'Sync upload failed'
+}
+
+function isTransientSyncError(error: unknown): boolean {
+  const message = getReadableError(error).toLowerCase()
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('networkerror') ||
+    message.includes('network error') ||
+    message.includes('network request failed') ||
+    message.includes('load failed') ||
+    message.includes('the network connection was lost') ||
+    message.includes('network timeout') ||
+    message.includes('timeout')
+  )
 }
 
 function getCloudId(row: SyncableRow): string | undefined {
@@ -220,6 +234,7 @@ async function markTableRowsFailed<T extends SyncableRow>(
   config: UploadTableConfig<T>,
   entries: UploadEntry<T>[],
   syncError: string,
+  keepPending: boolean,
   options?: SyncRunGuardOptions,
 ): Promise<void> {
   const table = db.table<T, number | string>(config.localTableName)
@@ -230,6 +245,17 @@ async function markTableRowsFailed<T extends SyncableRow>(
     if (key == null) continue
     const currentRow = (await table.get(key)) as T | undefined
     if (didLocalRowChangeDuringUpload(currentRow, entry.row)) continue
+    if (keepPending) {
+      const pending = markRecordPending(entry.row, failedAt)
+      await table.update(key, {
+        syncStatus: pending.syncStatus,
+        syncError: pending.syncError,
+        deviceId: pending.deviceId ?? null,
+        updatedAt: pending.updatedAt,
+      } as Record<string, unknown>)
+      continue
+    }
+
     const failed = markRecordFailed(entry.row, syncError, failedAt)
     await table.update(key, {
       syncStatus: failed.syncStatus,
@@ -582,7 +608,13 @@ export async function migrateLocalToSupabase(
       }
     } catch (error) {
       const message = getReadableError(error)
-      await markTableRowsFailed(config, entriesToUpload, message, options)
+      await markTableRowsFailed(
+        config,
+        entriesToUpload,
+        message,
+        isTransientSyncError(error),
+        options,
+      )
       failures.push(`${config.cloudTable}: ${message}`)
     }
   }

@@ -228,7 +228,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     expect(categoryCalls[1][2]).toBe('user_id,name')
   })
 
-  it('marks successful rows synced and failed rows failed without reverting successful ones', async () => {
+  it('keeps transiently failed rows pending without reverting successful ones', async () => {
     getAllCategoriesMock.mockResolvedValue([
       { id: 2, localId: 'cat-2', cloudId: null, name: 'Travel', syncStatus: 'pending' },
     ])
@@ -275,9 +275,9 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     expect(categoryUpdate?.changes.syncError).toBeNull()
 
     const expenseUpdate = tableUpdates.find((call) => call.table === 'expenses' && call.key === 100)
-    expect(expenseUpdate?.changes.syncStatus).toBe('failed')
-    expect(expenseUpdate?.changes.syncError).toContain('network timeout')
-    expect(expenseUpdate?.changes.updatedAt).toBeUndefined()
+    expect(expenseUpdate?.changes.syncStatus).toBe('pending')
+    expect(expenseUpdate?.changes.syncError).toBeNull()
+    expect(expenseUpdate?.changes.updatedAt).toBeDefined()
   })
 
   it('does not mark an older delete upload synced after a newer local restore', async () => {

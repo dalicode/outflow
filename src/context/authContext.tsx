@@ -16,6 +16,7 @@ import {
 } from '../services/recoveryService'
 import { supabase } from '../services/supabase'
 import { isSyncPaused, pauseSync, resumeSync } from '../services/syncRuntime'
+import { STALE_SYNC_RUN_MESSAGE } from '../services/sync/constants'
 import { clearUserCloudData, migrateLocalToSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
 import { debugLog } from '../utils/debug'
@@ -23,6 +24,30 @@ import { withTimeout } from '../utils/withTimeout'
 
 const shouldBypassRecoveryPause =
   import.meta.env.DEV && import.meta.env.VITE_E2E_FAKE_SUPABASE === '1'
+
+function isIgnorableStartupSyncError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : ''
+  const normalizedMessage = message.toLowerCase()
+
+  if (message === STALE_SYNC_RUN_MESSAGE) return true
+  if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) return true
+
+  return (
+    normalizedMessage.includes('failed to fetch') ||
+    normalizedMessage.includes('networkerror') ||
+    normalizedMessage.includes('network error') ||
+    normalizedMessage.includes('network request failed') ||
+    normalizedMessage.includes('load failed') ||
+    normalizedMessage.includes('the network connection was lost') ||
+    normalizedMessage.includes('network timeout') ||
+    normalizedMessage.includes('timeout')
+  )
+}
 
 interface AuthContextValue {
   user: User | null
@@ -217,6 +242,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await queueSync(options)
       } catch (error) {
         if (!cancelled) {
+          if (isIgnorableStartupSyncError(error)) {
+            debugLog('[auth] Ignoring startup sync interruption', error)
+            return
+          }
           console.error('[auth] Failed to sync after sign-in:', error)
           setExternalSyncStatus('error')
           lastStartupSyncUserRef.current = null
