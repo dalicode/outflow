@@ -101,9 +101,9 @@ export default function BrushOverview({
         >
           <defs>
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-              {sparkPath.stops.map((s) => (
+              {sparkPath.stops.map((s, index) => (
                 <stop
-                  key={`${s.offset}-${s.color}`}
+                  key={`${s.offset}-${s.color}-${index}`}
                   offset={s.offset}
                   stopColor={s.color}
                   stopOpacity={0.85}
