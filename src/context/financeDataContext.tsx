@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useAuth } from './authContext'
 import { StorageService } from '../services/storageService'
 import type { SaveHistoricalSnapshotConfigsParams } from '../services/repositories/historicalSnapshotRepository'
 import type {
@@ -41,10 +42,6 @@ interface FinanceActionsValue {
   saveCurrentSavingsRate: (rate: number) => Promise<void>
   saveIncomeSnapshot: (year: number, month: number, amount: number) => Promise<void>
   saveSavingsSnapshot: (year: number, month: number, rate: number) => Promise<void>
-  saveHistoricalSnapshotConfigs: (params: {
-    dirtyYears: Set<number>
-    yearConfigs: Record<number, HistoricalYearConfig>
-  }) => Promise<void>
   addFixedExpense: (item: Omit<FixedExpense, 'id'>) => Promise<void>
   updateFixedExpense: (id: number, changes: Partial<FixedExpense>) => Promise<void>
   removeFixedExpense: (id: number) => Promise<void>
@@ -63,28 +60,20 @@ const FinanceStatusContext = createContext<FinanceStatusValue | null>(null)
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
   const [refreshNonce, setRefreshNonce] = useState(0)
   const [actionError, setActionError] = useState<Error | null>(null)
+  const { syncLocalChanges } = useAuth()
 
-  const expenses = useLiveQuery(() => StorageService.db.expenses.toArray(), [refreshNonce])
-  const categories = useLiveQuery(() => StorageService.db.categories.toArray(), [refreshNonce])
-  const payees = useLiveQuery(() => StorageService.db.payees.toArray(), [refreshNonce])
-  const fixedExpenses = useLiveQuery(
-    () => StorageService.db.fixedExpenses.toArray(),
-    [refreshNonce],
-  )
+  const expenses = useLiveQuery(() => StorageService.getExpenses(), [refreshNonce])
+  const categories = useLiveQuery(() => StorageService.getCategories(), [refreshNonce])
+  const payees = useLiveQuery(() => StorageService.getPayees(), [refreshNonce])
+  const fixedExpenses = useLiveQuery(() => StorageService.getFixedExpenses(), [refreshNonce])
   const fixedExpenseSnapshots = useLiveQuery(
-    () => StorageService.db.fixedExpenseSnapshots.toArray(),
+    () => StorageService.getFixedExpenseSnapshots(),
     [refreshNonce],
   )
-  const incomeSnapshots = useLiveQuery(
-    () => StorageService.db.incomeSnapshots.toArray(),
-    [refreshNonce],
-  )
-  const savingsSnapshots = useLiveQuery(
-    () => StorageService.db.savingsSnapshots.toArray(),
-    [refreshNonce],
-  )
-  const schedules = useLiveQuery(() => StorageService.db.schedules.toArray(), [refreshNonce])
-  const settingsRows = useLiveQuery(() => StorageService.db.settings.toArray(), [refreshNonce])
+  const incomeSnapshots = useLiveQuery(() => StorageService.getIncomeSnapshots(), [refreshNonce])
+  const savingsSnapshots = useLiveQuery(() => StorageService.getSavingsSnapshots(), [refreshNonce])
+  const schedules = useLiveQuery(() => StorageService.getSchedules(), [refreshNonce])
+  const settingsRows = useLiveQuery(() => StorageService.getSettingsRows(), [refreshNonce])
 
   const forceFinanceDataRefresh = useCallback(() => {
     setRefreshNonce((prev) => prev + 1)
@@ -167,6 +156,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           StorageService.setSetting('monthlyIncome', monthlyIncome),
           StorageService.setSetting('monthlyIncomeUpdatedAt', yearMonth),
         ])
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -174,7 +164,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const saveCurrentSavingsRate = useCallback(
@@ -187,6 +177,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           StorageService.setSetting('savingsRate', rate),
           StorageService.setSetting('savingsRateUpdatedAt', yearMonth),
         ])
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -194,7 +185,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const addFixedExpense = useCallback(
@@ -202,6 +193,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await StorageService.addFixedExpense(item)
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -209,7 +201,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const updateFixedExpense = useCallback(
@@ -217,6 +209,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await StorageService.updateFixedExpense(id, changes)
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -224,7 +217,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const removeFixedExpense = useCallback(
@@ -232,6 +225,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await StorageService.removeFixedExpense(id)
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -239,7 +233,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const saveIncomeSnapshot = useCallback(
@@ -247,6 +241,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await StorageService.setIncomeSnapshot(year, month, amount)
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -254,7 +249,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const saveSavingsSnapshot = useCallback(
@@ -262,6 +257,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await StorageService.setSavingsSnapshot(year, month, rate)
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -269,7 +265,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const saveHistoricalSnapshotConfigs = useCallback(
@@ -277,6 +273,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await StorageService.saveHistoricalSnapshotConfigs(params)
+        void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error(String(error))
@@ -284,7 +281,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         throw nextError
       }
     },
-    [forceFinanceDataRefresh],
+    [forceFinanceDataRefresh, syncLocalChanges],
   )
 
   const actionsValue = useMemo<FinanceActionsValue>(

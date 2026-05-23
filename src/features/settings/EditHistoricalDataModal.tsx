@@ -6,7 +6,10 @@ import ModalFooter from '../../components/ui/ModalFooter'
 import { useFinanceActions } from '../../context/financeDataContext'
 import { useSettings } from '../../context/settingsContext'
 import { StorageService } from '../../services/storageService'
-import type { HistoricalFixedItem, HistoricalYearConfig } from '../../services/repositories/historicalSnapshotRepository'
+import type {
+  HistoricalFixedItem,
+  HistoricalYearConfig,
+} from '../../services/repositories/historicalSnapshotRepository'
 import type { Expense, FixedExpense, FixedExpenseSnapshot } from '../../types'
 import { cn } from '../../utils/cn'
 import {
@@ -652,9 +655,9 @@ export default function EditHistoricalDataModal({
       try {
         const [fixedDefs, incSnaps, savSnaps, allFixedSnaps] = await Promise.all([
           StorageService.getFixedExpenses(),
-          StorageService.getAllIncomeSnapshots(),
-          StorageService.getAllSavingsSnapshots(),
-          StorageService.getAllFixedExpenseSnapshots(),
+          StorageService.getIncomeSnapshots(),
+          StorageService.getSavingsSnapshots(),
+          StorageService.getFixedExpenseSnapshots(),
         ])
 
         const configs: Record<number, YearConfig> = {}

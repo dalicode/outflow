@@ -21,7 +21,9 @@ vi.mock('../services/supabase', () => ({
 
 describe('useSettings', () => {
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <SettingsProvider>{children}</SettingsProvider>
+    <AuthProvider>
+      <SettingsProvider>{children}</SettingsProvider>
+    </AuthProvider>
   )
 
   it('provides default settings', async () => {

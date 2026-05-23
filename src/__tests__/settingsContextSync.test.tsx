@@ -4,6 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SettingsProvider, useSettings } from '../context/settingsContext'
 import { StorageService } from '../services/storageService'
 
+const mockSyncLocalChanges = vi.fn().mockResolvedValue(undefined)
+
+vi.mock('../context/authContext', () => ({
+  useAuth: () => ({
+    syncLocalChanges: mockSyncLocalChanges,
+  }),
+}))
+
 vi.mock('../services/storageService', () => ({
   StorageService: {
     getSetting: vi.fn(),
@@ -20,6 +28,8 @@ describe('SettingsProvider settings-backed theme persistence', () => {
   beforeEach(() => {
     vi.mocked(StorageService.getSetting).mockReset()
     vi.mocked(StorageService.setSetting).mockReset()
+    mockSyncLocalChanges.mockReset()
+    mockSyncLocalChanges.mockResolvedValue(undefined)
     vi.mocked(StorageService.getSetting).mockImplementation(
       async (key: string, fallback?: unknown) => {
         if (key === 'uiSettings') return null
@@ -86,5 +96,6 @@ describe('SettingsProvider settings-backed theme persistence', () => {
         visualTheme: 'sharpProfessionalDark',
       }),
     )
+    expect(mockSyncLocalChanges).toHaveBeenCalledTimes(1)
   })
 })

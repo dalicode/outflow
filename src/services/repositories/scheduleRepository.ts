@@ -1,58 +1,101 @@
-import type { Schedule, ScheduleMaterializationNotice } from '../../types'
+import type {
+  Expense,
+  FixedExpense,
+  FixedExpenseSnapshot,
+  IncomeSnapshot,
+  SavingsSnapshot,
+  Schedule,
+  ScheduleMaterializationNotice,
+  SyncedSettingRow,
+} from '../../types'
 import { buildScheduleMaterializationNotice } from '../../utils/scheduleNotificationUtils'
 import db from '../db/schema'
 import {
-  enqueue,
+  buildCreatedSyncRecord,
   compareScheduleDates,
+  filterActiveRows,
   isBeforeOrEqualMonth,
+  markPendingActiveRecord,
   resolveScheduleValueForMonth,
 } from './common'
 
-function makeSettingRow(
-  key: string,
-  value: unknown,
-): { key: string; value: unknown; updatedAt: string } {
-  return {
-    key,
-    value,
-    updatedAt: new Date().toISOString(),
+async function upsertSettingRow(key: string, value: unknown, now: string): Promise<void> {
+  const existing = await db.settings.get(key)
+  if (existing) {
+    await db.settings.put({
+      ...existing,
+      ...markPendingActiveRecord(existing, now),
+      key,
+      value,
+      updatedAt: now,
+      deletedAt: null,
+    })
+    return
   }
+
+  await db.settings.put(
+    buildCreatedSyncRecord(
+      {
+        key,
+        value,
+        updatedAt: now,
+      },
+      now,
+    ) as SyncedSettingRow,
+  )
 }
 
-export async function getSchedules(): Promise<Schedule[]> {
+async function updateSchedulePending(
+  scheduleId: number,
+  changes: Partial<Schedule>,
+  now: string,
+): Promise<void> {
+  const existing = await db.schedules.get(scheduleId)
+  if (!existing) return
+  await db.schedules.put({
+    ...existing,
+    ...markPendingActiveRecord(existing, now),
+    ...changes,
+    id: scheduleId,
+  })
+}
+
+export async function getAllSchedules(): Promise<Schedule[]> {
   return db.schedules.toArray()
 }
 
+export async function getSchedules(): Promise<Schedule[]> {
+  return filterActiveRows(await getAllSchedules())
+}
+
 export async function getActiveSchedules(): Promise<Schedule[]> {
-  return db.schedules.where('isActive').equals(1).toArray()
+  return (await getSchedules()).filter((schedule) => schedule.isActive === 1)
 }
 
 export async function addSchedule(
   schedule: Omit<Schedule, 'id' | 'isActive' | 'createdAt'>,
 ): Promise<number> {
   const now = new Date().toISOString()
-  const id = await db.schedules.add({
-    ...schedule,
-    cloudId: crypto.randomUUID(),
-    isActive: 1,
-    createdAt: now,
-    updatedAt: now,
-  } as Schedule)
-  const row = await db.schedules.get(id)
-  await enqueue('schedules', 'insert', row as unknown as Record<string, unknown>)
-  return id
+  return db.schedules.add(
+    buildCreatedSyncRecord(
+      {
+        ...schedule,
+        isActive: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+      now,
+    ) as Schedule,
+  )
 }
 
 export async function updateSchedule(id: number, changes: Partial<Schedule>): Promise<void> {
-  await db.schedules.update(id, changes)
-  const row = await db.schedules.get(id)
-  await enqueue('schedules', 'update', row as unknown as Record<string, unknown>)
+  await updateSchedulePending(id, changes, new Date().toISOString())
 }
 
 export async function deleteSchedule(id: number): Promise<void> {
-  const schedule = await db.schedules.get(id)
-  await db.schedules.delete(id)
-  await enqueue('schedules', 'delete', { id, cloudId: schedule?.cloudId })
+  const now = new Date().toISOString()
+  await updateSchedulePending(id, { isActive: 0, deletedAt: now }, now)
 }
 
 // ── Schedule Materialization ──────────────────────────────
@@ -62,21 +105,53 @@ export async function deleteSchedule(id: number): Promise<void> {
 
 export async function materializePendingSnapshots(): Promise<ScheduleMaterializationNotice[]> {
   const now = new Date()
+  const nowIso = now.toISOString()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
   const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
 
-  const schedules = await db.schedules.where('isActive').equals(1).toArray()
-  const fixedDefs = await db.fixedExpenses.toArray()
-  const fixedDefMap = new Map(fixedDefs.map((f) => [f.id, f]))
-  const monthlyIncomeRow = await db.settings.get('monthlyIncome')
-  const savingsRateRow = await db.settings.get('savingsRate')
-  const noticeRow = await db.settings.get('scheduleMaterializationLog')
-  let liveIncome = (monthlyIncomeRow?.value as number) ?? 0
-  let liveSavingsRate = (savingsRateRow?.value as number) ?? 0
-  const existingNoticeLog = Array.isArray(noticeRow?.value)
-    ? (noticeRow.value as ScheduleMaterializationNotice[])
-    : []
+  const [schedules, categories, payees, fixedDefs, monthlyIncomeRow, savingsRateRow, noticeRow] =
+    await Promise.all([
+      getActiveSchedules(),
+      db.categories.toArray(),
+      db.payees.toArray(),
+      db.fixedExpenses.toArray(),
+      db.settings.get('monthlyIncome'),
+      db.settings.get('savingsRate'),
+      db.settings.get('scheduleMaterializationLog'),
+    ])
+  const activeCategories = filterActiveRows(categories)
+  const activePayees = filterActiveRows(payees)
+  const activeCategoryNameById = new Map<number, string>(
+    activeCategories
+      .filter(
+        (category): category is { id: number; name: string } =>
+          typeof category.id === 'number' && typeof category.name === 'string',
+      )
+      .map((category) => [category.id, category.name]),
+  )
+  const activePayeeNameById = new Map<number, string>(
+    activePayees
+      .filter(
+        (payee): payee is { id: number; name: string } =>
+          typeof payee.id === 'number' && typeof payee.name === 'string',
+      )
+      .map((payee) => [payee.id, payee.name]),
+  )
+  const activeFixedDefs = filterActiveRows(fixedDefs)
+  const fixedDefMap = new Map<number, FixedExpense>(
+    activeFixedDefs
+      .filter((fixed): fixed is FixedExpense & { id: number } => typeof fixed.id === 'number')
+      .map((fixed) => [fixed.id, fixed]),
+  )
+  let liveIncome =
+    monthlyIncomeRow?.deletedAt == null ? ((monthlyIncomeRow?.value as number) ?? 0) : 0
+  let liveSavingsRate =
+    savingsRateRow?.deletedAt == null ? ((savingsRateRow?.value as number) ?? 0) : 0
+  const existingNoticeLog =
+    noticeRow?.deletedAt == null && Array.isArray(noticeRow?.value)
+      ? (noticeRow.value as ScheduleMaterializationNotice[])
+      : []
   const newNotices: ScheduleMaterializationNotice[] = []
 
   const dueSchedules = [...schedules]
@@ -90,121 +165,121 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
     )
 
   for (const schedule of dueSchedules) {
+    if (schedule.id == null) continue
+
     if (schedule.type === 'income') {
       const firstMaterialization = schedule.previousValue == null || schedule.materializedAt == null
       if (firstMaterialization) {
-        await db.schedules.update(schedule.id as number, {
-          previousValue: liveIncome,
-          materializedAt: currentKey,
-        })
+        await updateSchedulePending(
+          schedule.id,
+          { previousValue: liveIncome, materializedAt: currentKey },
+          nowIso,
+        )
         newNotices.push(
           buildScheduleMaterializationNotice(schedule, {
-            appliedAt: now.toISOString(),
+            appliedAt: nowIso,
             previousValue: liveIncome,
           }),
         )
       }
       liveIncome = schedule.newValue
-      await db.settings.put(makeSettingRow('monthlyIncome', liveIncome))
-      await db.settings.put(
-        makeSettingRow(
-          'monthlyIncomeUpdatedAt',
-          `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-        ),
+      await upsertSettingRow('monthlyIncome', liveIncome, nowIso)
+      await upsertSettingRow(
+        'monthlyIncomeUpdatedAt',
+        `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
+        nowIso,
       )
-      await enqueue('settings', 'upsert', { key: 'monthlyIncome', value: liveIncome })
-      await enqueue('settings', 'upsert', {
-        key: 'monthlyIncomeUpdatedAt',
-        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-      })
-      const updatedSchedule = await db.schedules.get(schedule.id as number)
-      await enqueue('schedules', 'update', updatedSchedule as unknown as Record<string, unknown>)
     } else if (schedule.type === 'savingsRate') {
       const firstMaterialization = schedule.previousValue == null || schedule.materializedAt == null
       if (firstMaterialization) {
-        await db.schedules.update(schedule.id as number, {
-          previousValue: liveSavingsRate,
-          materializedAt: currentKey,
-        })
+        await updateSchedulePending(
+          schedule.id,
+          { previousValue: liveSavingsRate, materializedAt: currentKey },
+          nowIso,
+        )
         newNotices.push(
           buildScheduleMaterializationNotice(schedule, {
-            appliedAt: now.toISOString(),
+            appliedAt: nowIso,
             previousValue: liveSavingsRate,
           }),
         )
       }
       liveSavingsRate = schedule.newValue
-      await db.settings.put(makeSettingRow('savingsRate', liveSavingsRate))
-      await db.settings.put(
-        makeSettingRow(
-          'savingsRateUpdatedAt',
-          `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-        ),
+      await upsertSettingRow('savingsRate', liveSavingsRate, nowIso)
+      await upsertSettingRow(
+        'savingsRateUpdatedAt',
+        `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
+        nowIso,
       )
-      await enqueue('settings', 'upsert', { key: 'savingsRate', value: liveSavingsRate })
-      await enqueue('settings', 'upsert', {
-        key: 'savingsRateUpdatedAt',
-        value: `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-      })
-      const updatedSchedule = await db.schedules.get(schedule.id as number)
-      await enqueue('schedules', 'update', updatedSchedule as unknown as Record<string, unknown>)
     } else if (schedule.type === 'fixedExpense' && schedule.targetId != null) {
       const def = fixedDefMap.get(schedule.targetId)
       const firstMaterialization = schedule.previousValue == null || schedule.materializedAt == null
       if (firstMaterialization) {
-        await db.schedules.update(schedule.id as number, {
-          previousValue: def?.amount ?? 0,
-          materializedAt: currentKey,
-        })
+        await updateSchedulePending(
+          schedule.id,
+          { previousValue: def?.amount ?? 0, materializedAt: currentKey },
+          nowIso,
+        )
         newNotices.push(
           buildScheduleMaterializationNotice(schedule, {
-            appliedAt: now.toISOString(),
+            appliedAt: nowIso,
             previousValue: def?.amount ?? 0,
             label: def?.name ?? 'Fixed expense',
           }),
         )
       }
-      if (def) {
-        await db.fixedExpenses.update(schedule.targetId, {
+
+      if (def && def.id != null) {
+        const nextDef: FixedExpense = {
+          ...def,
+          ...markPendingActiveRecord(def, nowIso),
+          id: def.id,
           amount: schedule.newValue,
-          updatedAt: now.toISOString(),
-        })
-        def.amount = schedule.newValue
-        def.updatedAt = now.toISOString()
-        const updatedDef = await db.fixedExpenses.get(schedule.targetId)
-        await enqueue('fixedExpenses', 'update', updatedDef as unknown as Record<string, unknown>)
+          updatedAt: nowIso,
+        }
+        await db.fixedExpenses.put(nextDef)
+        fixedDefMap.set(def.id, nextDef)
       }
-      const updatedSchedule = await db.schedules.get(schedule.id as number)
-      await enqueue('schedules', 'update', updatedSchedule as unknown as Record<string, unknown>)
     } else if (schedule.type === 'expense') {
       const day = schedule.day ?? 1
       const date = `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-      const expenseId = await db.expenses.add({
-        cloudId: crypto.randomUUID(),
-        date,
-        amount: schedule.newValue,
-        categoryId: schedule.categoryId,
-        description: schedule.note,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      })
-      const expenseRow = await db.expenses.get(expenseId)
-      await enqueue('expenses', 'insert', expenseRow as unknown as Record<string, unknown>)
+      const categoryNameSnapshot =
+        typeof schedule.categoryId === 'number'
+          ? (activeCategoryNameById.get(schedule.categoryId) ?? null)
+          : null
+      const payeeNameSnapshot =
+        typeof schedule.payeeId === 'number'
+          ? (activePayeeNameById.get(schedule.payeeId) ?? null)
+          : null
+      await db.expenses.add(
+        buildCreatedSyncRecord(
+          {
+            date,
+            amount: schedule.newValue,
+            categoryId: schedule.categoryId,
+            payeeId: schedule.payeeId,
+            categoryNameSnapshot,
+            payeeNameSnapshot,
+            description: schedule.note,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          },
+          nowIso,
+        ) as Expense,
+      )
       newNotices.push(
         buildScheduleMaterializationNotice(schedule, {
-          appliedAt: now.toISOString(),
+          appliedAt: nowIso,
           label: schedule.note?.trim() || 'Planned expense',
         }),
       )
-      await db.schedules.update(schedule.id as number, { isActive: 0 })
-      const updatedSchedule = await db.schedules.get(schedule.id as number)
-      await enqueue('schedules', 'update', updatedSchedule as unknown as Record<string, unknown>)
+      await updateSchedulePending(schedule.id, { isActive: 0 }, nowIso)
     }
   }
 
   if (newNotices.length > 0) {
     const mergedLog = [...newNotices, ...existingNoticeLog].slice(0, 20)
-    await db.settings.put(makeSettingRow('scheduleMaterializationLog', mergedLog))
+    await upsertSettingRow('scheduleMaterializationLog', mergedLog, nowIso)
   }
 
   return newNotices
@@ -217,24 +292,24 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
 
 export async function rolloverSnapshots() {
   const now = new Date()
+  const nowIso = now.toISOString()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
   const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
 
   const lastOpenRow = await db.settings.get('lastAppOpenMonthKey')
-  const lastOpenKey = lastOpenRow?.value as string | undefined
+  const lastOpenKey =
+    lastOpenRow?.deletedAt == null ? (lastOpenRow?.value as string | undefined) : undefined
 
   // First-time: initialize without rollover
   if (!lastOpenKey) {
-    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
-    await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
+    await upsertSettingRow('lastAppOpenMonthKey', currentKey, nowIso)
     return
   }
 
   // Backward time travel guard
   if (lastOpenKey >= currentKey) {
-    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
-    await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
+    await upsertSettingRow('lastAppOpenMonthKey', currentKey, nowIso)
     return
   }
 
@@ -250,8 +325,7 @@ export async function rolloverSnapshots() {
     lastMonth < 1 ||
     lastMonth > 12
   ) {
-    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
-    await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
+    await upsertSettingRow('lastAppOpenMonthKey', currentKey, nowIso)
     return
   }
 
@@ -265,25 +339,24 @@ export async function rolloverSnapshots() {
     if (y === currentYear && m === currentMonth) break
     if (iterationGuard++ > 1200) break // safety cap: prevent infinite loop on corrupted data
     gapMonths.push({ year: y, month: m })
-    m++
+    m += 1
     if (m > 12) {
       m = 1
-      y++
+      y += 1
     }
   }
 
   if (gapMonths.length === 0) {
-    await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
-    await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
+    await upsertSettingRow('lastAppOpenMonthKey', currentKey, nowIso)
     return
   }
 
   // Load data
   const [
     allFixedDefs,
-    incomeSnaps,
-    savingsSnaps,
-    fixedSnaps,
+    allIncomeSnaps,
+    allSavingsSnaps,
+    allFixedSnaps,
     globalIncomeRow,
     globalRateRow,
     activeSchedules,
@@ -294,95 +367,99 @@ export async function rolloverSnapshots() {
     db.fixedExpenseSnapshots.toArray(),
     db.settings.get('monthlyIncome'),
     db.settings.get('savingsRate'),
-    db.schedules.where('isActive').equals(1).toArray(),
+    getActiveSchedules(),
   ])
 
-  const activeFixed = allFixedDefs.filter((f) => f.isArchived !== true)
-  const globalIncome = (globalIncomeRow?.value as number) ?? 0
-  const globalRate = (globalRateRow?.value as number) ?? 0
+  const activeFixed = filterActiveRows(allFixedDefs).filter((row) => row.isArchived !== true)
+  const incomeSnaps = filterActiveRows(allIncomeSnaps)
+  const savingsSnaps = filterActiveRows(allSavingsSnaps)
+  const fixedSnaps = filterActiveRows(allFixedSnaps)
+  const globalIncome =
+    globalIncomeRow?.deletedAt == null ? ((globalIncomeRow?.value as number) ?? 0) : 0
+  const globalRate = globalRateRow?.deletedAt == null ? ((globalRateRow?.value as number) ?? 0) : 0
 
-  const incomeToAdd: {
-    year: number
-    month: number
-    amountSnapshot: number
-    createdAt: string
-  }[] = []
-  const savingsToAdd: {
-    year: number
-    month: number
-    rateSnapshot: number
-    createdAt: string
-  }[] = []
-  const fixedToAdd: {
-    fixedExpenseId: number
-    nameSnapshot: string
-    amountSnapshot: number
-    year: number
-    month: number
-    createdAt: string
-  }[] = []
+  const incomeToAdd: IncomeSnapshot[] = []
+  const savingsToAdd: SavingsSnapshot[] = []
+  const fixedToAdd: FixedExpenseSnapshot[] = []
   const scheduleUpdates: Schedule[] = []
 
   for (const { year, month } of gapMonths) {
-    const hasIncome = incomeSnaps.some((s) => s.year === year && s.month === month)
+    const hasIncome = incomeSnaps.some(
+      (snapshot) => snapshot.year === year && snapshot.month === month,
+    )
     if (!hasIncome) {
-      incomeToAdd.push({
-        cloudId: crypto.randomUUID(),
-        year,
-        month,
-        amountSnapshot: resolveScheduleValueForMonth(
-          activeSchedules,
-          year,
-          month,
-          globalIncome,
-          'income',
-        ),
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      })
+      incomeToAdd.push(
+        buildCreatedSyncRecord(
+          {
+            year,
+            month,
+            amountSnapshot: resolveScheduleValueForMonth(
+              activeSchedules,
+              year,
+              month,
+              globalIncome,
+              'income',
+            ),
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          },
+          nowIso,
+        ) as IncomeSnapshot,
+      )
     }
 
-    const hasSavings = savingsSnaps.some((s) => s.year === year && s.month === month)
+    const hasSavings = savingsSnaps.some(
+      (snapshot) => snapshot.year === year && snapshot.month === month,
+    )
     if (!hasSavings) {
-      savingsToAdd.push({
-        cloudId: crypto.randomUUID(),
-        year,
-        month,
-        rateSnapshot: resolveScheduleValueForMonth(
-          activeSchedules,
-          year,
-          month,
-          globalRate,
-          'savingsRate',
-        ),
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      })
+      savingsToAdd.push(
+        buildCreatedSyncRecord(
+          {
+            year,
+            month,
+            rateSnapshot: resolveScheduleValueForMonth(
+              activeSchedules,
+              year,
+              month,
+              globalRate,
+              'savingsRate',
+            ),
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          },
+          nowIso,
+        ) as SavingsSnapshot,
+      )
     }
 
     for (const def of activeFixed) {
       if (!def.id) continue
       const hasFixed = fixedSnaps.some(
-        (s) => s.fixedExpenseId === def.id && s.year === year && s.month === month,
+        (snapshot) =>
+          snapshot.fixedExpenseId === def.id && snapshot.year === year && snapshot.month === month,
       )
       if (!hasFixed) {
-        fixedToAdd.push({
-          cloudId: crypto.randomUUID(),
-          fixedExpenseId: def.id,
-          nameSnapshot: def.name,
-          amountSnapshot: resolveScheduleValueForMonth(
-            activeSchedules,
-            year,
-            month,
-            def.amount,
-            'fixedExpense',
-            def.id as number,
-          ),
-          year,
-          month,
-          createdAt: now.toISOString(),
-          updatedAt: now.toISOString(),
-        })
+        fixedToAdd.push(
+          buildCreatedSyncRecord(
+            {
+              fixedExpenseId: def.id,
+              nameSnapshot: def.name,
+              amountSnapshot: resolveScheduleValueForMonth(
+                activeSchedules,
+                year,
+                month,
+                def.amount,
+                'fixedExpense',
+                def.id,
+              ),
+              year,
+              month,
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            },
+            nowIso,
+          ) as FixedExpenseSnapshot,
+        )
       }
     }
 
@@ -399,39 +476,22 @@ export async function rolloverSnapshots() {
   // Batch write everything in one transaction
   await db.transaction(
     'rw',
-    [
-      db.incomeSnapshots,
-      db.savingsSnapshots,
-      db.fixedExpenseSnapshots,
-      db.schedules,
-      db.settings,
-      db.syncQueue,
-    ],
+    [db.incomeSnapshots, db.savingsSnapshots, db.fixedExpenseSnapshots, db.schedules, db.settings],
     async () => {
-      if (incomeToAdd.length) await db.incomeSnapshots.bulkAdd(incomeToAdd)
-      if (savingsToAdd.length) await db.savingsSnapshots.bulkAdd(savingsToAdd)
-      if (fixedToAdd.length) await db.fixedExpenseSnapshots.bulkAdd(fixedToAdd)
-      for (const row of incomeToAdd) {
-        await enqueue('incomeSnapshots', 'insert', row as unknown as Record<string, unknown>)
-      }
-      for (const row of savingsToAdd) {
-        await enqueue('savingsSnapshots', 'insert', row as unknown as Record<string, unknown>)
-      }
-      for (const row of fixedToAdd) {
-        await enqueue('fixedExpenseSnapshots', 'insert', row as unknown as Record<string, unknown>)
-      }
+      if (incomeToAdd.length > 0) await db.incomeSnapshots.bulkAdd(incomeToAdd)
+      if (savingsToAdd.length > 0) await db.savingsSnapshots.bulkAdd(savingsToAdd)
+      if (fixedToAdd.length > 0) await db.fixedExpenseSnapshots.bulkAdd(fixedToAdd)
+
       const uniqueScheduleIds = new Set(
         scheduleUpdates
           .filter((schedule) => schedule.id != null)
           .map((schedule) => schedule.id as number),
       )
       for (const scheduleId of uniqueScheduleIds) {
-        await db.schedules.update(scheduleId, { isActive: 0 })
-        const updatedSchedule = await db.schedules.get(scheduleId)
-        await enqueue('schedules', 'update', updatedSchedule as unknown as Record<string, unknown>)
+        await updateSchedulePending(scheduleId, { isActive: 0 }, nowIso)
       }
-      await db.settings.put(makeSettingRow('lastAppOpenMonthKey', currentKey))
-      await enqueue('settings', 'upsert', { key: 'lastAppOpenMonthKey', value: currentKey })
+
+      await upsertSettingRow('lastAppOpenMonthKey', currentKey, nowIso)
     },
   )
 }

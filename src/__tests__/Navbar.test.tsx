@@ -132,6 +132,9 @@ describe('Navbar', () => {
 
     const dashboardLink = within(sidebar).getByText('Dashboard').closest('a')
     expect(dashboardLink).toHaveAttribute('aria-current', 'page')
+    expect(dashboardLink).toHaveClass('bg-theme-background')
+    expect(dashboardLink).not.toHaveClass('bg-theme-primary-subtle')
+    expect(dashboardLink).not.toHaveClass('nav-item-indicator')
   })
 
   it('marks Analytics as active on /analytics', () => {

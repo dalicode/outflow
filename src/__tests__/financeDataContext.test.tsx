@@ -9,9 +9,16 @@ import {
 } from '../context/financeDataContext'
 
 const mockUseLiveQuery = vi.fn()
+const mockSyncLocalChanges = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: (...args: unknown[]) => mockUseLiveQuery(...args),
+}))
+
+vi.mock('../context/authContext', () => ({
+  useAuth: () => ({
+    syncLocalChanges: mockSyncLocalChanges,
+  }),
 }))
 
 vi.mock('../services/storageService', () => ({
@@ -55,6 +62,7 @@ function mockLiveResults(results: unknown[]) {
 describe('FinanceDataProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSyncLocalChanges.mockResolvedValue(undefined)
   })
 
   it('exposes safe defaults while live queries are loading', () => {
@@ -153,6 +161,7 @@ describe('FinanceDataProvider', () => {
       'monthlyIncomeUpdatedAt',
       expect.stringMatching(/^\d{4}-\d{2}$/),
     )
+    expect(mockSyncLocalChanges).toHaveBeenCalledTimes(1)
   })
 
   it('saves historical snapshot configs through StorageService and refreshes live queries', async () => {
@@ -177,5 +186,6 @@ describe('FinanceDataProvider', () => {
 
     expect(StorageService.saveHistoricalSnapshotConfigs).toHaveBeenCalledWith(params)
     expect(mockUseLiveQuery.mock.calls[9]?.[1]).toEqual([1])
+    expect(mockSyncLocalChanges).toHaveBeenCalledTimes(1)
   })
 })

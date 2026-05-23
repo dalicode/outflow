@@ -1,43 +1,118 @@
 import type { Expense } from '../../types'
+import { normalizeImportedSyncMetadata } from '../../utils/syncMetadata'
 import db from '../db/schema'
-import { enqueue } from './common'
+import { filterActiveRows, markDeletedSyncRecord, markPendingActiveRecord } from './common'
 import { queueImportSyncMarker } from '../importService'
 import { CSV_IMPORT_QUEUE_REASON, CSV_REPLACE_QUEUE_REASON } from '../syncRuntime'
 
-export async function getAll(): Promise<Expense[]> {
+function normalizeExpenseForImport(expense: Omit<Expense, 'id'>, now: string): Expense {
+  return normalizeImportedSyncMetadata(expense as Record<string, unknown>, {
+    now,
+    forcePending: true,
+  }) as Expense
+}
+
+async function withResolvedNameSnapshots(expense: Omit<Expense, 'id'>): Promise<Omit<Expense, 'id'>> {
+  let categoryNameSnapshot = expense.categoryNameSnapshot
+  if (typeof expense.categoryId === 'number') {
+    const category = await db.categories.get(expense.categoryId)
+    if (category && category.deletedAt == null) {
+      categoryNameSnapshot = category.name
+    }
+  }
+
+  let payeeNameSnapshot = expense.payeeNameSnapshot
+  if (typeof expense.payeeId === 'number') {
+    const payee = await db.payees.get(expense.payeeId)
+    if (payee && payee.deletedAt == null) {
+      payeeNameSnapshot = payee.name
+    }
+  }
+
+  return {
+    ...expense,
+    categoryNameSnapshot,
+    payeeNameSnapshot,
+  }
+}
+
+export async function getAllExpenses(): Promise<Expense[]> {
   return db.expenses.orderBy('date').toArray()
+}
+
+export async function getAll(): Promise<Expense[]> {
+  return filterActiveRows(await getAllExpenses())
 }
 
 export async function add(expense: Omit<Expense, 'id'>): Promise<number> {
   const now = new Date().toISOString()
-  const record = {
-    ...expense,
-    cloudId: crypto.randomUUID(),
-    updatedAt: now,
-  } as Expense
-  const id = await db.expenses.add(record)
-  await enqueue('expenses', 'insert', { ...expense, id, cloudId: record.cloudId })
-  return id
+  const withSnapshots = await withResolvedNameSnapshots(expense)
+  return db.expenses.add(normalizeExpenseForImport(withSnapshots, now))
 }
 
 export async function update(id: number, changes: Partial<Expense>): Promise<void> {
-  await db.expenses.update(id, { ...changes, updatedAt: new Date().toISOString() })
-  const row = await db.expenses.get(id)
-  await enqueue('expenses', 'update', row as unknown as Record<string, unknown>)
+  const existing = await db.expenses.get(id)
+  if (!existing) return
+  const now = new Date().toISOString()
+  const hasDeletedAtChange = Object.hasOwn(changes, 'deletedAt')
+  const nextExpense = await withResolvedNameSnapshots({
+    ...existing,
+    ...changes,
+    deletedAt: hasDeletedAtChange ? (changes.deletedAt ?? null) : (existing.deletedAt ?? null),
+  })
+  await db.expenses.put({
+    ...markPendingActiveRecord(existing, now),
+    ...nextExpense,
+    id,
+  })
 }
 
 export async function remove(id: number): Promise<void> {
   const expense = await db.expenses.get(id)
-  await db.expenses.delete(id)
-  await enqueue('expenses', 'delete', { id, cloudId: expense?.cloudId })
+  if (!expense) return
+  await db.expenses.update(id, markDeletedSyncRecord(expense, new Date().toISOString()))
 }
 
 export async function removeMany(ids: number[]): Promise<void> {
-  await db.transaction('rw', db.expenses, db.syncQueue, async () => {
+  await db.transaction('rw', db.expenses, async () => {
+    const now = new Date().toISOString()
     const expenses = await db.expenses.bulkGet(ids)
-    await db.expenses.bulkDelete(ids)
-    for (let i = 0; i < ids.length; i++) {
-      await enqueue('expenses', 'delete', { id: ids[i], cloudId: expenses[i]?.cloudId })
+    for (let i = 0; i < expenses.length; i++) {
+      const expense = expenses[i]
+      const id = ids[i]
+      if (!expense || id == null) continue
+      await db.expenses.put({
+        ...expense,
+        ...markDeletedSyncRecord(expense, now),
+        id,
+      })
+    }
+  })
+}
+
+export async function restore(id: number): Promise<void> {
+  const expense = await db.expenses.get(id)
+  if (!expense) return
+  await db.expenses.put({
+    ...expense,
+    ...markPendingActiveRecord(expense, new Date().toISOString()),
+    id,
+  })
+}
+
+export async function restoreMany(ids: number[]): Promise<void> {
+  await db.transaction('rw', db.expenses, async () => {
+    const expenses = await db.expenses.bulkGet(ids)
+    const now = new Date().toISOString()
+    for (let i = 0; i < expenses.length; i++) {
+      const expense = expenses[i]
+      const id = ids[i]
+      if (!expense || id == null) continue
+      await db.expenses.put({
+        ...expense,
+        ...markPendingActiveRecord(expense, now),
+        id,
+      })
     }
   })
 }
@@ -47,11 +122,7 @@ export async function replaceAll(
   queueCloudReplace = false,
 ): Promise<void> {
   const now = new Date().toISOString()
-  const records: Expense[] = expenses.map((expense) => ({
-    ...expense,
-    cloudId: expense.cloudId ?? crypto.randomUUID(),
-    updatedAt: expense.updatedAt ?? now,
-  }))
+  const records: Expense[] = expenses.map((expense) => normalizeExpenseForImport(expense, now))
 
   await db.transaction('rw', db.expenses, async () => {
     await db.expenses.clear()
@@ -76,11 +147,7 @@ export async function bulkAddForImport(
   queueFullSync = false,
 ): Promise<void> {
   const now = new Date().toISOString()
-  const records: Expense[] = expenses.map((expense) => ({
-    ...expense,
-    cloudId: expense.cloudId ?? crypto.randomUUID(),
-    updatedAt: expense.updatedAt ?? now,
-  }))
+  const records: Expense[] = expenses.map((expense) => normalizeExpenseForImport(expense, now))
 
   await db.transaction('rw', db.expenses, async () => {
     if (records.length > 0) {
@@ -100,9 +167,11 @@ export async function bulkAddForImport(
 }
 
 export async function getExpenseCountForCategory(categoryId: number): Promise<number> {
-  return db.expenses.where('categoryId').equals(categoryId).count()
+  const matches = await db.expenses.where('categoryId').equals(categoryId).toArray()
+  return filterActiveRows(matches).length
 }
 
 export async function getExpenseCountForPayee(payeeId: number): Promise<number> {
-  return db.expenses.where('payeeId').equals(payeeId).count()
+  const matches = await db.expenses.where('payeeId').equals(payeeId).toArray()
+  return filterActiveRows(matches).length
 }

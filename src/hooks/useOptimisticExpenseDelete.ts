@@ -63,7 +63,7 @@ export function useOptimisticExpenseDelete({
 
       if (timerFired) {
         committedExpenseDeleteIdsRef.current.delete(id)
-        await StorageService.add(expense)
+        await StorageService.restoreExpense(id)
         triggerSync?.()
       }
 
@@ -122,9 +122,7 @@ export function useOptimisticExpenseDelete({
         ids.forEach((id) => {
           committedExpenseDeleteIdsRef.current.delete(id)
         })
-        for (const expense of selected) {
-          await StorageService.add(expense)
-        }
+        await StorageService.restoreManyExpenses(ids)
         triggerSync?.()
       }
 

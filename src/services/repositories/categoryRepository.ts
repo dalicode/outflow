@@ -1,38 +1,71 @@
-import type { Category, CategoryMergeHistory } from '../../types'
+import type { Category, CategoryMergeHistory, Expense } from '../../types'
+import { normalizeNameForSync } from '../../utils/syncMetadata'
 import db from '../db/schema'
-import { enqueue } from './common'
+import { buildCreatedSyncRecord, filterActiveRows, markPendingActiveRecord } from './common'
+
+export async function getAllCategories(): Promise<Category[]> {
+  return db.categories.toArray()
+}
 
 export async function getCategories(): Promise<Category[]> {
-  return db.categories.toArray()
+  return filterActiveRows(await getAllCategories())
+}
+
+async function findByNormalizedName(normalizedName: string): Promise<Category[]> {
+  return db.categories.where('normalizedName').equals(normalizedName).toArray()
 }
 
 export async function addCategory(name: string): Promise<number> {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Category name is required')
-  const existing = await db.categories.where('name').equalsIgnoreCase(trimmed).first()
-  if (existing) {
-    if (existing.isArchived) {
-      await db.categories.update(existing.id as number, {
+
+  const normalizedName = normalizeNameForSync(trimmed)
+  const matches = await findByNormalizedName(normalizedName)
+  const active = matches.find((row) => row.deletedAt == null)
+  const now = new Date().toISOString()
+
+  if (active) {
+    if (active.isArchived && active.id != null) {
+      await db.categories.put({
+        ...active,
+        ...markPendingActiveRecord(active, now),
+        id: active.id,
         name: trimmed,
+        normalizedName,
         isArchived: false,
+        archivedAt: undefined,
+        mergedIntoCategoryId: null,
       })
-      const row = await db.categories.get(existing.id as number)
-      await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
-      return existing.id as number
+      return active.id
     }
     throw new Error('A category with that name already exists')
   }
-  const now = new Date().toISOString()
-  const id = await db.categories.add({
-    name: trimmed,
-    cloudId: crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now,
-    isArchived: false,
-  } as Category)
-  const row = await db.categories.get(id)
-  await enqueue('categories', 'insert', row as unknown as Record<string, unknown>)
-  return id
+
+  const tombstoned = matches.find((row) => row.deletedAt != null)
+  if (tombstoned && tombstoned.id != null) {
+    await db.categories.put({
+      ...tombstoned,
+      ...markPendingActiveRecord(tombstoned, now),
+      id: tombstoned.id,
+      name: trimmed,
+      normalizedName,
+      isArchived: false,
+      archivedAt: undefined,
+      mergedIntoCategoryId: null,
+    })
+    return tombstoned.id
+  }
+
+  return db.categories.add(
+    buildCreatedSyncRecord(
+      {
+        name: trimmed,
+        normalizedName,
+        isArchived: false,
+      },
+      now,
+    ) as Category,
+  )
 }
 
 export async function ensureForImport(names: string[]): Promise<Record<string, number>> {
@@ -41,28 +74,56 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
   if (trimmedNames.length === 0) return categoryMap
 
   await db.transaction('rw', db.categories, async () => {
+    const now = new Date().toISOString()
+
     for (const name of trimmedNames) {
-      const existing = await db.categories.where('name').equalsIgnoreCase(name).first()
-      if (existing) {
-        if (existing.isArchived) {
-          await db.categories.update(existing.id as number, {
+      const normalizedName = normalizeNameForSync(name)
+      const matches = await findByNormalizedName(normalizedName)
+      const active = matches.find((row) => row.deletedAt == null)
+
+      if (active && active.id != null) {
+        if (active.isArchived) {
+          await db.categories.put({
+            ...active,
+            ...markPendingActiveRecord(active, now),
+            id: active.id,
             name,
+            normalizedName,
             isArchived: false,
-            updatedAt: new Date().toISOString(),
+            archivedAt: undefined,
+            mergedIntoCategoryId: null,
           })
         }
-        categoryMap[name] = existing.id as number
+        categoryMap[name] = active.id
         continue
       }
 
-      const now = new Date().toISOString()
-      const id = await db.categories.add({
-        name,
-        cloudId: crypto.randomUUID(),
-        createdAt: now,
-        updatedAt: now,
-        isArchived: false,
-      } as Category)
+      const tombstoned = matches.find((row) => row.deletedAt != null)
+      if (tombstoned && tombstoned.id != null) {
+        await db.categories.put({
+          ...tombstoned,
+          ...markPendingActiveRecord(tombstoned, now),
+          id: tombstoned.id,
+          name,
+          normalizedName,
+          isArchived: false,
+          archivedAt: undefined,
+          mergedIntoCategoryId: null,
+        })
+        categoryMap[name] = tombstoned.id
+        continue
+      }
+
+      const id = await db.categories.add(
+        buildCreatedSyncRecord(
+          {
+            name,
+            normalizedName,
+            isArchived: false,
+          },
+          now,
+        ) as Category,
+      )
       categoryMap[name] = id
     }
   })
@@ -71,18 +132,43 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
 }
 
 export async function updateCategory(id: number, changes: Partial<Category>): Promise<void> {
-  if (changes.name) {
-    changes.name = changes.name.trim()
+  const existing = await db.categories.get(id)
+  if (!existing) return
+
+  const now = new Date().toISOString()
+  const nextName = changes.name?.trim()
+  const normalizedName = nextName ? normalizeNameForSync(nextName) : existing.normalizedName
+
+  if (normalizedName) {
+    const duplicates = filterActiveRows(await findByNormalizedName(normalizedName)).filter(
+      (row) => row.id !== id,
+    )
+    if (duplicates.length > 0) {
+      throw new Error('A category with that name already exists')
+    }
   }
-  await db.categories.update(id, { ...changes, updatedAt: new Date().toISOString() })
-  const row = await db.categories.get(id)
-  await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
+
+  await db.categories.put({
+    ...existing,
+    ...changes,
+    ...markPendingActiveRecord(existing, now),
+    id,
+    name: nextName ?? existing.name,
+    normalizedName,
+  })
 }
 
 export async function deleteCategory(id: number): Promise<void> {
-  await db.categories.update(id, { isArchived: true })
-  const row = await db.categories.get(id)
-  await enqueue('categories', 'update', row as unknown as Record<string, unknown>)
+  const existing = await db.categories.get(id)
+  if (!existing) return
+  const now = new Date().toISOString()
+  await db.categories.put({
+    ...existing,
+    ...markPendingActiveRecord(existing, now),
+    id,
+    isArchived: true,
+    archivedAt: now,
+  })
 }
 
 export async function mergeCategory(
@@ -92,45 +178,52 @@ export async function mergeCategory(
   if (sourceCategoryId === targetCategoryId) {
     throw new Error('Cannot merge a category into itself.')
   }
+
   const now = new Date().toISOString()
-
-  const affected = await db.expenses.where('categoryId').equals(sourceCategoryId).toArray()
-  const affectedIds = affected.map((e) => e.id as number)
-
-  if (affectedIds.length > 0) {
-    await db.expenses
-      .where('categoryId')
-      .equals(sourceCategoryId)
-      .modify({ categoryId: targetCategoryId })
-    const updatedExpenses = await db.expenses.bulkGet(affectedIds)
-    for (const expense of updatedExpenses) {
-      if (!expense) continue
-      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
-    }
+  const targetCategory = await db.categories.get(targetCategoryId)
+  const sourceCategory = await db.categories.get(sourceCategoryId)
+  if (!sourceCategory) {
+    throw new Error('Source category not found.')
   }
 
-  const mergeId = await db.categoryMergeHistory.add({
-    cloudId: crypto.randomUUID(),
-    sourceCategoryId,
-    targetCategoryId,
-    affectedExpenseIds: affectedIds,
-    createdAt: now,
-    updatedAt: now,
-    revertedAt: null,
-  } as CategoryMergeHistory)
-  const mergeRow = await db.categoryMergeHistory.get(mergeId)
-  if (mergeRow) {
-    await enqueue('categoryMergeHistory', 'insert', mergeRow as unknown as Record<string, unknown>)
+  const affected = filterActiveRows(
+    await db.expenses.where('categoryId').equals(sourceCategoryId).toArray(),
+  )
+  if (affected.length > 0) {
+    const updates = affected
+      .filter((expense) => expense.id != null)
+      .map((expense) => ({
+        ...expense,
+        ...markPendingActiveRecord(expense, now),
+        id: expense.id as number,
+        categoryId: targetCategoryId,
+        categoryNameSnapshot: targetCategory?.name ?? expense.categoryNameSnapshot ?? null,
+      }))
+    await db.expenses.bulkPut(updates as Expense[])
   }
 
-  await db.categories.update(sourceCategoryId, {
+  const mergeId = await db.categoryMergeHistory.add(
+    buildCreatedSyncRecord(
+      {
+        sourceCategoryId,
+        targetCategoryId,
+        affectedExpenseIds: affected
+          .map((expense) => expense.id)
+          .filter((expenseId): expenseId is number => typeof expenseId === 'number'),
+        revertedAt: null,
+      },
+      now,
+    ) as CategoryMergeHistory,
+  )
+
+  await db.categories.put({
+    ...sourceCategory,
+    ...markPendingActiveRecord(sourceCategory, now),
+    id: sourceCategoryId,
     isArchived: true,
     archivedAt: now,
     mergedIntoCategoryId: targetCategoryId,
-    updatedAt: now,
   })
-  const updatedCat = await db.categories.get(sourceCategoryId)
-  await enqueue('categories', 'update', updatedCat as unknown as Record<string, unknown>)
 
   return mergeId
 }
@@ -140,40 +233,43 @@ export async function revertCategoryMerge(mergeId: number): Promise<void> {
   if (!mergeRow || mergeRow.revertedAt) {
     throw new Error('Merge record not found or already reverted.')
   }
-  const now = new Date().toISOString()
 
-  // Revert expenses back to source category
+  const now = new Date().toISOString()
+  const sourceCategory = await db.categories.get(mergeRow.sourceCategoryId)
+
   if (mergeRow.affectedExpenseIds.length > 0) {
-    await db.expenses.bulkUpdate(
-      mergeRow.affectedExpenseIds.map((id) => ({
-        key: id,
-        changes: { categoryId: mergeRow.sourceCategoryId },
-      })),
+    const affected = await db.expenses.bulkGet(mergeRow.affectedExpenseIds)
+    const reverted = filterActiveRows(
+      affected.filter((expense): expense is Expense => Boolean(expense)),
     )
-    const revertedExpenses = await db.expenses.bulkGet(mergeRow.affectedExpenseIds)
-    for (const expense of revertedExpenses) {
-      if (!expense) continue
-      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
+      .filter((expense) => expense.id != null)
+      .map((expense) => ({
+        ...expense,
+        ...markPendingActiveRecord(expense, now),
+        id: expense.id as number,
+        categoryId: mergeRow.sourceCategoryId,
+        categoryNameSnapshot: sourceCategory?.name ?? expense.categoryNameSnapshot ?? null,
+      }))
+    if (reverted.length > 0) {
+      await db.expenses.bulkPut(reverted)
     }
   }
 
-  // Un-archive the source category
-  await db.categories.update(mergeRow.sourceCategoryId, {
-    isArchived: false,
-    archivedAt: undefined,
-    mergedIntoCategoryId: null,
-    updatedAt: now,
-  } as Partial<Category>)
+  if (sourceCategory) {
+    await db.categories.put({
+      ...sourceCategory,
+      ...markPendingActiveRecord(sourceCategory, now),
+      id: mergeRow.sourceCategoryId,
+      isArchived: false,
+      archivedAt: undefined,
+      mergedIntoCategoryId: null,
+    } as Category)
+  }
 
-  // Mark merge as reverted
-  await db.categoryMergeHistory.update(mergeId, { revertedAt: now })
-  const updatedMerge = await db.categoryMergeHistory.get(mergeId)
-  await enqueue(
-    'categoryMergeHistory',
-    'update',
-    updatedMerge as unknown as Record<string, unknown>,
-  )
-
-  const updatedCat = await db.categories.get(mergeRow.sourceCategoryId)
-  await enqueue('categories', 'update', updatedCat as unknown as Record<string, unknown>)
+  await db.categoryMergeHistory.put({
+    ...mergeRow,
+    ...markPendingActiveRecord(mergeRow, now),
+    id: mergeId,
+    revertedAt: now,
+  } as CategoryMergeHistory)
 }

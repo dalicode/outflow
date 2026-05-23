@@ -5,6 +5,16 @@ function hasLocalId<T extends { id?: number }>(item: T): item is T & { id: numbe
   return item.id != null
 }
 
+type NamedSyncRow = {
+  id?: number
+  name?: string
+  normalizedName?: string
+  localId?: string
+  cloudId?: string | null
+  updatedAt?: string
+  deletedAt?: string | null
+}
+
 export async function deduplicateByName(
   table: {
     toArray: () => Promise<Array<Record<string, unknown>>>
@@ -70,12 +80,15 @@ export async function verifySyncIntegrity(): Promise<void> {
     db.payees.toArray(),
     db.expenses.toArray(),
   ])
-  const validCatIds = new Set(cats.filter(hasLocalId).map((c) => c.id))
-  const validPayeeIds = new Set(pays.filter(hasLocalId).map((p) => p.id))
+  const activeCats = cats.filter((category) => category.deletedAt == null)
+  const activePays = pays.filter((payee) => payee.deletedAt == null)
+  const activeExpenses = exps.filter((expense) => expense.deletedAt == null)
+  const validCatIds = new Set(activeCats.filter(hasLocalId).map((c) => c.id))
+  const validPayeeIds = new Set(activePays.filter(hasLocalId).map((p) => p.id))
 
   let brokenCats = 0
   let brokenPayees = 0
-  for (const e of exps) {
+  for (const e of activeExpenses) {
     if (e.categoryId != null && !validCatIds.has(e.categoryId)) {
       brokenCats++
       if (brokenCats <= 3) {
@@ -103,6 +116,9 @@ export async function verifySyncIntegrity(): Promise<void> {
       }
     }
   }
+  const duplicateCategories = logDuplicateActiveNames('category', activeCats)
+  const duplicatePayees = logDuplicateActiveNames('payee', activePays)
+  const tombstoneConflicts = await logTombstoneConflicts()
   if (brokenCats > 0) {
     debugWarn('[integrity] total expenses with broken category link:', brokenCats)
   }
@@ -118,6 +134,107 @@ export async function verifySyncIntegrity(): Promise<void> {
     brokenCats,
     'broken,',
     brokenPayees,
-    'broken payees',
+    'broken payees,',
+    duplicateCategories,
+    'duplicate categories,',
+    duplicatePayees,
+    'duplicate payees,',
+    tombstoneConflicts,
+    'tombstone conflicts',
   )
+}
+
+function resolveNormalizedName(row: NamedSyncRow): string | null {
+  if (typeof row.normalizedName === 'string' && row.normalizedName.length > 0) {
+    return row.normalizedName
+  }
+  if (typeof row.name === 'string') {
+    return row.name.trim().toLowerCase().replace(/\s+/g, ' ')
+  }
+  return null
+}
+
+function logDuplicateActiveNames(label: 'category' | 'payee', rows: NamedSyncRow[]): number {
+  const groups = new Map<string, NamedSyncRow[]>()
+  for (const row of rows) {
+    const normalizedName = resolveNormalizedName(row)
+    if (!normalizedName) continue
+    const group = groups.get(normalizedName) ?? []
+    group.push(row)
+    groups.set(normalizedName, group)
+  }
+
+  let duplicateCount = 0
+  for (const [normalizedName, group] of groups) {
+    if (group.length < 2) continue
+    duplicateCount += group.length - 1
+    console.warn(
+      `[integrity] duplicate active ${label} normalizedName:`,
+      normalizedName,
+      'ids:',
+      group.map((row) => row.id),
+    )
+  }
+  return duplicateCount
+}
+
+async function logTombstoneConflicts(): Promise<number> {
+  const tableNames = [
+    'expenses',
+    'categories',
+    'payees',
+    'fixedExpenses',
+    'fixedExpenseSnapshots',
+    'incomeSnapshots',
+    'savingsSnapshots',
+    'schedules',
+    'categoryMergeHistory',
+    'payeeMergeHistory',
+  ] as const
+
+  let conflicts = 0
+  for (const tableName of tableNames) {
+    const rows = (await db.table(tableName).toArray()) as NamedSyncRow[]
+    const groups = new Map<string, NamedSyncRow[]>()
+
+    for (const row of rows) {
+      const identityKey =
+        typeof row.localId === 'string' && row.localId.length > 0
+          ? `local:${row.localId}`
+          : typeof row.cloudId === 'string' && row.cloudId.length > 0
+            ? `cloud:${row.cloudId}`
+            : null
+      if (!identityKey) continue
+      const group = groups.get(identityKey) ?? []
+      group.push(row)
+      groups.set(identityKey, group)
+    }
+
+    for (const [identityKey, group] of groups) {
+      if (group.length < 2) continue
+      const newestTombstone = group
+        .filter((row) => row.deletedAt != null)
+        .sort(
+          (a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime(),
+        )[0]
+      if (!newestTombstone) continue
+
+      const olderActive = group.find(
+        (row) =>
+          row.deletedAt == null &&
+          new Date(row.updatedAt ?? 0).getTime() <
+            new Date(newestTombstone.updatedAt ?? 0).getTime(),
+      )
+      if (!olderActive) continue
+
+      conflicts += 1
+      console.warn(
+        '[integrity] older active row conflicts with newer tombstone:',
+        tableName,
+        identityKey,
+      )
+    }
+  }
+
+  return conflicts
 }

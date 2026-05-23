@@ -12,8 +12,8 @@ export const TABLE_MAP: Record<string, string> = {
   settings: 'settings',
 }
 
-export const SYNC_BATCH_SIZE = 250
-export const CLOUD_FETCH_PAGE_SIZE = 1000
+export const SYNC_BATCH_SIZE = 500
+export const CLOUD_FETCH_PAGE_SIZE = 500
 export const STALE_SYNC_RUN_MESSAGE = 'Sync run superseded'
 export const LOCAL_ONLY_SETTING_KEYS = new Set(['localPrivacyModeEnabled'])
 
@@ -21,13 +21,13 @@ export const FULL_SYNC_ORDER = [
   'categories',
   'payees',
   'fixed_expenses',
+  'settings',
   'fixed_expense_snapshots',
   'income_snapshots',
   'savings_snapshots',
   'schedules',
   'category_merge_history',
   'payee_merge_history',
-  'settings',
   'expenses',
 ] as const
 
@@ -47,9 +47,16 @@ export const FULL_SYNC_DELETE_ORDER = [
 
 export const UPSERT_CONFLICT_MAP: Partial<Record<string, string>> = {
   settings: 'user_id,key',
-  income_snapshots: 'user_id,year,month',
-  savings_snapshots: 'user_id,year,month',
-  fixed_expense_snapshots: 'user_id,fixed_expense_id,year,month',
+  categories: 'user_id,local_id',
+  payees: 'user_id,local_id',
+  fixed_expenses: 'user_id,local_id',
+  fixed_expense_snapshots: 'user_id,local_id',
+  income_snapshots: 'user_id,local_id',
+  savings_snapshots: 'user_id,local_id',
+  schedules: 'user_id,local_id',
+  category_merge_history: 'user_id,local_id',
+  payee_merge_history: 'user_id,local_id',
+  expenses: 'user_id,local_id',
 }
 
 export const CLOUD_ID_TABLES = [

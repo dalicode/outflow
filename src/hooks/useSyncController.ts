@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { StorageService } from '../services/storageService'
 import { isSyncPaused } from '../services/syncRuntime'
-import { flushSyncQueue, migrateLocalToSupabase, pullFromSupabase } from '../services/syncService'
+import { flushSyncQueue, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
 import { debugLog, debugWarn } from '../utils/debug'
 import { withTimeout } from '../utils/withTimeout'
@@ -25,9 +25,16 @@ type SyncReason =
   | 'retry'
   | 'queued-follow-up'
 
+type SyncMode =
+  | 'upload-only'
+  | 'pull-then-upload'
+  | 'upload-then-pull'
+  | 'pull-only'
+  | 'full-repair'
+
 interface QueueSyncOptions {
   reason: SyncReason
-  mode?: 'pull-and-flush' | 'flush-only' | 'flush-then-pull' | 'full-upload-after-pull'
+  mode?: SyncMode
   force?: boolean
 }
 
@@ -52,7 +59,12 @@ interface UseSyncControllerResult {
 }
 
 function shouldApplyFreshnessGate(reason: SyncReason): boolean {
-  return reason === 'focus' || reason === 'visible' || reason === 'periodic'
+  return (
+    reason === 'focus' ||
+    reason === 'visible' ||
+    reason === 'periodic' ||
+    reason === 'token-refresh'
+  )
 }
 
 function shouldApplyRecentPullCooldown(reason: SyncReason): boolean {
@@ -64,30 +76,12 @@ function shouldApplyRecentPullCooldown(reason: SyncReason): boolean {
   )
 }
 
-function shouldGuardPullFirstWithPendingQueue(reason: SyncReason): boolean {
-  return (
-    reason === 'focus' ||
-    reason === 'visible' ||
-    reason === 'online' ||
-    reason === 'periodic' ||
-    reason === 'token-refresh'
-  )
+function modeIncludesPull(mode: SyncMode): boolean {
+  return mode !== 'upload-only'
 }
 
-function getModeRank(mode: QueueSyncOptions['mode']): number {
-  switch (mode) {
-    case 'full-upload-after-pull':
-      return 4
-    case 'flush-then-pull':
-      return 3
-    case 'pull-and-flush':
-    case undefined:
-      return 2
-    case 'flush-only':
-      return 1
-    default:
-      return 0
-  }
+function modeIncludesUpload(mode: SyncMode): boolean {
+  return mode !== 'pull-only'
 }
 
 function mergeQueuedOptions(
@@ -96,12 +90,24 @@ function mergeQueuedOptions(
 ): QueueSyncOptions {
   if (!existing) return incoming
 
-  const strongestMode =
-    getModeRank(incoming.mode) >= getModeRank(existing.mode) ? incoming.mode : existing.mode
+  const existingMode = existing.mode ?? 'pull-then-upload'
+  const incomingMode = incoming.mode ?? 'pull-then-upload'
+
+  const mergedMode = (() => {
+    if (existingMode === 'full-repair' || incomingMode === 'full-repair') return 'full-repair'
+    if (existingMode === incomingMode) return incomingMode
+
+    const needsPull = modeIncludesPull(existingMode) || modeIncludesPull(incomingMode)
+    const needsUpload = modeIncludesUpload(existingMode) || modeIncludesUpload(incomingMode)
+
+    if (needsPull && needsUpload) return 'upload-then-pull'
+    if (needsPull) return 'pull-only'
+    return 'upload-only'
+  })()
 
   return {
     reason: incoming.reason,
-    mode: strongestMode,
+    mode: mergedMode,
     force: Boolean(existing.force || incoming.force),
   }
 }
@@ -114,6 +120,12 @@ export function useSyncController({
   const [syncCount, setSyncCount] = useState(0)
   const [pullAppliedCount, setPullAppliedCount] = useState(0)
   const [hasSynced, setHasSynced] = useState(false)
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [failedSyncCount, setFailedSyncCount] = useState(0)
+  const [isBrowserOnline, setIsBrowserOnline] = useState(() => {
+    if (typeof navigator === 'undefined' || !('onLine' in navigator)) return true
+    return navigator.onLine
+  })
 
   const syncingRef = useRef(false)
   const activeSyncPromiseRef = useRef<Promise<void> | null>(null)
@@ -162,22 +174,93 @@ export function useSyncController({
     setSyncStatus(status)
   }, [])
 
+  const updateAggregateSyncStatus = useCallback(
+    (counts: { pending: number; failed: number }) => {
+      if (syncingRef.current) {
+        setSyncStatus('syncing')
+        return
+      }
+
+      if (!isBrowserOnline) {
+        setSyncStatus('offline')
+        return
+      }
+
+      if (counts.failed > 0) {
+        setSyncStatus('error')
+        return
+      }
+
+      setSyncStatus('idle')
+    },
+    [isBrowserOnline],
+  )
+
+  const refreshAggregateSyncState = useCallback(async (): Promise<{
+    pending: number
+    failed: number
+  }> => {
+    if (!userId || isSyncPaused()) {
+      const emptyCounts = { pending: 0, failed: 0 }
+      setPendingSyncCount(0)
+      setFailedSyncCount(0)
+      updateAggregateSyncStatus(emptyCounts)
+      return emptyCounts
+    }
+
+    const counts = await StorageService.getSyncMetadataCounts()
+    setPendingSyncCount(counts.pending)
+    setFailedSyncCount(counts.failed)
+    updateAggregateSyncStatus(counts)
+    return counts
+  }, [updateAggregateSyncStatus, userId])
+
   const getHasPendingLocalChanges = useCallback(async (): Promise<boolean> => {
     if (isSyncPaused()) return false
-    const queue = await StorageService.getSyncQueue()
-    return queue.length > 0
+    return StorageService.hasPendingSyncMetadata()
   }, [])
+
+  const resolveSyncMode = useCallback(
+    async (options: QueueSyncOptions): Promise<SyncMode> => {
+      if (options.mode) return options.mode
+
+      const needsPendingCheck =
+        options.reason === 'focus' ||
+        options.reason === 'visible' ||
+        options.reason === 'periodic' ||
+        options.reason === 'token-refresh' ||
+        options.reason === 'retry' ||
+        options.reason === 'queued-follow-up'
+      const hasPendingLocalChanges = needsPendingCheck ? await getHasPendingLocalChanges() : false
+
+      switch (options.reason) {
+        case 'startup':
+        case 'sign-in':
+          return 'pull-then-upload'
+        case 'manual':
+        case 'historical-data':
+        case 'online':
+          return 'upload-then-pull'
+        case 'focus':
+        case 'visible':
+        case 'periodic':
+        case 'token-refresh':
+        case 'retry':
+        case 'queued-follow-up':
+          return hasPendingLocalChanges ? 'upload-then-pull' : 'pull-only'
+        case 'local-change':
+          return 'upload-only'
+        default:
+          return 'pull-then-upload'
+      }
+    },
+    [getHasPendingLocalChanges],
+  )
 
   const flushQueuedChanges = useCallback(
     async (id: string, generation: number): Promise<boolean> => {
       if (isSyncPaused()) return false
-      const queue = await StorageService.getSyncQueue()
-      if (queue.length === 0) {
-        if (isCurrentSyncRun(generation)) {
-          setSyncStatus('idle')
-        }
-        return false
-      }
+      const hadPendingChanges = await getHasPendingLocalChanges()
 
       await withTimeout(
         flushSyncQueue(id, {
@@ -185,9 +268,9 @@ export function useSyncController({
         }),
         15000,
       )
-      return true
+      return hadPendingChanges
     },
-    [isCurrentSyncRun],
+    [getHasPendingLocalChanges, isCurrentSyncRun],
   )
 
   const runSyncNow = useCallback(
@@ -198,23 +281,28 @@ export function useSyncController({
       if (isCurrentSyncRun(generation)) {
         setSyncStatus('syncing')
       }
-      debugLog('[sync] running', options.reason, options.mode ?? 'pull-and-flush')
+      const mode = options.mode ?? 'pull-then-upload'
+      debugLog('[sync] running', options.reason, mode)
 
       try {
-        if (options.mode === 'flush-only') {
+        if (mode === 'upload-only') {
           await flushQueuedChanges(id, generation)
-        } else if (options.mode === 'flush-then-pull') {
+        } else if (mode === 'upload-then-pull') {
           await flushQueuedChanges(id, generation)
           await withTimeout(pullFromSupabase(id), 30000)
           if (isCurrentSyncRun(generation)) {
             setPullAppliedCount((c) => c + 1)
           }
-        } else if (options.mode === 'full-upload-after-pull') {
+        } else if (mode === 'pull-only') {
           await withTimeout(pullFromSupabase(id), 30000)
           if (isCurrentSyncRun(generation)) {
             setPullAppliedCount((c) => c + 1)
           }
-          await withTimeout(migrateLocalToSupabase(id), 45000)
+        } else if (mode === 'full-repair') {
+          await withTimeout(pullFromSupabase(id), 30000)
+          if (isCurrentSyncRun(generation)) {
+            setPullAppliedCount((c) => c + 1)
+          }
           await flushQueuedChanges(id, generation)
         } else {
           await withTimeout(pullFromSupabase(id), 30000)
@@ -229,38 +317,45 @@ export function useSyncController({
           lastSuccessfulSyncAtRef.current = Date.now()
           setHasSynced(true)
           setSyncCount((c) => c + 1)
-          setSyncStatus('idle')
+          await refreshAggregateSyncState()
           debugLog('[sync] complete', options.reason)
         }
       } catch (error) {
         if (isCurrentSyncRun(generation)) {
-          setSyncStatus('error')
+          await refreshAggregateSyncState()
           debugWarn('[sync] failed, will retry in 30s', options.reason)
         }
         throw error
       } finally {
         syncingRef.current = false
+        if (isCurrentSyncRun(generation)) {
+          await refreshAggregateSyncState()
+        }
       }
     },
-    [flushQueuedChanges, isCurrentSyncRun, runRecoveryCheck],
+    [flushQueuedChanges, isCurrentSyncRun, refreshAggregateSyncState, runRecoveryCheck],
   )
 
   const queueSync = useCallback(
     async (options: QueueSyncOptions): Promise<void> => {
       if (!userId || isSyncPaused()) return
-      if (!shouldRunRecentPullSync(options.force, options.reason)) {
+      const resolvedMode = await resolveSyncMode(options)
+      const shouldPull = modeIncludesPull(resolvedMode)
+
+      if (shouldPull && !shouldRunRecentPullSync(options.force, options.reason)) {
         return
       }
-      if (!options.force && shouldApplyFreshnessGate(options.reason) && !shouldRunFreshnessSync()) {
+      if (
+        shouldPull &&
+        !options.force &&
+        shouldApplyFreshnessGate(options.reason) &&
+        !shouldRunFreshnessSync()
+      ) {
         return
       }
-      const guardedOptions =
-        (options.mode ?? 'pull-and-flush') === 'pull-and-flush' &&
-        shouldGuardPullFirstWithPendingQueue(options.reason) &&
-        (await getHasPendingLocalChanges())
-          ? { ...options, mode: 'flush-then-pull' as const }
-          : options
-      debugLog('[sync] queued', guardedOptions.reason, guardedOptions.mode ?? 'pull-and-flush')
+
+      const guardedOptions = { ...options, mode: resolvedMode }
+      debugLog('[sync] queued', guardedOptions.reason, guardedOptions.mode)
 
       if (activeSyncPromiseRef.current) {
         followUpSyncRequestedRef.current = true
@@ -284,7 +379,7 @@ export function useSyncController({
           nextOptions = followUpSyncRequestedRef.current
             ? (pendingFollowUpOptionsRef.current ?? {
                 reason: 'queued-follow-up',
-                mode: 'flush-then-pull',
+                mode: 'upload-then-pull',
                 force: true,
               })
             : null
@@ -297,14 +392,14 @@ export function useSyncController({
 
       return activeSyncPromiseRef.current.catch((error) => {
         scheduleRetry(() => {
-          if (userId) void queueSync({ reason: 'retry', mode: 'flush-then-pull', force: true })
+          if (userId) void queueSync({ reason: 'retry', mode: 'upload-then-pull', force: true })
         })
         throw error
       })
     },
     [
-      getHasPendingLocalChanges,
       runSyncNow,
+      resolveSyncMode,
       scheduleRetry,
       shouldRunFreshnessSync,
       shouldRunRecentPullSync,
@@ -313,31 +408,32 @@ export function useSyncController({
   )
 
   const syncNow = useCallback(
-    () => queueSync({ reason: 'manual', mode: 'flush-then-pull', force: true }),
+    () => queueSync({ reason: 'manual', mode: 'upload-then-pull', force: true }),
     [queueSync],
   )
 
   const syncLocalThenPull = useCallback(
-    () => queueSync({ reason: 'historical-data', mode: 'flush-then-pull', force: true }),
+    () => queueSync({ reason: 'historical-data', mode: 'upload-then-pull', force: true }),
     [queueSync],
   )
 
   const syncLocalChanges = useCallback(
-    () => queueSync({ reason: 'local-change', mode: 'flush-only', force: true }),
+    () => queueSync({ reason: 'local-change', mode: 'upload-only', force: true }),
     [queueSync],
   )
 
   const triggerSync = useCallback(() => {
     if (!userId || isSyncPaused()) return
+    void refreshAggregateSyncState()
     if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current)
       retryTimerRef.current = null
     }
     flushTimerRef.current = setTimeout(() => {
-      void queueSync({ reason: 'local-change', mode: 'flush-only' })
+      void queueSync({ reason: 'local-change', mode: 'upload-only' })
     }, LOCAL_CHANGE_SYNC_DEBOUNCE_MS)
-  }, [queueSync, userId])
+  }, [queueSync, refreshAggregateSyncState, userId])
 
   useEffect(() => {
     if (!userId) return
@@ -348,25 +444,41 @@ export function useSyncController({
       if (document.visibilityState !== 'visible') return
       if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) return
       if (reason !== 'online' && !shouldRunFreshnessSync()) return
-      void queueSync({ reason, mode: 'pull-and-flush' })
+      void queueSync({ reason })
     }
 
     const handleFocus = () => maybePull('focus')
-    const handleOnline = () => maybePull('online')
+    const handleOnline = () => {
+      setIsBrowserOnline(true)
+      void maybePull('online')
+    }
+    const handleOffline = () => {
+      setIsBrowserOnline(false)
+    }
     const handleVisibilityChange = () => maybePull('visible')
     const intervalId = window.setInterval(() => maybePull('periodic'), PERIODIC_PULL_INTERVAL_MS)
 
     window.addEventListener('focus', handleFocus)
     window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       window.clearInterval(intervalId)
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [queueSync, shouldRunFreshnessSync, userId])
+
+  useEffect(() => {
+    void refreshAggregateSyncState()
+  }, [refreshAggregateSyncState])
+
+  useEffect(() => {
+    updateAggregateSyncStatus({ pending: pendingSyncCount, failed: failedSyncCount })
+  }, [failedSyncCount, pendingSyncCount, updateAggregateSyncStatus])
 
   return {
     syncStatus,
@@ -384,4 +496,10 @@ export function useSyncController({
   }
 }
 
-export type { QueueSyncOptions, SyncReason, UseSyncControllerParams, UseSyncControllerResult }
+export type {
+  QueueSyncOptions,
+  SyncMode,
+  SyncReason,
+  UseSyncControllerParams,
+  UseSyncControllerResult,
+}

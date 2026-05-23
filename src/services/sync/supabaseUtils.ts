@@ -146,15 +146,32 @@ export async function upsertRowsInBatches(
   rows: Record<string, unknown>[],
   onConflict = UPSERT_CONFLICT_MAP[table] ?? 'id',
   options?: SyncRunGuardOptions,
-): Promise<void> {
-  if (!supabase || rows.length === 0) return
+): Promise<Record<string, unknown>[]> {
+  if (!supabase || rows.length === 0) return []
 
   const dedupedRows = dedupeRowsByConflictKey(rows, onConflict)
+  const returnedRows: Record<string, unknown>[] = []
 
   const batches = chunkArray(dedupedRows, SYNC_BATCH_SIZE)
   for (let index = 0; index < batches.length; index += 1) {
     assertSyncRunActive(options?.shouldContinue)
-    const result = await supabase.from(table).upsert(batches[index], { onConflict })
+    const upsertQuery = supabase.from(table).upsert(batches[index], { onConflict }) as
+      | Promise<SupabaseResult & { data?: unknown }>
+      | { select?: (columns?: string) => Promise<SupabaseResult & { data?: unknown }> }
+    const result =
+      typeof (upsertQuery as { select?: unknown }).select === 'function'
+        ? await (
+            upsertQuery as {
+              select: (columns?: string) => Promise<SupabaseResult & { data?: unknown }>
+            }
+          ).select('*')
+        : await (upsertQuery as Promise<SupabaseResult & { data?: unknown }>)
     assertNoSupabaseError(result, `Upsert ${table} batch ${index + 1}/${batches.length}`)
+    const data = result.data
+    if (Array.isArray(data)) {
+      returnedRows.push(...(data as Record<string, unknown>[]))
+    }
   }
+
+  return returnedRows
 }

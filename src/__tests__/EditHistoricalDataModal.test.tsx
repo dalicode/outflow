@@ -12,9 +12,9 @@ const { storageMock, saveHistoricalSnapshotConfigs } = vi.hoisted(() => ({
   saveHistoricalSnapshotConfigs: vi.fn(async () => undefined),
   storageMock: {
     getFixedExpenses: vi.fn(async () => []),
-    getAllIncomeSnapshots: vi.fn(async () => []),
-    getAllSavingsSnapshots: vi.fn(async () => []),
-    getAllFixedExpenseSnapshots: vi.fn(async () => []),
+    getIncomeSnapshots: vi.fn(async () => []),
+    getSavingsSnapshots: vi.fn(async () => []),
+    getFixedExpenseSnapshots: vi.fn(async () => []),
   },
 }))
 
@@ -58,7 +58,9 @@ describe('EditHistoricalDataModal', () => {
   })
 
   it('reloads db-backed values after discarding restored draft', async () => {
-    storageMock.getAllIncomeSnapshots.mockResolvedValueOnce([{ year: 2025, month: 1, amountSnapshot: 4500 }])
+    storageMock.getIncomeSnapshots.mockResolvedValueOnce([
+      { year: 2025, month: 1, amountSnapshot: 4500 },
+    ])
     localStorage.setItem(
       'outflow:editHistoricalDraft:2025',
       JSON.stringify({
@@ -79,7 +81,7 @@ describe('EditHistoricalDataModal', () => {
       expect(screen.queryByText('Unsaved changes restored from your last session.')).toBeNull()
     })
     await waitFor(() => {
-      expect(storageMock.getAllIncomeSnapshots).toHaveBeenCalledTimes(2)
+      expect(storageMock.getIncomeSnapshots).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -96,8 +98,14 @@ describe('EditHistoricalDataModal', () => {
 
   it('loads fixed snapshot names when live fixed definition names differ', async () => {
     storageMock.getFixedExpenses.mockResolvedValueOnce([{ id: 11, name: 'Live Name', amount: 999 }])
-    storageMock.getAllFixedExpenseSnapshots.mockResolvedValueOnce([
-      { fixedExpenseId: 11, year: 2025, month: 1, amountSnapshot: 1200, nameSnapshot: 'Snapshot Name' },
+    storageMock.getFixedExpenseSnapshots.mockResolvedValueOnce([
+      {
+        fixedExpenseId: 11,
+        year: 2025,
+        month: 1,
+        amountSnapshot: 1200,
+        nameSnapshot: 'Snapshot Name',
+      },
     ])
     render(<EditHistoricalDataModal isOpen onClose={() => {}} years={[2025]} expenses={[]} />)
     expect(await screen.findByDisplayValue('Snapshot Name')).toBeInTheDocument()
@@ -105,7 +113,7 @@ describe('EditHistoricalDataModal', () => {
   })
 
   it('keeps fixed snapshot name changes as separate historical rows', async () => {
-    storageMock.getAllFixedExpenseSnapshots.mockResolvedValueOnce([
+    storageMock.getFixedExpenseSnapshots.mockResolvedValueOnce([
       { fixedExpenseId: 11, year: 2025, month: 1, amountSnapshot: 1200, nameSnapshot: 'Old Rent' },
       { fixedExpenseId: 11, year: 2025, month: 2, amountSnapshot: 1200, nameSnapshot: 'New Rent' },
     ])

@@ -13,10 +13,130 @@ import type {
 } from '../../types'
 import type { Setting } from '../db/schema'
 import { decryptBackup, isEncryptedEnvelope } from '../../utils/backupCrypto'
+import { normalizeImportedSyncMetadata, normalizeNameForSync } from '../../utils/syncMetadata'
 import { buildDefaultCategories, buildDefaultPayees } from '../defaults'
 import db from '../db/schema'
 import { queueImportSyncMarker } from '../importService'
 import { FULL_SYNC_QUEUE_REASON } from '../syncRuntime'
+
+type BackupRow = Record<string, unknown>
+
+function asBackupRows(value: unknown): BackupRow[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((row): row is BackupRow => typeof row === 'object' && row !== null)
+}
+
+function normalizeCategoryRows(rows: BackupRow[], now: string): Category[] {
+  return rows.map((row) => {
+    const normalized = normalizeImportedSyncMetadata(row, { now })
+    const name = typeof row.name === 'string' ? row.name : ''
+
+    return {
+      ...row,
+      ...normalized,
+      name,
+      normalizedName:
+        typeof row.normalizedName === 'string' && row.normalizedName.length > 0
+          ? row.normalizedName
+          : normalizeNameForSync(name),
+    } as Category
+  })
+}
+
+function normalizePayeeRows(rows: BackupRow[], now: string): Payee[] {
+  return rows.map((row) => {
+    const normalized = normalizeImportedSyncMetadata(row, { now })
+    const name = typeof row.name === 'string' ? row.name : ''
+
+    return {
+      ...row,
+      ...normalized,
+      name,
+      normalizedName:
+        typeof row.normalizedName === 'string' && row.normalizedName.length > 0
+          ? row.normalizedName
+          : normalizeNameForSync(name),
+    } as Payee
+  })
+}
+
+function normalizeExpenseRows(
+  rows: BackupRow[],
+  categories: Category[],
+  payees: Payee[],
+  now: string,
+): Expense[] {
+  const categoryNames = new Map(
+    categories
+      .filter((row) => typeof row.id === 'number')
+      .map((row) => [row.id as number, row.name] as const),
+  )
+  const payeeNames = new Map(
+    payees
+      .filter((row) => typeof row.id === 'number')
+      .map((row) => [row.id as number, row.name] as const),
+  )
+
+  return rows.map((row) => {
+    const normalized = normalizeImportedSyncMetadata(row, { now })
+    const categoryNameSnapshot =
+      typeof row.categoryNameSnapshot === 'string' && row.categoryNameSnapshot.length > 0
+        ? row.categoryNameSnapshot
+        : typeof row.categoryId === 'number'
+          ? (categoryNames.get(row.categoryId) ?? null)
+          : null
+    const payeeNameSnapshot =
+      typeof row.payeeNameSnapshot === 'string' && row.payeeNameSnapshot.length > 0
+        ? row.payeeNameSnapshot
+        : typeof row.payeeId === 'number'
+          ? (payeeNames.get(row.payeeId) ?? null)
+          : null
+
+    return {
+      ...row,
+      ...normalized,
+      categoryNameSnapshot,
+      payeeNameSnapshot,
+    } as Expense
+  })
+}
+
+function normalizeBackupPayload(payload: Record<string, unknown>): Record<string, unknown> {
+  const now = new Date().toISOString()
+  const categories = normalizeCategoryRows(asBackupRows(payload.categories), now)
+  const payees = normalizePayeeRows(asBackupRows(payload.payees), now)
+
+  return {
+    ...payload,
+    expenses: normalizeExpenseRows(asBackupRows(payload.expenses), categories, payees, now),
+    categories,
+    payees,
+    fixedExpenses: asBackupRows(payload.fixedExpenses).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as FixedExpense,
+    ),
+    fixedExpenseSnapshots: asBackupRows(payload.fixedExpenseSnapshots).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as FixedExpenseSnapshot,
+    ),
+    incomeSnapshots: asBackupRows(payload.incomeSnapshots).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as IncomeSnapshot,
+    ),
+    savingsSnapshots: asBackupRows(payload.savingsSnapshots).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as SavingsSnapshot,
+    ),
+    schedules: asBackupRows(payload.schedules).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as Schedule,
+    ),
+    settings: asBackupRows(payload.settings).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as Setting,
+    ),
+    categoryMergeHistory: asBackupRows(payload.categoryMergeHistory).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as CategoryMergeHistory,
+    ),
+    payeeMergeHistory: asBackupRows(payload.payeeMergeHistory).map(
+      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as PayeeMergeHistory,
+    ),
+  }
+}
 
 export async function clearAllData(): Promise<void> {
   await db.transaction('rw', db.tables, async () => {
@@ -94,6 +214,7 @@ export async function importAllData(
     'data' in data && typeof data.data === 'object' && data.data !== null
       ? (data.data as Record<string, unknown>)
       : data
+  const normalizedPayload = normalizeBackupPayload(payload)
 
   await db.transaction('rw', db.tables, async () => {
     if (replace) {
@@ -102,33 +223,43 @@ export async function importAllData(
       }
     }
 
-    if (payload.expenses) await db.expenses.bulkPut(payload.expenses as Expense[])
-    if (payload.categories) await db.categories.bulkPut(payload.categories as Category[])
-    if (payload.payees) await db.payees.bulkPut(payload.payees as Payee[])
-    if (payload.fixedExpenses)
-      await db.fixedExpenses.bulkPut(payload.fixedExpenses as FixedExpense[])
-    if (payload.fixedExpenseSnapshots) {
+    if (normalizedPayload.expenses)
+      await db.expenses.bulkPut(normalizedPayload.expenses as Expense[])
+    if (normalizedPayload.categories) {
+      await db.categories.bulkPut(normalizedPayload.categories as Category[])
+    }
+    if (normalizedPayload.payees) await db.payees.bulkPut(normalizedPayload.payees as Payee[])
+    if (normalizedPayload.fixedExpenses) {
+      await db.fixedExpenses.bulkPut(normalizedPayload.fixedExpenses as FixedExpense[])
+    }
+    if (normalizedPayload.fixedExpenseSnapshots) {
       await db.fixedExpenseSnapshots.bulkPut(
-        payload.fixedExpenseSnapshots as FixedExpenseSnapshot[],
+        normalizedPayload.fixedExpenseSnapshots as FixedExpenseSnapshot[],
       )
     }
-    if (payload.incomeSnapshots) {
-      await db.incomeSnapshots.bulkPut(payload.incomeSnapshots as IncomeSnapshot[])
+    if (normalizedPayload.incomeSnapshots) {
+      await db.incomeSnapshots.bulkPut(normalizedPayload.incomeSnapshots as IncomeSnapshot[])
     }
-    if (payload.savingsSnapshots) {
-      await db.savingsSnapshots.bulkPut(payload.savingsSnapshots as SavingsSnapshot[])
+    if (normalizedPayload.savingsSnapshots) {
+      await db.savingsSnapshots.bulkPut(normalizedPayload.savingsSnapshots as SavingsSnapshot[])
     }
-    if (payload.schedules) await db.schedules.bulkPut(payload.schedules as Schedule[])
-    if (payload.settings) await db.settings.bulkPut(payload.settings as Setting[])
-    if (payload.categoryMergeHistory) {
-      await db.categoryMergeHistory.bulkPut(payload.categoryMergeHistory as CategoryMergeHistory[])
+    if (normalizedPayload.schedules) {
+      await db.schedules.bulkPut(normalizedPayload.schedules as Schedule[])
     }
-    if (payload.payeeMergeHistory) {
-      await db.payeeMergeHistory.bulkPut(payload.payeeMergeHistory as PayeeMergeHistory[])
+    if (normalizedPayload.settings) {
+      await db.settings.bulkPut(normalizedPayload.settings as Setting[])
+    }
+    if (normalizedPayload.categoryMergeHistory) {
+      await db.categoryMergeHistory.bulkPut(
+        normalizedPayload.categoryMergeHistory as CategoryMergeHistory[],
+      )
+    }
+    if (normalizedPayload.payeeMergeHistory) {
+      await db.payeeMergeHistory.bulkPut(normalizedPayload.payeeMergeHistory as PayeeMergeHistory[])
     }
 
-    if (!queueFullSync && payload.syncQueue) {
-      await db.syncQueue.bulkPut(payload.syncQueue as SyncQueueItem[])
+    if (!queueFullSync && normalizedPayload.syncQueue) {
+      await db.syncQueue.bulkPut(normalizedPayload.syncQueue as SyncQueueItem[])
     }
   })
 

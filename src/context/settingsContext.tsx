@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useAuth } from './authContext'
 import { StorageService } from '../services/storageService'
 import type { AppSettings, ThemeConfig } from '../types'
 import { getCSSVariables, getTheme, THEMES } from '../utils/themeConfig'
@@ -72,6 +73,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const cssVarsRef = useRef<Record<string, string> | null>(null)
+  const { syncLocalChanges } = useAuth()
 
   useEffect(() => {
     let cancelled = false
@@ -172,8 +174,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const next = { ...settings, ...patch }
       setSettings(next)
       await StorageService.setSetting('uiSettings', next)
+      void syncLocalChanges()
     },
-    [settings],
+    [settings, syncLocalChanges],
   )
 
   const currency = useCallback(

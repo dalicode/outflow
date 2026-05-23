@@ -1,4 +1,5 @@
 import type { Category, Payee } from '../types'
+import { createSyncMetadata, normalizeNameForSync } from '../utils/syncMetadata'
 
 export const DEFAULT_CATEGORIES = [
   {
@@ -661,20 +662,18 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
 
 export function buildDefaultCategories(now: string): Category[] {
   return DEFAULT_CATEGORIES.map((category) => ({
-    cloudId: crypto.randomUUID(),
     name: category.name,
-    createdAt: now,
-    updatedAt: now,
+    normalizedName: normalizeNameForSync(category.name),
     isArchived: false,
+    ...createSyncMetadata(now),
   }))
 }
 
 export function buildDefaultPayees(now: string): Payee[] {
   return DEFAULT_PAYEES.map(({ name }) => ({
-    cloudId: crypto.randomUUID(),
     name,
-    createdAt: now,
-    updatedAt: now,
+    normalizedName: normalizeNameForSync(name),
     isArchived: false,
+    ...createSyncMetadata(now),
   }))
 }

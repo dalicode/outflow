@@ -1,42 +1,75 @@
-import type { Payee, PayeeMergeHistory } from '../../types'
+import type { Expense, Payee, PayeeMergeHistory } from '../../types'
+import { normalizeNameForSync } from '../../utils/syncMetadata'
 import db from '../db/schema'
-import { enqueue } from './common'
+import { buildCreatedSyncRecord, filterActiveRows, markPendingActiveRecord } from './common'
 
-export async function getPayees(): Promise<Payee[]> {
+export async function getAllPayees(): Promise<Payee[]> {
   return db.payees.toArray()
 }
 
+export async function getPayees(): Promise<Payee[]> {
+  return filterActiveRows(await getAllPayees())
+}
+
 export async function getActivePayees(): Promise<Payee[]> {
-  return db.payees.toArray().then((all) => all.filter((p) => p.isArchived !== true))
+  return (await getPayees()).filter((payee) => payee.isArchived !== true)
+}
+
+async function findByNormalizedName(normalizedName: string): Promise<Payee[]> {
+  return db.payees.where('normalizedName').equals(normalizedName).toArray()
 }
 
 export async function addPayee(name: string): Promise<number> {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Payee name is required')
-  const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
-  if (existing) {
-    if (existing.isArchived) {
-      await db.payees.update(existing.id as number, {
+
+  const normalizedName = normalizeNameForSync(trimmed)
+  const matches = await findByNormalizedName(normalizedName)
+  const active = matches.find((row) => row.deletedAt == null)
+  const now = new Date().toISOString()
+
+  if (active) {
+    if (active.isArchived && active.id != null) {
+      await db.payees.put({
+        ...active,
+        ...markPendingActiveRecord(active, now),
+        id: active.id,
         name: trimmed,
+        normalizedName,
         isArchived: false,
+        archivedAt: undefined,
+        mergedIntoPayeeId: null,
       })
-      const row = await db.payees.get(existing.id as number)
-      await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
-      return existing.id as number
+      return active.id
     }
     throw new Error('A payee with that name already exists')
   }
-  const now = new Date().toISOString()
-  const id = await db.payees.add({
-    name: trimmed,
-    cloudId: crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now,
-    isArchived: false,
-  } as Payee)
-  const row = await db.payees.get(id)
-  await enqueue('payees', 'insert', row as unknown as Record<string, unknown>)
-  return id
+
+  const tombstoned = matches.find((row) => row.deletedAt != null)
+  if (tombstoned && tombstoned.id != null) {
+    await db.payees.put({
+      ...tombstoned,
+      ...markPendingActiveRecord(tombstoned, now),
+      id: tombstoned.id,
+      name: trimmed,
+      normalizedName,
+      isArchived: false,
+      archivedAt: undefined,
+      mergedIntoPayeeId: null,
+    })
+    return tombstoned.id
+  }
+
+  return db.payees.add(
+    buildCreatedSyncRecord(
+      {
+        name: trimmed,
+        normalizedName,
+        isArchived: false,
+      },
+      now,
+    ) as Payee,
+  )
 }
 
 export async function ensureForImport(names: string[]): Promise<Record<string, number>> {
@@ -45,28 +78,56 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
   if (trimmedNames.length === 0) return payeeMap
 
   await db.transaction('rw', db.payees, async () => {
+    const now = new Date().toISOString()
+
     for (const name of trimmedNames) {
-      const existing = await db.payees.where('name').equalsIgnoreCase(name).first()
-      if (existing) {
-        if (existing.isArchived) {
-          await db.payees.update(existing.id as number, {
+      const normalizedName = normalizeNameForSync(name)
+      const matches = await findByNormalizedName(normalizedName)
+      const active = matches.find((row) => row.deletedAt == null)
+
+      if (active && active.id != null) {
+        if (active.isArchived) {
+          await db.payees.put({
+            ...active,
+            ...markPendingActiveRecord(active, now),
+            id: active.id,
             name,
+            normalizedName,
             isArchived: false,
-            updatedAt: new Date().toISOString(),
+            archivedAt: undefined,
+            mergedIntoPayeeId: null,
           })
         }
-        payeeMap[name] = existing.id as number
+        payeeMap[name] = active.id
         continue
       }
 
-      const now = new Date().toISOString()
-      const id = await db.payees.add({
-        name,
-        cloudId: crypto.randomUUID(),
-        createdAt: now,
-        updatedAt: now,
-        isArchived: false,
-      } as Payee)
+      const tombstoned = matches.find((row) => row.deletedAt != null)
+      if (tombstoned && tombstoned.id != null) {
+        await db.payees.put({
+          ...tombstoned,
+          ...markPendingActiveRecord(tombstoned, now),
+          id: tombstoned.id,
+          name,
+          normalizedName,
+          isArchived: false,
+          archivedAt: undefined,
+          mergedIntoPayeeId: null,
+        })
+        payeeMap[name] = tombstoned.id
+        continue
+      }
+
+      const id = await db.payees.add(
+        buildCreatedSyncRecord(
+          {
+            name,
+            normalizedName,
+            isArchived: false,
+          },
+          now,
+        ) as Payee,
+      )
       payeeMap[name] = id
     }
   })
@@ -77,69 +138,103 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
 export async function updatePayee(id: number, name: string): Promise<void> {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Payee name is required')
-  const existing = await db.payees.where('name').equalsIgnoreCase(trimmed).first()
-  if (existing && existing.id !== id) throw new Error('A payee with that name already exists')
-  const updates: Partial<Payee> = {
+
+  const existing = await db.payees.get(id)
+  if (!existing) return
+
+  const normalizedName = normalizeNameForSync(trimmed)
+  const conflicts = filterActiveRows(await findByNormalizedName(normalizedName)).filter(
+    (row) => row.id !== id,
+  )
+  if (conflicts.length > 0) throw new Error('A payee with that name already exists')
+
+  const now = new Date().toISOString()
+  await db.payees.put({
+    ...existing,
+    ...markPendingActiveRecord(existing, now),
+    id,
     name: trimmed,
-    updatedAt: new Date().toISOString(),
-  }
-  await db.payees.update(id, updates)
-  const row = await db.payees.get(id)
-  await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
+    normalizedName,
+  })
 }
 
 export async function archivePayee(id: number): Promise<void> {
-  await db.payees.update(id, { isArchived: true })
-  const row = await db.payees.get(id)
-  await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
+  const existing = await db.payees.get(id)
+  if (!existing) return
+  const now = new Date().toISOString()
+  await db.payees.put({
+    ...existing,
+    ...markPendingActiveRecord(existing, now),
+    id,
+    isArchived: true,
+    archivedAt: now,
+  })
 }
 
 export async function unarchivePayee(id: number): Promise<void> {
-  await db.payees.update(id, { isArchived: false })
-  const row = await db.payees.get(id)
-  await enqueue('payees', 'update', row as unknown as Record<string, unknown>)
+  const existing = await db.payees.get(id)
+  if (!existing) return
+  const now = new Date().toISOString()
+  await db.payees.put({
+    ...existing,
+    ...markPendingActiveRecord(existing, now),
+    id,
+    isArchived: false,
+    archivedAt: undefined,
+    mergedIntoPayeeId: null,
+  })
 }
 
 export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): Promise<number> {
   if (sourcePayeeId === targetPayeeId) {
     throw new Error('Cannot merge a payee into itself.')
   }
+
   const now = new Date().toISOString()
-
-  const affected = await db.expenses.where('payeeId').equals(sourcePayeeId).toArray()
-  const affectedIds = affected.map((e) => e.id as number)
-
-  if (affectedIds.length > 0) {
-    await db.expenses.where('payeeId').equals(sourcePayeeId).modify({ payeeId: targetPayeeId })
-    const updatedExpenses = await db.expenses.bulkGet(affectedIds)
-    for (const expense of updatedExpenses) {
-      if (!expense) continue
-      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
-    }
+  const targetPayee = await db.payees.get(targetPayeeId)
+  const sourcePayee = await db.payees.get(sourcePayeeId)
+  if (!sourcePayee) {
+    throw new Error('Source payee not found.')
   }
 
-  const mergeId = await db.payeeMergeHistory.add({
-    cloudId: crypto.randomUUID(),
-    sourcePayeeId,
-    targetPayeeId,
-    affectedExpenseIds: affectedIds,
-    createdAt: now,
-    updatedAt: now,
-    revertedAt: null,
-  } as PayeeMergeHistory)
-  const mergeRow = await db.payeeMergeHistory.get(mergeId)
-  if (mergeRow) {
-    await enqueue('payeeMergeHistory', 'insert', mergeRow as unknown as Record<string, unknown>)
+  const affected = filterActiveRows(
+    await db.expenses.where('payeeId').equals(sourcePayeeId).toArray(),
+  )
+  if (affected.length > 0) {
+    const updates = affected
+      .filter((expense) => expense.id != null)
+      .map((expense) => ({
+        ...expense,
+        ...markPendingActiveRecord(expense, now),
+        id: expense.id as number,
+        payeeId: targetPayeeId,
+        payeeNameSnapshot: targetPayee?.name ?? expense.payeeNameSnapshot ?? null,
+      }))
+    await db.expenses.bulkPut(updates as Expense[])
   }
 
-  await db.payees.update(sourcePayeeId, {
+  const mergeId = await db.payeeMergeHistory.add(
+    buildCreatedSyncRecord(
+      {
+        sourcePayeeId,
+        targetPayeeId,
+        affectedExpenseIds: affected
+          .map((expense) => expense.id)
+          .filter((expenseId): expenseId is number => typeof expenseId === 'number'),
+        revertedAt: null,
+      },
+      now,
+    ) as PayeeMergeHistory,
+  )
+
+  await db.payees.put({
+    ...sourcePayee,
+    ...markPendingActiveRecord(sourcePayee, now),
+    id: sourcePayeeId,
     isArchived: true,
     archivedAt: now,
     mergedIntoPayeeId: targetPayeeId,
-    updatedAt: now,
   })
-  const updatedPayee = await db.payees.get(sourcePayeeId)
-  await enqueue('payees', 'update', updatedPayee as unknown as Record<string, unknown>)
 
   return mergeId
 }
@@ -149,33 +244,43 @@ export async function revertPayeeMerge(mergeId: number): Promise<void> {
   if (!mergeRow || mergeRow.revertedAt) {
     throw new Error('Merge record not found or already reverted.')
   }
+
   const now = new Date().toISOString()
+  const sourcePayee = await db.payees.get(mergeRow.sourcePayeeId)
 
   if (mergeRow.affectedExpenseIds.length > 0) {
-    await db.expenses.bulkUpdate(
-      mergeRow.affectedExpenseIds.map((id) => ({
-        key: id,
-        changes: { payeeId: mergeRow.sourcePayeeId },
-      })),
+    const affected = await db.expenses.bulkGet(mergeRow.affectedExpenseIds)
+    const reverted = filterActiveRows(
+      affected.filter((expense): expense is Expense => Boolean(expense)),
     )
-    const revertedExpenses = await db.expenses.bulkGet(mergeRow.affectedExpenseIds)
-    for (const expense of revertedExpenses) {
-      if (!expense) continue
-      await enqueue('expenses', 'update', expense as unknown as Record<string, unknown>)
+      .filter((expense) => expense.id != null)
+      .map((expense) => ({
+        ...expense,
+        ...markPendingActiveRecord(expense, now),
+        id: expense.id as number,
+        payeeId: mergeRow.sourcePayeeId,
+        payeeNameSnapshot: sourcePayee?.name ?? expense.payeeNameSnapshot ?? null,
+      }))
+    if (reverted.length > 0) {
+      await db.expenses.bulkPut(reverted)
     }
   }
 
-  await db.payees.update(mergeRow.sourcePayeeId, {
-    isArchived: false,
-    archivedAt: undefined,
-    mergedIntoPayeeId: null,
-    updatedAt: now,
-  } as Partial<Payee>)
+  if (sourcePayee) {
+    await db.payees.put({
+      ...sourcePayee,
+      ...markPendingActiveRecord(sourcePayee, now),
+      id: mergeRow.sourcePayeeId,
+      isArchived: false,
+      archivedAt: undefined,
+      mergedIntoPayeeId: null,
+    } as Payee)
+  }
 
-  await db.payeeMergeHistory.update(mergeId, { revertedAt: now })
-  const updatedMerge = await db.payeeMergeHistory.get(mergeId)
-  await enqueue('payeeMergeHistory', 'update', updatedMerge as unknown as Record<string, unknown>)
-
-  const updatedPayee = await db.payees.get(mergeRow.sourcePayeeId)
-  await enqueue('payees', 'update', updatedPayee as unknown as Record<string, unknown>)
+  await db.payeeMergeHistory.put({
+    ...mergeRow,
+    ...markPendingActiveRecord(mergeRow, now),
+    id: mergeId,
+    revertedAt: now,
+  } as PayeeMergeHistory)
 }

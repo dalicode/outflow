@@ -11,7 +11,9 @@ const liveExpenseStore = vi.hoisted(() => {
     get: () => value,
     set: (nextValue: Expense[] | undefined) => {
       value = nextValue
-      listeners.forEach((listener) => listener())
+      listeners.forEach((listener) => {
+        listener()
+      })
     },
     subscribe: (listener: () => void) => {
       listeners.add(listener)
@@ -20,25 +22,21 @@ const liveExpenseStore = vi.hoisted(() => {
   }
 })
 
-const { getAll } = vi.hoisted(() => ({
-  getAll: vi.fn(async () => liveExpenseStore.get() ?? []),
+const { getExpenses } = vi.hoisted(() => ({
+  getExpenses: vi.fn(async () => liveExpenseStore.get() ?? []),
 }))
 
 vi.mock('dexie-react-hooks', async () => {
   const { useSyncExternalStore } = await import('react')
   return {
     useLiveQuery: () =>
-      useSyncExternalStore(
-        liveExpenseStore.subscribe,
-        liveExpenseStore.get,
-        liveExpenseStore.get,
-      ),
+      useSyncExternalStore(liveExpenseStore.subscribe, liveExpenseStore.get, liveExpenseStore.get),
   }
 })
 
 vi.mock('../services/storageService', () => ({
   StorageService: {
-    getAll,
+    getExpenses,
   },
 }))
 

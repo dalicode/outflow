@@ -185,12 +185,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function queueStartupSync() {
       const isSignIn = authEventRef.current === 'SIGNED_IN'
       const options: QueueSyncOptions = isSignIn
-        ? { reason: 'sign-in', mode: 'full-upload-after-pull', force: true }
-        : { reason: 'startup', mode: 'pull-and-flush', force: true }
+        ? { reason: 'sign-in', force: true }
+        : { reason: 'startup', force: true }
 
       try {
         if (isSignIn) {
-          debugLog('[auth] SIGNED_IN — pulling cloud data first, then migrating local data')
+          debugLog('[auth] SIGNED_IN — running pull-then-upload startup sync')
         }
         await queueSync(options)
       } catch (error) {
@@ -215,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authEvent !== 'TOKEN_REFRESHED') return
-    void queueSync({ reason: 'token-refresh', mode: 'pull-and-flush' })
+    void queueSync({ reason: 'token-refresh' })
   }, [authEvent, queueSync])
 
   const signOut = async () => {

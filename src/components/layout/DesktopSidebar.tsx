@@ -163,7 +163,7 @@ export default function DesktopSidebar({
                 'flex items-center rounded-theme-medium nav-item-hover',
                 collapsed ? 'justify-center py-2.5 px-2' : 'gap-3 py-2.5 px-3 mx-2',
                 isActive
-                  ? 'bg-theme-primary-subtle text-theme-primary font-semibold nav-item-indicator'
+                  ? 'bg-theme-background text-theme-primary font-semibold'
                   : 'text-theme-muted hover:text-theme-text hover:bg-theme-background',
               )}
             >

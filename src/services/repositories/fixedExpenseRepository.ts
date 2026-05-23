@@ -1,70 +1,99 @@
 import type { FixedExpense, FixedExpenseSnapshot } from '../../types'
 import db from '../db/schema'
-import { enqueue } from './common'
+import {
+  buildCreatedSyncRecord,
+  filterActiveRows,
+  markDeletedSyncRecord,
+  markPendingActiveRecord,
+} from './common'
 
-export async function getFixedExpenses(): Promise<FixedExpense[]> {
+export async function getAllFixedExpenses(): Promise<FixedExpense[]> {
   return db.fixedExpenses.toArray()
 }
 
+export async function getFixedExpenses(): Promise<FixedExpense[]> {
+  return filterActiveRows(await getAllFixedExpenses())
+}
+
 export async function getActiveFixedExpenses(): Promise<FixedExpense[]> {
-  return db.fixedExpenses.toArray().then((all) => all.filter((f) => f.isArchived !== true))
+  return (await getFixedExpenses()).filter((expense) => expense.isArchived !== true)
 }
 
 export async function addFixedExpense(item: Omit<FixedExpense, 'id'>): Promise<number> {
   const now = new Date().toISOString()
-  const id = await db.fixedExpenses.add({
-    ...item,
-    cloudId: crypto.randomUUID(),
-    updatedAt: now,
-  } as FixedExpense)
-  const row = await db.fixedExpenses.get(id)
-  await enqueue('fixedExpenses', 'insert', row as unknown as Record<string, unknown>)
-  return id
+  return db.fixedExpenses.add(
+    buildCreatedSyncRecord(
+      {
+        ...item,
+        isArchived: false,
+        updatedAt: now,
+      },
+      now,
+    ) as FixedExpense,
+  )
 }
 
 export async function addArchivedFixedExpense(item: Omit<FixedExpense, 'id'>): Promise<number> {
   const now = new Date().toISOString()
-  const payload = {
-    ...item,
-    cloudId: crypto.randomUUID(),
-    isArchived: true,
-    archivedAt: now,
-    updatedAt: now,
-  }
-  const id = await db.fixedExpenses.add(payload as FixedExpense)
-  const row = await db.fixedExpenses.get(id)
-  await enqueue('fixedExpenses', 'insert', row as unknown as Record<string, unknown>)
-  return id
+  return db.fixedExpenses.add(
+    buildCreatedSyncRecord(
+      {
+        ...item,
+        isArchived: true,
+        archivedAt: now,
+        updatedAt: now,
+      },
+      now,
+    ) as FixedExpense,
+  )
 }
 
 export async function updateFixedExpense(
   id: number,
   changes: Partial<FixedExpense>,
 ): Promise<void> {
-  await db.fixedExpenses.update(id, {
+  const existing = await db.fixedExpenses.get(id)
+  if (!existing) return
+  const now = new Date().toISOString()
+  await db.fixedExpenses.put({
+    ...existing,
     ...changes,
-    updatedAt: new Date().toISOString(),
+    ...markPendingActiveRecord(existing, now),
+    id,
   })
-  const row = await db.fixedExpenses.get(id)
-  await enqueue('fixedExpenses', 'update', row as unknown as Record<string, unknown>)
 }
 
 export async function removeFixedExpense(id: number): Promise<void> {
-  const item = await db.fixedExpenses.get(id)
-  await db.fixedExpenses.delete(id)
-  await enqueue('fixedExpenses', 'delete', { id, cloudId: item?.cloudId })
-}
-
-export async function getSnapshotsForYear(year: number): Promise<FixedExpenseSnapshot[]> {
-  return db.fixedExpenseSnapshots.where('year').equals(year).toArray()
+  const existing = await db.fixedExpenses.get(id)
+  if (!existing) return
+  const now = new Date().toISOString()
+  await db.fixedExpenses.put({
+    ...existing,
+    ...markPendingActiveRecord(existing, now),
+    id,
+    isArchived: true,
+    archivedAt: now,
+  })
 }
 
 export async function getAllFixedExpenseSnapshots(): Promise<FixedExpenseSnapshot[]> {
   return db.fixedExpenseSnapshots.toArray()
 }
 
+export async function getFixedExpenseSnapshots(): Promise<FixedExpenseSnapshot[]> {
+  return filterActiveRows(await getAllFixedExpenseSnapshots())
+}
+
+export async function getAllSnapshotsForYear(year: number): Promise<FixedExpenseSnapshot[]> {
+  return db.fixedExpenseSnapshots.where('year').equals(year).toArray()
+}
+
+export async function getSnapshotsForYear(year: number): Promise<FixedExpenseSnapshot[]> {
+  return filterActiveRows(await getAllSnapshotsForYear(year))
+}
+
 export function bulkUpsertSnapshots(rows: FixedExpenseSnapshot[]): Promise<number> {
-  return db.transaction('rw', db.fixedExpenseSnapshots, db.syncQueue, async () => {
+  return db.transaction('rw', db.fixedExpenseSnapshots, async () => {
     const now = new Date().toISOString()
     let changed = 0
 
@@ -79,32 +108,24 @@ export function bulkUpsertSnapshots(rows: FixedExpenseSnapshot[]): Promise<numbe
         await db.fixedExpenseSnapshots.put({
           ...existing,
           ...row,
+          ...markPendingActiveRecord(existing, now),
           id,
-          cloudId: row.cloudId ?? existing.cloudId,
-          createdAt: row.createdAt ?? existing.createdAt,
-          updatedAt: now,
+          createdAt: row.createdAt ?? existing.createdAt ?? now,
+          deletedAt: null,
         })
-        const updated = await db.fixedExpenseSnapshots.get(id)
-        await enqueue(
-          'fixedExpenseSnapshots',
-          'update',
-          updated as unknown as Record<string, unknown>,
-        )
         changed += 1
         continue
       }
 
-      const id = await db.fixedExpenseSnapshots.add({
-        ...row,
-        cloudId: row.cloudId ?? crypto.randomUUID(),
-        createdAt: row.createdAt ?? now,
-        updatedAt: now,
-      })
-      const inserted = await db.fixedExpenseSnapshots.get(id)
-      await enqueue(
-        'fixedExpenseSnapshots',
-        'insert',
-        inserted as unknown as Record<string, unknown>,
+      await db.fixedExpenseSnapshots.add(
+        buildCreatedSyncRecord(
+          {
+            ...row,
+            createdAt: row.createdAt ?? now,
+            updatedAt: now,
+          },
+          now,
+        ) as FixedExpenseSnapshot,
       )
       changed += 1
     }
@@ -113,8 +134,20 @@ export function bulkUpsertSnapshots(rows: FixedExpenseSnapshot[]): Promise<numbe
   })
 }
 
-export function deleteSnapshotsForYear(year: number): Promise<number> {
-  return db.fixedExpenseSnapshots.where('year').equals(year).delete()
+export async function deleteSnapshotsForYear(year: number): Promise<number> {
+  const rows = await getSnapshotsForYear(year)
+  if (rows.length === 0) return 0
+  const now = new Date().toISOString()
+  await db.fixedExpenseSnapshots.bulkPut(
+    rows
+      .filter((row) => row.id != null)
+      .map((row) => ({
+        ...row,
+        ...markDeletedSyncRecord(row, now),
+        id: row.id as number,
+      })),
+  )
+  return rows.length
 }
 
 interface FixedExpenseSnapshotNaturalKey {
@@ -126,18 +159,19 @@ interface FixedExpenseSnapshotNaturalKey {
 export function deleteSnapshotsByNaturalKeys(
   keys: FixedExpenseSnapshotNaturalKey[],
 ): Promise<number> {
-  return db.transaction('rw', db.fixedExpenseSnapshots, db.syncQueue, async () => {
+  return db.transaction('rw', db.fixedExpenseSnapshots, async () => {
     let deleted = 0
+    const now = new Date().toISOString()
     for (const key of keys) {
       const existing = await db.fixedExpenseSnapshots
         .where('[fixedExpenseId+year+month]')
         .equals([key.fixedExpenseId, key.year, key.month])
         .first()
-      if (!existing || existing.id == null) continue
-      await db.fixedExpenseSnapshots.delete(existing.id)
-      await enqueue('fixedExpenseSnapshots', 'delete', {
+      if (!existing || existing.id == null || existing.deletedAt != null) continue
+      await db.fixedExpenseSnapshots.put({
+        ...existing,
+        ...markDeletedSyncRecord(existing, now),
         id: existing.id,
-        cloudId: existing.cloudId,
       })
       deleted += 1
     }

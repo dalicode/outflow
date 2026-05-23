@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const addCalls: Array<{ table: string; row: Record<string, unknown> }> = []
 const updateCalls: Array<{ table: string; id: number; row: Record<string, unknown> }> = []
-const upsertCalls: Array<{ table: string; rows: Record<string, unknown>[]; onConflict?: string }> =
-  []
 const settingsPutMock = vi.hoisted(() => vi.fn())
 const syncQueueToArrayMock = vi.hoisted(() => vi.fn())
-const settingsGetMock = vi.hoisted(() => vi.fn())
+const settingsToArrayMock = vi.hoisted(() => vi.fn())
+const migrateLocalToSupabaseMock = vi.hoisted(() => vi.fn(async () => undefined))
+const runFullSyncUploadMock = vi.hoisted(() => vi.fn(async () => undefined))
 
 function makeTableMock() {
   return {
@@ -19,6 +19,22 @@ function makeTableMock() {
       updateCalls.push({ table: '', id, row: row as Record<string, unknown> })
       return Promise.resolve(1)
     },
+    bulkAdd: (rows: Array<Record<string, unknown>>) => {
+      for (const row of rows) {
+        addCalls.push({ table: '', row })
+      }
+      return Promise.resolve(rows.map((_row, index) => index + 1))
+    },
+    bulkPut: (rows: Array<Record<string, unknown>>) => {
+      for (const row of rows) {
+        if (typeof row.id === 'number') {
+          updateCalls.push({ table: '', id: row.id, row })
+        } else {
+          addCalls.push({ table: '', row })
+        }
+      }
+      return Promise.resolve()
+    },
   }
 }
 
@@ -29,7 +45,7 @@ vi.mock('../services/db/schema', () => ({
     payees: { toArray: vi.fn(() => Promise.resolve([])) },
     fixedExpenses: { toArray: vi.fn(() => Promise.resolve([])) },
     expenses: { toArray: vi.fn(() => Promise.resolve([])) },
-    settings: { put: settingsPutMock, get: settingsGetMock },
+    settings: { toArray: settingsToArrayMock, bulkPut: settingsPutMock },
     syncQueue: {
       where: vi.fn(() => ({
         equals: vi.fn(() => ({
@@ -58,6 +74,11 @@ vi.mock('../services/supabase', () => ({
   },
 }))
 
+vi.mock('../services/sync/fullUpload', () => ({
+  migrateLocalToSupabase: migrateLocalToSupabaseMock,
+  runFullSyncUpload: runFullSyncUploadMock,
+}))
+
 import { StorageService } from '../services/storageService'
 import { flushSyncQueue, pullFromSupabase } from '../services/syncService'
 
@@ -80,12 +101,11 @@ describe('pullFromSupabase', () => {
   beforeEach(() => {
     addCalls.length = 0
     updateCalls.length = 0
-    upsertCalls.length = 0
     settingsPutMock.mockReset()
-    settingsGetMock.mockReset()
+    settingsToArrayMock.mockReset()
     syncQueueToArrayMock.mockReset()
     syncQueueToArrayMock.mockResolvedValue([])
-    settingsGetMock.mockResolvedValue(undefined)
+    settingsToArrayMock.mockResolvedValue([])
 
     supabaseSelect.mockReset()
     supabaseSelect.mockImplementation((table: string) => {
@@ -213,13 +233,16 @@ describe('pullFromSupabase', () => {
   it('inserts all cloud records as new local rows (no existing data)', async () => {
     await pullFromSupabase('user-1')
 
-    // Verify settings were written (table.put)
-    const dbModule = await import('../services/db/schema')
-    expect(dbModule.default.settings.put).toHaveBeenCalledWith({
-      key: 'monthlyIncome',
-      value: 5000,
-      updatedAt: expect.any(String),
-    })
+    expect(settingsPutMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'monthlyIncome',
+          value: 5000,
+          updatedAt: expect.any(String),
+          syncStatus: 'synced',
+        }),
+      ]),
+    )
   })
 
   it('pulls more than 1000 cloud expenses across multiple pages', async () => {
@@ -254,19 +277,15 @@ describe('pullFromSupabase', () => {
     expect(expenseAdds).toHaveLength(1001)
   })
 
-  it('does not overwrite a pending local uiSettings change during pull', async () => {
-    syncQueueToArrayMock.mockResolvedValue([
+  it('does not overwrite a newer local uiSettings change during pull', async () => {
+    settingsToArrayMock.mockResolvedValue([
       {
-        id: 9,
-        table: 'settings',
-        operation: 'upsert',
-        timestamp: 9,
-        payload: {
-          key: 'uiSettings',
-          value: {
-            visualTheme: 'sharpProfessionalDark',
-          },
+        key: 'uiSettings',
+        value: {
+          visualTheme: 'sharpProfessionalDark',
         },
+        updatedAt: '2026-05-10T00:00:00.000Z',
+        syncStatus: 'pending',
       },
     ])
 
@@ -278,6 +297,7 @@ describe('pullFromSupabase', () => {
             value: JSON.stringify({
               visualTheme: 'default',
             }),
+            updated_at: '2026-05-01T00:00:00.000Z',
           },
         ])
       }
@@ -286,26 +306,20 @@ describe('pullFromSupabase', () => {
 
     await pullFromSupabase('user-1')
 
-    expect(settingsPutMock).not.toHaveBeenCalledWith({
-      key: 'uiSettings',
-      value: {
-        visualTheme: 'default',
-      },
-      updatedAt: expect.any(String),
-    })
+    const writtenRows = settingsPutMock.mock.calls.flatMap(([rows]) =>
+      Array.isArray(rows) ? rows : [],
+    )
+    expect(writtenRows.some((row) => row.key === 'uiSettings')).toBe(false)
   })
 
   it('keeps newer local settings when cloud settings are older', async () => {
-    settingsGetMock.mockImplementation(async (key: string) => {
-      if (key === 'uiSettings') {
-        return {
-          key: 'uiSettings',
-          value: { visualTheme: 'sharpProfessionalDark' },
-          updatedAt: '2026-05-10T00:00:00.000Z',
-        }
-      }
-      return undefined
-    })
+    settingsToArrayMock.mockResolvedValue([
+      {
+        key: 'uiSettings',
+        value: { visualTheme: 'sharpProfessionalDark' },
+        updatedAt: '2026-05-10T00:00:00.000Z',
+      },
+    ])
 
     supabaseSelect.mockImplementation((table: string) => {
       if (table === 'settings') {
@@ -322,24 +336,20 @@ describe('pullFromSupabase', () => {
 
     await pullFromSupabase('user-1')
 
-    expect(settingsPutMock).not.toHaveBeenCalledWith({
-      key: 'uiSettings',
-      value: { visualTheme: 'default' },
-      updatedAt: '2026-05-01T00:00:00.000Z',
-    })
+    const writtenRows = settingsPutMock.mock.calls.flatMap(([rows]) =>
+      Array.isArray(rows) ? rows : [],
+    )
+    expect(writtenRows.some((row) => row.key === 'uiSettings')).toBe(false)
   })
 
   it('applies newer cloud settings when local settings are older', async () => {
-    settingsGetMock.mockImplementation(async (key: string) => {
-      if (key === 'uiSettings') {
-        return {
-          key: 'uiSettings',
-          value: { visualTheme: 'default' },
-          updatedAt: '2026-05-01T00:00:00.000Z',
-        }
-      }
-      return undefined
-    })
+    settingsToArrayMock.mockResolvedValue([
+      {
+        key: 'uiSettings',
+        value: { visualTheme: 'default' },
+        updatedAt: '2026-05-01T00:00:00.000Z',
+      },
+    ])
 
     supabaseSelect.mockImplementation((table: string) => {
       if (table === 'settings') {
@@ -356,210 +366,94 @@ describe('pullFromSupabase', () => {
 
     await pullFromSupabase('user-1')
 
-    expect(settingsPutMock).toHaveBeenCalledWith({
-      key: 'uiSettings',
-      value: { visualTheme: 'sharpProfessionalDark' },
-      updatedAt: '2026-05-10T00:00:00.000Z',
-    })
+    const writtenRows = settingsPutMock.mock.calls.flatMap(([rows]) =>
+      Array.isArray(rows) ? rows : [],
+    )
+    expect(writtenRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'uiSettings',
+          value: { visualTheme: 'sharpProfessionalDark' },
+          updatedAt: '2026-05-10T00:00:00.000Z',
+          syncStatus: 'synced',
+        }),
+      ]),
+    )
   })
 })
 
 describe('flushSyncQueue', () => {
   beforeEach(() => {
-    upsertCalls.length = 0
     vi.mocked(StorageService.getSyncQueue).mockResolvedValue([])
     vi.mocked(StorageService.removeSyncQueueItem).mockReset()
-    vi.mocked(StorageService.getCategories).mockResolvedValue([])
-    vi.mocked(StorageService.getPayees).mockResolvedValue([])
-    vi.mocked(StorageService.getFixedExpenses).mockResolvedValue([])
+    migrateLocalToSupabaseMock.mockReset()
+    runFullSyncUploadMock.mockReset()
     supabaseSelect.mockReset()
   })
 
-  it('keeps failed outbound writes queued and reports the failure', async () => {
-    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
-      {
-        id: 1,
-        table: 'expenses',
-        operation: 'insert',
-        timestamp: 1,
-        payload: {
-          id: 10,
-          cloudId: 'expense-cloud-id',
-          date: '2026-05-05',
-          amount: 18.5,
-          categoryId: 1,
-          payeeId: 2,
-        },
-      },
-    ])
-    vi.mocked(StorageService.getCategories).mockResolvedValue([
-      { id: 1, cloudId: 'category-cloud-id', name: 'Food' },
-    ])
-    vi.mocked(StorageService.getPayees).mockResolvedValue([
-      { id: 2, cloudId: 'payee-cloud-id', name: 'Cafe' },
-    ])
-
-    supabaseSelect.mockImplementation(() => ({
-      upsert: () => Promise.resolve({ data: null, error: { message: 'Bad Request' } }),
-    }))
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    try {
-      await expect(flushSyncQueue('user-1')).rejects.toThrow(
-        'Upsert expenses batch 1/1 failed: Bad Request',
-      )
-      expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
-    } finally {
-      warnSpy.mockRestore()
-    }
-  })
-
-  it('compacts redundant queue items and flushes only the latest row state', async () => {
-    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
-      {
-        id: 1,
-        table: 'expenses',
-        operation: 'update',
-        timestamp: 1,
-        payload: {
-          id: 10,
-          cloudId: 'expense-cloud-id',
-          date: '2026-05-05',
-          amount: 10,
-          description: 'First state',
-        },
-      },
-      {
-        id: 2,
-        table: 'expenses',
-        operation: 'update',
-        timestamp: 2,
-        payload: {
-          id: 10,
-          cloudId: 'expense-cloud-id',
-          date: '2026-05-05',
-          amount: 20,
-          description: 'Latest state',
-        },
-      },
-    ])
-
-    supabaseSelect.mockImplementation((table: string) => ({
-      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
-        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
-        return Promise.resolve({ data: null, error: null })
-      },
-    }))
+  it('runs metadata-based upload even when no queue items exist', async () => {
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([])
 
     await flushSyncQueue('user-1')
 
-    expect(upsertCalls).toHaveLength(1)
-    expect(upsertCalls[0].table).toBe('expenses')
-    expect(upsertCalls[0].rows).toHaveLength(1)
-    expect(upsertCalls[0].rows[0].amount).toBe(20)
-    expect(upsertCalls[0].rows[0].description).toBe('Latest state')
-    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledTimes(2)
-    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(1)
-    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(2)
+    expect(migrateLocalToSupabaseMock).toHaveBeenCalledWith('user-1', {
+      shouldContinue: undefined,
+    })
+    expect(runFullSyncUploadMock).not.toHaveBeenCalled()
   })
 
-  it('batches large outbound upserts into multiple requests', async () => {
-    const queue = Array.from({ length: 501 }, (_, index) => ({
-      id: index + 1,
-      table: 'expenses',
-      operation: 'insert' as const,
-      timestamp: index + 1,
-      payload: {
-        id: index + 1,
-        cloudId: `expense-cloud-${index + 1}`,
-        date: '2026-05-05',
-        amount: index + 1,
-        description: `Expense ${index + 1}`,
-      },
-    }))
-
-    vi.mocked(StorageService.getSyncQueue).mockResolvedValue(queue)
-
-    supabaseSelect.mockImplementation((table: string) => ({
-      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
-        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
-        return Promise.resolve({ data: null, error: null })
-      },
-    }))
-
-    await flushSyncQueue('user-1')
-
-    expect(upsertCalls).toHaveLength(3)
-    expect(upsertCalls.map((call) => call.rows.length)).toEqual([250, 250, 1])
-    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledTimes(501)
-  })
-
-  it('does not upload local-only privacy settings', async () => {
+  it('runs full upload for coarse full-sync queue markers and removes those markers', async () => {
     vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
       {
-        id: 1,
-        table: 'settings',
+        id: 11,
+        table: '__full_sync__',
         operation: 'upsert',
         timestamp: 1,
-        payload: {
-          key: 'localPrivacyModeEnabled',
-          value: true,
-        },
+        payload: { reason: 'backup-import', replace: true },
+      },
+      {
+        id: 12,
+        table: '__full_sync__',
+        operation: 'upsert',
+        timestamp: 2,
+        payload: { reason: 'csv-import' },
       },
     ])
 
-    supabaseSelect.mockImplementation((table: string) => ({
-      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
-        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
-        return Promise.resolve({ data: null, error: null })
-      },
-    }))
-
     await flushSyncQueue('user-1')
 
-    expect(upsertCalls).toHaveLength(0)
-    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(1)
+    expect(runFullSyncUploadMock).toHaveBeenCalledWith('user-1', true, undefined, {
+      shouldContinue: undefined,
+    })
+    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(11)
+    expect(StorageService.removeSyncQueueItem).toHaveBeenCalledWith(12)
+    expect(migrateLocalToSupabaseMock).toHaveBeenCalledWith('user-1', {
+      shouldContinue: undefined,
+    })
   })
 
   it('does not remove queue items when a sync run becomes stale after upload', async () => {
     let shouldContinue = true
-    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-
     vi.mocked(StorageService.getSyncQueue).mockResolvedValue([
       {
         id: 1,
-        table: 'expenses',
-        operation: 'update',
+        table: '__full_sync__',
+        operation: 'upsert',
         timestamp: 1,
-        payload: {
-          id: 10,
-          cloudId: 'expense-cloud-id',
-          date: '2026-05-05',
-          amount: 33,
-          description: 'Stale-safe row',
-        },
+        payload: { reason: 'backup-import' },
       },
     ])
+    runFullSyncUploadMock.mockImplementation(async () => {
+      shouldContinue = false
+    })
 
-    supabaseSelect.mockImplementation((table: string) => ({
-      upsert: (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
-        upsertCalls.push({ table, rows, onConflict: options?.onConflict })
-        shouldContinue = false
-        return Promise.resolve({ data: null, error: null })
-      },
-    }))
+    await expect(
+      flushSyncQueue('user-1', {
+        shouldContinue: () => shouldContinue,
+      }),
+    ).rejects.toThrow('Sync run superseded')
 
-    try {
-      await expect(
-        flushSyncQueue('user-1', {
-          shouldContinue: () => shouldContinue,
-        }),
-      ).rejects.toThrow('Sync run superseded')
-
-      expect(upsertCalls).toHaveLength(1)
-      expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
-    } finally {
-      consoleWarn.mockRestore()
-    }
+    expect(runFullSyncUploadMock).toHaveBeenCalledTimes(1)
+    expect(StorageService.removeSyncQueueItem).not.toHaveBeenCalled()
   })
 })

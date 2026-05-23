@@ -1,7 +1,12 @@
 import type { FixedExpenseSnapshot, IncomeSnapshot, SavingsSnapshot } from '../../types'
 import { clamp, flattenRangesToMonthMap, type RangeItem } from '../../utils/historicalDataHelpers'
 import db from '../db/schema'
-import { enqueue } from './common'
+import {
+  buildCreatedSyncRecord,
+  filterActiveRows,
+  markDeletedSyncRecord,
+  markPendingActiveRecord,
+} from './common'
 
 export interface HistoricalFixedItem {
   id: string
@@ -37,7 +42,6 @@ export function saveHistoricalSnapshotConfigs({
     db.fixedExpenseSnapshots,
     db.incomeSnapshots,
     db.savingsSnapshots,
-    db.syncQueue,
     async () => {
       const now = new Date().toISOString()
 
@@ -48,13 +52,19 @@ export function saveHistoricalSnapshotConfigs({
           fixedItems: [],
         }
 
-        const [existingIncome, existingSavings, existingFixed] = await Promise.all([
+        const [allIncome, allSavings, allFixed] = await Promise.all([
           db.incomeSnapshots.where('year').equals(year).toArray(),
           db.savingsSnapshots.where('year').equals(year).toArray(),
           db.fixedExpenseSnapshots.where('year').equals(year).toArray(),
         ])
+        const existingIncome = filterActiveRows(allIncome)
+        const existingSavings = filterActiveRows(allSavings)
+        const existingFixed = filterActiveRows(allFixed)
 
-        const desiredIncomeByKey = new Map<string, Pick<IncomeSnapshot, 'year' | 'month' | 'amountSnapshot'>>()
+        const desiredIncomeByKey = new Map<
+          string,
+          Pick<IncomeSnapshot, 'year' | 'month' | 'amountSnapshot'>
+        >()
         const desiredIncomeMonthMap = flattenRangesToMonthMap(config.incomeRanges)
         for (const [month, amount] of Object.entries(desiredIncomeMonthMap)) {
           const parsedMonth = Number(month)
@@ -66,36 +76,44 @@ export function saveHistoricalSnapshotConfigs({
         }
 
         const existingIncomeByKey = new Map(
-          existingIncome.map((row) => [buildMonthKey(row.year, row.month), row]),
+          allIncome.map((row) => [buildMonthKey(row.year, row.month), row]),
         )
         for (const [key, desired] of desiredIncomeByKey.entries()) {
           const existing = existingIncomeByKey.get(key)
-          if (existing && existing.amountSnapshot === desired.amountSnapshot) continue
-          if (existing) {
-            const payload = {
+          if (
+            existing &&
+            existing.amountSnapshot === desired.amountSnapshot &&
+            existing.deletedAt == null
+          )
+            continue
+          if (existing && existing.id != null) {
+            await db.incomeSnapshots.put({
               ...existing,
+              ...markPendingActiveRecord(existing, now),
+              id: existing.id,
               amountSnapshot: desired.amountSnapshot,
-              updatedAt: now,
-            }
-            await db.incomeSnapshots.put(payload)
-            await enqueue('incomeSnapshots', 'update', payload as unknown as Record<string, unknown>)
+              deletedAt: null,
+            })
             continue
           }
-          const created: IncomeSnapshot = {
-            ...desired,
-            cloudId: crypto.randomUUID(),
-            createdAt: now,
-            updatedAt: now,
-          }
-          const id = await db.incomeSnapshots.add(created)
-          const inserted = await db.incomeSnapshots.get(id)
-          await enqueue('incomeSnapshots', 'insert', inserted as unknown as Record<string, unknown>)
+          await db.incomeSnapshots.add(
+            buildCreatedSyncRecord(
+              {
+                ...desired,
+                createdAt: now,
+                updatedAt: now,
+              },
+              now,
+            ) as IncomeSnapshot,
+          )
         }
         for (const row of existingIncome) {
-          if (desiredIncomeByKey.has(buildMonthKey(row.year, row.month))) continue
-          if (row.id == null) continue
-          await db.incomeSnapshots.delete(row.id)
-          await enqueue('incomeSnapshots', 'delete', { id: row.id, cloudId: row.cloudId })
+          if (desiredIncomeByKey.has(buildMonthKey(row.year, row.month)) || row.id == null) continue
+          await db.incomeSnapshots.put({
+            ...row,
+            ...markDeletedSyncRecord(row, now),
+            id: row.id,
+          })
         }
 
         const desiredSavingsByKey = new Map<
@@ -113,36 +131,45 @@ export function saveHistoricalSnapshotConfigs({
         }
 
         const existingSavingsByKey = new Map(
-          existingSavings.map((row) => [buildMonthKey(row.year, row.month), row]),
+          allSavings.map((row) => [buildMonthKey(row.year, row.month), row]),
         )
         for (const [key, desired] of desiredSavingsByKey.entries()) {
           const existing = existingSavingsByKey.get(key)
-          if (existing && existing.rateSnapshot === desired.rateSnapshot) continue
-          if (existing) {
-            const payload = {
+          if (
+            existing &&
+            existing.rateSnapshot === desired.rateSnapshot &&
+            existing.deletedAt == null
+          )
+            continue
+          if (existing && existing.id != null) {
+            await db.savingsSnapshots.put({
               ...existing,
+              ...markPendingActiveRecord(existing, now),
+              id: existing.id,
               rateSnapshot: desired.rateSnapshot,
-              updatedAt: now,
-            }
-            await db.savingsSnapshots.put(payload)
-            await enqueue('savingsSnapshots', 'update', payload as unknown as Record<string, unknown>)
+              deletedAt: null,
+            })
             continue
           }
-          const created: SavingsSnapshot = {
-            ...desired,
-            cloudId: crypto.randomUUID(),
-            createdAt: now,
-            updatedAt: now,
-          }
-          const id = await db.savingsSnapshots.add(created)
-          const inserted = await db.savingsSnapshots.get(id)
-          await enqueue('savingsSnapshots', 'insert', inserted as unknown as Record<string, unknown>)
+          await db.savingsSnapshots.add(
+            buildCreatedSyncRecord(
+              {
+                ...desired,
+                createdAt: now,
+                updatedAt: now,
+              },
+              now,
+            ) as SavingsSnapshot,
+          )
         }
         for (const row of existingSavings) {
-          if (desiredSavingsByKey.has(buildMonthKey(row.year, row.month))) continue
-          if (row.id == null) continue
-          await db.savingsSnapshots.delete(row.id)
-          await enqueue('savingsSnapshots', 'delete', { id: row.id, cloudId: row.cloudId })
+          if (desiredSavingsByKey.has(buildMonthKey(row.year, row.month)) || row.id == null)
+            continue
+          await db.savingsSnapshots.put({
+            ...row,
+            ...markDeletedSyncRecord(row, now),
+            id: row.id,
+          })
         }
 
         const desiredFixedByKey = new Map<string, FixedExpenseSnapshot>()
@@ -158,18 +185,18 @@ export function saveHistoricalSnapshotConfigs({
           const fixedName = item.name.trim()
           let fixedExpenseId = item.existingFixedExpenseId
           if (fixedExpenseId == null) {
-            const fixedPayload = {
-              name: fixedName,
-              amount: fixedAmount,
-              cloudId: crypto.randomUUID(),
-              isArchived: true,
-              archivedAt: now,
-              updatedAt: now,
-            }
-            const id = await db.fixedExpenses.add(fixedPayload)
-            const inserted = await db.fixedExpenses.get(id)
-            await enqueue('fixedExpenses', 'insert', inserted as unknown as Record<string, unknown>)
-            fixedExpenseId = id
+            fixedExpenseId = await db.fixedExpenses.add(
+              buildCreatedSyncRecord(
+                {
+                  name: fixedName,
+                  amount: fixedAmount,
+                  isArchived: true,
+                  archivedAt: now,
+                  updatedAt: now,
+                },
+                now,
+              ),
+            )
           }
 
           const startMonth = clamp(Number.parseInt(String(item.startMonth), 10) || 1, 1, 12)
@@ -187,51 +214,52 @@ export function saveHistoricalSnapshotConfigs({
         }
 
         const existingFixedByKey = new Map(
-          existingFixed.map((row) => [buildFixedKey(row.fixedExpenseId, row.year, row.month), row]),
+          allFixed.map((row) => [buildFixedKey(row.fixedExpenseId, row.year, row.month), row]),
         )
         for (const [key, desired] of desiredFixedByKey.entries()) {
           const existing = existingFixedByKey.get(key)
           if (
             existing &&
             existing.amountSnapshot === desired.amountSnapshot &&
-            existing.nameSnapshot === desired.nameSnapshot
+            existing.nameSnapshot === desired.nameSnapshot &&
+            existing.deletedAt == null
           ) {
             continue
           }
-          if (existing) {
-            const payload = {
+          if (existing && existing.id != null) {
+            await db.fixedExpenseSnapshots.put({
               ...existing,
+              ...markPendingActiveRecord(existing, now),
+              id: existing.id,
               amountSnapshot: desired.amountSnapshot,
               nameSnapshot: desired.nameSnapshot,
-              updatedAt: now,
-            }
-            await db.fixedExpenseSnapshots.put(payload)
-            await enqueue(
-              'fixedExpenseSnapshots',
-              'update',
-              payload as unknown as Record<string, unknown>,
-            )
+              deletedAt: null,
+            })
             continue
           }
-          const created: FixedExpenseSnapshot = {
-            ...desired,
-            cloudId: crypto.randomUUID(),
-            createdAt: now,
-            updatedAt: now,
-          }
-          const id = await db.fixedExpenseSnapshots.add(created)
-          const inserted = await db.fixedExpenseSnapshots.get(id)
-          await enqueue(
-            'fixedExpenseSnapshots',
-            'insert',
-            inserted as unknown as Record<string, unknown>,
+          await db.fixedExpenseSnapshots.add(
+            buildCreatedSyncRecord(
+              {
+                ...desired,
+                createdAt: now,
+                updatedAt: now,
+              },
+              now,
+            ) as FixedExpenseSnapshot,
           )
         }
         for (const row of existingFixed) {
-          if (desiredFixedByKey.has(buildFixedKey(row.fixedExpenseId, row.year, row.month))) continue
-          if (row.id == null) continue
-          await db.fixedExpenseSnapshots.delete(row.id)
-          await enqueue('fixedExpenseSnapshots', 'delete', { id: row.id, cloudId: row.cloudId })
+          if (
+            desiredFixedByKey.has(buildFixedKey(row.fixedExpenseId, row.year, row.month)) ||
+            row.id == null
+          ) {
+            continue
+          }
+          await db.fixedExpenseSnapshots.put({
+            ...row,
+            ...markDeletedSyncRecord(row, now),
+            id: row.id,
+          })
         }
       }
     },

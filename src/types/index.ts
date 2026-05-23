@@ -6,13 +6,31 @@
 
 // ── Expenses ────────────────────────────────────────────────────────────────
 
-export interface Expense {
+export type RecordSyncStatus = 'pending' | 'synced' | 'failed'
+
+export interface SyncMetadata {
+  localId: string
+  cloudId?: string | null
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+  syncStatus: RecordSyncStatus
+  lastSyncedAt: string | null
+  syncError: string | null
+  deviceId: string | null
+}
+
+export type SyncedRecord = Partial<SyncMetadata>
+
+export interface Expense extends SyncedRecord {
   id?: number
   cloudId?: string
   date: string
   amount: number
   categoryId?: number
   payeeId?: number
+  categoryNameSnapshot?: string | null
+  payeeNameSnapshot?: string | null
   description?: string
   createdAt?: string
   updatedAt?: string
@@ -20,10 +38,11 @@ export interface Expense {
 
 // ── Categories ──────────────────────────────────────────────────────────────
 
-export interface Category {
+export interface Category extends SyncedRecord {
   id?: number
   cloudId?: string
   name: string
+  normalizedName?: string
   createdAt?: string
   updatedAt?: string
   isArchived?: boolean
@@ -33,10 +52,11 @@ export interface Category {
 
 // ── Payees ──────────────────────────────────────────────────────────────────
 
-export interface Payee {
+export interface Payee extends SyncedRecord {
   id?: number
   cloudId?: string
   name: string
+  normalizedName?: string
   createdAt?: string
   updatedAt?: string
   isArchived?: boolean
@@ -46,7 +66,7 @@ export interface Payee {
 
 // ── Merge History ────────────────────────────────────────────────────────────
 
-export interface CategoryMergeHistory {
+export interface CategoryMergeHistory extends SyncedRecord {
   id?: number
   cloudId?: string
   sourceCategoryId: number
@@ -57,7 +77,7 @@ export interface CategoryMergeHistory {
   updatedAt?: string
 }
 
-export interface PayeeMergeHistory {
+export interface PayeeMergeHistory extends SyncedRecord {
   id?: number
   cloudId?: string
   sourcePayeeId: number
@@ -70,7 +90,7 @@ export interface PayeeMergeHistory {
 
 // ── Fixed Expenses ──────────────────────────────────────────────────────────
 
-export interface FixedExpense {
+export interface FixedExpense extends SyncedRecord {
   id?: number
   cloudId?: string
   name: string
@@ -80,7 +100,7 @@ export interface FixedExpense {
   updatedAt?: string
 }
 
-export interface FixedExpenseSnapshot {
+export interface FixedExpenseSnapshot extends SyncedRecord {
   id?: number
   cloudId?: string
   fixedExpenseId: number
@@ -92,7 +112,7 @@ export interface FixedExpenseSnapshot {
   updatedAt?: string
 }
 
-export interface IncomeSnapshot {
+export interface IncomeSnapshot extends SyncedRecord {
   id?: number
   cloudId?: string
   year: number
@@ -102,7 +122,7 @@ export interface IncomeSnapshot {
   updatedAt?: string
 }
 
-export interface SavingsSnapshot {
+export interface SavingsSnapshot extends SyncedRecord {
   id?: number
   cloudId?: string
   year: number
@@ -116,7 +136,7 @@ export interface SavingsSnapshot {
 
 export type ScheduleType = 'income' | 'savingsRate' | 'fixedExpense' | 'expense'
 
-export interface Schedule {
+export interface Schedule extends SyncedRecord {
   id?: number
   cloudId?: string
   type: ScheduleType
@@ -166,6 +186,12 @@ export interface AppSettings {
   lastCheckInDismissedAt?: string
   lastCheckInCompletedAt?: string
   lastBackupAt?: string
+}
+
+export interface SyncedSettingRow extends SyncedRecord {
+  key: string
+  value: unknown
+  updatedAt?: string
 }
 
 // ── Finance Engine ──────────────────────────────────────────────────────────

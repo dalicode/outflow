@@ -1,294 +1,394 @@
 import db from '../db/schema'
 import { supabase } from '../supabase'
+import { normalizeNameForSync } from '../../utils/syncMetadata'
 import { debugLog } from '../../utils/debug'
-import { fromCloud, fromCloudLocalMap, toNumberOrUndefined } from './conversion'
-import { deduplicateByName, verifySyncIntegrity } from './integrity'
+import { fromCloud, fromCloudLocalMap } from './conversion'
+import { SYNC_BATCH_SIZE } from './constants'
+import { verifySyncIntegrity } from './integrity'
 import { fetchAllRowsForUser, getIsoTimestampMs } from './supabaseUtils'
 import type { FromCloudMaps } from './types'
 
-async function mergeByCloudId(
+type SyncRow = Record<string, unknown> & {
+  id?: number
+  localId?: string
+  cloudId?: string | null
+  updatedAt?: string
+  deletedAt?: string | null
+  normalizedName?: string
+  name?: string
+}
+
+type IdentityMergeOptions = {
+  normalizedNameFallback?: boolean
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+  return chunks
+}
+
+function buildIdentityMetadataPatch(localRow: SyncRow, incomingRow: SyncRow): Partial<SyncRow> {
+  const patch: Partial<SyncRow> = {}
+
+  if (
+    (!localRow.cloudId || localRow.cloudId.length === 0) &&
+    typeof incomingRow.cloudId === 'string' &&
+    incomingRow.cloudId.length > 0
+  ) {
+    patch.cloudId = incomingRow.cloudId
+  }
+
+  if (
+    (typeof localRow.localId !== 'string' || localRow.localId.length === 0) &&
+    typeof incomingRow.localId === 'string' &&
+    incomingRow.localId.length > 0
+  ) {
+    patch.localId = incomingRow.localId
+  }
+
+  return patch
+}
+
+function getRowUpdatedAtMs(row: Pick<SyncRow, 'updatedAt'>): number {
+  return getIsoTimestampMs(row.updatedAt)
+}
+
+function getNormalizedName(row: SyncRow): string | null {
+  if (typeof row.normalizedName === 'string' && row.normalizedName.length > 0) {
+    return row.normalizedName
+  }
+  if (typeof row.name === 'string' && row.name.trim().length > 0) {
+    return normalizeNameForSync(row.name)
+  }
+  return null
+}
+
+function buildNameIndex(rows: SyncRow[]): Map<string, SyncRow[]> {
+  const byName = new Map<string, SyncRow[]>()
+  for (const row of rows) {
+    const normalizedName = getNormalizedName(row)
+    if (!normalizedName) continue
+    const group = byName.get(normalizedName) ?? []
+    group.push(row)
+    byName.set(normalizedName, group)
+  }
+  return byName
+}
+
+function findNormalizedMatch(rows: SyncRow[], normalizedName: string): SyncRow | undefined {
+  const matches = rows.filter((row) => getNormalizedName(row) === normalizedName)
+  if (matches.length === 0) return undefined
+  return matches.find((row) => row.deletedAt == null) ?? matches[0]
+}
+
+function reindexRow(
+  row: SyncRow,
+  byLocalId: Map<string, SyncRow>,
+  byCloudId: Map<string, SyncRow>,
+  byNormalizedName?: Map<string, SyncRow[]>,
+): void {
+  const normalizedName = getNormalizedName(row)
+  if (typeof row.localId === 'string' && row.localId.length > 0) {
+    byLocalId.set(row.localId, row)
+  }
+  if (typeof row.cloudId === 'string' && row.cloudId.length > 0) {
+    byCloudId.set(row.cloudId, row)
+  }
+  if (!byNormalizedName || !normalizedName) return
+
+  const nextGroup = (byNormalizedName.get(normalizedName) ?? []).filter(
+    (existing) => existing !== row,
+  )
+  nextGroup.push(row)
+  byNormalizedName.set(normalizedName, nextGroup)
+}
+
+async function mergeRows(
   tableName: string,
   cloudRows: Record<string, unknown>[],
+  options: IdentityMergeOptions = {},
 ): Promise<void> {
   if (cloudRows.length === 0) return
+
   const table = db.table<unknown, number>(tableName)
-  const existing = (await table.toArray()) as Array<Record<string, unknown>>
-  const localByCloudId = new Map(
-    existing.filter((r) => r.cloudId).map((r) => [r.cloudId as string, r]),
+  const existing = (await table.toArray()) as SyncRow[]
+  const byLocalId = new Map(
+    existing
+      .filter((row): row is SyncRow & { localId: string } => typeof row.localId === 'string')
+      .map((row) => [row.localId, row]),
   )
-  for (const row of cloudRows) {
-    const cid = row.cloudId as string | undefined
-    if (cid && localByCloudId.has(cid)) {
-      const local = localByCloudId.get(cid)
-      if (!local) continue
-      const cloudTime = new Date((row.updatedAt as string) || 0).getTime()
-      const localTime = new Date((local.updatedAt as string) || 0).getTime()
-      if (cloudTime > localTime) {
-        await table.update(local.id as number, row)
-      }
-    } else {
-      const rowName = (row.name as string)?.trim().toLowerCase()
-      if (rowName && (tableName === 'categories' || tableName === 'payees')) {
-        const existingByName = existing.find(
-          (r) => r.name && String(r.name).trim().toLowerCase() === rowName,
-        )
-        if (existingByName) {
-          await table.update(existingByName.id as number, row)
-          continue
+  const byCloudId = new Map(
+    existing
+      .filter(
+        (row): row is SyncRow & { cloudId: string } =>
+          typeof row.cloudId === 'string' && row.cloudId.length > 0,
+      )
+      .map((row) => [row.cloudId, row]),
+  )
+  const byNormalizedName = options.normalizedNameFallback ? buildNameIndex(existing) : undefined
+  const pendingUpdates = new Map<number, SyncRow>()
+  const pendingInserts: SyncRow[] = []
+  let tempId = -1
+
+  for (const incoming of cloudRows as SyncRow[]) {
+    const normalizedName = getNormalizedName(incoming)
+    const localMatch =
+      (typeof incoming.localId === 'string' ? byLocalId.get(incoming.localId) : undefined) ??
+      (typeof incoming.cloudId === 'string' ? byCloudId.get(incoming.cloudId) : undefined) ??
+      (options.normalizedNameFallback && normalizedName && byNormalizedName
+        ? findNormalizedMatch(byNormalizedName.get(normalizedName) ?? [], normalizedName)
+        : undefined)
+
+    if (localMatch) {
+      if (getRowUpdatedAtMs(incoming) > getRowUpdatedAtMs(localMatch)) {
+        const resolvedId =
+          typeof localMatch.id === 'number' && localMatch.id > 0 ? localMatch.id : localMatch.id
+        const nextRow = { ...localMatch, ...incoming, id: resolvedId }
+        Object.assign(localMatch, nextRow)
+        reindexRow(localMatch, byLocalId, byCloudId, byNormalizedName)
+        if (typeof localMatch.id === 'number' && localMatch.id > 0) {
+          pendingUpdates.set(localMatch.id, { ...localMatch })
+        }
+      } else {
+        const identityPatch = buildIdentityMetadataPatch(localMatch, incoming)
+        if (Object.keys(identityPatch).length > 0) {
+          Object.assign(localMatch, identityPatch)
+          reindexRow(localMatch, byLocalId, byCloudId, byNormalizedName)
+          if (typeof localMatch.id === 'number' && localMatch.id > 0) {
+            pendingUpdates.set(localMatch.id, { ...localMatch })
+          }
         }
       }
-      await table.add(row)
+      continue
+    }
+
+    const pendingRow = { ...incoming, id: tempId }
+    tempId -= 1
+    pendingInserts.push(pendingRow)
+    reindexRow(pendingRow, byLocalId, byCloudId, byNormalizedName)
+  }
+
+  if (pendingUpdates.size > 0) {
+    for (const batch of chunkArray(Array.from(pendingUpdates.values()), SYNC_BATCH_SIZE)) {
+      await table.bulkPut(batch)
+    }
+  }
+
+  if (pendingInserts.length > 0) {
+    const rowsToInsert = pendingInserts.map(({ id: _id, ...row }) => row)
+    for (const batch of chunkArray(rowsToInsert, SYNC_BATCH_SIZE)) {
+      await table.bulkAdd(batch)
     }
   }
 }
 
-async function resolveLocalCategoryId(
-  cloudCategoryId: unknown,
-  maps: FromCloudMaps,
-): Promise<number | undefined> {
-  if (cloudCategoryId != null) {
-    const str = String(cloudCategoryId)
-    const byCloud = maps.cloudIdToCategoryId?.get(str)
-    if (byCloud !== undefined) return byCloud
-    const numId = toNumberOrUndefined(cloudCategoryId)
-    if (numId !== undefined) return numId
+function buildRelationshipMaps(
+  categories: SyncRow[],
+  payees: SyncRow[],
+  fixedExpenses: SyncRow[],
+): FromCloudMaps {
+  return {
+    cloudIdToCategoryId: fromCloudLocalMap(categories),
+    cloudIdToPayeeId: fromCloudLocalMap(payees),
+    cloudIdToFixedExpenseId: fromCloudLocalMap(fixedExpenses),
   }
-  return undefined
 }
 
-async function resolveLocalPayeeId(
-  cloudPayeeId: unknown,
-  maps: FromCloudMaps,
-): Promise<number | undefined> {
-  if (cloudPayeeId != null) {
-    const str = String(cloudPayeeId)
-    const byCloud = maps.cloudIdToPayeeId?.get(str)
-    if (byCloud !== undefined) return byCloud
-    const numId = toNumberOrUndefined(cloudPayeeId)
-    if (numId !== undefined) return numId
+function buildActiveNameToIdMap(rows: SyncRow[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const row of rows) {
+    if (row.deletedAt != null || row.id == null) continue
+    const normalizedName = getNormalizedName(row)
+    if (!normalizedName || map.has(normalizedName)) continue
+    map.set(normalizedName, row.id)
   }
-  return undefined
+  return map
+}
+
+function resolveExpenseRelationships(
+  row: Record<string, unknown>,
+  maps: FromCloudMaps,
+  categoryNameToId: Map<string, number>,
+  payeeNameToId: Map<string, number>,
+): Record<string, unknown> {
+  const expense = fromCloud('expenses', row, maps)
+  let categoryId = typeof expense.categoryId === 'number' ? expense.categoryId : undefined
+  if (
+    categoryId == null &&
+    typeof expense.categoryNameSnapshot === 'string' &&
+    expense.categoryNameSnapshot.trim().length > 0
+  ) {
+    categoryId = categoryNameToId.get(normalizeNameForSync(expense.categoryNameSnapshot))
+  }
+
+  let payeeId = typeof expense.payeeId === 'number' ? expense.payeeId : undefined
+  if (
+    payeeId == null &&
+    typeof expense.payeeNameSnapshot === 'string' &&
+    expense.payeeNameSnapshot.trim().length > 0
+  ) {
+    payeeId = payeeNameToId.get(normalizeNameForSync(expense.payeeNameSnapshot))
+  }
+
+  return {
+    ...expense,
+    categoryId,
+    payeeId,
+  }
+}
+
+async function mergeSettingsRows(rows: Record<string, unknown>[]): Promise<void> {
+  const existingRows = await db.settings.toArray()
+  const existingByKey = new Map(
+    existingRows
+      .filter((row): row is { key: string; updatedAt?: string; value: unknown } => !!row.key)
+      .map((row) => [row.key, row]),
+  )
+  const rowsToPut: Array<Record<string, unknown>> = []
+
+  for (const row of rows) {
+    const incoming = fromCloud('settings', row) as SyncRow & { key: string; value: unknown }
+    const existing = existingByKey.get(incoming.key)
+    if (existing && getIsoTimestampMs(existing.updatedAt) > getIsoTimestampMs(incoming.updatedAt)) {
+      continue
+    }
+
+    rowsToPut.push({
+      ...existing,
+      ...incoming,
+      key: incoming.key,
+      value: incoming.value,
+      updatedAt:
+        typeof incoming.updatedAt === 'string' && incoming.updatedAt.length > 0
+          ? incoming.updatedAt
+          : new Date().toISOString(),
+    })
+  }
+
+  if (rowsToPut.length > 0) {
+    for (const batch of chunkArray(rowsToPut, SYNC_BATCH_SIZE)) {
+      await db.settings.bulkPut(batch)
+    }
+  }
 }
 
 export async function pullFromSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
   const [
-    expRows,
     catRows,
     payRows,
     fixRows,
+    setRows,
     snapRows,
     incomeSnapRows,
     savingsSnapRows,
     scheduleRows,
     categoryMergeRows,
     payeeMergeRows,
-    setRows,
+    expRows,
   ] = await Promise.all([
-    fetchAllRowsForUser('expenses', userId),
     fetchAllRowsForUser('categories', userId),
     fetchAllRowsForUser('payees', userId),
     fetchAllRowsForUser('fixed_expenses', userId),
+    fetchAllRowsForUser('settings', userId),
     fetchAllRowsForUser('fixed_expense_snapshots', userId),
     fetchAllRowsForUser('income_snapshots', userId),
     fetchAllRowsForUser('savings_snapshots', userId),
     fetchAllRowsForUser('schedules', userId),
     fetchAllRowsForUser('category_merge_history', userId),
     fetchAllRowsForUser('payee_merge_history', userId),
-    fetchAllRowsForUser('settings', userId),
+    fetchAllRowsForUser('expenses', userId),
   ])
 
-  const existingCats = await db.categories.toArray()
-  const existingPayees = await db.payees.toArray()
-  const existingFixed = await db.fixedExpenses.toArray()
-  const catMap: FromCloudMaps = { cloudIdToCategoryId: fromCloudLocalMap(existingCats) }
-  const payeeMap: FromCloudMaps = { cloudIdToPayeeId: fromCloudLocalMap(existingPayees) }
-  const fixedMap: FromCloudMaps = { cloudIdToFixedExpenseId: fromCloudLocalMap(existingFixed) }
-  const combinedMaps: FromCloudMaps = { ...catMap, ...payeeMap, ...fixedMap }
-
-  if (catRows.length) {
-    const rows = catRows.map((r: unknown) =>
-      fromCloud('categories', r as Record<string, unknown>, combinedMaps),
+  if (catRows.length > 0) {
+    await mergeRows(
+      'categories',
+      catRows.map((row) => fromCloud('categories', row)),
+      { normalizedNameFallback: true },
     )
-    await mergeByCloudId('categories', rows)
   }
-  if (payRows.length) {
-    const rows = payRows.map((r: unknown) =>
-      fromCloud('payees', r as Record<string, unknown>, combinedMaps),
+  if (payRows.length > 0) {
+    await mergeRows(
+      'payees',
+      payRows.map((row) => fromCloud('payees', row)),
+      { normalizedNameFallback: true },
     )
-    await mergeByCloudId('payees', rows)
+  }
+  if (fixRows.length > 0) {
+    await mergeRows(
+      'fixedExpenses',
+      fixRows.map((row) => fromCloud('fixed_expenses', row)),
+    )
+  }
+  if (setRows.length > 0) {
+    await mergeSettingsRows(setRows)
   }
 
-  if (catRows.length || payRows.length) {
-    const updatedCats = await db.categories.toArray()
-    const updatedPays = await db.payees.toArray()
-    updatedCats.forEach((c) => {
-      if (c.cloudId && c.id) catMap.cloudIdToCategoryId?.set(c.cloudId, c.id)
-    })
-    updatedPays.forEach((p) => {
-      if (p.cloudId && p.id) payeeMap.cloudIdToPayeeId?.set(p.cloudId, p.id)
-    })
-  }
+  const categories = await db.categories.toArray()
+  const payees = await db.payees.toArray()
+  const fixedExpenses = await db.fixedExpenses.toArray()
+  const identityMaps = buildRelationshipMaps(categories, payees, fixedExpenses)
+  const categoryNameToId = buildActiveNameToIdMap(categories)
+  const payeeNameToId = buildActiveNameToIdMap(payees)
 
-  const expenseResolutionMaps: FromCloudMaps = {
-    cloudIdToCategoryId: catMap.cloudIdToCategoryId,
-    cloudIdToPayeeId: payeeMap.cloudIdToPayeeId,
-  }
   debugLog(
-    '[sync] resolution maps — cloudId->cat:',
-    catMap.cloudIdToCategoryId?.size ?? 0,
-    'cloudId->pay:',
-    payeeMap.cloudIdToPayeeId?.size ?? 0,
+    '[sync] identity maps ready',
+    'categories:',
+    identityMaps.cloudIdToCategoryId?.size ?? 0,
+    'payees:',
+    identityMaps.cloudIdToPayeeId?.size ?? 0,
+    'fixed:',
+    identityMaps.cloudIdToFixedExpenseId?.size ?? 0,
   )
 
-  if (expRows.length) {
-    debugLog('[sync] resolving', expRows.length, 'cloud expenses')
-    const unresolvedCats = new Set<string>()
-    const unresolvedPayees = new Set<string>()
-    let resolvedViaInitialMap = 0
-    let resolvedViaFallback = 0
-    const resolvedRows = await Promise.all(
-      expRows.map(async (r: unknown) => {
-        const raw = r as Record<string, unknown>
-        const local = fromCloud('expenses', raw, { ...catMap, ...payeeMap })
-
-        let categoryId = local.categoryId as number | undefined
-        if (categoryId !== undefined) {
-          resolvedViaInitialMap++
-        } else {
-          const resolved = await resolveLocalCategoryId(
-            local.cloudCategoryId,
-            expenseResolutionMaps,
-          )
-          if (resolved !== undefined) {
-            categoryId = resolved
-            resolvedViaFallback++
-          } else {
-            unresolvedCats.add(String(local.cloudCategoryId ?? 'unknown'))
-          }
-        }
-
-        let payeeId = local.payeeId as number | undefined
-        if (payeeId === undefined && local.cloudPayeeId != null) {
-          const resolved = await resolveLocalPayeeId(local.cloudPayeeId, expenseResolutionMaps)
-          if (resolved !== undefined) {
-            payeeId = resolved
-          } else {
-            unresolvedPayees.add(String(local.cloudPayeeId ?? 'unknown'))
-          }
-        }
-        return { ...local, categoryId, payeeId }
-      }),
-    )
-    debugLog(
-      '[sync] expense resolution: initial map match:',
-      resolvedViaInitialMap,
-      'fallback/auto-create:',
-      resolvedViaFallback,
-      'unresolved cats:',
-      [...unresolvedCats],
-      'unresolved payees:',
-      [...unresolvedPayees],
-    )
-    await mergeByCloudId('expenses', resolvedRows)
-  }
-
-  if (fixRows.length) {
-    const rows = fixRows.map((r: unknown) =>
-      fromCloud('fixed_expenses', r as Record<string, unknown>, combinedMaps),
-    )
-    await mergeByCloudId('fixedExpenses', rows)
-  }
-
-  if (fixRows.length) {
-    const updatedFixed = await db.fixedExpenses.toArray()
-    updatedFixed.forEach((f) => {
-      if (f.cloudId && f.id) fixedMap.cloudIdToFixedExpenseId?.set(f.cloudId, f.id)
-    })
-  }
-  const finalMaps: FromCloudMaps = { ...catMap, ...payeeMap, ...fixedMap }
-
-  if (snapRows.length) {
-    await mergeByCloudId(
+  if (snapRows.length > 0) {
+    await mergeRows(
       'fixedExpenseSnapshots',
-      snapRows.map((r: unknown) =>
-        fromCloud('fixed_expense_snapshots', r as Record<string, unknown>, finalMaps),
-      ),
+      snapRows.map((row) => fromCloud('fixed_expense_snapshots', row, identityMaps)),
     )
   }
-  if (incomeSnapRows.length) {
-    await mergeByCloudId(
+  if (incomeSnapRows.length > 0) {
+    await mergeRows(
       'incomeSnapshots',
-      incomeSnapRows.map((r: unknown) =>
-        fromCloud('income_snapshots', r as Record<string, unknown>, finalMaps),
-      ),
+      incomeSnapRows.map((row) => fromCloud('income_snapshots', row, identityMaps)),
     )
   }
-  if (savingsSnapRows.length) {
-    await mergeByCloudId(
+  if (savingsSnapRows.length > 0) {
+    await mergeRows(
       'savingsSnapshots',
-      savingsSnapRows.map((r: unknown) =>
-        fromCloud('savings_snapshots', r as Record<string, unknown>, finalMaps),
-      ),
+      savingsSnapRows.map((row) => fromCloud('savings_snapshots', row, identityMaps)),
     )
   }
-  if (scheduleRows.length) {
-    await mergeByCloudId(
+  if (scheduleRows.length > 0) {
+    await mergeRows(
       'schedules',
-      scheduleRows.map((r: unknown) =>
-        fromCloud('schedules', r as Record<string, unknown>, finalMaps),
-      ),
+      scheduleRows.map((row) => fromCloud('schedules', row, identityMaps)),
     )
   }
-  if (categoryMergeRows.length) {
-    await mergeByCloudId(
+  if (categoryMergeRows.length > 0) {
+    await mergeRows(
       'categoryMergeHistory',
-      categoryMergeRows.map((r: unknown) =>
-        fromCloud('category_merge_history', r as Record<string, unknown>, finalMaps),
-      ),
+      categoryMergeRows.map((row) => fromCloud('category_merge_history', row, identityMaps)),
     )
   }
-  if (payeeMergeRows.length) {
-    await mergeByCloudId(
+  if (payeeMergeRows.length > 0) {
+    await mergeRows(
       'payeeMergeHistory',
-      payeeMergeRows.map((r: unknown) =>
-        fromCloud('payee_merge_history', r as Record<string, unknown>, finalMaps),
+      payeeMergeRows.map((row) => fromCloud('payee_merge_history', row, identityMaps)),
+    )
+  }
+  if (expRows.length > 0) {
+    await mergeRows(
+      'expenses',
+      expRows.map((row) =>
+        resolveExpenseRelationships(row, identityMaps, categoryNameToId, payeeNameToId),
       ),
     )
   }
-  if (setRows.length) {
-    const pendingSettingsKeys = new Set<string>()
-    const pendingQueue =
-      'syncQueue' in db && db.syncQueue
-        ? await db.syncQueue.where('table').equals('settings').toArray()
-        : []
-    for (const item of pendingQueue) {
-      if (item.operation === 'delete') continue
-      const key = String((item.payload as Record<string, unknown>)?.key ?? '')
-      if (key) pendingSettingsKeys.add(key)
-    }
 
-    for (const row of setRows) {
-      const local = fromCloud('settings', row as Record<string, unknown>)
-      const key = String(local.key)
-      if (pendingSettingsKeys.has(key)) continue
-      const existing = await db.settings.get(key)
-      const localTime = getIsoTimestampMs(existing?.updatedAt)
-      const cloudTime = getIsoTimestampMs(local.updatedAt)
-      if (existing && localTime > cloudTime) continue
-      await db.settings.put({
-        key,
-        value: local.value,
-        updatedAt:
-          typeof local.updatedAt === 'string' && local.updatedAt.length > 0
-            ? local.updatedAt
-            : new Date().toISOString(),
-      })
-    }
-  }
-
-  await deduplicateByName(db.table('categories'), 'categoryId')
-  await deduplicateByName(db.table('payees'), 'payeeId')
   await verifySyncIntegrity()
 }

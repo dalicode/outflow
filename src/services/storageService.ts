@@ -8,29 +8,35 @@ import * as payeeRepo from './repositories/payeeRepository'
 import * as syncRepo from './repositories/syncRepository'
 import * as backupRepo from './repositories/backupRepository'
 import * as historicalSnapshotRepo from './repositories/historicalSnapshotRepository'
-import { snapshotIncome, snapshotSavings } from './repositories/common'
 import db from './db/schema'
 
 export const StorageService = {
   db,
   // ── Expenses ──────────────────────────────────────────────
-  getAll: expenseRepo.getAll,
+  getExpenses: expenseRepo.getAll,
+  getAllExpenses: expenseRepo.getAllExpenses,
+  getAll: expenseRepo.getAll, // legacy alias: active-only expense rows
   add: expenseRepo.add,
   update: expenseRepo.update,
   remove: expenseRepo.remove,
   removeMany: expenseRepo.removeMany,
+  restoreExpense: expenseRepo.restore,
+  restoreManyExpenses: expenseRepo.restoreMany,
   bulkAddExpensesForImport: expenseRepo.bulkAddForImport,
   replaceAllExpenses: expenseRepo.replaceAll,
   getExpenseCountForCategory: expenseRepo.getExpenseCountForCategory,
   getExpenseCountForPayee: expenseRepo.getExpenseCountForPayee,
 
   // ── Settings ──────────────────────────────────────────────
+  getSettingsRows: settingsRepo.getSettingsRows,
+  getAllSettingsRows: settingsRepo.getAllSettingsRows,
   getSetting: settingsRepo.getSetting,
   setSetting: settingsRepo.setSetting,
   setLocalSetting: settingsRepo.setLocalSetting,
 
   // ── Fixed Expenses ────────────────────────────────────────
   getFixedExpenses: fixedExpenseRepo.getFixedExpenses,
+  getAllFixedExpenses: fixedExpenseRepo.getAllFixedExpenses,
   getActiveFixedExpenses: fixedExpenseRepo.getActiveFixedExpenses,
   addFixedExpense: fixedExpenseRepo.addFixedExpense,
   addArchivedFixedExpense: fixedExpenseRepo.addArchivedFixedExpense,
@@ -39,6 +45,8 @@ export const StorageService = {
 
   // ── Fixed Expense Snapshots ───────────────────────────────
   getSnapshotsForYear: fixedExpenseRepo.getSnapshotsForYear,
+  getAllSnapshotsForYear: fixedExpenseRepo.getAllSnapshotsForYear,
+  getFixedExpenseSnapshots: fixedExpenseRepo.getFixedExpenseSnapshots,
   getAllFixedExpenseSnapshots: fixedExpenseRepo.getAllFixedExpenseSnapshots,
   bulkUpsertSnapshots: fixedExpenseRepo.bulkUpsertSnapshots,
   deleteSnapshotsForYear: fixedExpenseRepo.deleteSnapshotsForYear,
@@ -46,8 +54,10 @@ export const StorageService = {
 
   // ── Income Snapshots ──────────────────────────────────────
   getIncomeSnapshot: snapshotRepo.getIncomeSnapshot,
-  setIncomeSnapshot: snapshotIncome,
+  setIncomeSnapshot: snapshotRepo.setIncomeSnapshot,
+  getIncomeSnapshots: snapshotRepo.getIncomeSnapshots,
   getIncomeSnapshotsForYear: snapshotRepo.getIncomeSnapshotsForYear,
+  getAllIncomeSnapshotsForYear: snapshotRepo.getAllIncomeSnapshotsForYear,
   getAllIncomeSnapshots: snapshotRepo.getAllIncomeSnapshots,
   bulkUpsertIncomeSnapshots: snapshotRepo.bulkUpsertIncomeSnapshots,
   deleteIncomeSnapshotsForYear: snapshotRepo.deleteIncomeSnapshotsForYear,
@@ -55,8 +65,10 @@ export const StorageService = {
 
   // ── Savings Snapshots ─────────────────────────────────────
   getSavingsSnapshot: snapshotRepo.getSavingsSnapshot,
-  setSavingsSnapshot: snapshotSavings,
+  setSavingsSnapshot: snapshotRepo.setSavingsSnapshot,
+  getSavingsSnapshots: snapshotRepo.getSavingsSnapshots,
   getSavingsSnapshotsForYear: snapshotRepo.getSavingsSnapshotsForYear,
+  getAllSavingsSnapshotsForYear: snapshotRepo.getAllSavingsSnapshotsForYear,
   getAllSavingsSnapshots: snapshotRepo.getAllSavingsSnapshots,
   bulkUpsertSavingsSnapshots: snapshotRepo.bulkUpsertSavingsSnapshots,
   deleteSavingsSnapshotsForYear: snapshotRepo.deleteSavingsSnapshotsForYear,
@@ -69,6 +81,7 @@ export const StorageService = {
 
   // ── Scheduled Changes ─────────────────────────────────────
   getSchedules: scheduleRepo.getSchedules,
+  getAllSchedules: scheduleRepo.getAllSchedules,
   getActiveSchedules: scheduleRepo.getActiveSchedules,
   addSchedule: scheduleRepo.addSchedule,
   updateSchedule: scheduleRepo.updateSchedule,
@@ -76,6 +89,7 @@ export const StorageService = {
 
   // ── Categories ────────────────────────────────────────────
   getCategories: categoryRepo.getCategories,
+  getAllCategories: categoryRepo.getAllCategories,
   addCategory: categoryRepo.addCategory,
   ensureCategoriesForImport: categoryRepo.ensureForImport,
   updateCategory: categoryRepo.updateCategory,
@@ -85,6 +99,7 @@ export const StorageService = {
 
   // ── Payees ────────────────────────────────────────────────
   getPayees: payeeRepo.getPayees,
+  getAllPayees: payeeRepo.getAllPayees,
   getActivePayees: payeeRepo.getActivePayees,
   addPayee: payeeRepo.addPayee,
   updatePayee: payeeRepo.updatePayee,
@@ -96,6 +111,8 @@ export const StorageService = {
 
   // ── Sync Queue ───────────────────────────────────────────
   getSyncQueue: syncRepo.getSyncQueue,
+  hasPendingSyncMetadata: syncRepo.hasPendingSyncMetadata,
+  getSyncMetadataCounts: syncRepo.getSyncMetadataCounts,
   removeSyncQueueItem: syncRepo.removeSyncQueueItem,
   clearSyncQueue: syncRepo.clearSyncQueue,
 

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { Category, Expense, Payee } from '../../../types'
-import { compareExpensesByDateDescThenIdAsc } from '../../../utils/expenseOrdering'
+import { compareExpensesByDateDescThenIdDesc } from '../../../utils/expenseOrdering'
 
 export interface DashboardFiltersState {
   filterGlobal: string
@@ -137,7 +137,7 @@ export function useDashboardFilters(
     const keys = new Set(monthKeys.map((m) => m.key))
     return expenses
       .filter((e) => keys.has(e.date.slice(0, 7)))
-      .sort(compareExpensesByDateDescThenIdAsc)
+      .sort(compareExpensesByDateDescThenIdDesc)
   }, [expenses, monthKeys])
 
   const filteredExpenses = useMemo(() => {

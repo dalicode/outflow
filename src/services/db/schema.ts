@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type {
+  Expense,
   Category,
   CategoryMergeHistory,
   FixedExpense,
@@ -9,15 +10,141 @@ import type {
   PayeeMergeHistory,
   SavingsSnapshot,
   Schedule,
+  SyncedSettingRow,
   SyncQueueItem,
 } from '../../types'
 import { buildDefaultCategories, buildDefaultPayees } from '../defaults'
 import { migrateV10CategoryPayeeIds } from './migrations'
+import { createSyncMetadata, normalizeNameForSync } from '../../utils/syncMetadata'
 
-interface Setting {
-  key: string
-  value: unknown
-  updatedAt?: string
+type Setting = SyncedSettingRow
+
+export async function migrateV18SyncMetadata(tx: {
+  table: (name: string) => {
+    toArray: () => Promise<Array<Record<string, unknown>>>
+    update: (id: number | string, changes: Record<string, unknown>) => Promise<number>
+  }
+}): Promise<void> {
+  const now = new Date().toISOString()
+
+  const categories = (await tx.table('categories').toArray()) as Category[]
+  const payees = (await tx.table('payees').toArray()) as Payee[]
+  const categoryById = new Map<number, Category>()
+  const payeeById = new Map<number, Payee>()
+
+  for (const row of categories) {
+    if (typeof row.id === 'number') {
+      categoryById.set(row.id, row)
+    }
+  }
+  for (const row of payees) {
+    if (typeof row.id === 'number') {
+      payeeById.set(row.id, row)
+    }
+  }
+
+  const syncTables = [
+    'expenses',
+    'categories',
+    'payees',
+    'fixedExpenses',
+    'fixedExpenseSnapshots',
+    'incomeSnapshots',
+    'savingsSnapshots',
+    'schedules',
+    'categoryMergeHistory',
+    'payeeMergeHistory',
+  ] as const
+
+  for (const tableName of syncTables) {
+    const rows = (await tx.table(tableName).toArray()) as Array<Record<string, unknown>>
+    for (const row of rows) {
+      const metadata = createSyncMetadata(now)
+      const updates: Record<string, unknown> = {
+        localId:
+          typeof row.localId === 'string' && row.localId.length > 0
+            ? row.localId
+            : metadata.localId,
+        cloudId: typeof row.cloudId === 'string' && row.cloudId.length > 0 ? row.cloudId : null,
+        createdAt:
+          typeof row.createdAt === 'string' && row.createdAt.length > 0 ? row.createdAt : now,
+        updatedAt:
+          typeof row.updatedAt === 'string' && row.updatedAt.length > 0 ? row.updatedAt : now,
+        deletedAt:
+          typeof row.deletedAt === 'string' && row.deletedAt.length > 0 ? row.deletedAt : null,
+        syncStatus:
+          row.syncStatus === 'pending' || row.syncStatus === 'synced' || row.syncStatus === 'failed'
+            ? row.syncStatus
+            : 'pending',
+        lastSyncedAt:
+          typeof row.lastSyncedAt === 'string' && row.lastSyncedAt.length > 0
+            ? row.lastSyncedAt
+            : null,
+        syncError:
+          typeof row.syncError === 'string' && row.syncError.length > 0 ? row.syncError : null,
+        deviceId:
+          typeof row.deviceId === 'string' && row.deviceId.length > 0
+            ? row.deviceId
+            : metadata.deviceId,
+      }
+
+      if (tableName === 'categories' && typeof row.name === 'string') {
+        updates.normalizedName = normalizeNameForSync(row.name)
+      }
+
+      if (tableName === 'payees' && typeof row.name === 'string') {
+        updates.normalizedName = normalizeNameForSync(row.name)
+      }
+
+      if (tableName === 'expenses') {
+        const expense = row as Expense
+        if (
+          (!expense.categoryNameSnapshot || expense.categoryNameSnapshot.length === 0) &&
+          typeof expense.categoryId === 'number'
+        ) {
+          updates.categoryNameSnapshot = categoryById.get(expense.categoryId)?.name ?? null
+        }
+        if (
+          (!expense.payeeNameSnapshot || expense.payeeNameSnapshot.length === 0) &&
+          typeof expense.payeeId === 'number'
+        ) {
+          updates.payeeNameSnapshot = payeeById.get(expense.payeeId)?.name ?? null
+        }
+      }
+
+      await tx.table(tableName).update(row.id as number, updates)
+    }
+  }
+
+  const settings = await tx.table('settings').toArray()
+  for (const row of settings) {
+    const metadata = createSyncMetadata(now)
+    await tx.table('settings').update(row.key as string, {
+      localId:
+        typeof row.localId === 'string' && row.localId.length > 0 ? row.localId : metadata.localId,
+      cloudId: typeof row.cloudId === 'string' && row.cloudId.length > 0 ? row.cloudId : null,
+      createdAt:
+        typeof row.createdAt === 'string' && row.createdAt.length > 0 ? row.createdAt : now,
+      updatedAt:
+        typeof row.updatedAt === 'string' && row.updatedAt.length > 0 ? row.updatedAt : now,
+      deletedAt:
+        typeof row.deletedAt === 'string' && row.deletedAt.length > 0 ? row.deletedAt : null,
+      syncStatus:
+        row.syncStatus === 'pending' || row.syncStatus === 'synced' || row.syncStatus === 'failed'
+          ? row.syncStatus
+          : 'pending',
+      lastSyncedAt:
+        typeof row.lastSyncedAt === 'string' && row.lastSyncedAt.length > 0
+          ? row.lastSyncedAt
+          : null,
+      syncError:
+        typeof row.syncError === 'string' && row.syncError.length > 0 ? row.syncError : null,
+      deviceId:
+        typeof row.deviceId === 'string' && row.deviceId.length > 0
+          ? row.deviceId
+          : metadata.deviceId,
+    })
+  }
 }
 
 class OutflowDB extends Dexie {
@@ -275,6 +402,31 @@ class OutflowDB extends Dexie {
             await tx.table('settings').update(row.key, { updatedAt: now })
           }
         }
+      })
+
+    this.version(18)
+      .stores({
+        expenses:
+          '++id, date, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
+        settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
+        fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
+        categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+        payees: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+        syncQueue: '++id, table, timestamp',
+        fixedExpenseSnapshots:
+          '++id, [fixedExpenseId+year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        schedules:
+          '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
+        incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        savingsSnapshots:
+          '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        categoryMergeHistory:
+          '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
+        payeeMergeHistory:
+          '++id, sourcePayeeId, targetPayeeId, localId, cloudId, syncStatus, deletedAt',
+      })
+      .upgrade(async (tx) => {
+        await migrateV18SyncMetadata(tx)
       })
 
     this.on('populate', () => {

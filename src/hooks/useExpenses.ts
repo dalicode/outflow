@@ -10,7 +10,7 @@ const areExpenseListsEqual = (left: Expense[], right: Expense[]): boolean => {
 }
 
 export const useExpenses = () => {
-  const liveExpenses = useLiveQuery(() => StorageService.getAll(), [])
+  const liveExpenses = useLiveQuery(() => StorageService.getExpenses(), [])
   const [optimisticExpenses, setOptimisticExpenses] = useState<Expense[] | null>(null)
 
   const resolvedLiveExpenses = liveExpenses ?? []
@@ -35,7 +35,7 @@ export const useExpenses = () => {
   )
 
   const refresh = useCallback(async () => {
-    setOptimisticExpenses((await StorageService.getAll()) as Expense[])
+    setOptimisticExpenses((await StorageService.getExpenses()) as Expense[])
   }, [])
 
   const expenses = useMemo(

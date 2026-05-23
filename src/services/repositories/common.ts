@@ -1,11 +1,41 @@
-import type { Schedule, SyncQueueItem } from '../../types'
+import type { IncomeSnapshot, SavingsSnapshot, Schedule, SyncedRecord } from '../../types'
+import { createSyncMetadata, markRecordDeleted, markRecordPending } from '../../utils/syncMetadata'
 import db from '../db/schema'
 
-const enqueue = (
-  table: string,
-  operation: SyncQueueItem['operation'],
-  payload: Record<string, unknown>,
-) => db.syncQueue.add({ table, operation, payload, timestamp: Date.now() })
+type TombstoneRecord = {
+  deletedAt?: string | null
+}
+
+function filterActiveRows<T extends TombstoneRecord>(rows: T[]): T[] {
+  return rows.filter((row) => row.deletedAt == null)
+}
+
+function markPendingActiveRecord<T extends SyncedRecord>(
+  record: T,
+  now: string = new Date().toISOString(),
+): T {
+  return {
+    ...markRecordPending(record, now),
+    deletedAt: null,
+  } as T
+}
+
+function markDeletedSyncRecord<T extends SyncedRecord>(
+  record: T,
+  now: string = new Date().toISOString(),
+): T {
+  return markRecordDeleted(record, now) as T
+}
+
+function buildCreatedSyncRecord<T extends Record<string, unknown>>(
+  record: T,
+  now: string = new Date().toISOString(),
+): T {
+  return {
+    ...createSyncMetadata(now),
+    ...record,
+  } as T
+}
 
 function compareScheduleDates(aYear: number, aMonth: number, bYear: number, bMonth: number) {
   if (aYear !== bYear) return aYear - bYear
@@ -55,57 +85,62 @@ function resolveScheduleValueForMonth(
 
 async function snapshotIncome(year: number, month: number, amount: number) {
   const now = new Date().toISOString()
-  const existing = await db.incomeSnapshots.where({ year, month }).first()
+  const existing = (await db.incomeSnapshots.where({ year, month }).toArray()).find(
+    (row) => row.deletedAt == null,
+  )
   if (existing) {
     await db.incomeSnapshots.update(existing.id as number, {
+      ...markPendingActiveRecord(existing, now),
       amountSnapshot: amount,
-      updatedAt: now,
     })
-    const updated = await db.incomeSnapshots.get(existing.id as number)
-    await enqueue('incomeSnapshots', 'update', updated as unknown as Record<string, unknown>)
   } else {
-    const id = await db.incomeSnapshots.add({
-      cloudId: crypto.randomUUID(),
+    const row: Omit<IncomeSnapshot, 'id'> = buildCreatedSyncRecord(
+      {
+        year,
+        month,
+        amountSnapshot: amount,
+      },
+      now,
+    )
+    await db.incomeSnapshots.add({
+      ...row,
       year,
       month,
-      amountSnapshot: amount,
-      createdAt: now,
-      updatedAt: now,
     })
-    const row = await db.incomeSnapshots.get(id)
-    await enqueue('incomeSnapshots', 'insert', row as unknown as Record<string, unknown>)
   }
 }
 
 async function snapshotSavings(year: number, month: number, rate: number) {
   const now = new Date().toISOString()
-  const existing = await db.savingsSnapshots.where({ year, month }).first()
+  const existing = (await db.savingsSnapshots.where({ year, month }).toArray()).find(
+    (row) => row.deletedAt == null,
+  )
   if (existing) {
     await db.savingsSnapshots.update(existing.id as number, {
+      ...markPendingActiveRecord(existing, now),
       rateSnapshot: rate,
-      updatedAt: now,
     })
-    const updated = await db.savingsSnapshots.get(existing.id as number)
-    await enqueue('savingsSnapshots', 'update', updated as unknown as Record<string, unknown>)
   } else {
-    const id = await db.savingsSnapshots.add({
-      cloudId: crypto.randomUUID(),
-      year,
-      month,
-      rateSnapshot: rate,
-      createdAt: now,
-      updatedAt: now,
-    })
-    const row = await db.savingsSnapshots.get(id)
-    await enqueue('savingsSnapshots', 'insert', row as unknown as Record<string, unknown>)
+    const row: Omit<SavingsSnapshot, 'id'> = buildCreatedSyncRecord(
+      {
+        year,
+        month,
+        rateSnapshot: rate,
+      },
+      now,
+    )
+    await db.savingsSnapshots.add(row)
   }
 }
 
 export {
-  enqueue,
   compareScheduleDates,
+  buildCreatedSyncRecord,
+  filterActiveRows,
   isBeforeMonth,
   isBeforeOrEqualMonth,
+  markDeletedSyncRecord,
+  markPendingActiveRecord,
   resolveScheduleValueForMonth,
   snapshotIncome,
   snapshotSavings,

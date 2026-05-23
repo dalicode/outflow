@@ -4,17 +4,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useOptimisticExpenseDelete } from '../hooks/useOptimisticExpenseDelete'
 import type { Expense } from '../types'
 
-const { remove, removeMany, add } = vi.hoisted(() => ({
+const { remove, removeMany, restoreExpense, restoreManyExpenses } = vi.hoisted(() => ({
   remove: vi.fn(),
   removeMany: vi.fn(),
-  add: vi.fn(),
+  restoreExpense: vi.fn(),
+  restoreManyExpenses: vi.fn(),
 }))
 
 vi.mock('../services/storageService', () => ({
   StorageService: {
     remove,
     removeMany,
-    add,
+    restoreExpense,
+    restoreManyExpenses,
   },
 }))
 
@@ -30,7 +32,8 @@ describe('useOptimisticExpenseDelete', () => {
     vi.clearAllMocks()
     remove.mockResolvedValue(undefined)
     removeMany.mockResolvedValue(undefined)
-    add.mockResolvedValue(1)
+    restoreExpense.mockResolvedValue(undefined)
+    restoreManyExpenses.mockResolvedValue(undefined)
   })
 
   it('hides expense immediately and commits delete after 2 seconds', async () => {
@@ -100,7 +103,7 @@ describe('useOptimisticExpenseDelete', () => {
     })
 
     expect(remove).not.toHaveBeenCalled()
-    expect(add).not.toHaveBeenCalled()
+    expect(restoreExpense).not.toHaveBeenCalled()
     expect(result.current.visibleExpenses.map((expense) => expense.id)).toEqual([1, 2, 3])
   })
 
@@ -138,7 +141,7 @@ describe('useOptimisticExpenseDelete', () => {
     })
 
     expect(remove).toHaveBeenCalledWith(2)
-    expect(add).toHaveBeenCalledWith(baseExpenses[1])
+    expect(restoreExpense).toHaveBeenCalledWith(baseExpenses[1].id)
     expect(triggerSync).toHaveBeenCalledTimes(2)
     expect(result.current.visibleExpenses.map((expense) => expense.id)).toEqual([1, 2, 3])
   })
@@ -178,9 +181,8 @@ describe('useOptimisticExpenseDelete', () => {
     })
 
     expect(removeMany).toHaveBeenCalledWith([1, 3])
-    expect(add).toHaveBeenCalledTimes(2)
-    expect(add).toHaveBeenNthCalledWith(1, baseExpenses[0])
-    expect(add).toHaveBeenNthCalledWith(2, baseExpenses[2])
+    expect(restoreManyExpenses).toHaveBeenCalledTimes(1)
+    expect(restoreManyExpenses).toHaveBeenCalledWith([1, 3])
     expect(result.current.visibleExpenses.map((expense) => expense.id)).toEqual([1, 2, 3])
   })
 })
