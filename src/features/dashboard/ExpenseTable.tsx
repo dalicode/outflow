@@ -1,7 +1,7 @@
 import {
+  Suspense,
   forwardRef,
   lazy,
-  Suspense,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -9,21 +9,21 @@ import {
   useState,
 } from 'react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import LoadingOverlay from '../../components/ui/LoadingOverlay'
+import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import ContextMenu from './components/ContextMenu'
 import DataTable from './components/DataTable'
 import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
 import { useContextMenu } from './hooks/useContextMenu'
+import ExpenseForm from '../expenses/ExpenseForm'
 import type { Category, Expense, Payee } from '../../types'
 import { cn } from '../../utils/cn'
 import { copyExpensesToClipboard } from '../../utils/copyExpenses'
-import BulkEditExpensesModal from './BulkEditExpensesModal'
 import ExpenseTableMobile from './ExpenseTableMobile'
 import { getExpenseColumns } from './expenseColumns'
 import { useExpenseCellEditing } from './useExpenseCellEditing'
 
-const ExpenseForm = lazy(() => import('../expenses/ExpenseForm'))
+const BulkEditExpensesModal = lazy(() => import('./BulkEditExpensesModal'))
 
 interface ExpenseTableProps {
   expenses: Expense[]
@@ -316,28 +316,39 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       )}
 
       {showMobileEditModal && mobileEditExpense && (
-        <Suspense fallback={<LoadingOverlay isOpen={true} message="Loading form..." />}>
-          <ExpenseForm
-            initialExpense={mobileEditExpense}
-            onUpdate={onUpdate}
-            onClose={cancelMobileEdit}
+        <ExpenseForm
+          initialExpense={mobileEditExpense}
+          onUpdate={onUpdate}
+          onClose={cancelMobileEdit}
+          categories={categories}
+          refreshCategories={refreshCategories}
+          refreshPayees={refreshPayees}
+        />
+      )}
+
+      {showBulkEditModal && (
+        <Suspense
+          fallback={
+            <LazyModalFallback
+              title={`Edit ${bulkEditTargetIds.length} Expenses`}
+              size="lg"
+              message="Loading bulk editor…"
+              onClose={closeBulkEditModal}
+            />
+          }
+        >
+          <BulkEditExpensesModal
+            isOpen={showBulkEditModal}
+            selectedExpenses={bulkEditExpenses}
             categories={categories}
+            payees={payees}
+            onClose={closeBulkEditModal}
+            onApply={handleBulkEditApply}
             refreshCategories={refreshCategories}
             refreshPayees={refreshPayees}
           />
         </Suspense>
       )}
-
-      <BulkEditExpensesModal
-        isOpen={showBulkEditModal}
-        selectedExpenses={bulkEditExpenses}
-        categories={categories}
-        payees={payees}
-        onClose={closeBulkEditModal}
-        onApply={handleBulkEditApply}
-        refreshCategories={refreshCategories}
-        refreshPayees={refreshPayees}
-      />
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}

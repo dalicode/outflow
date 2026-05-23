@@ -83,6 +83,19 @@ export async function addPayee(page: Page, name: string): Promise<number> {
   }, name);
 }
 
+export async function addFixedExpense(
+  page: Page,
+  item: { name: string; amount: number },
+): Promise<number> {
+  return page.evaluate(async (fixedExpense) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.addFixedExpense(fixedExpense);
+  }, item);
+}
+
 export async function exportAllData(page: Page): Promise<Record<string, unknown>> {
   return page.evaluate(async () => {
     const api = (window as Window & {
@@ -122,7 +135,17 @@ export async function getCategories(page: Page): Promise<Array<{ id?: number; na
 
 export async function getAllExpenses(
   page: Page,
-): Promise<Array<{ id?: number; localId?: string; date: string; amount: number; description?: string }>> {
+): Promise<
+  Array<{
+    id?: number;
+    localId?: string;
+    date: string;
+    amount: number;
+    description?: string;
+    categoryId?: number;
+    payeeId?: number;
+  }>
+> {
   await waitForTestApi(page);
   return page.evaluate(async () => {
     const api = (window as Window & {
@@ -155,6 +178,18 @@ export async function getPayees(
     }).outflowTestApi;
     if (!api) throw new Error("outflowTestApi not found");
     return api.getPayees();
+  });
+}
+
+export async function getFixedExpenses(
+  page: Page,
+): Promise<Array<{ id?: number; name: string; amount: number; isArchived?: boolean }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getFixedExpenses();
   });
 }
 
@@ -326,7 +361,23 @@ export async function longPressElement(
 
 export async function getSchedules(
   page: Page,
-): Promise<Array<{ id?: number; type: string; effectiveYear: number; effectiveMonth: number; newValue: number; isActive: number; note?: string }>> {
+): Promise<
+  Array<{
+    id?: number;
+    type: string;
+    effectiveYear: number;
+    effectiveMonth: number;
+    newValue: number;
+    isActive: number;
+    note?: string;
+    targetId?: number | null;
+    previousValue?: number | null;
+    materializedAt?: string;
+    day?: number;
+    categoryId?: number;
+    payeeId?: number;
+  }>
+> {
   return page.evaluate(async () => {
     const api = (window as Window & {
       outflowTestApi?: typeof import("../src/test/testApi").testApi;
@@ -470,6 +521,17 @@ export async function signInLiveSupabaseUser(
     if (!api) throw new Error("outflowTestApi not found");
     await api.signInLiveSupabaseUser(nextEmail, nextPassword);
   }, { nextEmail: email, nextPassword: password });
+
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const api = (window as Window & {
+        outflowTestApi?: typeof import("../src/test/testApi").testApi;
+      }).outflowTestApi;
+      if (!api) throw new Error("outflowTestApi not found");
+      const userId = api.getCurrentSyncUserId();
+      return typeof userId === "string" && userId.length > 0;
+    });
+  }).toBe(true);
 }
 
 export async function signOutLiveSupabaseUser(page: Page): Promise<void> {

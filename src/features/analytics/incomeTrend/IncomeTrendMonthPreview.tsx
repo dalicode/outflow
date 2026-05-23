@@ -65,6 +65,7 @@ const IncomeTrendMonthPreview = forwardRef<HTMLDivElement, IncomeTrendMonthPrevi
     const cumulativeColor = row.cumulativeRemaining < 0 ? colors.danger : colors.success
 
     const savedColor = row.saved < 0 ? colors.danger : row.saved > 0 ? colors.success : undefined
+    const monthHeading = `${row.monthLabel} ${row.monthKey.slice(0, 4)}`
 
     return (
       <div
@@ -74,11 +75,11 @@ const IncomeTrendMonthPreview = forwardRef<HTMLDivElement, IncomeTrendMonthPrevi
         data-testid="income-trend-month-preview"
       >
         <div className="flex items-center justify-between px-4 pt-3 pb-2 sm:px-5">
-          <span className="text-sm font-semibold text-theme-text">{row.monthLabel}</span>
+          <span className="text-sm font-semibold text-theme-text">{monthHeading}</span>
           <button
             type="button"
             onClick={onDismiss}
-            aria-label={`Dismiss ${row.monthLabel} preview`}
+            aria-label={`Dismiss ${monthHeading} preview`}
             className="rounded-theme-small border border-theme-border px-2 py-1 text-[0.6875rem] font-medium text-theme-muted hover:text-theme-text hover:border-theme-text transition-colors"
           >
             Close

@@ -14,11 +14,8 @@ import { useAuth } from './context/authContext'
 import { FinanceDataProvider, useFinanceActions } from './context/financeDataContext'
 import { useSettings } from './context/settingsContext'
 import { ToastProvider, useToasts } from './context/toastContext'
-import AnalyticsPage from './features/analytics/AnalyticsPage'
 import Dashboard from './features/dashboard/Dashboard'
-import PayeesPage from './features/payees/PayeesPage'
-import SettingsPage from './features/settings/SettingsPage'
-import SummaryPage from './features/summary/SummaryPage'
+import ExpenseForm from './features/expenses/ExpenseForm'
 import { useAppRefresh } from './hooks/useAppRefresh'
 import { useAppSessionState } from './hooks/useAppSessionState'
 import { useCategories, useExpenses, usePayees } from './hooks/useLocalData'
@@ -30,7 +27,64 @@ import type { Expense } from './types'
 import { cn } from './utils/cn'
 
 const AuthPage = lazy(() => import('./features/auth/AuthPage'))
-const ExpenseForm = lazy(() => import('./features/expenses/ExpenseForm'))
+const loadSummaryPage = () => import('./features/summary/SummaryPage')
+const loadAnalyticsPage = () => import('./features/analytics/AnalyticsPage')
+const loadPayeesPage = () => import('./features/payees/PayeesPage')
+const loadSettingsPage = () => import('./features/settings/SettingsPage')
+
+const SummaryPage = lazy(loadSummaryPage)
+const AnalyticsPage = lazy(loadAnalyticsPage)
+const PayeesPage = lazy(loadPayeesPage)
+const SettingsPage = lazy(loadSettingsPage)
+
+interface PageFallbackProps {
+  message: string
+}
+
+function PageFallback({ message }: PageFallbackProps) {
+  return (
+    <>
+      <div className="min-h-full" aria-hidden="true" />
+      <LoadingOverlay isOpen={true} message={message} />
+    </>
+  )
+}
+
+function DashboardPrefetchWrapper({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    let timeoutId: number | null = null
+    let idleId: number | null = null
+    let cancelled = false
+
+    const prefetchSummary = () => {
+      if (cancelled) return
+      void loadSummaryPage()
+    }
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(prefetchSummary, { timeout: 2000 })
+    } else {
+      timeoutId = window.setTimeout(prefetchSummary, 1000)
+    }
+
+    return () => {
+      cancelled = true
+      if (idleId != null && idleWindow.cancelIdleCallback) {
+        idleWindow.cancelIdleCallback(idleId)
+      }
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [])
+
+  return <>{children}</>
+}
 
 function useScrollVisibility() {
   const [isScrolling, setIsScrolling] = useState(false)
@@ -331,25 +385,27 @@ function AppShell() {
                 <Route
                   path={ROUTES.DASHBOARD}
                   element={
-                    <Dashboard
-                      expenses={visibleExpenses}
-                      categories={categories}
-                      payees={payees}
-                      onUpdate={handleUpdate}
-                      onDelete={handleDelete}
-                      onBulkDelete={handleBulkDelete}
-                      onAddExpense={() => setShowForm(true)}
-                      onSelectionChange={setMobileSelectionActive}
-                      onScroll={handlePageScroll}
-                      refreshCategories={refreshCategories}
-                      refreshPayees={refreshPayees}
-                      registerCycleView={(fn) => {
-                        cycleDashboardViewRef.current = fn
-                      }}
-                      sessionState={dashboardSession}
-                      onSessionStateChange={handleDashboardSessionChange}
-                      onRefresh={handlePullRefresh}
-                    />
+                    <DashboardPrefetchWrapper>
+                      <Dashboard
+                        expenses={visibleExpenses}
+                        categories={categories}
+                        payees={payees}
+                        onUpdate={handleUpdate}
+                        onDelete={handleDelete}
+                        onBulkDelete={handleBulkDelete}
+                        onAddExpense={() => setShowForm(true)}
+                        onSelectionChange={setMobileSelectionActive}
+                        onScroll={handlePageScroll}
+                        refreshCategories={refreshCategories}
+                        refreshPayees={refreshPayees}
+                        registerCycleView={(fn) => {
+                          cycleDashboardViewRef.current = fn
+                        }}
+                        sessionState={dashboardSession}
+                        onSessionStateChange={handleDashboardSessionChange}
+                        onRefresh={handlePullRefresh}
+                      />
+                    </DashboardPrefetchWrapper>
                   }
                 />
                 <Route
@@ -361,7 +417,9 @@ function AppShell() {
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                       onRefresh={handlePullRefresh}
                     >
-                      <SummaryPage expenses={visibleExpenses} />
+                      <Suspense fallback={<PageFallback message="Loading summary…" />}>
+                        <SummaryPage expenses={visibleExpenses} />
+                      </Suspense>
                     </ScrollablePage>
                   }
                 />
@@ -374,13 +432,15 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <AnalyticsPage
-                        expenses={visibleExpenses}
-                        categories={categories}
-                        payees={payees}
-                        sessionState={analyticsSession}
-                        onSessionStateChange={handleAnalyticsSessionChange}
-                      />
+                      <Suspense fallback={<PageFallback message="Loading analytics…" />}>
+                        <AnalyticsPage
+                          expenses={visibleExpenses}
+                          categories={categories}
+                          payees={payees}
+                          sessionState={analyticsSession}
+                          onSessionStateChange={handleAnalyticsSessionChange}
+                        />
+                      </Suspense>
                     </ScrollablePage>
                   }
                 />
@@ -393,10 +453,12 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <PayeesPage
-                        refreshExpenses={refreshExpenses}
-                        triggerSync={syncLocalChanges}
-                      />
+                      <Suspense fallback={<PageFallback message="Loading payees…" />}>
+                        <PayeesPage
+                          refreshExpenses={refreshExpenses}
+                          triggerSync={syncLocalChanges}
+                        />
+                      </Suspense>
                     </ScrollablePage>
                   }
                 />
@@ -409,47 +471,47 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <SettingsPage
-                        expenses={visibleExpenses}
-                        onImport={async () => setExpenses(await StorageService.getAll())}
-                        onRefreshAll={async () => {
-                          await refreshExpenses()
-                          await refreshCategories()
-                          await refreshPayees()
-                          forceFinanceDataRefresh()
-                        }}
-                        triggerSync={syncLocalChanges}
-                        syncNow={syncNow}
-                        syncLocalThenPull={syncLocalThenPull}
-                        syncLocalChanges={syncLocalChanges}
-                        showSignIn={!!supabase && !user}
-                        onSignIn={() => setShowAuthModal(true)}
-                      />
+                      <Suspense fallback={<PageFallback message="Loading settings…" />}>
+                        <SettingsPage
+                          expenses={visibleExpenses}
+                          onImport={async () => setExpenses(await StorageService.getAll())}
+                          onRefreshAll={async () => {
+                            await refreshExpenses()
+                            await refreshCategories()
+                            await refreshPayees()
+                            forceFinanceDataRefresh()
+                          }}
+                          triggerSync={syncLocalChanges}
+                          syncNow={syncNow}
+                          syncLocalThenPull={syncLocalThenPull}
+                          syncLocalChanges={syncLocalChanges}
+                          showSignIn={!!supabase && !user}
+                          onSignIn={() => setShowAuthModal(true)}
+                        />
+                      </Suspense>
                     </ScrollablePage>
                   }
                 />
               </Routes>
             </main>
             {showForm && (
-              <Suspense fallback={<LoadingOverlay isOpen={true} message="Loading form..." />}>
-                <ExpenseForm
-                  onAdd={handleAdd}
-                  onClose={() => setShowForm(false)}
-                  categories={categories}
-                  onCategoriesChange={handleCategoriesChange}
-                  refreshCategories={refreshCategories}
-                  refreshPayees={refreshPayees}
-                  refreshExpenses={refreshExpenses}
-                  triggerSync={syncLocalChanges}
-                />
-              </Suspense>
+              <ExpenseForm
+                onAdd={handleAdd}
+                onClose={() => setShowForm(false)}
+                categories={categories}
+                onCategoriesChange={handleCategoriesChange}
+                refreshCategories={refreshCategories}
+                refreshPayees={refreshPayees}
+                refreshExpenses={refreshExpenses}
+                triggerSync={syncLocalChanges}
+              />
             )}
             {showAuthModal && (
               <Modal isOpen={true} onClose={() => setShowAuthModal(false)} title="" size="sm">
                 <Suspense
                   fallback={
-                    <div className="py-8 text-center text-sm text-theme-muted">
-                      Loading sign in...
+                    <div className="relative min-h-32">
+                      <LoadingOverlay isOpen={true} inline message="Loading sign in…" />
                     </div>
                   }
                 >

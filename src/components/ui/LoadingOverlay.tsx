@@ -7,6 +7,7 @@ interface LoadingOverlayProps {
   message?: string
   subMessage?: string
   showSpinner?: boolean
+  inline?: boolean
 }
 
 export default function LoadingOverlay({
@@ -14,21 +15,28 @@ export default function LoadingOverlay({
   message = 'Loading…',
   subMessage,
   showSpinner = true,
+  inline = false,
 }: LoadingOverlayProps) {
   if (!isOpen) return null
 
-  return createPortal(
+  const overlayContent = (
     <div
       className={cn(
-        'fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3',
-        'h-[100dvh] w-[100dvw]',
-        'bg-theme-background-solid backdrop-blur-sm',
+        'flex flex-col items-center justify-center gap-3 backdrop-blur-sm',
+        inline
+          ? 'absolute inset-0 z-10 bg-theme-background-solid'
+          : 'fixed inset-0 z-[60] h-[100dvh] w-[100dvw] bg-theme-background-solid',
       )}
     >
       {showSpinner && <Spinner />}
       <p className="text-theme-text font-medium">{message}</p>
       {subMessage && <p className="text-theme-muted text-sm">{subMessage}</p>}
-    </div>,
-    document.body,
+    </div>
   )
+
+  if (inline) {
+    return overlayContent
+  }
+
+  return createPortal(overlayContent, document.body)
 }

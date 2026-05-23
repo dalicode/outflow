@@ -194,7 +194,8 @@ describe('SettingsPage', () => {
 
     render(<SettingsPage expenses={[]} syncLocalChanges={syncLocalChanges} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Complete schedule' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Schedule' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Complete schedule' }))
 
     await waitFor(() => {
       expect(loadSchedules).toHaveBeenCalled()

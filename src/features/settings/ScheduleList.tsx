@@ -1,5 +1,6 @@
 import type { Category, Schedule } from '../../types'
 import { cn } from '../../utils/cn'
+import { partitionSchedulesForList } from '../../utils/scheduleListVisibility'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -20,13 +21,7 @@ export default function ScheduleList({
     return <p className="text-xs text-theme-muted italic mb-2">No scheduled changes yet.</p>
   }
 
-  const upcoming = schedules
-    .filter((s) => s.isActive)
-    .sort((a, b) => a.effectiveYear - b.effectiveYear || a.effectiveMonth - b.effectiveMonth)
-
-  const past = schedules
-    .filter((s) => !s.isActive)
-    .sort((a, b) => b.effectiveYear - a.effectiveYear || b.effectiveMonth - a.effectiveMonth)
+  const { upcoming, archived } = partitionSchedulesForList(schedules)
 
   return (
     <div className="space-y-1.5 mb-2 max-h-48 overflow-y-auto scrollbar-themed">
@@ -47,12 +42,12 @@ export default function ScheduleList({
           ))}
         </div>
       )}
-      {past.length > 0 && (
+      {archived.length > 0 && (
         <div className="space-y-1 mt-2">
           <p className="text-[10px] font-semibold text-theme-muted uppercase tracking-wide">
             Archived
           </p>
-          {past.map((s) => (
+          {archived.map((s) => (
             <ScheduleItem
               key={s.id}
               schedule={s}

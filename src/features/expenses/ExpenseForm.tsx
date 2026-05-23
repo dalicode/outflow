@@ -1,9 +1,10 @@
-import { type FormEvent, useCallback, useMemo, useState } from 'react'
+import { Suspense, type FormEvent, lazy, useCallback, useMemo, useState } from 'react'
 import DatePicker from '../../components/inputs/DatePicker'
 import MobileEntityPicker from '../../components/inputs/MobileEntityPicker'
 import MoneyInput from '../../components/inputs/MoneyInput'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
+import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
 import { useHaptics } from '../../hooks/useHaptics'
@@ -16,12 +17,13 @@ import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 import type { MatchConfidence } from '../../utils/payeeMatching'
 import { findBestPayeeMatch } from '../../utils/payeeMatching'
-import CategoryModal from './CategoryModal'
-import PayeeModal from './PayeeModal'
 import './expenses.css'
 import type { Category, Expense, Payee } from '../../types'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
+
+const CategoryModal = lazy(() => import('./CategoryModal'))
+const PayeeModal = lazy(() => import('./PayeeModal'))
 
 const EMPTY_FORM = {
   date: getLocalToday(),
@@ -486,23 +488,43 @@ export default function ExpenseForm({
         </form>
       </Modal>
       {showCatModal && (
-        <CategoryModal
-          categories={categories}
-          onCategoriesChange={onCategoriesChange}
-          refreshCategories={refreshCategoriesProp}
-          refreshExpenses={refreshExpensesProp}
-          onClose={() => setShowCatModal(false)}
-        />
+        <Suspense
+          fallback={
+            <LazyModalFallback
+              title="Manage Categories"
+              message="Loading category manager…"
+              onClose={() => setShowCatModal(false)}
+            />
+          }
+        >
+          <CategoryModal
+            categories={categories}
+            onCategoriesChange={onCategoriesChange}
+            refreshCategories={refreshCategoriesProp}
+            refreshExpenses={refreshExpensesProp}
+            onClose={() => setShowCatModal(false)}
+          />
+        </Suspense>
       )}
       {showPayeeModal && (
-        <PayeeModal
-          payees={payees}
-          onPayeesChange={refreshPayees}
-          refreshPayees={refreshPayeesProp}
-          refreshExpenses={refreshExpensesProp}
-          triggerSync={triggerSync}
-          onClose={() => setShowPayeeModal(false)}
-        />
+        <Suspense
+          fallback={
+            <LazyModalFallback
+              title="Manage Payees"
+              message="Loading payee manager…"
+              onClose={() => setShowPayeeModal(false)}
+            />
+          }
+        >
+          <PayeeModal
+            payees={payees}
+            onPayeesChange={refreshPayees}
+            refreshPayees={refreshPayeesProp}
+            refreshExpenses={refreshExpensesProp}
+            triggerSync={triggerSync}
+            onClose={() => setShowPayeeModal(false)}
+          />
+        </Suspense>
       )}
     </>
   )

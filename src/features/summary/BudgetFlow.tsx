@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import BudgetFlowBar, { AllocationRow, barPct } from '../../components/ui/BudgetFlowBar'
+import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
 import type { FixedExpense, MonthlySummary } from '../../types'
@@ -8,7 +9,8 @@ import { getCategoryColor } from '../../utils/summaryColorUtils'
 import { PencilIcon } from '../../components/ui/IconButton'
 import IncomeModalForm from '../dashboard/components/IncomeModalForm'
 import SavingsModalForm from '../dashboard/components/SavingsModalForm'
-import FixedExpenseManagerModal from '../fixedExpenses/FixedExpenseManagerModal'
+
+const FixedExpenseManagerModal = lazy(() => import('../fixedExpenses/FixedExpenseManagerModal'))
 
 interface BudgetFlowProps {
   summary: MonthlySummary
@@ -227,14 +229,26 @@ export default function BudgetFlow({
         description="Percentage of income automatically set aside. Remaining budget = income − fixed expenses − auto savings."
       />
 
-      <FixedExpenseManagerModal
-        isOpen={showFixedExpensesModal}
-        onClose={() => setShowFixedExpensesModal(false)}
-        items={fixedExpenses}
-        onAdd={onAddFixed}
-        onUpdate={onUpdateFixed}
-        onDelete={onDeleteFixed}
-      />
+      {showFixedExpensesModal && (
+        <Suspense
+          fallback={
+            <LazyModalFallback
+              title="Manage Fixed Expenses"
+              message="Loading fixed expense manager…"
+              onClose={() => setShowFixedExpensesModal(false)}
+            />
+          }
+        >
+          <FixedExpenseManagerModal
+            isOpen={showFixedExpensesModal}
+            onClose={() => setShowFixedExpensesModal(false)}
+            items={fixedExpenses}
+            onAdd={onAddFixed}
+            onUpdate={onUpdateFixed}
+            onDelete={onDeleteFixed}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

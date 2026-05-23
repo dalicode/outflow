@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
+import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
 import type { FixedExpense } from '../../types'
-import FixedExpenseManagerModal from './FixedExpenseManagerModal'
+
+const FixedExpenseManagerModal = lazy(() => import('./FixedExpenseManagerModal'))
 
 interface FixedExpensesListProps {
   items: FixedExpense[]
@@ -85,14 +87,26 @@ export default function FixedExpensesList({
           </div>
         </button>
 
-        <FixedExpenseManagerModal
-          isOpen={showManageModal}
-          onClose={() => setShowManageModal(false)}
-          items={items}
-          onAdd={onAdd}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-        />
+        {showManageModal && (
+          <Suspense
+            fallback={
+              <LazyModalFallback
+                title="Manage Fixed Expenses"
+                message="Loading fixed expense manager…"
+                onClose={() => setShowManageModal(false)}
+              />
+            }
+          >
+            <FixedExpenseManagerModal
+              isOpen={showManageModal}
+              onClose={() => setShowManageModal(false)}
+              items={items}
+              onAdd={onAdd}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          </Suspense>
+        )}
       </>
     )
   }
@@ -159,14 +173,26 @@ export default function FixedExpensesList({
         </ul>
       )}
 
-      <FixedExpenseManagerModal
-        isOpen={showManageModal}
-        onClose={() => setShowManageModal(false)}
-        items={items}
-        onAdd={onAdd}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />
+      {showManageModal && (
+        <Suspense
+          fallback={
+            <LazyModalFallback
+              title="Manage Fixed Expenses"
+              message="Loading fixed expense manager…"
+              onClose={() => setShowManageModal(false)}
+            />
+          }
+        >
+          <FixedExpenseManagerModal
+            isOpen={showManageModal}
+            onClose={() => setShowManageModal(false)}
+            items={items}
+            onAdd={onAdd}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

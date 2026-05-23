@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import './settings.css'
 import DatePicker from '../../components/inputs/DatePicker'
 import Card from '../../components/ui/Card'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import LoadingOverlay from '../../components/ui/LoadingOverlay'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
@@ -18,13 +19,14 @@ import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { useBackup } from '../importExport/hooks/useBackup'
 import { useCsvImport } from '../importExport/hooks/useCsvImport'
 import ImportLogPanel from '../importExport/ImportLogPanel'
-import ImportReviewModal from '../importExport/ImportReviewModal'
 import { downloadCSV, expenseToRow } from '../importExport/utils/csvHelpers'
-import EditHistoricalDataModal from './EditHistoricalDataModal'
 import ScheduleList from './ScheduleList'
-import ScheduleModal from './ScheduleModal'
 import ThemeSelector from './ThemeSelector'
 import AboutSection from './AboutSection'
+
+const ImportReviewModal = lazy(() => import('../importExport/ImportReviewModal'))
+const EditHistoricalDataModal = lazy(() => import('./EditHistoricalDataModal'))
+const ScheduleModal = lazy(() => import('./ScheduleModal'))
 
 interface RowProps {
   label: string
@@ -676,16 +678,29 @@ export default function SettingsPage({
 
         {/* ── MODALS ── */}
 
-        <ImportReviewModal
-          open={Boolean(csvImport.pendingImport)}
-          isLoading={Boolean(csvImport.pendingImport?.isLoading)}
-          summary={csvImport.pendingImport?.summary ?? null}
-          reviewRows={csvImport.pendingImport?.reviewRows ?? []}
-          activePayees={csvImport.pendingImport?.activePayees ?? []}
-          onBack={csvImport.handleCancelReview}
-          onSkipReview={csvImport.handleSkipReview}
-          onImport={csvImport.handleFinalizeImport}
-        />
+        {Boolean(csvImport.pendingImport) && (
+          <Suspense
+            fallback={
+              <LazyModalFallback
+                title="Review Import"
+                size="xl"
+                message="Loading import review…"
+                onClose={csvImport.handleCancelReview}
+              />
+            }
+          >
+            <ImportReviewModal
+              open={Boolean(csvImport.pendingImport)}
+              isLoading={Boolean(csvImport.pendingImport?.isLoading)}
+              summary={csvImport.pendingImport?.summary ?? null}
+              reviewRows={csvImport.pendingImport?.reviewRows ?? []}
+              activePayees={csvImport.pendingImport?.activePayees ?? []}
+              onBack={csvImport.handleCancelReview}
+              onSkipReview={csvImport.handleSkipReview}
+              onImport={csvImport.handleFinalizeImport}
+            />
+          </Suspense>
+        )}
 
         <Modal
           isOpen={backup.showPasswordModal}
@@ -1006,20 +1021,33 @@ export default function SettingsPage({
           </div>
         </Modal>
 
-        <EditHistoricalDataModal
-          isOpen={isHistoricalDataModalOpen}
-          onClose={() => setIsHistoricalDataModalOpen(false)}
-          years={availableYears}
-          expenses={expenses}
-          defaultIncome={monthlyIncome}
-          defaultSavingsRate={savingsRate}
-          onComplete={() => {
-            setEditHistoricalDataYears([])
-            setShowHistoricalCompletionPrompt(false)
-            onRefreshAll?.()
-            void (syncLocalThenPull ?? syncNow)?.()
-          }}
-        />
+        {isHistoricalDataModalOpen && (
+          <Suspense
+            fallback={
+              <LazyModalFallback
+                title="Edit Historical Data"
+                size="full"
+                message="Loading historical editor…"
+                onClose={() => setIsHistoricalDataModalOpen(false)}
+              />
+            }
+          >
+            <EditHistoricalDataModal
+              isOpen={isHistoricalDataModalOpen}
+              onClose={() => setIsHistoricalDataModalOpen(false)}
+              years={availableYears}
+              expenses={expenses}
+              defaultIncome={monthlyIncome}
+              defaultSavingsRate={savingsRate}
+              onComplete={() => {
+                setEditHistoricalDataYears([])
+                setShowHistoricalCompletionPrompt(false)
+                onRefreshAll?.()
+                void (syncLocalThenPull ?? syncNow)?.()
+              }}
+            />
+          </Suspense>
+        )}
 
         <Modal
           isOpen={showHistoricalCompletionPrompt && editHistoricalDataYears.length > 0}
@@ -1052,16 +1080,28 @@ export default function SettingsPage({
           </p>
         </Modal>
 
-        <ScheduleModal
-          isOpen={isScheduleModalOpen}
-          onClose={handleScheduleModalClose}
-          editSchedule={scheduleToEdit}
-          onComplete={() => {
-            loadSchedules()
-            onRefreshAll?.()
-            queueLocalSync()
-          }}
-        />
+        {isScheduleModalOpen && (
+          <Suspense
+            fallback={
+              <LazyModalFallback
+                title={scheduleToEdit ? 'Edit Schedule' : 'Add Schedule'}
+                message="Loading schedule editor…"
+                onClose={handleScheduleModalClose}
+              />
+            }
+          >
+            <ScheduleModal
+              isOpen={isScheduleModalOpen}
+              onClose={handleScheduleModalClose}
+              editSchedule={scheduleToEdit}
+              onComplete={() => {
+                loadSchedules()
+                onRefreshAll?.()
+                queueLocalSync()
+              }}
+            />
+          </Suspense>
+        )}
       </div>
     </main>
   )

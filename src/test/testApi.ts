@@ -52,6 +52,7 @@ export const testApi = {
 
   getCategories: () => StorageService.getCategories(),
   getPayees: () => StorageService.getPayees(),
+  getFixedExpenses: () => StorageService.getFixedExpenses(),
   getAllExpenses: () => StorageService.getAll(),
   getAllExpensesIncludingDeleted: () => StorageService.getAllExpenses(),
   getSyncMetadataCounts: () => StorageService.getSyncMetadataCounts(),
