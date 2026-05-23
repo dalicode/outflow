@@ -232,6 +232,18 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-storage": ["dexie", "dexie-react-hooks"],
+          "vendor-supabase": ["@supabase/supabase-js"],
+          "vendor-charts": ["recharts"],
+        },
+      },
+    },
+  },
   preview: {
     allowedHosts: ["mortally-unless-reentry.ngrok-free.dev"],
   },
