@@ -217,11 +217,7 @@ function AppShell() {
       const archivedCategory = categories.find((category) => category.id === payload.id)
       await StorageService.deleteCategory(payload.id)
       showUndoToast(`${archivedCategory?.name ?? 'Category'} archived.`, async () => {
-        await StorageService.updateCategory(payload.id as number, {
-          isArchived: false,
-          archivedAt: undefined,
-          mergedIntoCategoryId: null,
-        })
+        await StorageService.unarchiveCategory(payload.id as number)
         await refreshCategories()
         void syncLocalChanges()
       })
@@ -441,6 +437,7 @@ function AppShell() {
                   onClose={() => setShowForm(false)}
                   categories={categories}
                   onCategoriesChange={handleCategoriesChange}
+                  refreshCategories={refreshCategories}
                   refreshPayees={refreshPayees}
                   refreshExpenses={refreshExpenses}
                   triggerSync={syncLocalChanges}

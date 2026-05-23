@@ -383,36 +383,45 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }, [])
 
-  const showToast = useCallback((toast: Omit<ToastItem, 'id' | 'isUndo'>) => {
+  const enqueueToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
     const id = makeId()
     setToasts((current) => {
       const isMobile = typeof window !== 'undefined' && window.innerWidth < DESKTOP_BP
       if (!isMobile) {
         if (current.length >= 3) {
-          return [...current.slice(1), { ...toast, id, isUndo: false }]
+          return [...current.slice(1), { ...toast, id }]
         }
-        return [...current, { ...toast, id, isUndo: false }]
+        return [...current, { ...toast, id }]
+      }
+      if (toast.isUndo) {
+        return [{ ...toast, id }]
       }
       // Mobile: don't replace an active undo toast with a routine toast
       const activeUndo = current.some((t) => t.isUndo)
-      if (activeUndo && !('onAction' in toast && toast.onAction)) {
-        return [...current, { ...toast, id, isUndo: false }]
+      if (activeUndo && !toast.onAction) {
+        return [...current, { ...toast, id }]
       }
-      return [{ ...toast, id, isUndo: false }]
+      return [{ ...toast, id }]
     })
     return id
   }, [])
 
+  const showToast = useCallback(
+    (toast: Omit<ToastItem, 'id' | 'isUndo'>) => enqueueToast({ ...toast, isUndo: false }),
+    [enqueueToast],
+  )
+
   const showUndoToast = useCallback<ToastContextValue['showUndoToast']>(
     (message, onUndo, options) =>
-      showToast({
+      enqueueToast({
         message,
         onAction: onUndo,
         actionLabel: options?.actionLabel ?? 'Undo',
         tone: options?.tone ?? 'success',
         durationMs: options?.durationMs ?? UNDO_DURATION,
-      } as ToastItem),
-    [showToast],
+        isUndo: true,
+      }),
+    [enqueueToast],
   )
 
   useEffect(

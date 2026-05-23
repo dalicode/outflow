@@ -1,9 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import { addPayee, expect, getPayees, resetAppState } from "./helpers";
 
 test.describe("Payees — mobile", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/payees");
-    await page.getByTestId("payees-page").waitFor({ timeout: 15000 });
+    await resetAppState(page, { route: "/payees" });
   });
 
   test("payees page renders with existing payees", async ({ page }) => {
@@ -41,5 +41,24 @@ test.describe("Payees — mobile", () => {
 
     // Inline edit input should appear with a Save button
     await expect(firstRow.locator("text=Save")).toBeVisible({ timeout: 3000 });
+  });
+
+  test("archive a payee and undo", async ({ page }) => {
+    await addPayee(page, "Undo Payee");
+    await page.reload();
+    await page.getByTestId("payees-page").waitFor({ timeout: 15000 });
+
+    const payees = await getPayees(page);
+    const undoPayee = payees.find((payee) => payee.name === "Undo Payee");
+    expect(undoPayee?.id).toBeTruthy();
+
+    await page.getByTestId(`btn-delete-payee-${undoPayee?.id}`).click();
+    await page.getByRole("button", { name: "Delete" }).last().click();
+
+    await expect(page.getByTestId(`payee-row-${undoPayee?.id}`)).not.toBeVisible({ timeout: 3000 });
+    await page.getByRole("button", { name: "Undo" }).click();
+
+    await expect.poll(async () => (await getPayees(page)).some((payee) => payee.name === "Undo Payee")).toBe(true);
+    await expect(page.getByText("Undo Payee")).toBeVisible({ timeout: 3000 });
   });
 });

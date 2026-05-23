@@ -1,17 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { StorageService } from '../services/storageService'
 import type { Category } from '../types'
 
 export const useCategories = () => {
-  const [categories, setCategories] = useState<Category[]>([])
-
-  useEffect(() => {
-    StorageService.getCategories().then((data: Category[]) => setCategories(data))
-  }, [])
+  const [refreshNonce, setRefreshNonce] = useState(0)
+  const categories = useLiveQuery(() => StorageService.getCategories(), [refreshNonce]) ?? []
 
   const refresh = useCallback(async () => {
-    setCategories((await StorageService.getCategories()) as Category[])
+    await StorageService.getCategories()
+    setRefreshNonce((current) => current + 1)
   }, [])
 
-  return { categories, setCategories, refresh }
+  return { categories: categories as Category[], refresh }
 }

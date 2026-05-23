@@ -1,5 +1,6 @@
 import { test } from "@playwright/test";
 import {
+  addCategory,
   expect,
   getCategories,
   resetAppState,
@@ -75,5 +76,38 @@ test.describe("Category management (desktop)", () => {
       .toBe(true);
 
     await page.getByRole("button", { name: "Done" }).first().click();
+  });
+
+  test("archive category and undo from manage categories", async ({ page }) => {
+    await addCategory(page, "UndoCategory");
+
+    await page.reload();
+    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
+
+    const categories = await getCategories(page);
+    const targetCat = categories.find((c) => c.name === "UndoCategory");
+    expect(targetCat?.id).toBeTruthy();
+
+    await page.getByTestId("btn-add-expense").first().click();
+    await expect(page.getByTestId("expense-form")).toBeVisible();
+    await page.getByRole("button", { name: "+ Manage" }).nth(1).click();
+    await expect(page.getByRole("heading", { name: "Manage Categories" })).toBeVisible({
+      timeout: 5000,
+    });
+
+    await page.getByPlaceholder("Search categories...").fill("UndoCategory");
+    const catRow = page.getByTestId(`category-row-${targetCat?.id}`);
+    await catRow.getByRole("button", { name: "Delete" }).click();
+    await expect(page.getByRole("heading", { name: "Delete category" })).toBeVisible();
+    await page.getByRole("button", { name: "Delete" }).last().click();
+
+    await expect(catRow).not.toBeVisible({ timeout: 3000 });
+    await expect(page.getByText("UndoCategory archived.")).toBeVisible();
+    await page.getByRole("button", { name: "Undo" }).click();
+
+    await expect
+      .poll(async () => (await getCategories(page)).some((c) => c.name === "UndoCategory"))
+      .toBe(true);
+    await expect(catRow).toBeVisible({ timeout: 3000 });
   });
 });

@@ -94,6 +94,7 @@ export const StorageService = {
   ensureCategoriesForImport: categoryRepo.ensureForImport,
   updateCategory: categoryRepo.updateCategory,
   deleteCategory: categoryRepo.deleteCategory,
+  unarchiveCategory: categoryRepo.unarchiveCategory,
   mergeCategory: categoryRepo.mergeCategory,
   revertCategoryMerge: categoryRepo.revertCategoryMerge,
 

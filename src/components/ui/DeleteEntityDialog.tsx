@@ -39,7 +39,6 @@ export default function DeleteEntityDialog({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => {
               onConfirmDelete()
-              onClose()
             }}
             className="btn-modal-destructive flex-1"
           >
@@ -62,7 +61,6 @@ export default function DeleteEntityDialog({
             <button
               type="button"
               onClick={() => {
-                onClose()
                 onMergeInstead()
               }}
               className="w-full btn-modal-primary py-2 text-xs"

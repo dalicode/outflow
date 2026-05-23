@@ -1,4 +1,5 @@
-import { type FormEvent, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
 import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
 import Modal from '../../components/ui/Modal'
@@ -27,6 +28,8 @@ export default function CategoryModal({
   refreshExpenses,
 }: CategoryModalProps) {
   const { showToast, showUndoToast } = useToasts()
+  const hydratedCategories = useLiveQuery(() => StorageService.getCategories())
+  const [categoryRows, setCategoryRows] = useState<Category[]>(categories)
   const [newName, setNewName] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -36,7 +39,20 @@ export default function CategoryModal({
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
   const newNameInputRef = useRef<HTMLInputElement>(null)
 
-  const active = categories
+  useEffect(() => {
+    setCategoryRows(categories)
+  }, [categories])
+
+  useEffect(() => {
+    if (!hydratedCategories) return
+    setCategoryRows(hydratedCategories)
+  }, [hydratedCategories])
+
+  useEffect(() => {
+    void StorageService.getCategories().then((rows) => setCategoryRows(rows))
+  }, [])
+
+  const active = categoryRows
     .filter((c) => !c.isArchived)
     .sort((a, b) => a.name.localeCompare(b.name))
   const filteredCategories = active.filter((category) =>
@@ -260,9 +276,19 @@ export default function CategoryModal({
           onConfirmDelete={async () => {
             if (onCategoriesChange) {
               await onCategoriesChange('delete', { id: deleteTarget.id })
-            } else {
-              await StorageService.deleteCategory(deleteTarget.id as number)
               await refreshCategories?.()
+              await refreshExpenses?.()
+            } else {
+              const archivedCategoryId = deleteTarget.id as number
+              const archivedCategoryName = deleteTarget.name
+              await StorageService.deleteCategory(archivedCategoryId)
+              await refreshCategories?.()
+              await refreshExpenses?.()
+              showUndoToast(`${archivedCategoryName} archived.`, async () => {
+                await StorageService.unarchiveCategory(archivedCategoryId)
+                await refreshCategories?.()
+                await refreshExpenses?.()
+              })
             }
             setDeleteTarget(null)
           }}

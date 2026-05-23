@@ -171,6 +171,20 @@ export async function deleteCategory(id: number): Promise<void> {
   })
 }
 
+export async function unarchiveCategory(id: number): Promise<void> {
+  const existing = await db.categories.get(id)
+  if (!existing) return
+  const now = new Date().toISOString()
+  await db.categories.put({
+    ...existing,
+    ...markPendingActiveRecord(existing, now),
+    id,
+    isArchived: false,
+    archivedAt: undefined,
+    mergedIntoCategoryId: null,
+  })
+}
+
 export async function mergeCategory(
   sourceCategoryId: number,
   targetCategoryId: number,

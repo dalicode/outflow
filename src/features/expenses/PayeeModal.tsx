@@ -1,4 +1,5 @@
-import { type FormEvent, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import DeleteEntityDialog from '../../components/ui/DeleteEntityDialog'
 import EntityMergeDialog from '../../components/ui/EntityMergeDialog'
 import Modal from '../../components/ui/Modal'
@@ -26,6 +27,8 @@ export default function PayeeModal({
   triggerSync,
 }: PayeeModalProps) {
   const { showToast, showUndoToast } = useToasts()
+  const hydratedPayees = useLiveQuery(() => StorageService.getPayees())
+  const [payeeRows, setPayeeRows] = useState<Payee[]>(payees)
   const [newName, setNewName] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -35,7 +38,20 @@ export default function PayeeModal({
   const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null)
   const newNameInputRef = useRef<HTMLInputElement>(null)
 
-  const active = payees.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name))
+  useEffect(() => {
+    setPayeeRows(payees)
+  }, [payees])
+
+  useEffect(() => {
+    if (!hydratedPayees) return
+    setPayeeRows(hydratedPayees)
+  }, [hydratedPayees])
+
+  useEffect(() => {
+    void StorageService.getPayees().then((rows) => setPayeeRows(rows))
+  }, [])
+
+  const active = payeeRows.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name))
   const filteredPayees = active.filter((payee) =>
     payee.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   )
@@ -81,11 +97,15 @@ export default function PayeeModal({
   const handleArchive = async (id: number) => {
     await StorageService.archivePayee(id)
     onPayeesChange?.()
-    refreshPayees?.()
+    await refreshPayees?.()
+    await refreshExpenses?.()
+    triggerSync?.()
     showUndoToast('Payee archived.', async () => {
       await StorageService.unarchivePayee(id)
       onPayeesChange?.()
-      refreshPayees?.()
+      await refreshPayees?.()
+      await refreshExpenses?.()
+      triggerSync?.()
     })
   }
 

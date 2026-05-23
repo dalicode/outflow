@@ -75,11 +75,15 @@ export default function PayeesPage({ refreshExpenses, triggerSync }: PayeesPageP
 
   const handleDelete = async (id: number) => {
     await StorageService.archivePayee(id)
+    refresh()
+    await refreshExpenses?.()
+    triggerSync?.()
     showUndoToast('Payee archived.', async () => {
       await StorageService.unarchivePayee(id)
       refresh()
+      await refreshExpenses?.()
+      triggerSync?.()
     })
-    refresh()
   }
 
   const openMerge = async (payee: Payee) => {
