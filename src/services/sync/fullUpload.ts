@@ -335,8 +335,20 @@ async function bridgeLegacyCloudLocalIds<T extends SyncableRow>(
 
 async function deleteUserRowsForReplace(table: string, userId: string): Promise<void> {
   if (!supabase) return
-  const deleteResult = await supabase.from(table).delete().eq('user_id', userId)
-  assertNoSupabaseError(deleteResult, `Delete ${table} rows for replace`)
+  const maxAttempts = 3
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const deleteResult = await supabase.from(table).delete().eq('user_id', userId)
+
+    if (!deleteResult.error) return
+
+    const isDeadlock = deleteResult.error.code === '40P01'
+    if (!isDeadlock || attempt === maxAttempts) {
+      assertNoSupabaseError(deleteResult, `Delete ${table} rows for replace`)
+    }
+
+    await new Promise((resolve) => globalThis.setTimeout(resolve, attempt * 100))
+  }
 }
 
 async function replaceSupabaseData(

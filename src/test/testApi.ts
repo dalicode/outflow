@@ -1,5 +1,7 @@
 import { StorageService } from '../services/storageService'
+import db from '../services/db/schema'
 import { fakeSupabase } from '../services/fakeSupabase'
+import { markRecordPending } from '../utils/syncMetadata'
 import { supabase } from '../services/supabase'
 import { clearUserCloudData } from '../services/syncService'
 import type { Expense, Schedule } from '../types'
@@ -123,6 +125,27 @@ export const testApi = {
 
   updateExpenseForSyncTest: async (id: number, changes: Partial<Expense>) => {
     await StorageService.update(id, changes)
+  },
+
+  updateExpenseForSyncTestWithTimestamp: async (
+    id: number,
+    changes: Partial<Expense>,
+    updatedAt: string,
+  ) => {
+    const existing = await db.expenses.get(id)
+    if (!existing) return
+
+    await db.expenses.put({
+      ...markRecordPending(
+        {
+          ...existing,
+          ...changes,
+        },
+        updatedAt,
+      ),
+      deletedAt: null,
+      id,
+    })
   },
 
   deleteExpenseForSyncTest: async (id: number) => {

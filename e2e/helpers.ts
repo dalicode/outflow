@@ -528,6 +528,21 @@ export async function updateExpenseForSyncTest(
   }, { nextExpenseId: expenseId, nextChanges: changes });
 }
 
+export async function updateExpenseForSyncTestWithTimestamp(
+  page: Page,
+  expenseId: number,
+  changes: Record<string, unknown>,
+  updatedAt: string,
+): Promise<void> {
+  await page.evaluate(async ({ nextExpenseId, nextChanges, nextUpdatedAt }) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.updateExpenseForSyncTestWithTimestamp(nextExpenseId, nextChanges, nextUpdatedAt);
+  }, { nextExpenseId: expenseId, nextChanges: changes, nextUpdatedAt: updatedAt });
+}
+
 export async function deleteExpenseForSyncTest(page: Page, expenseId: number): Promise<void> {
   await page.evaluate(async (nextExpenseId) => {
     const api = (window as Window & {
@@ -560,13 +575,13 @@ export async function resetLiveSyncState(
     await clearAllData(page);
   }
 
+  await signInLiveSupabaseUser(pages[0], email, password);
+  await clearLiveSupabaseUserData(pages[0]);
+  await clearAllData(pages[0]);
+  await signOutLiveSupabaseUser(pages[0]);
+
   for (const page of pages) {
     await signInLiveSupabaseUser(page, email, password);
-  }
-
-  await clearLiveSupabaseUserData(pages[0]);
-
-  for (const page of pages) {
     await clearAllData(page);
     await triggerManualSync(page);
   }

@@ -12,6 +12,7 @@ import {
   signOutLiveSupabaseUser,
   triggerManualSync,
   updateExpenseForSyncTest,
+  updateExpenseForSyncTestWithTimestamp,
   deleteExpenseForSyncTest,
   restoreExpenseForSyncTest,
 } from "./helpers";
@@ -137,11 +138,13 @@ test.describe("Live Supabase sync (UAT)", () => {
       expect(shared?.id).toBeTruthy();
       expect(sharedOnB?.id).toBeTruthy();
 
+      const earlierUpdateAt = "2099-01-01T00:00:00.000Z";
+      const laterUpdateAt = "2099-01-01T00:00:01.000Z";
+
       await setContextOffline(pageA, true);
       await setContextOffline(pageB, true);
-      await updateExpenseForSyncTest(pageA, shared?.id as number, { amount: 45.01 });
-      await pageB.waitForTimeout(75);
-      await updateExpenseForSyncTest(pageB, sharedOnB?.id as number, { amount: 49.99 });
+      await updateExpenseForSyncTestWithTimestamp(pageA, shared?.id as number, { amount: 45.01 }, earlierUpdateAt);
+      await updateExpenseForSyncTestWithTimestamp(pageB, sharedOnB?.id as number, { amount: 49.99 }, laterUpdateAt);
       await setContextOffline(pageA, false);
       await setContextOffline(pageB, false);
       await triggerManualSyncRounds([pageA, pageB], 4);

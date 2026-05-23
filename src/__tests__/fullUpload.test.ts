@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { FULL_SYNC_DELETE_ORDER } from '../services/sync/constants'
 
 const deduplicateByNameMock = vi.hoisted(() => vi.fn(async () => undefined))
 const upsertRowsInBatchesMock = vi.hoisted(() => vi.fn(async () => []))
@@ -101,7 +102,11 @@ vi.mock('../services/syncRuntime', () => ({
   isSyncPaused: vi.fn(() => false),
 }))
 
-import { migrateLocalToSupabase, runFullSyncUpload } from '../services/sync/fullUpload'
+import {
+  clearUserCloudData,
+  migrateLocalToSupabase,
+  runFullSyncUpload,
+} from '../services/sync/fullUpload'
 
 describe('migrateLocalToSupabase phase 4 upload', () => {
   beforeEach(() => {
@@ -406,6 +411,23 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
       ([table]: [string]) => table === 'expenses',
     )
     expect(expenseUpserts).toHaveLength(0)
+  })
+
+  it('retries transient deadlocks when clearing user cloud data', async () => {
+    supabaseDeleteEqMock
+      .mockResolvedValueOnce({
+        error: {
+          message: 'deadlock detected',
+          code: '40P01',
+          details: 'retryable lock cycle',
+        },
+      })
+      .mockResolvedValue({ error: null })
+
+    await clearUserCloudData('user-1')
+
+    expect(supabaseDeleteEqMock).toHaveBeenCalled()
+    expect(supabaseDeleteEqMock.mock.calls.length).toBe(FULL_SYNC_DELETE_ORDER.length + 1)
   })
 
   it('full replace uploads synced rows for replaced tables', async () => {
