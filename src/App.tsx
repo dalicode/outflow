@@ -198,6 +198,7 @@ function AppShell() {
     user,
     loading,
     syncStatus,
+    syncCount,
     pullAppliedCount,
     syncNow,
     syncLocalThenPull,
@@ -207,8 +208,11 @@ function AppShell() {
 
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    testApi.setSyncHandlers({ syncNow, syncLocalThenPull }, user?.id ?? null)
-  }, [syncLocalThenPull, syncNow, user?.id])
+    testApi.setSyncHandlers(
+      { syncNow, syncLocalThenPull, syncStatus, syncCount, pullAppliedCount },
+      user?.id ?? null,
+    )
+  }, [pullAppliedCount, syncCount, syncLocalThenPull, syncNow, syncStatus, user?.id])
   const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()

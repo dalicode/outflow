@@ -17,15 +17,28 @@ export const testApi = {
     syncNow: null as null | (() => Promise<void>),
     syncLocalThenPull: null as null | (() => Promise<void>),
     userId: null as string | null,
+    syncStatus: 'idle' as import('../types').SyncStatus,
+    syncCount: 0,
+    pullAppliedCount: 0,
   },
 
   setSyncHandlers: (
-    handlers: { syncNow: () => Promise<void>; syncLocalThenPull: () => Promise<void> },
+    handlers: {
+      syncNow: () => Promise<void>
+      syncLocalThenPull: () => Promise<void>
+      syncStatus?: import('../types').SyncStatus
+      syncCount?: number
+      pullAppliedCount?: number
+    },
     userId?: string | null,
   ) => {
     testApi.syncHandlers.syncNow = handlers.syncNow
     testApi.syncHandlers.syncLocalThenPull = handlers.syncLocalThenPull
     testApi.syncHandlers.userId = userId ?? null
+    testApi.syncHandlers.syncStatus = handlers.syncStatus ?? testApi.syncHandlers.syncStatus
+    testApi.syncHandlers.syncCount = handlers.syncCount ?? testApi.syncHandlers.syncCount
+    testApi.syncHandlers.pullAppliedCount =
+      handlers.pullAppliedCount ?? testApi.syncHandlers.pullAppliedCount
   },
 
   clearAllData: () => StorageService.clearAllData(),
@@ -94,6 +107,12 @@ export const testApi = {
 
   inspectFakeCloudExpenses: async (userId: string) => fakeSupabase.inspectFakeCloudExpenses(userId),
   getCurrentSyncUserId: () => testApi.syncHandlers.userId,
+  getSyncDebugState: () => ({
+    userId: testApi.syncHandlers.userId,
+    syncStatus: testApi.syncHandlers.syncStatus,
+    syncCount: testApi.syncHandlers.syncCount,
+    pullAppliedCount: testApi.syncHandlers.pullAppliedCount,
+  }),
 
   signInLiveSupabaseUser: async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase client unavailable')

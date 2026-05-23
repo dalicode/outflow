@@ -13,6 +13,7 @@ import {
   triggerManualSync,
   updateExpenseForSyncTest,
   updateExpenseForSyncTestWithTimestamp,
+  waitForSyncSettled,
   deleteExpenseForSyncTest,
   restoreExpenseForSyncTest,
 } from "./helpers";
@@ -38,6 +39,7 @@ async function triggerManualSyncRounds(
   for (let round = 0; round < rounds; round += 1) {
     for (const page of pages) {
       await triggerManualSync(page);
+      await waitForSyncSettled(page);
     }
   }
 }
@@ -45,7 +47,7 @@ async function triggerManualSyncRounds(
 async function waitForZeroPendingSync(
   page: import("@playwright/test").Page,
 ): Promise<void> {
-  await expect.poll(async () => (await getSyncMetadataCounts(page)).pending).toBe(0);
+  await waitForSyncSettled(page);
 }
 
 async function addSeedExpense(
@@ -98,14 +100,15 @@ test.describe("Live Supabase sync (UAT)", () => {
       await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password);
       await addSeedExpense(pageA, "uat-edit-base", 20);
       await triggerManualSync(pageA);
+      await waitForSyncSettled(pageA);
       await triggerManualSync(pageB);
+      await waitForSyncSettled(pageB);
 
       const expenseOnA = (await getAllExpenses(pageA)).find((x) => x.description === "uat-edit-base");
       expect(expenseOnA?.id).toBeTruthy();
 
       await setContextOffline(pageA, true);
       await updateExpenseForSyncTest(pageA, expenseOnA?.id as number, { amount: 88.45, description: "uat-edit-offline" });
-      await pageA.waitForTimeout(3000);
       await setContextOffline(pageA, false);
       await triggerManualSyncRounds([pageA, pageB], 2);
 
@@ -132,7 +135,9 @@ test.describe("Live Supabase sync (UAT)", () => {
 
       await addSeedExpense(pageA, "uat-conflict-edit", 40);
       await triggerManualSync(pageA);
+      await waitForSyncSettled(pageA);
       await triggerManualSync(pageB);
+      await waitForSyncSettled(pageB);
       const shared = (await getAllExpenses(pageA)).find((x) => x.description === "uat-conflict-edit");
       const sharedOnB = (await getAllExpenses(pageB)).find((x) => x.localId === shared?.localId);
       expect(shared?.id).toBeTruthy();
@@ -175,7 +180,9 @@ test.describe("Live Supabase sync (UAT)", () => {
       await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password);
       await addSeedExpense(pageA, "uat-delete-conflict", 55);
       await triggerManualSync(pageA);
+      await waitForSyncSettled(pageA);
       await triggerManualSync(pageB);
+      await waitForSyncSettled(pageB);
       const shared = (await getAllExpenses(pageA)).find((x) => x.description === "uat-delete-conflict");
       const sharedOnB = (await getAllExpenses(pageB)).find((x) => x.localId === shared?.localId);
       expect(shared?.id).toBeTruthy();
@@ -303,11 +310,20 @@ test.describe("Live Supabase sync (UAT)", () => {
       await triggerManualSync(pageA).catch(() => undefined);
       expect(aborted).toBe(true);
       await expectSyncLabel(pageA, "Sync error");
-      expect((await getSyncMetadataCounts(pageA)).failed).toBeGreaterThan(0);
+      await expect
+        .poll(async () => {
+          const row = (await getAllExpensesIncludingDeleted(pageA)).find(
+            (x) => x.description === "uat-interrupted-sync",
+          );
+          return row?.syncStatus ?? "";
+        })
+        .toBe("failed");
 
       await pageA.unroute(supabaseRestPattern("expenses"));
       await triggerManualSync(pageA);
+      await waitForSyncSettled(pageA);
       await triggerManualSync(pageB);
+      await waitForSyncSettled(pageB);
 
       await expect
         .poll(async () => (await getAllExpenses(pageB)).filter((x) => x.description === "uat-interrupted-sync").length)
@@ -339,9 +355,11 @@ test.describe("Live Supabase sync (UAT)", () => {
         })),
       );
       await triggerManualSync(pageB);
+      await waitForSyncSettled(pageB);
 
       await setContextOffline(pageA, false);
       await triggerManualSync(pageA);
+      await waitForSyncSettled(pageA);
       await expect
         .poll(async () => (await getAllExpenses(pageA)).filter((x) => x.description?.startsWith("uat-catch-up-")).length)
         .toBe(15);
@@ -384,9 +402,8 @@ test.describe("Live Supabase sync (UAT)", () => {
       await setContextOffline(page, false);
       await signOutLiveSupabaseUser(page);
       await signInLiveSupabaseUser(page, liveUser.email, liveUser.password);
-      await page.waitForTimeout(1000);
       await triggerManualSync(page);
-      await expect.poll(async () => (await getSyncMetadataCounts(page)).pending).toBe(0);
+      await waitForSyncSettled(page);
       await expect.poll(async () => (await getAllExpenses(page)).some((x) => x.description === "uat-auth-offline")).toBe(true);
     } finally {
       await context.close();
@@ -402,7 +419,9 @@ test.describe("Live Supabase sync (UAT)", () => {
       await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password);
       await addSeedExpense(pageA, "uat-delete-all", 12.34);
       await triggerManualSync(pageA);
+      await waitForSyncSettled(pageA);
       await triggerManualSync(pageB);
+      await waitForSyncSettled(pageB);
 
       await expect
         .poll(async () => (await getAllExpenses(pageB)).some((x) => x.description === "uat-delete-all"))

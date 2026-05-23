@@ -500,6 +500,7 @@ export async function inspectFakeCloudExpenses(
 }
 
 export async function triggerManualSync(page: Page): Promise<void> {
+  await waitForTestApi(page);
   await page.evaluate(async () => {
     const api = (window as Window & {
       outflowTestApi?: typeof import("../src/test/testApi").testApi;
@@ -507,6 +508,46 @@ export async function triggerManualSync(page: Page): Promise<void> {
     if (!api) throw new Error("outflowTestApi not found");
     await api.triggerManualSync();
   });
+}
+
+export async function getSyncDebugState(
+  page: Page,
+): Promise<{
+  userId: string | null;
+  syncStatus: "idle" | "syncing" | "offline" | "error";
+  syncCount: number;
+  pullAppliedCount: number;
+}> {
+  await waitForTestApi(page);
+  return page.evaluate(() => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getSyncDebugState();
+  });
+}
+
+export async function waitForSyncSettled(
+  page: Page,
+  options?: { allowFailed?: boolean; timeout?: number },
+): Promise<void> {
+  const timeout = options?.timeout ?? 45000;
+  await expect
+    .poll(
+      async () => {
+        const [counts, state] = await Promise.all([
+          getSyncMetadataCounts(page),
+          getSyncDebugState(page),
+        ]);
+        if (state.syncStatus === "syncing") return "syncing";
+        if (counts.pending > 0) return `pending:${counts.pending}`;
+        if (!options?.allowFailed && counts.failed > 0) return `failed:${counts.failed}`;
+        return "settled";
+      },
+      { timeout },
+    )
+    .toBe("settled");
 }
 
 export async function signInLiveSupabaseUser(
@@ -646,6 +687,7 @@ export async function resetLiveSyncState(
     await signInLiveSupabaseUser(page, email, password);
     await clearAllData(page);
     await triggerManualSync(page);
+    await waitForSyncSettled(page);
   }
 }
 
