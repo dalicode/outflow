@@ -114,6 +114,8 @@ function buildCloudSettingsBase(
   const now = new Date().toISOString()
   return {
     user_id: userId,
+    local_id: buildFallbackLocalId(payload),
+    created_at: resolveMetadataTimestamp(payload.createdAt, now),
     updated_at: resolveMetadataTimestamp(payload.updatedAt, now),
     deleted_at: hasValue(payload.deletedAt) ? payload.deletedAt : null,
     device_id: hasValue(payload.deviceId) ? payload.deviceId : null,

@@ -135,6 +135,8 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
         key: 'monthlyIncome',
         value: 5000,
         localId: 'set-1',
+        createdAt: '2026-05-23T10:00:00.000Z',
+        updatedAt: '2026-05-23T10:00:00.000Z',
         syncStatus: 'pending',
       },
       {
@@ -154,6 +156,13 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     expect(settingsUpserts[0][2]).toBe('user_id,key')
     expect(settingsUpserts[0][1]).toHaveLength(1)
     expect(settingsUpserts[0][1][0].key).toBe('monthlyIncome')
+    expect(settingsUpserts[0][1][0]).toEqual(
+      expect.objectContaining({
+        local_id: 'set-1',
+        created_at: '2026-05-23T10:00:00.000Z',
+        updated_at: '2026-05-23T10:00:00.000Z',
+      }),
+    )
   })
 
   it('uploads tombstones through upsert payloads with deleted_at and relationship cloud ids', async () => {
