@@ -40,13 +40,12 @@ export interface Expense extends SyncedRecord {
 
 export interface Category extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   name: string
   normalizedName?: string
   createdAt?: string
   updatedAt?: string
   isArchived?: boolean
-  archivedAt?: string
   mergedIntoCategoryId?: number | null
 }
 
@@ -54,13 +53,12 @@ export interface Category extends SyncedRecord {
 
 export interface Payee extends SyncedRecord {
   id?: number
-  cloudId?: string
+  cloudId?: string | null
   name: string
   normalizedName?: string
   createdAt?: string
   updatedAt?: string
   isArchived?: boolean
-  archivedAt?: string
   mergedIntoPayeeId?: number | null
 }
 
@@ -96,7 +94,6 @@ export interface FixedExpense extends SyncedRecord {
   name: string
   amount: number
   isArchived?: boolean
-  archivedAt?: string
   updatedAt?: string
 }
 

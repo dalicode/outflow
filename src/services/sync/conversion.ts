@@ -150,7 +150,6 @@ export function toCloud(
       name: p.name,
       normalized_name: p.normalizedName ?? null,
       is_archived: p.isArchived ?? false,
-      archived_at: p.archivedAt ?? null,
       merged_into_category_id: resolveCloudRelationshipId(
         p.mergedIntoCategoryId ?? null,
         maps?.categoryIdToCloudId,
@@ -164,7 +163,6 @@ export function toCloud(
       name: p.name,
       normalized_name: p.normalizedName ?? null,
       is_archived: p.isArchived ?? false,
-      archived_at: p.archivedAt ?? null,
       merged_into_payee_id: resolveCloudRelationshipId(
         p.mergedIntoPayeeId ?? null,
         maps?.payeeIdToCloudId,
@@ -178,7 +176,6 @@ export function toCloud(
       name: p.name,
       amount: p.amount,
       is_archived: p.isArchived ?? false,
-      archived_at: p.archivedAt ?? null,
     }
   }
   if (table === 'fixedExpenseSnapshots') {
@@ -310,7 +307,6 @@ export function fromCloud(
         (row.normalized_name as string | undefined) ??
         (typeof row.name === 'string' ? normalizeNameForSync(row.name) : undefined),
       isArchived: row.is_archived,
-      archivedAt: row.archived_at ?? undefined,
       mergedIntoCategoryId: resolveCat(row.merged_into_category_id),
     }
   }
@@ -322,7 +318,6 @@ export function fromCloud(
         (row.normalized_name as string | undefined) ??
         (typeof row.name === 'string' ? normalizeNameForSync(row.name) : undefined),
       isArchived: row.is_archived,
-      archivedAt: row.archived_at ?? undefined,
       mergedIntoPayeeId: resolvePay(row.merged_into_payee_id),
     }
   }
@@ -332,7 +327,6 @@ export function fromCloud(
       name: row.name,
       amount: row.amount,
       isArchived: row.is_archived,
-      archivedAt: row.archived_at ?? undefined,
     }
   }
   if (table === 'fixed_expense_snapshots') {

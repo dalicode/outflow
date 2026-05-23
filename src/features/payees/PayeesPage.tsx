@@ -147,12 +147,12 @@ export default function PayeesPage({ refreshExpenses, triggerSync }: PayeesPageP
         </div>
 
         {/* List */}
-        <div className="space-y-1 md:max-w-3xl mx-auto">
+        <div className="md:max-w-3xl mx-auto">
           {filteredPayees.map((payee) => (
             <div
               key={payee.id}
               data-testid={`payee-row-${payee.id}`}
-              className="flex items-center justify-between py-2 px-3 rounded-theme-small border-b border-theme-border hover:bg-theme-background transition-colors"
+              className="flex items-center justify-between py-2 px-3 rounded-theme-small border-b border-theme-border hover:bg-theme-surface transition-colors"
             >
               {editingId === payee.id ? (
                 <div className="flex items-center gap-2 flex-1">

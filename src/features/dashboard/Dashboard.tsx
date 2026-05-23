@@ -197,7 +197,7 @@ export default function Dashboard({
               ref={dash.swipeAreaRef}
               onTouchStart={dash.handleTouchStart}
               onTouchEnd={dash.handleTouchEnd}
-              className="relative rounded-theme-medium bg-theme-surface shadow-sm p-4 md:p-5"
+              className="relative rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5"
             >
               {/* Count row */}
               <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">

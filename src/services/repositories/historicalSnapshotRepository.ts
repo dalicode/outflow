@@ -191,7 +191,6 @@ export function saveHistoricalSnapshotConfigs({
                   name: fixedName,
                   amount: fixedAmount,
                   isArchived: true,
-                  archivedAt: now,
                   updatedAt: now,
                 },
                 now,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { migrateV10CategoryPayeeIds } from '../services/db/migrations'
-import { migrateV18SyncMetadata } from '../services/db/schema'
+import { migrateV18SyncMetadata, migrateV19StripArchivedAt } from '../services/db/schema'
 
 type Row = Record<string, unknown>
 
@@ -14,7 +14,13 @@ class FakeTable {
   async update(id: number | string, changes: Record<string, unknown>): Promise<number> {
     const row = this.rows.find((r) => r.id === id || r.key === id)
     if (!row) return 0
-    Object.assign(row, changes)
+    for (const [key, value] of Object.entries(changes)) {
+      if (typeof value === 'undefined') {
+        delete row[key]
+        continue
+      }
+      row[key] = value
+    }
     return 1
   }
 }
@@ -223,5 +229,28 @@ describe('migrateV18SyncMetadata', () => {
     expect(category.lastSyncedAt).toBe('2026-01-03T00:00:00.000Z')
     expect(category.deviceId).toBe('device-a')
     expect(category.normalizedName).toBe('groceries')
+  })
+})
+
+describe('migrateV19StripArchivedAt', () => {
+  it('removes archivedAt from categories, payees, and fixed expenses only', async () => {
+    const tx = new FakeTx({
+      categories: [{ id: 1, name: 'Food', archivedAt: '2026-01-01T00:00:00.000Z' }],
+      payees: [{ id: 2, name: 'Cafe', archivedAt: '2026-01-02T00:00:00.000Z' }],
+      fixedExpenses: [{ id: 3, name: 'Rent', amount: 1200, archivedAt: '2026-01-03T00:00:00.000Z' }],
+      expenses: [{ id: 4, amount: 20, archivedAt: 'keep-me' }],
+    })
+
+    await migrateV19StripArchivedAt(tx)
+
+    const [category] = await tx.table('categories').toArray()
+    const [payee] = await tx.table('payees').toArray()
+    const [fixedExpense] = await tx.table('fixedExpenses').toArray()
+    const [expense] = await tx.table('expenses').toArray()
+
+    expect('archivedAt' in category).toBe(false)
+    expect('archivedAt' in payee).toBe(false)
+    expect('archivedAt' in fixedExpense).toBe(false)
+    expect(expense.archivedAt).toBe('keep-me')
   })
 })

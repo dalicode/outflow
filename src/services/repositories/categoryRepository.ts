@@ -33,7 +33,6 @@ export async function addCategory(name: string): Promise<number> {
         name: trimmed,
         normalizedName,
         isArchived: false,
-        archivedAt: undefined,
         mergedIntoCategoryId: null,
       })
       return active.id
@@ -50,7 +49,6 @@ export async function addCategory(name: string): Promise<number> {
       name: trimmed,
       normalizedName,
       isArchived: false,
-      archivedAt: undefined,
       mergedIntoCategoryId: null,
     })
     return tombstoned.id
@@ -90,7 +88,6 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
             name,
             normalizedName,
             isArchived: false,
-            archivedAt: undefined,
             mergedIntoCategoryId: null,
           })
         }
@@ -107,7 +104,6 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
           name,
           normalizedName,
           isArchived: false,
-          archivedAt: undefined,
           mergedIntoCategoryId: null,
         })
         categoryMap[name] = tombstoned.id
@@ -167,7 +163,6 @@ export async function deleteCategory(id: number): Promise<void> {
     ...markPendingActiveRecord(existing, now),
     id,
     isArchived: true,
-    archivedAt: now,
   })
 }
 
@@ -180,7 +175,6 @@ export async function unarchiveCategory(id: number): Promise<void> {
     ...markPendingActiveRecord(existing, now),
     id,
     isArchived: false,
-    archivedAt: undefined,
     mergedIntoCategoryId: null,
   })
 }
@@ -235,7 +229,6 @@ export async function mergeCategory(
     ...markPendingActiveRecord(sourceCategory, now),
     id: sourceCategoryId,
     isArchived: true,
-    archivedAt: now,
     mergedIntoCategoryId: targetCategoryId,
   })
 
@@ -275,7 +268,6 @@ export async function revertCategoryMerge(mergeId: number): Promise<void> {
       ...markPendingActiveRecord(sourceCategory, now),
       id: mergeRow.sourceCategoryId,
       isArchived: false,
-      archivedAt: undefined,
       mergedIntoCategoryId: null,
     } as Category)
   }

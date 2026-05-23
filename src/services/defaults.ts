@@ -329,8 +329,6 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
   { name: 'Subway', aliases: ['Subway', 'subway', 'Subway Sandwiches'] },
   { name: 'Pizza Pizza', aliases: ['Pizza pizza', 'Pizzapizza'] },
   { name: 'Pizza Hut', aliases: ['pizza hut', 'Pizza hut'] },
-  { name: "Harvey's", aliases: ["Harvey's", 'Harveys', 'Harvey'] },
-  { name: 'Swiss Chalet', aliases: ['Swiss Chalet', 'Swisschalet'] },
   {
     name: 'The Keg',
     aliases: ['The Keg', 'Keg', 'Keg Steakhouse', 'The Keg Steakhouse'],
@@ -366,28 +364,6 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
     aliases: ['Molly Tea', 'Mollytea', 'Molly Tea Toronto', 'Molly bubble tea'],
   },
   { name: "Osmow's", aliases: ['Osmow', 'osmow', 'Osmows', 'Uber osmow'] },
-  {
-    name: 'Bolet / Bole Burrito',
-    aliases: ['Bolet', 'bolet', 'bole burrito', 'Bolel burritos', 'bolel again'],
-  },
-  { name: 'JCP', aliases: ['JCP', 'Jcp', 'jcp', 'uber eats jcp cancel'] },
-  { name: 'Lazeez', aliases: ['Lazeez', 'Lazeez + coco'] },
-  { name: 'Jimmy the Greek', aliases: ['Jimmy the greek', 'Jimmy the Greek'] },
-  { name: 'Chamsine', aliases: ['Chamseen', 'Chamsine', 'chamsine'] },
-  { name: 'NYF', aliases: ['Nyf', 'NYF'] },
-  { name: 'Boustan', aliases: ['Boustan', 'Boustan shwarma'] },
-  { name: 'Rolltation', aliases: ['Rolltation', 'rolltation'] },
-  { name: 'Daimaru', aliases: ['Daimaru', 'daimaru'] },
-  { name: 'Brown Donkatsu', aliases: ['Brown donkatsu', 'brown donkatsu'] },
-  { name: 'Mogouyan', aliases: ['Mogouyan'] },
-  { name: 'Noodle Legend', aliases: ['Noodle legend', 'noodle legend'] },
-  { name: 'Haidilao', aliases: ['haidilao', 'Haidilao'] },
-  { name: 'Gyubee', aliases: ['Gyubee'] },
-  { name: 'Dragon Legend', aliases: ['Dragon Legend', 'Dragon legend'] },
-  { name: 'Ramen Isshin', aliases: ['Ramen isshin', 'Ramen Isshin'] },
-  { name: 'China Cottage', aliases: ['China cottage'] },
-  { name: 'Hey Noodles', aliases: ['Heynood'] },
-  { name: 'Yakiniku Like', aliases: ['Yakiniku LIke', 'yakiniku like'] },
   {
     name: 'Uber Eats',
     aliases: ['Uber Eats', 'Ubereats', 'Uber *Eats', 'Uber Eats order'],
@@ -566,10 +542,6 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
   { name: 'Best Buy', aliases: ['Best Buy', 'Bestbuy', 'Best Buy Canada'] },
   { name: 'Sport Chek', aliases: ['Sport Chek', 'Sportchek', 'Sport Check'] },
   { name: 'Dollarama', aliases: ['Dollarama Haul', 'dollarama'] },
-  { name: 'Value Village', aliases: ['value village', 'Value village'] },
-  { name: 'Grailed', aliases: ['Grailed haul', 'grailed refund'] },
-  { name: 'Buyee', aliases: ['Buyee duties'] },
-  { name: 'FromJapan', aliases: ['Fromjapan shipping', 'Duties fromjapan'] },
   { name: 'Aliexpress', aliases: ['AliExpress', 'Ali Express', 'Ali stuff'] },
   { name: 'Shein', aliases: ['Shein', 'Shein order'] },
   { name: 'SSENSE', aliases: ['SSENSE', 'SSENSE Canada'] },
@@ -598,7 +570,6 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
     name: 'Disney+',
     aliases: ['Disney+', 'Disney Plus', 'Disneyplus', 'Disney Plus Canada'],
   },
-  { name: 'Crave', aliases: ['Crave', 'Crave TV', 'CraveTV', 'Bell Crave'] },
   {
     name: 'YouTube Premium',
     aliases: ['YouTube Premium', 'YouTube', 'Google YouTube'],
@@ -612,7 +583,7 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
     aliases: ['Xbox Game Pass', 'Game Pass', 'Microsoft Game Pass', 'Xbox', 'Microsoft Xbox'],
   },
   {
-    name: 'Blizzard / Battle.net',
+    name: 'Blizzard',
     aliases: ['Blizzard', 'blizz sub', 'Diablo 4'],
   },
   {
@@ -622,7 +593,6 @@ export const DEFAULT_PAYEES: { name: string; aliases: string[] }[] = [
   // ── Health & Wellness ─────────────────────────────────────────
   { name: 'GoodLife Fitness', aliases: ['GoodLife', 'GoodLife Fitness'] },
   { name: 'Planet Fitness', aliases: ['Planet Fitness', 'PlanetFitness'] },
-  { name: 'OHIP', aliases: ['OHIP', 'Ontario Health Insurance Plan'] },
   // ── Services & Other ──────────────────────────────────────────
   {
     name: 'Canada Post',

@@ -36,6 +36,7 @@ export default function AboutSection() {
   return (
     <Card
       title="About"
+      variant="flat"
       actions={
         <button type="button" onClick={handleCopy} className="settings-edit-btn">
           Copy diagnostics

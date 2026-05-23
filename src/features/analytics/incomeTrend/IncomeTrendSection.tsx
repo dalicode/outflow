@@ -304,7 +304,7 @@ export default function IncomeTrendSection({
 
   return (
     <section
-      className="rounded-theme-large bg-theme-surface shadow-sm overflow-hidden"
+      className="rounded-theme-large border border-theme-border bg-theme-surface overflow-hidden"
       data-testid="income-trend-section"
       aria-labelledby="income-trend-heading"
     >

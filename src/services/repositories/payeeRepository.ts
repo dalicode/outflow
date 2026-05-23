@@ -37,7 +37,6 @@ export async function addPayee(name: string): Promise<number> {
         name: trimmed,
         normalizedName,
         isArchived: false,
-        archivedAt: undefined,
         mergedIntoPayeeId: null,
       })
       return active.id
@@ -54,7 +53,6 @@ export async function addPayee(name: string): Promise<number> {
       name: trimmed,
       normalizedName,
       isArchived: false,
-      archivedAt: undefined,
       mergedIntoPayeeId: null,
     })
     return tombstoned.id
@@ -94,7 +92,6 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
             name,
             normalizedName,
             isArchived: false,
-            archivedAt: undefined,
             mergedIntoPayeeId: null,
           })
         }
@@ -111,7 +108,6 @@ export async function ensureForImport(names: string[]): Promise<Record<string, n
           name,
           normalizedName,
           isArchived: false,
-          archivedAt: undefined,
           mergedIntoPayeeId: null,
         })
         payeeMap[name] = tombstoned.id
@@ -167,7 +163,6 @@ export async function archivePayee(id: number): Promise<void> {
     ...markPendingActiveRecord(existing, now),
     id,
     isArchived: true,
-    archivedAt: now,
   })
 }
 
@@ -180,7 +175,6 @@ export async function unarchivePayee(id: number): Promise<void> {
     ...markPendingActiveRecord(existing, now),
     id,
     isArchived: false,
-    archivedAt: undefined,
     mergedIntoPayeeId: null,
   })
 }
@@ -232,7 +226,6 @@ export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): 
     ...markPendingActiveRecord(sourcePayee, now),
     id: sourcePayeeId,
     isArchived: true,
-    archivedAt: now,
     mergedIntoPayeeId: targetPayeeId,
   })
 
@@ -272,7 +265,6 @@ export async function revertPayeeMerge(mergeId: number): Promise<void> {
       ...markPendingActiveRecord(sourcePayee, now),
       id: mergeRow.sourcePayeeId,
       isArchived: false,
-      archivedAt: undefined,
       mergedIntoPayeeId: null,
     } as Payee)
   }

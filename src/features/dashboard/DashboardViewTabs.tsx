@@ -38,17 +38,17 @@ export default function DashboardViewTabs({
           viewMode !== DASHBOARD_VIEWS.EXPENSES && monthSpan === 12 && 'md:max-w-none',
         )}
       >
-        <div className="flex items-end justify-between px-6">
+        <div className="flex items-end justify-between px-4 sm:px-6">
           <div className="flex gap-0.5">
             <button
               onClick={onSwitchToCategories}
               data-testid="view-tab-categories"
               className={cn(
-                'px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150',
+                'px-3 py-1 rounded-t-theme-medium border border-b-0 text-xs font-medium transition-[background-color,color,transform,box-shadow,border-color] duration-150',
                 'motion-safe:active:scale-[0.98]',
                 viewMode === DASHBOARD_VIEWS.CATEGORIES
-                  ? 'bg-theme-surface text-theme-text'
-                  : 'bg-theme-background text-theme-muted hover:text-theme-text',
+                  ? 'bg-theme-surface text-theme-text border-theme-border'
+                  : 'bg-theme-background text-theme-muted border-theme-border hover:text-theme-text',
               )}
             >
               Categories
@@ -57,11 +57,11 @@ export default function DashboardViewTabs({
               onClick={onSwitchToPayees}
               data-testid="view-tab-payees"
               className={cn(
-                'px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150',
+                'px-3 py-1 rounded-t-theme-medium border border-b-0 text-xs font-medium transition-[background-color,color,transform,box-shadow,border-color] duration-150',
                 'motion-safe:active:scale-[0.98]',
                 viewMode === DASHBOARD_VIEWS.PAYEES
-                  ? 'bg-theme-surface text-theme-text'
-                  : 'bg-theme-background text-theme-muted hover:text-theme-text',
+                  ? 'bg-theme-surface text-theme-text border-theme-border'
+                  : 'bg-theme-background text-theme-muted border-theme-border hover:text-theme-text',
               )}
             >
               Payees
@@ -70,11 +70,11 @@ export default function DashboardViewTabs({
               onClick={onSwitchToExpenses}
               data-testid="view-tab-expenses"
               className={cn(
-                'px-3 py-1 rounded-t-theme-medium text-xs font-medium transition-[background-color,color,transform,box-shadow] duration-150',
+                'px-3 py-1 rounded-t-theme-medium border border-b-0 text-xs font-medium transition-[background-color,color,transform,box-shadow,border-color] duration-150',
                 'motion-safe:active:scale-[0.98]',
                 viewMode === DASHBOARD_VIEWS.EXPENSES
-                  ? 'bg-theme-surface text-theme-text'
-                  : 'bg-theme-background text-theme-muted hover:text-theme-text',
+                  ? 'bg-theme-surface text-theme-text border-theme-border'
+                  : 'bg-theme-background text-theme-muted border-theme-border hover:text-theme-text',
               )}
             >
               Expenses
@@ -83,7 +83,7 @@ export default function DashboardViewTabs({
           <button
             data-testid="btn-open-filters"
             className={cn(
-              'text-xs font-medium px-3 py-1 rounded-t-theme-medium transition-[background-color,color,transform,box-shadow] duration-150 flex items-center gap-1.5',
+              'text-xs font-medium px-3 py-1 rounded-t-theme-medium border border-b-0 border-theme-border transition-[background-color,color,transform,box-shadow,border-color] duration-150 flex items-center gap-1.5',
               'motion-safe:active:scale-[0.98]',
               activeFilterCount > 0
                 ? 'bg-theme-primary-muted text-theme-primary'

@@ -40,7 +40,6 @@ export async function addArchivedFixedExpense(item: Omit<FixedExpense, 'id'>): P
       {
         ...item,
         isArchived: true,
-        archivedAt: now,
         updatedAt: now,
       },
       now,
@@ -72,7 +71,6 @@ export async function removeFixedExpense(id: number): Promise<void> {
     ...markPendingActiveRecord(existing, now),
     id,
     isArchived: true,
-    archivedAt: now,
   })
 }
 

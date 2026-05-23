@@ -276,7 +276,7 @@ export default function SettingsPage({
 
       <div className="mx-auto md:max-w-3xl flex flex-col space-y-6">
         {/* ── APPEARANCE ── */}
-        <Card title="Appearance">
+        <Card title="Appearance" variant="flat">
           <ThemeSelector
             value={settings.visualTheme}
             onChange={(v) => void saveSyncedSettings({ visualTheme: v })}
@@ -364,7 +364,7 @@ export default function SettingsPage({
         </Card>
 
         {/* ── PREFERENCES ── */}
-        <Card title="Preferences">
+        <Card title="Preferences" variant="flat">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-theme-muted uppercase tracking-wider mb-2 font-semibold">
@@ -387,7 +387,7 @@ export default function SettingsPage({
         </Card>
 
         {/* ── ACCOUNT ── */}
-        <Card title="Account">
+        <Card title="Account" variant="flat">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
@@ -432,7 +432,7 @@ export default function SettingsPage({
         />
 
         {/* ── DATA ── */}
-        <Card title="Data">
+        <Card title="Data" variant="flat">
           <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
             Historical Data
           </p>
@@ -536,7 +536,7 @@ export default function SettingsPage({
         </Card>
 
         {/* ── IMPORT / EXPORT ── */}
-        <Card title="Import / Export">
+        <Card title="Import / Export" variant="flat">
           <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">
             Privacy
           </p>
@@ -656,7 +656,7 @@ export default function SettingsPage({
         <AboutSection />
 
         {/* ── ADVANCED ── */}
-        <Card title="Advanced" className="border border-theme-danger-subtle">
+        <Card title="Advanced" variant="flat" className="card-danger">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider mb-2">

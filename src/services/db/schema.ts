@@ -19,12 +19,14 @@ import { createSyncMetadata, normalizeNameForSync } from '../../utils/syncMetada
 
 type Setting = SyncedSettingRow
 
-export async function migrateV18SyncMetadata(tx: {
+type MigrationTx = {
   table: (name: string) => {
     toArray: () => Promise<Array<Record<string, unknown>>>
     update: (id: number | string, changes: Record<string, unknown>) => Promise<number>
   }
-}): Promise<void> {
+}
+
+export async function migrateV18SyncMetadata(tx: MigrationTx): Promise<void> {
   const now = new Date().toISOString()
 
   const categories = (await tx.table('categories').toArray()) as Category[]
@@ -147,6 +149,20 @@ export async function migrateV18SyncMetadata(tx: {
   }
 }
 
+export async function migrateV19StripArchivedAt(tx: MigrationTx): Promise<void> {
+  const tables = ['categories', 'payees', 'fixedExpenses'] as const
+
+  for (const tableName of tables) {
+    const rows = await tx.table(tableName).toArray()
+    for (const row of rows) {
+      if (!Object.prototype.hasOwnProperty.call(row, 'archivedAt')) continue
+      await tx.table(tableName).update(row.id as number, {
+        archivedAt: undefined,
+      })
+    }
+  }
+}
+
 class OutflowDB extends Dexie {
   expenses!: Table<Expense, number>
   categories!: Table<Category, number>
@@ -228,7 +244,7 @@ class OutflowDB extends Dexie {
         const now = new Date().toISOString()
         for (const row of rows) {
           await tx.table('fixedExpenses').update(row.id, {
-            updatedAt: row.archivedAt || now,
+            updatedAt: row.updatedAt || now,
           })
         }
       })
@@ -427,6 +443,31 @@ class OutflowDB extends Dexie {
       })
       .upgrade(async (tx) => {
         await migrateV18SyncMetadata(tx)
+      })
+
+    this.version(19)
+      .stores({
+        expenses:
+          '++id, date, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
+        settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
+        fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
+        categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+        payees: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+        syncQueue: '++id, table, timestamp',
+        fixedExpenseSnapshots:
+          '++id, [fixedExpenseId+year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        schedules:
+          '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
+        incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        savingsSnapshots:
+          '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        categoryMergeHistory:
+          '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
+        payeeMergeHistory:
+          '++id, sourcePayeeId, targetPayeeId, localId, cloudId, syncStatus, deletedAt',
+      })
+      .upgrade(async (tx) => {
+        await migrateV19StripArchivedAt(tx)
       })
 
     this.on('populate', () => {
