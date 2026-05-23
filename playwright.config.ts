@@ -16,7 +16,11 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testIgnore: [/-mobile\.spec\.ts$/, /pwa-update\.spec\.ts$/],
+      testIgnore: [
+        /-mobile\.spec\.ts$/,
+        /pwa-update\.spec\.ts$/,
+        /sync-live-supabase\.spec\.ts$/,
+      ],
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 800 },

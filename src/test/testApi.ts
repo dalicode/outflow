@@ -1,5 +1,7 @@
 import { StorageService } from '../services/storageService'
 import { fakeSupabase } from '../services/fakeSupabase'
+import { supabase } from '../services/supabase'
+import { clearUserCloudData } from '../services/syncService'
 import type { Expense, Schedule } from '../types'
 
 declare global {
@@ -44,6 +46,8 @@ export const testApi = {
   getCategories: () => StorageService.getCategories(),
   getPayees: () => StorageService.getPayees(),
   getAllExpenses: () => StorageService.getAll(),
+  getAllExpensesIncludingDeleted: () => StorageService.getAllExpenses(),
+  getSyncMetadataCounts: () => StorageService.getSyncMetadataCounts(),
   getAllIncomeSnapshots: () => StorageService.getAllIncomeSnapshots(),
   getAllSavingsSnapshots: () => StorageService.getAllSavingsSnapshots(),
   getAllFixedExpenseSnapshots: () => StorageService.getAllFixedExpenseSnapshots(),
@@ -81,6 +85,47 @@ export const testApi = {
   },
 
   inspectFakeCloudExpenses: async (userId: string) => fakeSupabase.inspectFakeCloudExpenses(userId),
+
+  signInLiveSupabaseUser: async (email: string, password: string) => {
+    if (!supabase) throw new Error('Supabase client unavailable')
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+  },
+
+  signOutLiveSupabaseUser: async () => {
+    if (!supabase) return
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+  },
+
+  clearLiveSupabaseUserData: async () => {
+    if (!supabase) return
+    const { data, error } = await supabase.auth.getSession()
+    if (error) throw error
+    const userId = data.session?.user?.id
+    if (!userId) {
+      throw new Error('No live Supabase session available')
+    }
+    await clearUserCloudData(userId)
+  },
+
+  resetLiveSupabaseSession: async () => {
+    if (!supabase) return
+    const { error } = await supabase.auth.signOut({ scope: 'local' })
+    if (error) throw error
+  },
+
+  updateExpenseForSyncTest: async (id: number, changes: Partial<Expense>) => {
+    await StorageService.update(id, changes)
+  },
+
+  deleteExpenseForSyncTest: async (id: number) => {
+    await StorageService.remove(id)
+  },
+
+  restoreExpenseForSyncTest: async (id: number) => {
+    await StorageService.restoreExpense(id)
+  },
 
   triggerManualSync: async () => {
     if (!testApi.syncHandlers.syncLocalThenPull) {

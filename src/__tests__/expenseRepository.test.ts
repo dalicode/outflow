@@ -221,4 +221,28 @@ describe('expenseRepository', () => {
     expect(row?.categoryNameSnapshot).toBe('Transit')
     expect(row?.payeeNameSnapshot).toBe('Metro')
   })
+
+  it('bumps updatedAt when updating an expense', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-05-07T10:00:00.000Z'))
+      const id = await add({
+        date: '2026-05-07',
+        amount: 8,
+        description: 'Morning coffee',
+      })
+
+      const before = (await getAllExpenses()).find((expense) => expense.id === id)
+      expect(before?.updatedAt).toBe('2026-05-07T10:00:00.000Z')
+
+      vi.setSystemTime(new Date('2026-05-07T10:05:00.000Z'))
+      await update(id, { amount: 9 })
+
+      const after = (await getAllExpenses()).find((expense) => expense.id === id)
+      expect(after?.updatedAt).toBe('2026-05-07T10:05:00.000Z')
+      expect(after?.syncStatus).toBe('pending')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

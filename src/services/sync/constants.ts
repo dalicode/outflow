@@ -47,8 +47,8 @@ export const FULL_SYNC_DELETE_ORDER = [
 
 export const UPSERT_CONFLICT_MAP: Partial<Record<string, string>> = {
   settings: 'user_id,key',
-  categories: 'user_id,local_id',
-  payees: 'user_id,local_id',
+  categories: 'user_id,name',
+  payees: 'user_id,name',
   fixed_expenses: 'user_id,local_id',
   fixed_expense_snapshots: 'user_id,local_id',
   income_snapshots: 'user_id,local_id',

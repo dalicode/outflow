@@ -16,7 +16,23 @@ const categoryMergeHistoryToArrayMock = vi.hoisted(() => vi.fn(async () => []))
 const payeeMergeHistoryToArrayMock = vi.hoisted(() => vi.fn(async () => []))
 const supabaseDeleteEqMock = vi.hoisted(() => vi.fn(async () => ({ error: null })))
 const supabaseDeleteMock = vi.hoisted(() => vi.fn(() => ({ eq: supabaseDeleteEqMock })))
-const supabaseFromMock = vi.hoisted(() => vi.fn(() => ({ delete: supabaseDeleteMock })))
+const supabaseSelectInMock = vi.hoisted(() => vi.fn(async () => ({ data: [], error: null })))
+const supabaseSelectEqMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    in: supabaseSelectInMock,
+  })),
+)
+const supabaseSelectMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    eq: supabaseSelectEqMock,
+  })),
+)
+const supabaseFromMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    delete: supabaseDeleteMock,
+    select: supabaseSelectMock,
+  })),
+)
 
 const tableUpdates = vi.hoisted(
   () => [] as Array<{ table: string; key: number | string; changes: Record<string, unknown> }>,
@@ -67,6 +83,11 @@ vi.mock('../services/sync/integrity', () => ({
 vi.mock('../services/sync/supabaseUtils', () => ({
   assertNoSupabaseError: vi.fn(),
   assertSyncRunActive: vi.fn(),
+  getIsoTimestampMs: (value: unknown) => {
+    if (typeof value !== 'string' || value.length === 0) return 0
+    const parsed = Date.parse(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  },
   upsertRowsInBatches: upsertRowsInBatchesMock,
 }))
 
@@ -81,6 +102,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     vi.clearAllMocks()
     tableUpdates.length = 0
     upsertRowsInBatchesMock.mockImplementation(async () => [])
+    supabaseSelectInMock.mockResolvedValue({ data: [], error: null })
   })
 
   it('uploads only pending/failed rows and keeps synced rows out of upload', async () => {
@@ -97,7 +119,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     )
     expect(categoryUpserts).toHaveLength(1)
     expect(categoryUpserts[0][1]).toHaveLength(2)
-    expect(categoryUpserts[0][2]).toBe('user_id,local_id')
+    expect(categoryUpserts[0][2]).toBe('user_id,name')
   })
 
   it('uses settings conflict key user_id,key and filters local-only settings', async () => {
@@ -182,7 +204,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     )
     expect(categoryCalls).toHaveLength(2)
     expect(categoryCalls[0][2]).toBe('id')
-    expect(categoryCalls[1][2]).toBe('user_id,local_id')
+    expect(categoryCalls[1][2]).toBe('user_id,name')
   })
 
   it('marks successful rows synced and failed rows failed without reverting successful ones', async () => {
@@ -237,6 +259,44 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     expect(expenseUpdate?.changes.updatedAt).toBeUndefined()
   })
 
+  it('matches category upsert returns by normalized name when remote local_id differs', async () => {
+    getAllCategoriesMock.mockResolvedValue([
+      {
+        id: 2,
+        localId: 'device-a-cat-2',
+        cloudId: null,
+        name: 'Travel Dining',
+        normalizedName: 'travel dining',
+        syncStatus: 'pending',
+      },
+    ])
+
+    upsertRowsInBatchesMock.mockImplementation(async (table: string) => {
+      if (table === 'categories') {
+        return [
+          {
+            id: 'cloud-cat-2',
+            local_id: 'device-b-cat-9',
+            name: 'Travel Dining',
+            normalized_name: 'travel dining',
+            created_at: '2026-05-01T00:00:00.000Z',
+            updated_at: '2026-05-10T00:00:00.000Z',
+          },
+        ]
+      }
+      return []
+    })
+
+    await migrateLocalToSupabase('user-1')
+
+    const categoryUpdate = tableUpdates.find(
+      (call) => call.table === 'categories' && call.key === 2,
+    )
+    expect(categoryUpdate?.changes.syncStatus).toBe('synced')
+    expect(categoryUpdate?.changes.cloudId).toBe('cloud-cat-2')
+    expect(categoryUpdate?.changes.updatedAt).toBe('2026-05-10T00:00:00.000Z')
+  })
+
   it('threads shouldContinue guard into batch upserts', async () => {
     getAllCategoriesMock.mockResolvedValue([
       { id: 2, localId: 'cat-2', cloudId: null, name: 'Travel', syncStatus: 'pending' },
@@ -249,6 +309,39 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
       ([table]: [string]) => table === 'categories',
     )
     expect(categoryUpsert?.[3]).toEqual({ shouldContinue })
+  })
+
+  it('skips uploading stale local rows when the cloud copy is newer', async () => {
+    getAllExpensesMock.mockResolvedValue([
+      {
+        id: 100,
+        localId: 'exp-100',
+        cloudId: 'cloud-exp-100',
+        syncStatus: 'pending',
+        date: '2026-05-20',
+        amount: 10,
+        updatedAt: '2026-05-10T00:00:00.000Z',
+      },
+    ])
+
+    supabaseSelectInMock.mockResolvedValue({
+      data: [
+        {
+          id: 'cloud-exp-100',
+          local_id: 'exp-100',
+          updated_at: '2026-05-11T00:00:00.000Z',
+        },
+      ],
+      error: null,
+    })
+
+    const staleCloudRowsDetected = await migrateLocalToSupabase('user-1')
+
+    expect(staleCloudRowsDetected).toBe(true)
+    const expenseUpserts = upsertRowsInBatchesMock.mock.calls.filter(
+      ([table]: [string]) => table === 'expenses',
+    )
+    expect(expenseUpserts).toHaveLength(0)
   })
 
   it('full replace uploads synced rows for replaced tables', async () => {

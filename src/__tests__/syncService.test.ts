@@ -393,6 +393,7 @@ describe('flushSyncQueue', () => {
 
   it('runs metadata-based upload even when no queue items exist', async () => {
     vi.mocked(StorageService.getSyncQueue).mockResolvedValue([])
+    migrateLocalToSupabaseMock.mockResolvedValue(false)
 
     await flushSyncQueue('user-1')
 
@@ -430,6 +431,19 @@ describe('flushSyncQueue', () => {
     expect(migrateLocalToSupabaseMock).toHaveBeenCalledWith('user-1', {
       shouldContinue: undefined,
     })
+  })
+
+  it('pulls latest cloud rows when upload detects a newer cloud version', async () => {
+    vi.mocked(StorageService.getSyncQueue).mockResolvedValue([])
+    migrateLocalToSupabaseMock.mockResolvedValue(true)
+    supabaseSelect.mockImplementation(() => makeQuery([]))
+
+    await flushSyncQueue('user-1')
+
+    expect(migrateLocalToSupabaseMock).toHaveBeenCalledWith('user-1', {
+      shouldContinue: undefined,
+    })
+    expect(supabaseSelect).toHaveBeenCalledWith('expenses')
   })
 
   it('does not remove queue items when a sync run becomes stale after upload', async () => {

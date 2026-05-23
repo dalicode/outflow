@@ -9,6 +9,7 @@ import {
   isSyncPaused,
 } from '../syncRuntime'
 import { runFullSyncUpload, migrateLocalToSupabase } from './fullUpload'
+import { pullFromSupabase } from './pullMerge'
 import { assertSyncRunActive } from './supabaseUtils'
 import type { SyncRunGuardOptions } from './types'
 
@@ -43,7 +44,11 @@ export async function flushSyncQueue(userId: string, options?: SyncRunGuardOptio
   }
 
   assertSyncRunActive(options?.shouldContinue)
-  await migrateLocalToSupabase(userId, {
+  const staleCloudRowsDetected = await migrateLocalToSupabase(userId, {
     shouldContinue: options?.shouldContinue,
   })
+  if (staleCloudRowsDetected) {
+    assertSyncRunActive(options?.shouldContinue)
+    await pullFromSupabase(userId)
+  }
 }

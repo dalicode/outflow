@@ -15,6 +15,7 @@ dist/
 # Environment files
 .env
 .env.local
+.env.uat
 .env.*.local
 
 # OS files

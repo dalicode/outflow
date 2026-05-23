@@ -14,7 +14,12 @@ import { isSyncPaused } from '../syncRuntime'
 import { toCloud, toLocalCloudMap } from './conversion'
 import { FULL_SYNC_DELETE_ORDER, FULL_SYNC_ORDER, LOCAL_ONLY_SETTING_KEYS } from './constants'
 import { deduplicateByName } from './integrity'
-import { assertNoSupabaseError, assertSyncRunActive, upsertRowsInBatches } from './supabaseUtils'
+import {
+  assertNoSupabaseError,
+  assertSyncRunActive,
+  getIsoTimestampMs,
+  upsertRowsInBatches,
+} from './supabaseUtils'
 import type { SyncRunGuardOptions, ToCloudMaps } from './types'
 
 type SyncableRow = {
@@ -47,6 +52,16 @@ type UploadTableConfig<T extends SyncableRow> = {
   conflictTarget: string
   includeLegacyBridge: boolean
   shouldUploadRow?: (row: T) => boolean
+}
+
+type FreshnessFilteredEntries<T extends SyncableRow> = {
+  staleCloudRowsDetected: boolean
+  uploadEntries: UploadEntry<T>[]
+}
+
+type NameLikeRow = SyncableRow & {
+  name?: string
+  normalizedName?: string | null
 }
 
 function isPendingOrFailed(status: RecordSyncStatus | undefined): boolean {
@@ -95,6 +110,101 @@ function buildReturnedRowsBySettingsKey(
   return map
 }
 
+function normalizeRowName(row: { name?: unknown; normalizedName?: unknown } | Record<string, unknown>): string | null {
+  const normalizedName =
+    'normalizedName' in row ? row.normalizedName : (row.normalized_name as unknown)
+  if (typeof normalizedName === 'string' && normalizedName.trim().length > 0) {
+    return normalizedName.trim().toLowerCase()
+  }
+
+  const name = row.name
+  if (typeof name !== 'string' || name.trim().length === 0) return null
+  return name.trim().replace(/\s+/gu, ' ').toLowerCase()
+}
+
+function buildReturnedRowsByNormalizedName(
+  rows: Record<string, unknown>[],
+): Map<string, Record<string, unknown>> {
+  const map = new Map<string, Record<string, unknown>>()
+  for (const row of rows) {
+    const normalizedName = normalizeRowName(row)
+    if (normalizedName) {
+      map.set(normalizedName, row)
+    }
+  }
+  return map
+}
+
+async function filterEntriesAgainstCloudFreshness<T extends SyncableRow>(
+  config: UploadTableConfig<T>,
+  entries: UploadEntry<T>[],
+  userId: string,
+  options?: SyncRunGuardOptions,
+): Promise<FreshnessFilteredEntries<T>> {
+  if (!supabase || entries.length === 0 || config.conflictTarget !== 'user_id,local_id') {
+    return {
+      staleCloudRowsDetected: false,
+      uploadEntries: entries,
+    }
+  }
+
+  const localIds = entries
+    .map((entry) => getLocalId(entry.row))
+    .filter((localId): localId is string => typeof localId === 'string' && localId.length > 0)
+
+  if (localIds.length === 0) {
+    return {
+      staleCloudRowsDetected: false,
+      uploadEntries: entries,
+    }
+  }
+
+  const cloudRowsByLocalId = new Map<string, Record<string, unknown>>()
+  const chunkSize = 100
+  for (let index = 0; index < localIds.length; index += chunkSize) {
+    assertSyncRunActive(options?.shouldContinue)
+    const result = await supabase
+      .from(config.cloudTable)
+      .select('*')
+      .eq('user_id', userId)
+      .in('local_id', localIds.slice(index, index + chunkSize))
+    assertNoSupabaseError(
+      result,
+      `Fetch existing ${config.cloudTable} rows for freshness check ${index / chunkSize + 1}`,
+    )
+
+    for (const row of (result.data ?? []) as Record<string, unknown>[]) {
+      const localId = row.local_id
+      if (typeof localId === 'string' && localId.length > 0) {
+        cloudRowsByLocalId.set(localId, row)
+      }
+    }
+  }
+
+  let staleCloudRowsDetected = false
+  const uploadEntries = entries.filter((entry) => {
+    const localId = getLocalId(entry.row)
+    if (!localId) return true
+
+    const cloudRow = cloudRowsByLocalId.get(localId)
+    if (!cloudRow) return true
+
+    const cloudUpdatedAtMs = getIsoTimestampMs(cloudRow.updated_at)
+    const localUpdatedAtMs = getIsoTimestampMs(entry.row.updatedAt)
+    if (cloudUpdatedAtMs > localUpdatedAtMs) {
+      staleCloudRowsDetected = true
+      return false
+    }
+
+    return true
+  })
+
+  return {
+    staleCloudRowsDetected,
+    uploadEntries,
+  }
+}
+
 async function markTableRowsFailed<T extends SyncableRow>(
   config: UploadTableConfig<T>,
   entries: UploadEntry<T>[],
@@ -126,6 +236,7 @@ async function markTableRowsSynced<T extends SyncableRow>(
   const syncedAt = new Date().toISOString()
   const byLocalId = buildReturnedRowsByLocalId(returnedRows)
   const bySettingsKey = buildReturnedRowsBySettingsKey(returnedRows)
+  const byNormalizedName = buildReturnedRowsByNormalizedName(returnedRows)
 
   for (const entry of entries) {
     assertSyncRunActive(options?.shouldContinue)
@@ -139,14 +250,20 @@ async function markTableRowsSynced<T extends SyncableRow>(
         : localId
           ? byLocalId.get(localId)
           : undefined
+    const returnedByName =
+      (config.cloudTable === 'categories' || config.cloudTable === 'payees') &&
+      entry.row != null
+        ? byNormalizedName.get(normalizeRowName(entry.row as NameLikeRow) ?? '')
+        : undefined
+    const matchedReturned = returned ?? returnedByName
 
-    const cloudIdFromReturn = returned?.id
+    const cloudIdFromReturn = matchedReturned?.id
     const cloudId =
       typeof cloudIdFromReturn === 'string' && cloudIdFromReturn.length > 0
         ? cloudIdFromReturn
         : getCloudId(entry.row)
-    const createdAtFromReturn = returned?.created_at
-    const updatedAtFromReturn = returned?.updated_at
+    const createdAtFromReturn = matchedReturned?.created_at
+    const updatedAtFromReturn = matchedReturned?.updated_at
     const synced = markRecordSynced(
       entry.row,
       {
@@ -230,8 +347,8 @@ export async function migrateLocalToSupabase(
     forceUploadAll?: boolean
     includeTables?: readonly UploadTableKey[]
   } & SyncRunGuardOptions = {},
-): Promise<void> {
-  if (!supabase || !userId || (!options.ignorePause && isSyncPaused())) return
+): Promise<boolean> {
+  if (!supabase || !userId || (!options.ignorePause && isSyncPaused())) return false
   assertSyncRunActive(options.shouldContinue)
 
   await deduplicateByName(db.table('categories'), 'categoryId')
@@ -278,7 +395,7 @@ export async function migrateLocalToSupabase(
       getRows: async () => allCategories,
       localTableName: 'categories',
       getPrimaryKey: (row) => (typeof row.id === 'number' ? row.id : null),
-      conflictTarget: 'user_id,local_id',
+      conflictTarget: 'user_id,name',
       includeLegacyBridge: true,
     },
     {
@@ -287,7 +404,7 @@ export async function migrateLocalToSupabase(
       getRows: async () => allPayees,
       localTableName: 'payees',
       getPrimaryKey: (row) => (typeof row.id === 'number' ? row.id : null),
-      conflictTarget: 'user_id,local_id',
+      conflictTarget: 'user_id,name',
       includeLegacyBridge: true,
     },
     {
@@ -375,6 +492,7 @@ export async function migrateLocalToSupabase(
   ]
 
   const failures: string[] = []
+  let staleCloudRowsDetected = false
 
   for (const config of uploadConfigs) {
     assertSyncRunActive(options.shouldContinue)
@@ -391,19 +509,28 @@ export async function migrateLocalToSupabase(
       row,
       cloudRow: toCloud(config.mapperTable, row as Record<string, unknown>, userId, maps),
     }))
+    const freshnessFiltered = await filterEntriesAgainstCloudFreshness(
+      config,
+      entries,
+      userId,
+      options,
+    )
+    staleCloudRowsDetected = staleCloudRowsDetected || freshnessFiltered.staleCloudRowsDetected
+    const entriesToUpload = freshnessFiltered.uploadEntries
+    if (entriesToUpload.length === 0) continue
 
     try {
-      await bridgeLegacyCloudLocalIds(config, entries, userId, maps, options)
+      await bridgeLegacyCloudLocalIds(config, entriesToUpload, userId, maps, options)
       const returnedRows = await upsertRowsInBatches(
         config.cloudTable,
-        entries.map((entry) => entry.cloudRow),
+        entriesToUpload.map((entry) => entry.cloudRow),
         config.conflictTarget,
         options,
       )
-      await markTableRowsSynced(config, entries, returnedRows, options)
+      await markTableRowsSynced(config, entriesToUpload, returnedRows, options)
 
       if (config.cloudTable === 'categories') {
-        for (const entry of entries) {
+        for (const entry of entriesToUpload) {
           const cloudId = getCloudId(entry.row)
           if (typeof entry.row.id === 'number' && cloudId) {
             maps.categoryIdToCloudId?.set(entry.row.id, cloudId)
@@ -411,7 +538,7 @@ export async function migrateLocalToSupabase(
         }
       }
       if (config.cloudTable === 'payees') {
-        for (const entry of entries) {
+        for (const entry of entriesToUpload) {
           const cloudId = getCloudId(entry.row)
           if (typeof entry.row.id === 'number' && cloudId) {
             maps.payeeIdToCloudId?.set(entry.row.id, cloudId)
@@ -419,7 +546,7 @@ export async function migrateLocalToSupabase(
         }
       }
       if (config.cloudTable === 'fixed_expenses') {
-        for (const entry of entries) {
+        for (const entry of entriesToUpload) {
           const cloudId = getCloudId(entry.row)
           if (typeof entry.row.id === 'number' && cloudId) {
             maps.fixedExpenseIdToCloudId?.set(entry.row.id, cloudId)
@@ -428,7 +555,7 @@ export async function migrateLocalToSupabase(
       }
     } catch (error) {
       const message = getReadableError(error)
-      await markTableRowsFailed(config, entries, message, options)
+      await markTableRowsFailed(config, entriesToUpload, message, options)
       failures.push(`${config.cloudTable}: ${message}`)
     }
   }
@@ -436,6 +563,8 @@ export async function migrateLocalToSupabase(
   if (failures.length > 0) {
     throw new Error(`Sync upload failed for ${failures.join('; ')}`)
   }
+
+  return staleCloudRowsDetected
 }
 
 export async function runFullSyncUpload(

@@ -112,13 +112,25 @@ export async function getCategories(page: Page): Promise<Array<{ id?: number; na
 
 export async function getAllExpenses(
   page: Page,
-): Promise<Array<{ id?: number; date: string; amount: number; description?: string }>> {
+): Promise<Array<{ id?: number; localId?: string; date: string; amount: number; description?: string }>> {
   return page.evaluate(async () => {
     const api = (window as Window & {
       outflowTestApi?: typeof import("../src/test/testApi").testApi;
     }).outflowTestApi;
     if (!api) throw new Error("outflowTestApi not found");
     return api.getAllExpenses();
+  });
+}
+
+export async function getAllExpensesIncludingDeleted(
+  page: Page,
+): Promise<Array<{ id?: number; localId?: string; date: string; amount: number; description?: string; syncStatus?: string; deletedAt?: string | null }>> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getAllExpensesIncludingDeleted();
   });
 }
 
@@ -422,6 +434,120 @@ export async function triggerManualSync(page: Page): Promise<void> {
     if (!api) throw new Error("outflowTestApi not found");
     await api.triggerManualSync();
   });
+}
+
+export async function signInLiveSupabaseUser(
+  page: Page,
+  email: string,
+  password: string,
+): Promise<void> {
+  await page.evaluate(async ({ nextEmail, nextPassword }) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.signInLiveSupabaseUser(nextEmail, nextPassword);
+  }, { nextEmail: email, nextPassword: password });
+}
+
+export async function signOutLiveSupabaseUser(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.signOutLiveSupabaseUser();
+  });
+}
+
+export async function clearLiveSupabaseUserData(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.clearLiveSupabaseUserData();
+  });
+}
+
+export async function resetLiveSupabaseSession(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.resetLiveSupabaseSession();
+  });
+}
+
+export async function getSyncMetadataCounts(
+  page: Page,
+): Promise<{ pending: number; failed: number }> {
+  return page.evaluate(async () => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    return api.getSyncMetadataCounts();
+  });
+}
+
+export async function updateExpenseForSyncTest(
+  page: Page,
+  expenseId: number,
+  changes: Record<string, unknown>,
+): Promise<void> {
+  await page.evaluate(async ({ nextExpenseId, nextChanges }) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.updateExpenseForSyncTest(nextExpenseId, nextChanges);
+  }, { nextExpenseId: expenseId, nextChanges: changes });
+}
+
+export async function deleteExpenseForSyncTest(page: Page, expenseId: number): Promise<void> {
+  await page.evaluate(async (nextExpenseId) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.deleteExpenseForSyncTest(nextExpenseId);
+  }, expenseId);
+}
+
+export async function restoreExpenseForSyncTest(page: Page, expenseId: number): Promise<void> {
+  await page.evaluate(async (nextExpenseId) => {
+    const api = (window as Window & {
+      outflowTestApi?: typeof import("../src/test/testApi").testApi;
+    }).outflowTestApi;
+    if (!api) throw new Error("outflowTestApi not found");
+    await api.restoreExpenseForSyncTest(nextExpenseId);
+  }, expenseId);
+}
+
+export async function resetLiveSyncState(
+  pages: Page[],
+  email: string,
+  password: string,
+): Promise<void> {
+  if (pages.length === 0) return;
+
+  for (const page of pages) {
+    await gotoAndWait(page, "/");
+    await clearAllData(page);
+  }
+
+  for (const page of pages) {
+    await signInLiveSupabaseUser(page, email, password);
+  }
+
+  await clearLiveSupabaseUserData(pages[0]);
+
+  for (const page of pages) {
+    await clearAllData(page);
+    await triggerManualSync(page);
+  }
 }
 
 export { expect };

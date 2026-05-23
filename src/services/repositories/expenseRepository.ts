@@ -61,8 +61,7 @@ export async function update(id: number, changes: Partial<Expense>): Promise<voi
     deletedAt: hasDeletedAtChange ? (changes.deletedAt ?? null) : (existing.deletedAt ?? null),
   })
   await db.expenses.put({
-    ...markPendingActiveRecord(existing, now),
-    ...nextExpense,
+    ...markPendingActiveRecord(nextExpense, now),
     id,
   })
 }

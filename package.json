@@ -10,6 +10,7 @@
     "e2e": "playwright test",
     "e2e:pwa:server": "npm run build && node e2e/pwa-static-server.mjs",
     "e2e:pwa": "playwright test -c playwright.pwa.config.ts",
+    "e2e:sync:uat": "playwright test -c playwright.uat.config.ts",
     "e2e:headed": "playwright test --headed",
     "e2e:debug": "playwright test --debug",
     "lint": "biome check src/",
