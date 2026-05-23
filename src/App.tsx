@@ -153,8 +153,8 @@ function AppShell() {
 
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    testApi.setSyncHandlers({ syncNow, syncLocalThenPull })
-  }, [syncLocalThenPull, syncNow])
+    testApi.setSyncHandlers({ syncNow, syncLocalThenPull }, user?.id ?? null)
+  }, [syncLocalThenPull, syncNow, user?.id])
   const { loaded: settingsLoaded, save: saveSettings, loadSettings } = useSettings()
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()

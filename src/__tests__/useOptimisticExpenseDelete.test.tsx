@@ -69,7 +69,7 @@ describe('useOptimisticExpenseDelete', () => {
 
     expect(remove).toHaveBeenCalledWith(2)
     expect(triggerSync).toHaveBeenCalledTimes(1)
-    expect(refreshExpenses).toHaveBeenCalledTimes(1)
+    expect(refreshExpenses).not.toHaveBeenCalled()
     expect(undoHandlers).toHaveLength(1)
   })
 

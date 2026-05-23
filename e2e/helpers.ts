@@ -20,6 +20,16 @@ export async function gotoAndWait(page: Page, path = "/"): Promise<void> {
   }
 }
 
+async function waitForTestApi(page: Page): Promise<void> {
+  await expect
+    .poll(async () => {
+      return page.evaluate(() => {
+        return Boolean((window as Window & { outflowTestApi?: unknown }).outflowTestApi);
+      });
+    })
+    .toBe(true);
+}
+
 export async function clearAllData(page: Page): Promise<void> {
   await page.evaluate(async () => {
     const api = (window as Window & {
@@ -113,6 +123,7 @@ export async function getCategories(page: Page): Promise<Array<{ id?: number; na
 export async function getAllExpenses(
   page: Page,
 ): Promise<Array<{ id?: number; localId?: string; date: string; amount: number; description?: string }>> {
+  await waitForTestApi(page);
   return page.evaluate(async () => {
     const api = (window as Window & {
       outflowTestApi?: typeof import("../src/test/testApi").testApi;
@@ -125,6 +136,7 @@ export async function getAllExpenses(
 export async function getAllExpensesIncludingDeleted(
   page: Page,
 ): Promise<Array<{ id?: number; localId?: string; date: string; amount: number; description?: string; syncStatus?: string; deletedAt?: string | null }>> {
+  await waitForTestApi(page);
   return page.evaluate(async () => {
     const api = (window as Window & {
       outflowTestApi?: typeof import("../src/test/testApi").testApi;
@@ -387,6 +399,16 @@ export async function setFakeSignedInUser(
     if (!api) throw new Error("outflowTestApi not found");
     await api.setFakeSignedInUser(nextUserId, nextEmail);
   }, { nextUserId: userId, nextEmail: email });
+
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const api = (window as Window & {
+        outflowTestApi?: typeof import("../src/test/testApi").testApi;
+      }).outflowTestApi;
+      if (!api) throw new Error("outflowTestApi not found");
+      return api.getCurrentSyncUserId();
+    });
+  }).toBe(userId);
 }
 
 export async function resetFakeCloud(page: Page): Promise<void> {

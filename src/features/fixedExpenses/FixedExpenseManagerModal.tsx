@@ -36,6 +36,7 @@ export default function FixedExpenseManagerModal({
 }: FixedExpenseManagerModalProps) {
   const { formatAmount, settings } = useSettings()
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
+  const [managedItems, setManagedItems] = useState(items)
   const [showManageModal, setShowManageModal] = useState(isOpen)
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
@@ -46,7 +47,7 @@ export default function FixedExpenseManagerModal({
   const [pendingAction, setPendingAction] = useState<PendingModalAction | null>(null)
   const [returnToManageModal, setReturnToManageModal] = useState(false)
 
-  const activeItems = items.filter((i) => !i.isArchived)
+  const activeItems = managedItems.filter((i) => !i.isArchived)
   const total = activeItems.reduce((sum, item) => sum + item.amount, 0)
 
   const validate = (name: string, amount: string) => {
@@ -97,6 +98,10 @@ export default function FixedExpenseManagerModal({
 
     openEditModal(item)
   }
+
+  useEffect(() => {
+    setManagedItems(items)
+  }, [items])
 
   useEffect(() => {
     if (isOpen) {
@@ -165,7 +170,16 @@ export default function FixedExpenseManagerModal({
           name: form.name.trim(),
           amount: parseFloat(form.amount),
         }),
-      ).then(() => closeModal())
+      ).then(() => {
+        setManagedItems((current) =>
+          current.map((item) =>
+            item.id === editId
+              ? { ...item, name: form.name.trim(), amount: parseFloat(form.amount) }
+              : item,
+          ),
+        )
+        closeModal()
+      })
     }
   }
 
@@ -251,7 +265,13 @@ export default function FixedExpenseManagerModal({
             type="button"
             onClick={() => {
               if (confirmDeleteId != null) {
-                void Promise.resolve(onDelete(confirmDeleteId))
+                void Promise.resolve(onDelete(confirmDeleteId)).then(() => {
+                  setManagedItems((current) =>
+                    current.map((item) =>
+                      item.id === confirmDeleteId ? { ...item, isArchived: true } : item,
+                    ),
+                  )
+                })
               }
               closeDeleteConfirmation()
             }}

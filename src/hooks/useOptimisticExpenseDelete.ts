@@ -16,7 +16,7 @@ interface UseOptimisticExpenseDeleteParams {
 export function useOptimisticExpenseDelete({
   expenses,
   setExpenses,
-  refreshExpenses,
+  refreshExpenses: _refreshExpenses,
   triggerSync,
   showUndoToast,
 }: UseOptimisticExpenseDeleteParams): {
@@ -38,7 +38,6 @@ export function useOptimisticExpenseDelete({
       try {
         await StorageService.remove(id)
         triggerSync?.()
-        await refreshExpenses()
       } finally {
         pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
           (item) => item !== timer,
@@ -93,7 +92,6 @@ export function useOptimisticExpenseDelete({
       try {
         await StorageService.removeMany(ids)
         triggerSync?.()
-        await refreshExpenses()
       } finally {
         pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
           (item) => item !== timer,

@@ -15,6 +15,7 @@ test.describe("Keyboard navigation (desktop)", () => {
     await addPayee(page, "Zephyr Ledger");
 
     await page.reload();
+    await page.getByTestId("dashboard").waitFor({ timeout: 15000 });
     await page.getByTestId("view-tab-expenses").first().click();
     await expect(page.getByTestId("expense-table")).toBeVisible({ timeout: 5000 });
   });

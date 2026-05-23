@@ -13,6 +13,7 @@ import {
   triggerManualSync,
   updateExpenseForSyncTest,
   deleteExpenseForSyncTest,
+  restoreExpenseForSyncTest,
 } from "./helpers";
 
 async function setContextOffline(page: import("@playwright/test").Page, offline: boolean): Promise<void> {
@@ -199,6 +200,78 @@ test.describe("Live Supabase sync (UAT)", () => {
       expect(rows).toHaveLength(1);
       const row = rows[0];
       expect(row.deletedAt != null || row.description === "uat-delete-vs-edit").toBeTruthy();
+    } finally {
+      await contextA.close();
+      await contextB.close();
+    }
+  });
+
+  test("delete undo syncs across contexts after a remote delete", async ({ browser, liveUser }) => {
+    const contextA = await browser.newContext();
+    const contextB = await browser.newContext();
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+    try {
+      await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password);
+
+      await addSeedExpense(pageA, "uat-delete-undo-roundtrip", 33.33);
+      await triggerManualSyncRounds([pageA, pageB], 2);
+
+      const createdOnA = (await getAllExpenses(pageA)).find(
+        (x) => x.description === "uat-delete-undo-roundtrip",
+      );
+      expect(createdOnA?.id).toBeTruthy();
+      expect(createdOnA?.localId).toBeTruthy();
+
+      await expect
+        .poll(async () =>
+          (await getAllExpenses(pageB)).find((x) => x.localId === createdOnA?.localId) ?? null,
+        )
+        .not.toBeNull();
+
+      const sharedOnB = (await getAllExpenses(pageB)).find((x) => x.localId === createdOnA?.localId);
+      expect(sharedOnB?.id).toBeTruthy();
+
+      await deleteExpenseForSyncTest(pageB, sharedOnB?.id as number);
+      await triggerManualSyncRounds([pageB, pageA], 2);
+
+      await expect
+        .poll(async () => {
+          const allA = await getAllExpensesIncludingDeleted(pageA);
+          const row = allA.find((x) => x.localId === createdOnA?.localId);
+          return row?.deletedAt ?? null;
+        })
+        .not.toBeNull();
+
+      await expect
+        .poll(async () => (await getAllExpenses(pageA)).some((x) => x.localId === createdOnA?.localId))
+        .toBe(false);
+
+      await restoreExpenseForSyncTest(pageB, sharedOnB?.id as number);
+      await triggerManualSyncRounds([pageB, pageA], 2);
+
+      await expect
+        .poll(async () => {
+          const activeA = await getAllExpenses(pageA);
+          return activeA.find((x) => x.localId === createdOnA?.localId) ?? null;
+        })
+        .not.toBeNull();
+
+      await expect
+        .poll(async () => {
+          const allA = await getAllExpensesIncludingDeleted(pageA);
+          const rows = allA.filter((x) => x.localId === createdOnA?.localId);
+          if (rows.length !== 1) return "";
+          return rows[0]?.deletedAt == null ? "active" : "deleted";
+        })
+        .toBe("active");
+
+      const finalA = (await getAllExpenses(pageA)).filter((x) => x.localId === createdOnA?.localId);
+      expect(finalA).toHaveLength(1);
+      expect(finalA[0]?.description).toBe("uat-delete-undo-roundtrip");
+
+      await waitForZeroPendingSync(pageA);
+      await waitForZeroPendingSync(pageB);
     } finally {
       await contextA.close();
       await contextB.close();

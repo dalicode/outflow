@@ -25,6 +25,19 @@ function applyEqFilters(rows: FakeRow[], filters: Array<{ column: string; value:
   );
 }
 
+function applyInFilters(
+  rows: FakeRow[],
+  filters: Array<{ column: string; values: unknown[] }>,
+): FakeRow[] {
+  if (filters.length === 0) return rows;
+  return rows.filter((row) =>
+    filters.every((filter) => {
+      const rowValue = toComparable(row[filter.column]);
+      return filter.values.some((value) => toComparable(value) === rowValue);
+    }),
+  );
+}
+
 function applyOrder(rows: FakeRow[], orderBy?: { column: string; ascending: boolean }): FakeRow[] {
   if (!orderBy) return rows;
   const direction = orderBy.ascending ? 1 : -1;
@@ -93,6 +106,7 @@ export default defineConfig({
             operation: "select" | "upsert" | "delete" | "reset" | "seed" | "inspect";
             selectOptions?: { count?: "exact"; head?: boolean };
             eqFilters?: Array<{ column: string; value: unknown }>;
+            inFilters?: Array<{ column: string; values: unknown[] }>;
             orderBy?: { column: string; ascending: boolean };
             range?: { from: number; to: number };
             upsertRows?: FakeRow[];
@@ -108,6 +122,7 @@ export default defineConfig({
             }
 
             const filters = payload.eqFilters ?? [];
+            const inFilters = payload.inFilters ?? [];
             const userIdFilter = filters.find((filter) => filter.column === "user_id");
             const userId = userIdFilter ? toComparable(userIdFilter.value) : "";
             const rows = userId ? getUserTableRows(userId, payload.table) : [];
@@ -144,7 +159,7 @@ export default defineConfig({
             }
 
             if (payload.operation === "select" || payload.operation === "inspect") {
-              const filtered = applyEqFilters(rows, filters);
+              const filtered = applyInFilters(applyEqFilters(rows, filters), inFilters);
               const ordered = applyOrder(filtered, payload.orderBy);
               const ranged = applyRange(ordered, payload.range);
               const isHead = payload.selectOptions?.head === true;

@@ -14,11 +14,16 @@ export const testApi = {
   syncHandlers: {
     syncNow: null as null | (() => Promise<void>),
     syncLocalThenPull: null as null | (() => Promise<void>),
+    userId: null as string | null,
   },
 
-  setSyncHandlers: (handlers: { syncNow: () => Promise<void>; syncLocalThenPull: () => Promise<void> }) => {
+  setSyncHandlers: (
+    handlers: { syncNow: () => Promise<void>; syncLocalThenPull: () => Promise<void> },
+    userId?: string | null,
+  ) => {
     testApi.syncHandlers.syncNow = handlers.syncNow
     testApi.syncHandlers.syncLocalThenPull = handlers.syncLocalThenPull
+    testApi.syncHandlers.userId = userId ?? null
   },
 
   clearAllData: () => StorageService.clearAllData(),
@@ -85,6 +90,7 @@ export const testApi = {
   },
 
   inspectFakeCloudExpenses: async (userId: string) => fakeSupabase.inspectFakeCloudExpenses(userId),
+  getCurrentSyncUserId: () => testApi.syncHandlers.userId,
 
   signInLiveSupabaseUser: async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase client unavailable')

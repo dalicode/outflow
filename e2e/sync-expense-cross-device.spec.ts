@@ -49,10 +49,13 @@ test.describe("Cross-device expense sync repro", () => {
 
       await triggerManualSync(pageA);
 
-      const cloudRows = await inspectFakeCloudExpenses(pageA, userId);
-      expect(
-        cloudRows.some((row) => row.description === "Cross-device sync repro expense"),
-      ).toBe(true);
+      await expect
+        .poll(async () =>
+          (await inspectFakeCloudExpenses(pageA, userId)).some(
+            (row) => row.description === "Cross-device sync repro expense",
+          ),
+        )
+        .toBe(true);
 
       await setFakeSignedInUser(pageB, userId, email);
       const preSyncDeviceBExpenses = await getAllExpenses(pageB);

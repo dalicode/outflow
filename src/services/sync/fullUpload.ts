@@ -64,6 +64,17 @@ type NameLikeRow = SyncableRow & {
   normalizedName?: string | null
 }
 
+function didLocalRowChangeDuringUpload(
+  currentRow: SyncableRow | undefined,
+  uploadedRow: SyncableRow,
+): boolean {
+  if (!currentRow) return false
+
+  return (
+    currentRow.updatedAt !== uploadedRow.updatedAt || currentRow.deletedAt !== uploadedRow.deletedAt
+  )
+}
+
 function isPendingOrFailed(status: RecordSyncStatus | undefined): boolean {
   return status === 'pending' || status === 'failed'
 }
@@ -217,6 +228,8 @@ async function markTableRowsFailed<T extends SyncableRow>(
     assertSyncRunActive(options?.shouldContinue)
     const key = config.getPrimaryKey(entry.row)
     if (key == null) continue
+    const currentRow = (await table.get(key)) as T | undefined
+    if (didLocalRowChangeDuringUpload(currentRow, entry.row)) continue
     const failed = markRecordFailed(entry.row, syncError, failedAt)
     await table.update(key, {
       syncStatus: failed.syncStatus,
@@ -242,6 +255,8 @@ async function markTableRowsSynced<T extends SyncableRow>(
     assertSyncRunActive(options?.shouldContinue)
     const key = config.getPrimaryKey(entry.row)
     if (key == null) continue
+    const currentRow = (await table.get(key)) as T | undefined
+    if (didLocalRowChangeDuringUpload(currentRow, entry.row)) continue
 
     const localId = getLocalId(entry.row)
     const returned =

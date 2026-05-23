@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const e2ePort = Number(process.env.E2E_PORT ?? "4173");
+const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -10,7 +13,7 @@ export default defineConfig({
   timeout: 30000,
   expect: { timeout: 5000 },
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [
@@ -38,8 +41,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "VITE_E2E_FAKE_SUPABASE=1 npm run dev",
-    url: "http://localhost:5173",
+    command: `VITE_E2E_FAKE_SUPABASE=1 npm run dev -- --host 127.0.0.1 --port ${e2ePort}`,
+    url: baseURL,
     reuseExistingServer: false,
     timeout: 30000,
   },

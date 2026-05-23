@@ -21,6 +21,9 @@ import type { SyncStatus } from '../types'
 import { debugLog } from '../utils/debug'
 import { withTimeout } from '../utils/withTimeout'
 
+const shouldBypassRecoveryPause =
+  import.meta.env.DEV && import.meta.env.VITE_E2E_FAKE_SUPABASE === '1'
+
 interface AuthContextValue {
   user: User | null
   loading: boolean
@@ -68,7 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const report = await runRecoveryDiagnostics(user?.id)
     setRecoveryReport(report)
     setRecoveryStatus(report.status)
-    if (report.status === 'rebuild_cloud_required' || report.status === 'local_repair_required') {
+    if (shouldBypassRecoveryPause) {
+      resumeSync('recovery')
+    } else if (
+      report.status === 'rebuild_cloud_required' ||
+      report.status === 'local_repair_required'
+    ) {
       pauseSync('recovery')
     } else {
       resumeSync('recovery')

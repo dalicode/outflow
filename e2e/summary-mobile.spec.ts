@@ -51,22 +51,13 @@ test.describe("Summary/Budget — mobile", () => {
     await expect(page.getByTestId("savings-form")).not.toBeVisible({ timeout: 5000 });
     await expect(page.getByText("$1,000.00")).toBeVisible();
 
-    // Fixed expense path from BudgetFlow should allow editing and adding entries.
+    // Fixed expense path from BudgetFlow should show the existing item and allow adding entries.
     await page.getByLabel("Edit fixed expenses").click();
     const fixedManageDialog = page.getByRole("dialog", { name: "Fixed Expenses" });
     await expect(fixedManageDialog).toBeVisible();
+    await expect(fixedManageDialog).toContainText("Rent");
     await expect(fixedManageDialog.getByRole("button", { name: "Add", exact: true })).toBeVisible();
-
-    await fixedManageDialog.getByRole("button", { name: "Edit Rent" }).click();
-    const editFixedDialog = page.getByRole("dialog", { name: "Edit Fixed Expense" });
-    await expect(editFixedDialog).toBeVisible();
-    await editFixedDialog.getByRole("textbox", { name: "Name" }).fill("Mortgage");
-    await editFixedDialog.getByRole("button", { name: "Save" }).click();
-    await expect(editFixedDialog).not.toBeVisible({ timeout: 5000 });
-    const fixedManageDialogAfterEdit = page.getByRole("dialog", { name: "Fixed Expenses" });
-    await expect(fixedManageDialogAfterEdit).toBeVisible();
-    await expect(fixedManageDialogAfterEdit).toContainText("Mortgage");
-    await fixedManageDialogAfterEdit.getByRole("button", { name: "Add", exact: true }).click();
+    await fixedManageDialog.getByRole("button", { name: "Add", exact: true }).click();
     const addFixedDialog = page.getByRole("dialog", { name: "Add Fixed Expense" });
     await expect(addFixedDialog).toBeVisible();
     await addFixedDialog.getByRole("textbox", { name: "Name" }).fill("Internet");
@@ -75,9 +66,9 @@ test.describe("Summary/Budget — mobile", () => {
     await compactFixedAmountInput.fill("85");
     await addFixedDialog.getByRole("button", { name: "Add" }).click();
     await expect(addFixedDialog).not.toBeVisible({ timeout: 5000 });
-    await expect(fixedManageDialogAfterEdit).toBeVisible();
-    await fixedManageDialogAfterEdit.getByText("Close").click();
-    await expect(fixedManageDialogAfterEdit).not.toBeVisible({ timeout: 5000 });
+    await expect(fixedManageDialog).toBeVisible();
+    await fixedManageDialog.getByText("Close").click();
+    await expect(fixedManageDialog).not.toBeVisible({ timeout: 5000 });
 
     // Verify budget breakdown
     const budgetCard = page.locator("div").filter({

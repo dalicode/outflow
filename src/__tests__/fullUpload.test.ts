@@ -37,10 +37,16 @@ const supabaseFromMock = vi.hoisted(() =>
 const tableUpdates = vi.hoisted(
   () => [] as Array<{ table: string; key: number | string; changes: Record<string, unknown> }>,
 )
+const tableRows = vi.hoisted(() => new Map<string, Map<number | string, Record<string, unknown>>>() )
 const dbTableMock = vi.hoisted(() =>
   vi.fn((tableName: string) => ({
+    get: vi.fn(async (key: number | string) => tableRows.get(tableName)?.get(key)),
     update: vi.fn(async (key: number | string, changes: Record<string, unknown>) => {
       tableUpdates.push({ table: tableName, key, changes })
+      const rows = tableRows.get(tableName) ?? new Map<number | string, Record<string, unknown>>()
+      const existing = rows.get(key) ?? {}
+      rows.set(key, { ...existing, ...changes })
+      tableRows.set(tableName, rows)
       return 1
     }),
   })),
@@ -101,6 +107,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     tableUpdates.length = 0
+    tableRows.clear()
     upsertRowsInBatchesMock.mockImplementation(async () => [])
     supabaseSelectInMock.mockResolvedValue({ data: [], error: null })
   })
@@ -257,6 +264,54 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     expect(expenseUpdate?.changes.syncStatus).toBe('failed')
     expect(expenseUpdate?.changes.syncError).toContain('network timeout')
     expect(expenseUpdate?.changes.updatedAt).toBeUndefined()
+  })
+
+  it('does not mark an older delete upload synced after a newer local restore', async () => {
+    const uploadedExpense = {
+      id: 100,
+      localId: 'exp-100',
+      cloudId: 'cloud-exp-100',
+      syncStatus: 'pending',
+      date: '2026-05-20',
+      amount: 44.5,
+      updatedAt: '2026-05-20T12:00:00.000Z',
+      deletedAt: '2026-05-20T12:00:00.000Z',
+    }
+
+    getAllExpensesMock.mockResolvedValue([uploadedExpense])
+    tableRows.set(
+      'expenses',
+      new Map([
+        [
+          100,
+          {
+            ...uploadedExpense,
+            updatedAt: '2026-05-20T12:00:01.000Z',
+            deletedAt: null,
+            syncStatus: 'pending',
+          },
+        ],
+      ]),
+    )
+
+    upsertRowsInBatchesMock.mockImplementation(async (table: string) => {
+      if (table === 'expenses') {
+        return [
+          {
+            id: 'cloud-exp-100',
+            local_id: 'exp-100',
+            created_at: '2026-05-20T12:00:00.000Z',
+            updated_at: '2026-05-20T12:00:00.000Z',
+          },
+        ]
+      }
+      return []
+    })
+
+    await migrateLocalToSupabase('user-1')
+
+    const expenseUpdate = tableUpdates.find((call) => call.table === 'expenses' && call.key === 100)
+    expect(expenseUpdate).toBeUndefined()
   })
 
   it('matches category upsert returns by normalized name when remote local_id differs', async () => {

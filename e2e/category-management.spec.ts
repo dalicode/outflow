@@ -61,20 +61,18 @@ test.describe("Category management (desktop)", () => {
     await page.getByPlaceholder("Search categories...").fill("TestCategory");
 
     // Find the TestCategory row and click Edit
-    const catRow = page.locator(`[data-testid^="category-row-"]`).filter({ hasText: "TestCategory" });
+    const catRow = page.getByTestId(`category-row-${targetCat?.id}`);
     await catRow.getByRole("button", { name: "Edit" }).click();
 
-    // After Edit is clicked, the row shows an input with value "TestCategory"
-    await page.waitForTimeout(300);
-    const editInput = page.locator('input[value="TestCategory"]').nth(1);
+    const editInput = catRow.getByRole("textbox").first();
     await expect(editInput).toBeVisible({ timeout: 3000 });
     await editInput.fill("RenamedCategory");
 
-    // The row now has "RenamedCategory" as text — find the Save button (the category edit one)
-    await page.getByRole("button", { name: "Save" }).last().click();
-
-    const updatedCategories = await getCategories(page);
-    expect(updatedCategories.some((c) => c.name === "RenamedCategory")).toBe(true);
+    await catRow.getByRole("button", { name: "Save" }).click();
+    await expect(catRow.getByRole("textbox")).toHaveCount(0);
+    await expect
+      .poll(async () => (await getCategories(page)).some((c) => c.name === "RenamedCategory"))
+      .toBe(true);
 
     await page.getByRole("button", { name: "Done" }).first().click();
   });

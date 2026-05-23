@@ -2,6 +2,7 @@ import type { AuthError, User } from '@supabase/supabase-js'
 
 type FakeRow = Record<string, unknown>
 type EqFilter = { column: string; value: unknown }
+type InFilter = { column: string; values: unknown[] }
 type OrderBy = { column: string; ascending: boolean }
 
 type QueryPayload = {
@@ -10,6 +11,7 @@ type QueryPayload = {
   selectColumns?: string
   selectOptions?: { count?: 'exact'; head?: boolean }
   eqFilters?: EqFilter[]
+  inFilters?: InFilter[]
   orderBy?: OrderBy
   range?: { from: number; to: number }
   upsertRows?: FakeRow[]
@@ -68,6 +70,7 @@ async function postQuery(payload: QueryPayload): Promise<QueryResult> {
 
 class FakeQueryBuilder {
   private readonly eqFilters: EqFilter[] = []
+  private readonly inFilters: InFilter[] = []
   private orderBy: OrderBy | undefined
   private rangeArgs: { from: number; to: number } | undefined
 
@@ -80,6 +83,11 @@ class FakeQueryBuilder {
 
   eq(column: string, value: unknown): FakeQueryBuilder {
     this.eqFilters.push({ column, value })
+    return this
+  }
+
+  in(column: string, values: unknown[]): FakeQueryBuilder {
+    this.inFilters.push({ column, values })
     return this
   }
 
@@ -107,6 +115,7 @@ class FakeQueryBuilder {
       selectColumns: this.selectColumns,
       selectOptions: this.selectOptions,
       eqFilters: this.eqFilters,
+      inFilters: this.inFilters,
       orderBy: this.orderBy,
       range: this.rangeArgs,
     })

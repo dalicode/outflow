@@ -46,7 +46,7 @@ export default defineConfig({
       : {
           command: `npm run dev -- --mode uat --host 127.0.0.1 --port ${uatPort}`,
           url: baseURL,
-          reuseExistingServer: false,
+          reuseExistingServer: !process.env.CI,
           timeout: 90000,
         },
 });
