@@ -1,6 +1,8 @@
 import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+type TestApi = typeof import("../src/test/testApi").testApi;
+
 export interface SeedExpenseEntry {
   date: string;
   amount: number;
@@ -389,7 +391,7 @@ export async function getSchedules(
 
 export async function addSchedule(
   page: Page,
-  schedule: Record<string, unknown>,
+  schedule: Parameters<TestApi["addSchedule"]>[0],
 ): Promise<void> {
   await page.evaluate(async (data) => {
     const api = (window as Window & {
@@ -620,7 +622,7 @@ export async function getSyncMetadataCounts(
 export async function updateExpenseForSyncTest(
   page: Page,
   expenseId: number,
-  changes: Record<string, unknown>,
+  changes: Parameters<TestApi["updateExpenseForSyncTest"]>[1],
 ): Promise<void> {
   await page.evaluate(async ({ nextExpenseId, nextChanges }) => {
     const api = (window as Window & {
@@ -634,7 +636,7 @@ export async function updateExpenseForSyncTest(
 export async function updateExpenseForSyncTestWithTimestamp(
   page: Page,
   expenseId: number,
-  changes: Record<string, unknown>,
+  changes: Parameters<TestApi["updateExpenseForSyncTestWithTimestamp"]>[1],
   updatedAt: string,
 ): Promise<void> {
   await page.evaluate(async ({ nextExpenseId, nextChanges, nextUpdatedAt }) => {
