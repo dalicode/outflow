@@ -4,7 +4,7 @@ import { fakeSupabase } from '../services/fakeSupabase'
 import { markRecordPending } from '../utils/syncMetadata'
 import { supabase } from '../services/supabase'
 import { clearUserCloudData } from '../services/syncService'
-import type { Expense, Schedule } from '../types'
+import type { Expense, ExpenseSplit, Schedule } from '../types'
 
 declare global {
   interface Window {
@@ -55,6 +55,21 @@ export const testApi = {
     for (const e of entries) {
       await StorageService.add(e as Omit<Expense, 'id'>)
     }
+  },
+
+  seedExpenseSplit: async (params: {
+    split: Omit<ExpenseSplit, 'id'>
+    children: Array<{
+      categoryId: number
+      amount: number
+      description?: string
+      payeeId?: number
+    }>
+  }) => {
+    await StorageService.saveExpenseSplitWithChildren({
+      split: params.split,
+      children: params.children,
+    })
   },
 
   seedSettings: async (settings: Record<string, unknown>) => {

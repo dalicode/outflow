@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../utils/cn'
 import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
@@ -12,7 +12,7 @@ const CONTENT_TOP_PADDING = 3
 const CONTENT_BOTTOM_PADDING = 5
 const CONTENT_VERTICAL_PADDING = CONTENT_TOP_PADDING + CONTENT_BOTTOM_PADDING
 const CONTENT_SIDE_PADDING = 3
-const MAX_VISIBLE_OPTION_ROWS = 8
+const MAX_VISIBLE_OPTION_ROWS = 6
 const MIN_ROWS_BEFORE_FLIP = 4
 
 type NavigableItem =
@@ -70,7 +70,8 @@ export default function DesktopDropdown({
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [panelStyle, setPanelStyle] = useState<FloatingPosition | null>(null)
-  const triggerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -240,7 +241,7 @@ export default function DesktopDropdown({
         : 0
     : 0
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) {
       setPanelStyle(null)
       setQuery('')
@@ -436,8 +437,9 @@ export default function DesktopDropdown({
     : 'px-2 pb-1 text-xs text-theme-danger'
 
   return (
-    <div className="relative" ref={triggerRef}>
+    <div className="relative" ref={containerRef}>
       <SingleSelectTrigger
+        ref={triggerRef}
         value={selectedOption?.label}
         placeholder={placeholder}
         isOpen={isOpen}
@@ -457,7 +459,6 @@ export default function DesktopDropdown({
             style={{
               position: 'fixed',
               top: panelStyle ? panelTop : 0,
-              bottom: panelStyle?.placement === 'top' ? panelStyle.bottom : undefined,
               left: panelStyle?.left ?? 0,
               width: panelStyle?.width ?? 0,
               height: panelStyle ? panelHeight : DROPDOWN_PANEL_MAX_HEIGHT,
@@ -491,7 +492,7 @@ export default function DesktopDropdown({
 
             <div
               ref={contentRef}
-              className="overflow-y-auto overscroll-contain"
+              className="overflow-y-auto overscroll-contain scrollbar-themed"
               style={{
                 height: visibleContentHeight,
                 maxHeight: visibleContentHeight,

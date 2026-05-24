@@ -95,6 +95,9 @@ const desktopPlacementMap: Record<ModalSize, string> = {
   full: 'sm:items-center sm:pt-4',
 }
 
+const IOS_KEYBOARD_ACCESSORY_OFFSET = 56
+const MOBILE_FOOTER_KEYBOARD_GAP = 10
+
 interface ViewportMetrics {
   width: number
   height: number
@@ -117,7 +120,7 @@ function getViewportMetrics(): ViewportMetrics {
     }
   }
 
-  const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+  const keyboardInset = Math.max(0, window.innerHeight - viewport.height)
 
   return {
     width: viewport.width,
@@ -125,6 +128,16 @@ function getViewportMetrics(): ViewportMetrics {
     offsetTop: viewport.offsetTop,
     keyboardInset,
   }
+}
+
+function isIOSLikeDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+
+  const platform = navigator.platform.toLowerCase()
+  const userAgent = navigator.userAgent.toLowerCase()
+  const hasTouch = navigator.maxTouchPoints > 1
+
+  return /iphone|ipad|ipod/.test(userAgent) || (platform === 'macintel' && hasTouch)
 }
 
 export default function Modal({
@@ -298,6 +311,14 @@ export default function Modal({
   const mobileCardMaxHeight = Math.max(0, viewportMetrics.height - 24)
   const hasMobileAction = isFullScreenMobile && Boolean(onMobileAction)
   const desktopPlacementClass = desktopPlacementMap[size]
+  const mobileKeyboardAccessoryOffset = isIOSLikeDevice() ? IOS_KEYBOARD_ACCESSORY_OFFSET : 0
+  const mobileFooterKeyboardInset =
+    isMobileViewport && isFullScreenMobile
+      ? Math.max(
+          0,
+          viewportMetrics.keyboardInset - mobileKeyboardAccessoryOffset + MOBILE_FOOTER_KEYBOARD_GAP,
+        )
+      : 0
 
   const overlayStyle =
     isMobileViewport && !isFullScreenMobile
@@ -307,11 +328,12 @@ export default function Modal({
         }
       : undefined
 
-  const modalCardStyle = isMobileViewport
-    ? isFullScreenMobile
-      ? { height: `${viewportMetrics.height}px` }
-      : { maxHeight: `${mobileCardMaxHeight}px` }
-    : undefined
+  const modalCardStyle =
+    isMobileViewport && !isFullScreenMobile ? { maxHeight: `${mobileCardMaxHeight}px` } : undefined
+  const mobileFooterStyle =
+    mobileFooterKeyboardInset > 0
+      ? { transform: `translateY(-${mobileFooterKeyboardInset}px)` }
+      : undefined
 
   if (!isOpen) return null
 
@@ -426,10 +448,12 @@ export default function Modal({
         {hasMobileAction && (
           <div
             className={cn(
-              'shrink-0 border-t border-theme-border bg-theme-surface sm:hidden',
+              'z-10 shrink-0 border-t border-theme-border bg-theme-surface sm:hidden',
+              'transition-transform duration-150 ease-out',
               'px-4 py-3',
               'pb-[max(env(safe-area-inset-bottom),0.75rem)]',
             )}
+            style={mobileFooterStyle}
           >
             <button
               type="button"
@@ -447,11 +471,13 @@ export default function Modal({
         {footer && (
           <div
             className={cn(
-              'shrink-0 border-t border-theme-border bg-theme-surface',
+              'z-10 shrink-0 border-t border-theme-border bg-theme-surface',
+              'transition-transform duration-150 ease-out',
               hasMobileAction && 'hidden sm:block',
               'px-4 py-3 sm:px-5',
               'pb-[max(env(safe-area-inset-bottom),0.75rem)]',
             )}
+            style={mobileFooterStyle}
           >
             {footer}
           </div>

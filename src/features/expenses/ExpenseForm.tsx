@@ -19,6 +19,7 @@ import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 import type { MatchConfidence } from '../../utils/payeeMatching'
 import { findBestPayeeMatch } from '../../utils/payeeMatching'
 import { distributeSplitAmountEvenly, reconcileSplitAmounts } from '../../utils/splitExpenseHelpers'
+import { cn } from '../../utils/cn'
 import './expenses.css'
 import type { Category, Expense, ExpenseSplit, Payee } from '../../types'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
@@ -49,7 +50,6 @@ interface SplitChildDraft {
   rowId: string
   expenseId?: number
   categoryId: string
-  payeeId: string
   description: string
   amount: string
 }
@@ -107,6 +107,9 @@ export default function ExpenseForm({
   const [showPayeeModal, setShowPayeeModal] = useState(false)
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [showPayeePicker, setShowPayeePicker] = useState(false)
+  const [openSplitCategoryPickers, setOpenSplitCategoryPickers] = useState<Record<string, boolean>>(
+    {},
+  )
   const [payeeSuggestion, setPayeeSuggestion] = useState<Payee | null>(null)
   const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] =
     useState<MatchConfidence | null>(null)
@@ -175,6 +178,20 @@ export default function ExpenseForm({
     [decimalPlaces, splitChildren, splitContainerAmount],
   )
 
+  const createCategory = useCallback(
+    async (name: string) => {
+      if (onCategoriesChange) {
+        const newId = await onCategoriesChange('add', { name })
+        await refreshCategoriesProp?.()
+        return newId ?? -1
+      }
+      const newId = await StorageService.addCategory(name)
+      await refreshCategoriesProp?.()
+      return newId
+    },
+    [onCategoriesChange, refreshCategoriesProp],
+  )
+
   const set =
     <K extends keyof typeof form>(field: K) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -225,25 +242,27 @@ export default function ExpenseForm({
       rowId: seed?.rowId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       expenseId: seed?.expenseId,
       categoryId: seed?.categoryId ?? '',
-      payeeId: seed?.payeeId ?? (form.payeeId || ''),
       description: seed?.description ?? '',
       amount: seed?.amount ?? '0',
     }),
-    [form.payeeId],
+    [],
   )
+
+  const toggleSplitMode = useCallback(() => {
+    if (!canToggleSplitMode) return
+    setIsSplitMode((current) => {
+      const next = !current
+      if (next) {
+        setSplitChildren((rows) => (rows.length > 0 ? rows : [createSplitChild()]))
+      }
+      return next
+    })
+  }, [canToggleSplitMode, createSplitChild])
 
   const handlePayeeManualSelect = useCallback(
     (id: string | number | undefined) => {
       const nextPayeeId = id != null ? String(id) : ''
       setForm((f) => ({ ...f, payeeId: nextPayeeId }))
-      if (isSplitMode) {
-        setSplitChildren((children) =>
-          children.map((child) => ({
-            ...child,
-            payeeId: nextPayeeId,
-          })),
-        )
-      }
       setPayeeSuggestion(null)
       setPayeeSuggestionConfidence(null)
       if (id != null) {
@@ -261,7 +280,7 @@ export default function ExpenseForm({
         }
       }
     },
-    [activeCategoryIds, expenses, isSplitMode],
+    [activeCategoryIds, expenses],
   )
 
   useEffect(() => {
@@ -292,7 +311,6 @@ export default function ExpenseForm({
             rowId: `existing-${child.id}-${Math.random().toString(36).slice(2)}`,
             expenseId: child.id,
             categoryId: child.categoryId != null ? String(child.categoryId) : '',
-            payeeId: child.payeeId != null ? String(child.payeeId) : '',
             description: child.description ?? '',
             amount: child.amount.toFixed(decimalPlaces),
           })),
@@ -331,6 +349,12 @@ export default function ExpenseForm({
 
   const removeSplitChild = useCallback((rowId: string) => {
     setSplitChildren((children) => children.filter((child) => child.rowId !== rowId))
+    setOpenSplitCategoryPickers((prev) => {
+      if (!(rowId in prev)) return prev
+      const next = { ...prev }
+      delete next[rowId]
+      return next
+    })
   }, [])
 
   const applyRemainingToChild = useCallback(
@@ -377,6 +401,7 @@ export default function ExpenseForm({
   }
 
   const saveSplit = async (rows: SplitChildDraft[]) => {
+    const inheritedPayeeId = form.payeeId ? Number(form.payeeId) : undefined
     await StorageService.saveExpenseSplitWithChildren({
       splitId: editingSplitId ?? undefined,
       replaceExpenseId: editingSplitId == null && isEdit ? initialExpense?.id : undefined,
@@ -384,7 +409,7 @@ export default function ExpenseForm({
       children: rows.map((child) => ({
         expenseId: child.expenseId,
         categoryId: child.categoryId ? Number(child.categoryId) : undefined,
-        payeeId: child.payeeId ? Number(child.payeeId) : undefined,
+        payeeId: inheritedPayeeId,
         description: child.description,
         amount: Number.parseFloat(child.amount || '0'),
       })),
@@ -505,6 +530,45 @@ export default function ExpenseForm({
   }
 
   const inputCls = 'input-md w-full'
+  const splitPayeeInheritanceLabel = selectedPayeeName ?? 'No payee'
+  const amountField = (
+    <div
+      className={cn(
+        'flex flex-col gap-2 text-sm text-theme-muted',
+        'mx-auto w-full max-w-[16rem] items-center text-center',
+      )}
+    >
+      <span>{isSplitMode ? 'Total Amount' : 'Amount'}</span>
+      <MoneyInput
+        value={Number.parseFloat(form.amount || '0')}
+        onChange={(amount) => setForm((f) => ({ ...f, amount: amount.toFixed(decimalPlaces) }))}
+        currency={moneyConfig.currency}
+        locale={moneyConfig.locale}
+        allowNegative
+        showSignToggle
+        positiveLabel="Expense"
+        negativeLabel="Refund"
+        negativeIndicatorLabel="Refund"
+        helperText={
+          isMobileViewport
+            ? 'Type numbers only - 1234 becomes $12.34'
+            : 'Edit the amount directly, including cents.'
+        }
+        autoFocus={!isEdit}
+        size="lg"
+        entryMode={isMobileViewport ? 'cents' : 'decimal'}
+        signTogglePosition="outside-left"
+        detachedOutsideLeftControls
+        signToggleStyle="toggle"
+        className="w-full"
+        shellClassOverride="px-1.5"
+        inputClassName={cn(
+          'text-center tracking-tight',
+          isMobileViewport ? 'text-[2.125rem]' : 'text-[1.9rem]',
+        )}
+      />
+    </div>
+  )
 
   return (
     <>
@@ -535,16 +599,7 @@ export default function ExpenseForm({
         }
       >
         <form id="expense-form" onSubmit={submit} className="space-y-4" data-testid="expense-form">
-          <div className="flex flex-col gap-1 text-sm text-theme-muted">
-            <span>Date</span>
-            <DatePicker
-              value={form.date}
-              variant="inline"
-              inputStyle="default"
-              onChange={(iso) => setForm((f) => ({ ...f, date: iso }))}
-              placeholder="Select date…"
-            />
-          </div>
+          {amountField}
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <label className="text-sm text-theme-muted">Payee</label>
@@ -609,29 +664,6 @@ export default function ExpenseForm({
               />
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-theme-muted">Split Transaction</label>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!canToggleSplitMode) return
-                  setIsSplitMode((current) => {
-                    const next = !current
-                    if (next) {
-                      setSplitChildren((rows) => (rows.length > 0 ? rows : [createSplitChild()]))
-                    }
-                    return next
-                  })
-                }}
-                disabled={!canToggleSplitMode}
-                data-testid="toggle-split-mode"
-                className="rounded-theme-medium border border-theme-border px-3 py-1.5 text-xs font-medium text-theme-text disabled:opacity-50"
-              >
-                {isSplitMode ? 'Split On' : 'Split Off'}
-              </button>
-            </div>
-          </div>
           {!isSplitMode && (
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
@@ -661,16 +693,7 @@ export default function ExpenseForm({
                       categoryId: id != null ? String(id) : '',
                     }))
                   }
-                  onCreate={async (name) => {
-                    if (onCategoriesChange) {
-                      const newId = await onCategoriesChange('add', { name })
-                      await refreshCategoriesProp?.()
-                      return newId ?? -1
-                    }
-                    const newId = await StorageService.addCategory(name)
-                    await refreshCategoriesProp?.()
-                    return newId
-                  }}
+                  onCreate={createCategory}
                 />
               </div>
               {/* Mobile */}
@@ -697,98 +720,225 @@ export default function ExpenseForm({
                       categoryId: id != null ? String(id) : '',
                     }))
                   }
-                  onCreate={async (name) => {
-                    if (onCategoriesChange) {
-                      const newId = await onCategoriesChange('add', { name })
-                      await refreshCategoriesProp?.()
-                      return newId ?? -1
-                    }
-                    const newId = await StorageService.addCategory(name)
-                    await refreshCategoriesProp?.()
-                    return newId
-                  }}
+                  onCreate={createCategory}
                   onClose={() => setShowCategoryPicker(false)}
                 />
               </div>
             </div>
           )}
-          {isSplitMode && (
-            <div className="space-y-3 rounded-theme-large border border-theme-border p-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-theme-text">Split Rows</div>
-                <button
-                  type="button"
-                  onClick={addSplitChild}
-                  className="text-xs font-medium text-theme-primary hover:opacity-80"
-                  data-testid="btn-add-split-row"
-                >
-                  + Add row
-                </button>
-              </div>
-              {isLoadingSplit && (
-                <div className="text-xs text-theme-muted" data-testid="split-loading">
-                  Loading split rows…
-                </div>
+          <div className="flex flex-col gap-1 text-sm text-theme-muted">
+            <span>Date</span>
+            <DatePicker
+              value={form.date}
+              variant="inline"
+              inputStyle="default"
+              onChange={(iso) => setForm((f) => ({ ...f, date: iso }))}
+              placeholder="Select date…"
+            />
+          </div>
+          <div className="flex flex-col gap-1 text-sm text-theme-muted">
+            <span>Description</span>
+            <input
+              type="text"
+              value={form.description}
+              onChange={set('description')}
+              onBlur={handleDescriptionBlur}
+              placeholder="Optional"
+              className={inputCls}
+            />
+          </div>
+          <div className="space-y-3">
+            <label
+              className={cn(
+                'flex items-start gap-3 rounded-theme-medium border border-theme-border bg-theme-surface px-3 py-2.5 transition-colors',
+                canToggleSplitMode ? 'cursor-pointer' : 'opacity-60',
               )}
-              {splitChildren.map((child, index) => (
-                <div
-                  key={child.rowId}
-                  className="space-y-2 rounded-theme-medium border border-theme-border p-2"
-                  data-testid={`split-row-${index}`}
-                >
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                      Category
-                      <select
-                        value={child.categoryId}
-                        onChange={(event) =>
-                          setSplitChildField(child.rowId, 'categoryId', event.target.value)
-                        }
-                        className={inputCls}
-                        aria-label={`Split category ${index + 1}`}
-                      >
-                        <option value="">Select category</option>
-                        {activeCategories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                      Payee
-                      <select
-                        value={child.payeeId}
-                        onChange={(event) =>
-                          setSplitChildField(child.rowId, 'payeeId', event.target.value)
-                        }
-                        className={inputCls}
-                        aria-label={`Split payee ${index + 1}`}
-                      >
-                        <option value="">No payee</option>
-                        {activePayees.map((payee) => (
-                          <option key={payee.id} value={payee.id}>
-                            {payee.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+            >
+              <input
+                type="checkbox"
+                checked={isSplitMode}
+                onChange={toggleSplitMode}
+                disabled={!canToggleSplitMode}
+                data-testid="toggle-split-mode"
+                className="sr-only"
+                aria-label="Enable split transaction"
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+                  isSplitMode
+                    ? 'border-theme-primary bg-theme-primary-subtle text-theme-primary'
+                    : 'border-theme-border bg-theme-background text-transparent',
+                )}
+              >
+                <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6.25L4.75 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm text-theme-text">Split transaction</span>
+                <span className="block text-xs text-theme-muted">
+                  {canToggleSplitMode
+                    ? 'Break this expense into multiple category allocations.'
+                    : 'This expense already belongs to a saved split transaction.'}
+                </span>
+              </span>
+            </label>
+
+            {isSplitMode && (
+              <div className="space-y-3 rounded-theme-large border border-theme-border bg-theme-background p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium text-theme-text">Split allocations</div>
+                    <div className="mt-0.5 text-xs text-theme-muted">
+                      Each row uses the parent payee: {splitPayeeInheritanceLabel}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <button
+                    type="button"
+                    onClick={addSplitChild}
+                    className="btn-cancel-sm flex-none px-3 py-1.5 text-xs"
+                    data-testid="btn-add-split-row"
+                  >
+                    + Add row
+                  </button>
+                </div>
+                {isLoadingSplit && (
+                  <div className="text-xs text-theme-muted" data-testid="split-loading">
+                    Loading split rows…
+                  </div>
+                )}
+                {splitChildren.map((child, index) => {
+                  const selectedSplitCategoryName = categoryOptions.find(
+                    (option) => option.id === Number(child.categoryId),
+                  )?.label
+                  const isSplitCategoryPickerOpen = openSplitCategoryPickers[child.rowId] ?? false
+
+                  return (
+                    <div
+                      key={child.rowId}
+                      className="space-y-3 rounded-theme-medium border border-theme-border bg-theme-surface p-3"
+                      data-testid={`split-row-${index}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-theme-primary-subtle text-xs font-semibold text-theme-primary">
+                            {index + 1}
+                          </span>
+                          <span className="min-w-0 truncate text-sm font-medium text-theme-text">
+                            Allocation
+                          </span>
+                        </div>
+                        <span className="min-w-0 truncate text-xs text-theme-muted">
+                          {splitPayeeInheritanceLabel}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                        <div className="flex flex-col gap-1">
+                          <label className="block text-sm text-theme-muted">{`Split category ${index + 1}`}</label>
+                          <div
+                            className="hidden sm:block"
+                            data-testid={`desktop-split-category-dropdown-${index}`}
+                          >
+                            <DesktopDropdown
+                              value={child.categoryId ? Number(child.categoryId) : undefined}
+                              options={categoryOptions}
+                              recentOptions={recentCategoryOptions}
+                              placeholder="Select category"
+                              emptyMessage="No categories found."
+                              createHint="Type a new category name to add it."
+                              allowCreate
+                              ariaLabel={`Split category ${index + 1}`}
+                              autoFocus={false}
+                              onChange={(id) =>
+                                setSplitChildField(
+                                  child.rowId,
+                                  'categoryId',
+                                  id != null ? String(id) : '',
+                                )
+                              }
+                              onCreate={createCategory}
+                            />
+                          </div>
+                          <div
+                            className="block sm:hidden"
+                            data-testid={`mobile-split-category-trigger-${index}`}
+                          >
+                            <SingleSelectTrigger
+                              value={selectedSplitCategoryName}
+                              placeholder="Select category"
+                              isOpen={isSplitCategoryPickerOpen}
+                              ariaLabel={`Split category ${index + 1}`}
+                              onClick={() =>
+                                setOpenSplitCategoryPickers((prev) => ({
+                                  ...prev,
+                                  [child.rowId]: true,
+                                }))
+                              }
+                            />
+                            <MobileEntityPicker
+                              open={isSplitCategoryPickerOpen}
+                              title="Choose Category"
+                              value={child.categoryId ? Number(child.categoryId) : undefined}
+                              options={categoryOptions}
+                              recentOptions={recentCategoryOptions}
+                              placeholder="Search or add category"
+                              emptyMessage="No categories found."
+                              createHint="Type a new category name to add it."
+                              allowCreate
+                              onChange={(id) =>
+                                setSplitChildField(
+                                  child.rowId,
+                                  'categoryId',
+                                  id != null ? String(id) : '',
+                                )
+                              }
+                              onCreate={createCategory}
+                              onClose={() =>
+                                setOpenSplitCategoryPickers((prev) => ({
+                                  ...prev,
+                                  [child.rowId]: false,
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <MoneyInput
+                          label={`Split amount ${index + 1}`}
+                          value={Number.parseFloat(child.amount || '0')}
+                          onChange={(amount) =>
+                            setSplitChildField(child.rowId, 'amount', amount.toFixed(decimalPlaces))
+                          }
+                          currency={moneyConfig.currency}
+                          locale={moneyConfig.locale}
+                          allowNegative
+                          entryMode={isMobileViewport ? 'cents' : 'decimal'}
+                          size="md"
+                          className="w-full"
+                          inputClassName="text-right"
+                        />
+                      </div>
                     <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                      Amount
+                      Description
                       <input
-                        type="number"
-                        step={10 ** -decimalPlaces}
-                        value={child.amount}
+                        type="text"
+                        value={child.description}
                         onChange={(event) =>
-                          setSplitChildField(child.rowId, 'amount', event.target.value)
+                          setSplitChildField(child.rowId, 'description', event.target.value)
                         }
                         className={inputCls}
-                        aria-label={`Split amount ${index + 1}`}
+                        placeholder="Optional"
+                        aria-label={`Split description ${index + 1}`}
                       />
                     </label>
-                    <div className="flex items-end gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                       <button
                         type="button"
                         onClick={() => applyRemainingToChild(child.rowId)}
@@ -807,50 +957,36 @@ export default function ExpenseForm({
                         Remove
                       </button>
                     </div>
-                  </div>
-                  <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                    Description
-                    <input
-                      type="text"
-                      value={child.description}
-                      onChange={(event) =>
-                        setSplitChildField(child.rowId, 'description', event.target.value)
-                      }
-                      className={inputCls}
-                      placeholder="Optional"
-                      aria-label={`Split description ${index + 1}`}
-                    />
-                  </label>
+                    </div>
+                  )
+                })}
+                <div
+                  className={cn(
+                    'rounded-theme-medium border px-3 py-2 text-sm',
+                    splitReconciliation.isBalanced
+                      ? 'border-[color:color-mix(in_srgb,var(--theme-success)_30%,var(--theme-border))] bg-[color:color-mix(in_srgb,var(--theme-success)_7%,var(--theme-surface))]'
+                      : splitReconciliation.difference > 0
+                        ? 'border-theme-warning-subtle bg-theme-warning-subtle'
+                        : 'border-theme-danger-subtle bg-theme-danger-subtle',
+                  )}
+                >
+                  {splitReconciliation.isBalanced ? (
+                    <span className="font-medium text-theme-success" data-testid="split-balanced">
+                      Balanced: split rows match the total.
+                    </span>
+                  ) : splitReconciliation.difference > 0 ? (
+                    <span className="text-theme-muted" data-testid="split-remaining">
+                      Remaining: <strong>{formatAmount(splitReconciliation.difference)}</strong>
+                    </span>
+                  ) : (
+                    <span className="text-theme-muted" data-testid="split-over">
+                      Over by:{' '}
+                      <strong>{formatAmount(Math.abs(splitReconciliation.difference))}</strong>
+                    </span>
+                  )}
                 </div>
-              ))}
-              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-sm">
-                {splitReconciliation.isBalanced ? (
-                  <span className="font-medium text-theme-success" data-testid="split-balanced">
-                    Balanced
-                  </span>
-                ) : splitReconciliation.difference > 0 ? (
-                  <span className="text-theme-muted" data-testid="split-remaining">
-                    Remaining: <strong>{formatAmount(splitReconciliation.difference)}</strong>
-                  </span>
-                ) : (
-                  <span className="text-theme-muted" data-testid="split-over">
-                    Over by:{' '}
-                    <strong>{formatAmount(Math.abs(splitReconciliation.difference))}</strong>
-                  </span>
-                )}
               </div>
-            </div>
-          )}
-          <div className="flex flex-col gap-1 text-sm text-theme-muted">
-            <span>Description</span>
-            <input
-              type="text"
-              value={form.description}
-              onChange={set('description')}
-              onBlur={handleDescriptionBlur}
-              placeholder="Optional"
-              className={inputCls}
-            />
+            )}
           </div>
 
           {/* Payee suggestion banner */}
@@ -878,32 +1014,6 @@ export default function ExpenseForm({
               </div>
             </div>
           )}
-
-          <div className="flex flex-col gap-1 text-sm text-theme-muted">
-            <span>Amount</span>
-            <MoneyInput
-              value={Number.parseFloat(form.amount || '0')}
-              onChange={(amount) =>
-                setForm((f) => ({ ...f, amount: amount.toFixed(decimalPlaces) }))
-              }
-              currency={moneyConfig.currency}
-              locale={moneyConfig.locale}
-              allowNegative
-              showSignToggle
-              positiveLabel="Expense"
-              negativeLabel="Refund"
-              negativeIndicatorLabel="Refund"
-              helperText={
-                isMobileViewport
-                  ? 'Type numbers only - 1234 becomes $12.34'
-                  : 'Edit the amount directly, including cents.'
-              }
-              showCurrencyCode
-              autoFocus={!isEdit}
-              size="lg"
-              entryMode={isMobileViewport ? 'cents' : 'decimal'}
-            />
-          </div>
         </form>
       </Modal>
       <ConfirmDialog

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react'
 import type { AnalyticsSessionState } from './hooks/useAnalytics'
 import { useAnalytics } from './hooks/useAnalytics'
 import { useMaxVisible } from '../../hooks/useMaxVisible'
@@ -6,9 +6,11 @@ import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Category, Expense, Payee } from '../../types'
 import type { AllTimeRow } from '../../utils/analyticsTrendUtils'
 import PrivacyToggle from '../../components/privacy/PrivacyToggle'
-import IncomeTrendSection from './incomeTrend/IncomeTrendSection'
+import PageSectionFallback from '../../components/ui/PageSectionFallback'
 import YearStrip from './YearStrip'
 import './analytics.css'
+
+const IncomeTrendSection = lazy(() => import('./incomeTrend/IncomeTrendSection'))
 
 interface AnalyticsPageProps {
   expenses: Expense[]
@@ -88,25 +90,35 @@ export default function AnalyticsPage({
           activeYears={activeYears}
         />
 
-        <IncomeTrendSection
-          data={data}
-          expenses={expenses}
-          categories={categories}
-          payees={payees}
-          year={year}
-          currentYear={currentYear}
-          currentMonth={currentMonth}
-          priorYearsData={priorYearsData}
-          multiYearData={multiYearData}
-          trendKey={trendKey}
-          trendDrilldown={trendDrilldown}
-          onTrendStateChange={(patch) => onSessionStateChange?.({ ...patch })}
-          monthCount={monthCount}
-          isCurrentYear={isCurrentYear}
-          panToYear={panToYear}
-          panToYearVersion={panToYearVersion}
-          onBrushWindowChange={handleBrushWindowChange}
-        />
+        <Suspense
+          fallback={
+            <PageSectionFallback
+              title="Loading charts…"
+              size="lg"
+              minHeightClassName="min-h-[32rem]"
+            />
+          }
+        >
+          <IncomeTrendSection
+            data={data}
+            expenses={expenses}
+            categories={categories}
+            payees={payees}
+            year={year}
+            currentYear={currentYear}
+            currentMonth={currentMonth}
+            priorYearsData={priorYearsData}
+            multiYearData={multiYearData}
+            trendKey={trendKey}
+            trendDrilldown={trendDrilldown}
+            onTrendStateChange={(patch) => onSessionStateChange?.({ ...patch })}
+            monthCount={monthCount}
+            isCurrentYear={isCurrentYear}
+            panToYear={panToYear}
+            panToYearVersion={panToYearVersion}
+            onBrushWindowChange={handleBrushWindowChange}
+          />
+        </Suspense>
       </div>
     </main>
   )

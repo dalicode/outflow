@@ -348,7 +348,7 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(21)
+    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(81)
   })
 
   it('opens above when below has about one row and above has more usable space', async () => {
@@ -390,8 +390,8 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(191)
-    expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(305)
+    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(251)
+    expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(245)
   })
 
   it('falls back to opening below when neither side fits the desired height', async () => {
@@ -532,5 +532,51 @@ describe('DesktopDropdown', () => {
       Number.parseFloat(initialHeight ?? '0'),
     )
     expect(panel?.style.top).toBe(initialTop)
+  })
+
+  it('shows at most six visible options excluding headers and tip content', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 40,
+      y: 120,
+      top: 120,
+      bottom: 160,
+      left: 40,
+      right: 320,
+      width: 280,
+      height: 40,
+      toJSON: () => ({}),
+    } as DOMRect)
+    vi.stubGlobal('innerHeight', 900)
+
+    render(
+      <DesktopDropdown
+        value={undefined}
+        options={[
+          { id: 1, label: 'Coffee' },
+          { id: 2, label: 'Groceries' },
+          { id: 3, label: 'Gas' },
+          { id: 4, label: 'Gym' },
+          { id: 5, label: 'Insurance' },
+          { id: 6, label: 'Rent' },
+          { id: 7, label: 'Utilities' },
+          { id: 8, label: 'Water' },
+        ]}
+        placeholder="Select payee"
+        emptyMessage="No matches found."
+        allowCreate
+        autoFocus
+        onChange={vi.fn()}
+        onCreate={vi.fn(async () => 99)}
+      />,
+    )
+
+    const search = await screen.findByPlaceholderText('Search...')
+    const panel = search.closest('div[style]') as HTMLDivElement | null
+    const content = panel?.querySelector('.overflow-y-auto') as HTMLDivElement | null
+
+    await waitFor(() => {
+      expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(275)
+      expect(Number.parseFloat(content?.style.height ?? '0')).toBe(218)
+    })
   })
 })

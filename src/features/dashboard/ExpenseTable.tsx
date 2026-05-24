@@ -32,6 +32,13 @@ import { StorageService } from '../../services/storageService'
 
 const BulkEditExpensesModal = lazy(() => import('./BulkEditExpensesModal'))
 
+type EditableSplitField = 'date' | 'payeeId' | 'description'
+
+interface EditingSplitField {
+  splitId: number
+  field: EditableSplitField
+}
+
 interface ExpenseTableProps {
   expenses: Expense[]
   onUpdate: (id: number, changes: Partial<Expense>) => void
@@ -102,10 +109,12 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   >({})
   const [activeSplitTargetId, setActiveSplitTargetId] = useState<number | null>(null)
   const [activeSplitChildTargetId, setActiveSplitChildTargetId] = useState<number | null>(null)
-  const [editingSplitDescriptionId, setEditingSplitDescriptionId] = useState<number | null>(null)
+  const [editingSplitField, setEditingSplitField] = useState<EditingSplitField | null>(null)
   const [splits, setSplits] = useState<Awaited<ReturnType<typeof StorageService.getExpenseSplits>>>([])
-  const pendingSplitDescriptionSwitchRef = useRef<number | null>(null)
-  const pendingSplitDescriptionTimeoutRef = useRef<number | null>(null)
+  const editingSplitFieldRef = useRef<EditingSplitField | null>(null)
+  const pendingSplitFieldSwitchRef = useRef<EditingSplitField | null>(null)
+  const pendingSplitFieldTimeoutRef = useRef<number | null>(null)
+  const splitFieldCommitInFlightRef = useRef<Set<string>>(new Set())
 
   const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
 
@@ -223,12 +232,17 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     setMobileEditExpense(null)
   }, [])
 
-  const clearPendingSplitDescriptionSwitch = useCallback(() => {
-    pendingSplitDescriptionSwitchRef.current = null
-    if (pendingSplitDescriptionTimeoutRef.current != null) {
-      window.clearTimeout(pendingSplitDescriptionTimeoutRef.current)
-      pendingSplitDescriptionTimeoutRef.current = null
+  const clearPendingSplitFieldSwitch = useCallback(() => {
+    pendingSplitFieldSwitchRef.current = null
+    if (pendingSplitFieldTimeoutRef.current != null) {
+      window.clearTimeout(pendingSplitFieldTimeoutRef.current)
+      pendingSplitFieldTimeoutRef.current = null
     }
+  }, [])
+
+  const activateSplitFieldEdit = useCallback((field: EditingSplitField) => {
+    setEditingSplitField(field)
+    editingSplitFieldRef.current = field
   }, [])
 
   const findSplitEditorExpense = useCallback(
@@ -394,70 +408,138 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     [onToggleSelect, selectedIds, splitChildIdsBySplitId],
   )
 
-  const handleStartSplitDescriptionEdit = useCallback(
-    (splitId: number) => {
-      if (editingSplitDescriptionId === splitId) return
+  const handleStartSplitFieldEdit = useCallback(
+    (splitId: number, field: EditableSplitField) => {
+      const nextField: EditingSplitField = { splitId, field }
+      const currentField = editingSplitFieldRef.current
 
-      if (editingSplitDescriptionId == null) {
-        clearPendingSplitDescriptionSwitch()
-        setEditingSplitDescriptionId(splitId)
+      if (currentField?.splitId === splitId && currentField.field === field) return
+
+      if (currentField == null) {
+        clearPendingSplitFieldSwitch()
+        activateSplitFieldEdit(nextField)
         return
       }
 
-      clearPendingSplitDescriptionSwitch()
-      pendingSplitDescriptionSwitchRef.current = splitId
+      clearPendingSplitFieldSwitch()
+      pendingSplitFieldSwitchRef.current = nextField
 
       const activeElement = document.activeElement
       if (activeElement instanceof HTMLElement) {
         activeElement.blur()
       }
 
-      pendingSplitDescriptionTimeoutRef.current = window.setTimeout(() => {
-        if (pendingSplitDescriptionSwitchRef.current !== splitId) {
+      pendingSplitFieldTimeoutRef.current = window.setTimeout(() => {
+        const pendingField = pendingSplitFieldSwitchRef.current
+        if (pendingField?.splitId !== splitId || pendingField.field !== field) {
           return
         }
-        setEditingSplitDescriptionId(splitId)
-        clearPendingSplitDescriptionSwitch()
+        activateSplitFieldEdit(nextField)
+        clearPendingSplitFieldSwitch()
       }, 0)
     },
-    [clearPendingSplitDescriptionSwitch, editingSplitDescriptionId],
+    [activateSplitFieldEdit, clearPendingSplitFieldSwitch],
   )
 
-  const handleCancelSplitDescriptionEdit = useCallback(() => {
-    clearPendingSplitDescriptionSwitch()
-    setEditingSplitDescriptionId(null)
-  }, [clearPendingSplitDescriptionSwitch])
+  const handleCancelSplitFieldEdit = useCallback(() => {
+    clearPendingSplitFieldSwitch()
+    setEditingSplitField(null)
+    editingSplitFieldRef.current = null
+  }, [clearPendingSplitFieldSwitch])
+
+  const updateLocalSplit = useCallback((splitId: number, changes: Record<string, unknown>) => {
+    setSplits((current) =>
+      current.map((split) => (split.id === splitId ? { ...split, ...changes } : split)),
+    )
+  }, [])
+
+  const finishSplitFieldCommit = useCallback((splitId: number, field: EditableSplitField) => {
+    setEditingSplitField((current) => {
+      if (current?.splitId === splitId && current.field === field) {
+        editingSplitFieldRef.current = null
+        return null
+      }
+      return current
+    })
+  }, [])
+
+  const beginSplitFieldCommit = useCallback(
+    (splitId: number, field: EditableSplitField): boolean => {
+      const key = `${splitId}:${field}`
+      if (splitFieldCommitInFlightRef.current.has(key)) return false
+      splitFieldCommitInFlightRef.current.add(key)
+      clearPendingSplitFieldSwitch()
+      finishSplitFieldCommit(splitId, field)
+      return true
+    },
+    [clearPendingSplitFieldSwitch, finishSplitFieldCommit],
+  )
+
+  const endSplitFieldCommit = useCallback((splitId: number, field: EditableSplitField) => {
+    splitFieldCommitInFlightRef.current.delete(`${splitId}:${field}`)
+  }, [])
 
   const handleCommitSplitDescriptionEdit = useCallback(
     async (splitId: number, value: string) => {
+      if (!beginSplitFieldCommit(splitId, 'description')) return
       const description = value.trim()
       try {
         await StorageService.updateExpenseSplit(splitId, { description })
-        setSplits((current) =>
-          current.map((split) =>
-            split.id === splitId
-              ? {
-                  ...split,
-                  description,
-                }
-              : split,
-          ),
-        )
+        updateLocalSplit(splitId, { description })
       } catch (error) {
         console.error('Failed to update split description:', error)
         showToast({ message: 'Could not update split description.', tone: 'danger' })
       } finally {
-        setEditingSplitDescriptionId((current) => (current === splitId ? null : current))
+        endSplitFieldCommit(splitId, 'description')
       }
     },
-    [showToast],
+    [beginSplitFieldCommit, endSplitFieldCommit, showToast, updateLocalSplit],
+  )
+
+  const handleCommitSplitDateEdit = useCallback(
+    async (splitId: number, date: string) => {
+      if (!beginSplitFieldCommit(splitId, 'date')) return
+      try {
+        await StorageService.updateExpenseSplit(splitId, { date })
+        updateLocalSplit(splitId, { date })
+        await refreshExpenses?.()
+      } catch (error) {
+        console.error('Failed to update split date:', error)
+        showToast({ message: 'Could not update split date.', tone: 'danger' })
+      } finally {
+        endSplitFieldCommit(splitId, 'date')
+      }
+    },
+    [beginSplitFieldCommit, endSplitFieldCommit, refreshExpenses, showToast, updateLocalSplit],
+  )
+
+  const handleCommitSplitPayeeEdit = useCallback(
+    async (splitId: number, payeeId: number | undefined) => {
+      if (!beginSplitFieldCommit(splitId, 'payeeId')) return
+      const nextPayee = typeof payeeId === 'number' ? payees.find((payee) => payee.id === payeeId) : null
+      const changes = {
+        payeeId,
+        payeeNameSnapshot: nextPayee?.name ?? null,
+      }
+      try {
+        await StorageService.updateExpenseSplit(splitId, changes)
+        updateLocalSplit(splitId, changes)
+        await refreshExpenses?.()
+      } catch (error) {
+        console.error('Failed to update split payee:', error)
+        showToast({ message: 'Could not update split payee.', tone: 'danger' })
+      } finally {
+        endSplitFieldCommit(splitId, 'payeeId')
+      }
+    },
+    [beginSplitFieldCommit, endSplitFieldCommit, payees, refreshExpenses, showToast, updateLocalSplit],
   )
 
   useEffect(() => {
     return () => {
-      clearPendingSplitDescriptionSwitch()
+      clearPendingSplitFieldSwitch()
     }
-  }, [clearPendingSplitDescriptionSwitch])
+  }, [clearPendingSplitFieldSwitch])
 
   const contextMenuItems = useMemo(() => {
     if (!menu) return []
@@ -565,10 +647,12 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         payeeMap,
         onToggleSplitExpanded: resolvedOnToggleSplitParentExpanded,
         isSplitExpanded: resolvedIsSplitParentExpanded,
-        editingSplitDescriptionId,
-        onStartSplitDescriptionEdit: handleStartSplitDescriptionEdit,
+        editingSplitField,
+        onStartSplitFieldEdit: handleStartSplitFieldEdit,
+        onCommitSplitDateEdit: handleCommitSplitDateEdit,
+        onCommitSplitPayeeEdit: handleCommitSplitPayeeEdit,
         onCommitSplitDescriptionEdit: handleCommitSplitDescriptionEdit,
-        onCancelSplitDescriptionEdit: handleCancelSplitDescriptionEdit,
+        onCancelSplitFieldEdit: handleCancelSplitFieldEdit,
         refreshCategories,
         refreshPayees,
       }),
@@ -586,10 +670,12 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       payeeMap,
       resolvedOnToggleSplitParentExpanded,
       resolvedIsSplitParentExpanded,
-      editingSplitDescriptionId,
-      handleStartSplitDescriptionEdit,
+      editingSplitField,
+      handleStartSplitFieldEdit,
+      handleCommitSplitDateEdit,
+      handleCommitSplitPayeeEdit,
       handleCommitSplitDescriptionEdit,
-      handleCancelSplitDescriptionEdit,
+      handleCancelSplitFieldEdit,
       refreshCategories,
       refreshPayees,
     ],

@@ -9,6 +9,8 @@ import InlineMoneyEditCell from './InlineMoneyEditCell'
 import type { ExpenseDisplayRow } from './splitDisplayRows'
 import type { CellEditingAPI } from './useExpenseCellEditing'
 
+type EditableSplitField = 'date' | 'payeeId' | 'description'
+
 interface GetExpenseColumnsParams {
   selectedIds: Set<number>
   onToggleSelect: (id: number) => void
@@ -23,12 +25,55 @@ interface GetExpenseColumnsParams {
   payeeMap: Record<number, Payee>
   onToggleSplitExpanded: (splitId: number) => void
   isSplitExpanded: (splitId: number) => boolean
-  editingSplitDescriptionId?: number | null
-  onStartSplitDescriptionEdit: (splitId: number) => void
+  editingSplitField?: { splitId: number; field: EditableSplitField } | null
+  onStartSplitFieldEdit: (splitId: number, field: EditableSplitField) => void
+  onCommitSplitDateEdit: (splitId: number, value: string) => void
+  onCommitSplitPayeeEdit: (splitId: number, payeeId: number | undefined) => void
   onCommitSplitDescriptionEdit: (splitId: number, value: string) => void
-  onCancelSplitDescriptionEdit: () => void
+  onCancelSplitFieldEdit: () => void
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
+}
+
+interface EditableCellDisplayConfig {
+  className: string
+  title?: string
+  content: React.ReactNode
+  expenseId?: number
+  field?: string
+  isEditableCell?: boolean
+}
+
+interface PayeeEditorConfig {
+  value: number | undefined
+  options: Array<{ id: number; label: string }>
+  autoOpen: boolean
+  onCommit: (payeeId: number | undefined) => void
+  onEnterSelect: (payeeId: number | undefined, shiftKey: boolean) => void
+  onTabSelect: (payeeId: number | undefined) => void
+  onCreate: (name: string) => Promise<number>
+  onCancel: () => void
+  onTab: (shiftKey: boolean) => void
+}
+
+function isSplitFieldEditing(
+  editingSplitField: { splitId: number; field: EditableSplitField } | null | undefined,
+  splitId: number,
+  field: EditableSplitField,
+): boolean {
+  return editingSplitField?.splitId === splitId && editingSplitField.field === field
+}
+
+function getSplitPayeeLabel(rowData: Extract<ExpenseDisplayRow, { rowType: 'splitContainer' }>, payeeMap: Record<number, Payee>): string {
+  const splitPayeeId = rowData.split?.payeeId
+  if (typeof splitPayeeId === 'number') {
+    return payeeMap[splitPayeeId]?.name ?? rowData.split?.payeeNameSnapshot?.trim() ?? 'No payee'
+  }
+
+  const snapshot = rowData.split?.payeeNameSnapshot?.trim()
+  if (snapshot) return snapshot
+
+  return rowData.payeeDisplay
 }
 
 export function editableCellActivate(
@@ -50,6 +95,97 @@ export function editableCellActivate(
   }
 }
 
+function renderEditableDisplayCell(
+  display: EditableCellDisplayConfig,
+  onActivate: (e: React.PointerEvent) => void,
+): React.ReactNode {
+  return (
+    <span
+      data-editable-cell={display.isEditableCell ? true : undefined}
+      data-expense-id={display.expenseId}
+      data-field={display.field}
+      data-testid={display.field ? `editable-cell-display-${display.field}` : undefined}
+      className={display.className}
+      title={display.title}
+      onPointerDown={onActivate}
+    >
+      {display.content}
+    </span>
+  )
+}
+
+function renderDateEditor(
+  value: string,
+  onCommit: (nextValue: string) => void,
+  onCancel: () => void,
+  onEnter: (shiftKey: boolean) => void,
+  onTab: (shiftKey: boolean) => void,
+): React.ReactNode {
+  return (
+    <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+      <DatePicker
+        value={value}
+        variant="inline"
+        autoOpen
+        onChange={onCommit}
+        onCancel={onCancel}
+        onEnter={onEnter}
+        onTab={onTab}
+      />
+    </div>
+  )
+}
+
+function renderPayeeEditor(config: PayeeEditorConfig): React.ReactNode {
+  return (
+    <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
+      <CreatableCombobox
+        value={config.value}
+        variant="inline"
+        options={config.options}
+        placeholder="Select payee…"
+        createHint="Type a new payee name to add it."
+        allowCreate
+        autoOpen={config.autoOpen}
+        autoFocus
+        onChange={(id) => {
+          const numId = id != null ? Number(id) : undefined
+          config.onCommit(numId)
+        }}
+        onEnterSelect={(id, shiftKey) => {
+          const numId = id != null ? Number(id) : undefined
+          config.onEnterSelect(numId, shiftKey)
+        }}
+        onTabSelect={(id) => {
+          const numId = id != null ? Number(id) : undefined
+          config.onTabSelect(numId)
+        }}
+        onCreate={config.onCreate}
+        onCancel={config.onCancel}
+        onTab={config.onTab}
+      />
+    </div>
+  )
+}
+
+function renderDescriptionEditor(
+  value: string,
+  onCommit: (nextValue: string) => void,
+  onCancel: () => void,
+  onEnter: (shiftKey: boolean) => void,
+  onTab: (shiftKey: boolean) => void,
+): React.ReactNode {
+  return (
+    <InlineEditCell
+      initialValue={value}
+      onCommit={onCommit}
+      onCancel={onCancel}
+      onEnter={onEnter}
+      onTab={onTab}
+    />
+  )
+}
+
 export function getExpenseColumns({
   selectedIds,
   onToggleSelect,
@@ -64,10 +200,12 @@ export function getExpenseColumns({
   payeeMap,
   onToggleSplitExpanded,
   isSplitExpanded,
-  editingSplitDescriptionId,
-  onStartSplitDescriptionEdit,
+  editingSplitField,
+  onStartSplitFieldEdit,
+  onCommitSplitDateEdit,
+  onCommitSplitPayeeEdit,
   onCommitSplitDescriptionEdit,
-  onCancelSplitDescriptionEdit,
+  onCancelSplitFieldEdit,
   refreshCategories,
   refreshPayees,
 }: GetExpenseColumnsParams): ColumnDef<ExpenseDisplayRow>[] {
@@ -165,50 +303,63 @@ export function getExpenseColumns({
         }
         if (rowData.rowType === 'splitContainer') {
           const dateValue = rowData.split?.date ?? rowData.childExpenses[0]?.date
-          return dateValue ? (
-            <span>{formatDate(dateValue)}</span>
-          ) : (
-            <span className="text-theme-muted">—</span>
+          if (isSplitFieldEditing(editingSplitField, rowData.splitId, 'date')) {
+            return renderDateEditor(
+              dateValue ?? '',
+              (iso) => onCommitSplitDateEdit(rowData.splitId, iso),
+              onCancelSplitFieldEdit,
+              () => onCancelSplitFieldEdit(),
+              () => onCancelSplitFieldEdit(),
+            )
+          }
+          return renderEditableDisplayCell(
+            {
+              className: dateValue ? 'cursor-pointer' : 'text-theme-muted cursor-pointer',
+              content: dateValue ? formatDate(dateValue) : '—',
+            },
+            (e) => {
+              if (e.button !== 0) return
+              e.preventDefault()
+              e.stopPropagation()
+              onStartSplitFieldEdit(rowData.splitId, 'date')
+            },
           )
         }
         const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'date')) {
-          return (
-            <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
-              <DatePicker
-                value={exp.date ?? ''}
-                variant="inline"
-                autoOpen
-                onChange={(iso) => {
-                  editing.createOnCommit(exp.id as number, 'date')(iso)
-                }}
-                onCancel={editing.createOnCancel()}
-                onEnter={(shiftKey) => editing.handleEnterNavigation(exp, 'date', shiftKey)}
-                onTab={(shiftKey) => editing.handleTabNavigation(exp, 'date', shiftKey)}
-              />
-            </div>
+          return renderDateEditor(
+            exp.date ?? '',
+            (iso) => {
+              editing.createOnCommit(exp.id as number, 'date')(iso)
+            },
+            editing.createOnCancel(),
+            (shiftKey) => editing.handleEnterNavigation(exp, 'date', shiftKey),
+            (shiftKey) => editing.handleTabNavigation(exp, 'date', shiftKey),
           )
         }
-        return (
-          <span
-            data-editable-cell
-            data-expense-id={exp.id}
-            data-field="date"
-            {...editableCellActivate(editing, exp, 'date')}
-            className="cursor-pointer"
-          >
-            {formatDate(exp.date)}
-          </span>
+        return renderEditableDisplayCell(
+          {
+            className: 'cursor-pointer',
+            isEditableCell: true,
+            expenseId: exp.id as number,
+            field: 'date',
+            content: formatDate(exp.date),
+          },
+          editableCellActivate(editing, exp, 'date').onPointerDown,
         )
       },
       meta: {
         className: 'text-left',
         cellClassName: 'text-theme-text whitespace-nowrap overflow-hidden',
         getCellClassName: (rowData: ExpenseDisplayRow) =>
-          rowData.rowType === 'expense' &&
-          editing.isCellEditing(rowData.expense.id as number, 'date')
-            ? 'cell-editing'
-            : '',
+          rowData.rowType === 'splitContainer'
+            ? isSplitFieldEditing(editingSplitField, rowData.splitId, 'date')
+              ? 'cell-editing'
+              : ''
+            : rowData.rowType === 'expense' &&
+                editing.isCellEditing(rowData.expense.id as number, 'date')
+              ? 'cell-editing'
+              : '',
         width: '6rem',
       },
     },
@@ -218,90 +369,115 @@ export function getExpenseColumns({
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
-          return (
-            <span className="block w-full truncate font-medium text-theme-muted">
-              {rowData.payeeDisplay}
-            </span>
+          const splitPayeeLabel = getSplitPayeeLabel(rowData, payeeMap)
+          if (isSplitFieldEditing(editingSplitField, rowData.splitId, 'payeeId')) {
+            return renderPayeeEditor({
+              value: rowData.split?.payeeId,
+              options: activePayees.map((payee) => ({
+                id: payee.id as number,
+                label: payee.name,
+              })),
+              autoOpen: true,
+              onCommit: (payeeId) => onCommitSplitPayeeEdit(rowData.splitId, payeeId),
+              onEnterSelect: (payeeId) => onCommitSplitPayeeEdit(rowData.splitId, payeeId),
+              onTabSelect: (payeeId) => onCommitSplitPayeeEdit(rowData.splitId, payeeId),
+              onCreate: async (name) => {
+                const newId = await StorageService.addPayee(name)
+                if (newId == null) throw new Error('Failed to create payee')
+                await refreshPayees?.()
+                return newId as number
+              },
+              onCancel: onCancelSplitFieldEdit,
+              onTab: () => onCancelSplitFieldEdit(),
+            })
+          }
+          return renderEditableDisplayCell(
+            {
+              className: 'block w-full cursor-pointer truncate font-medium text-theme-muted',
+              title: splitPayeeLabel,
+              content: splitPayeeLabel,
+            },
+            (e) => {
+              if (e.button !== 0) return
+              e.preventDefault()
+              e.stopPropagation()
+              onStartSplitFieldEdit(rowData.splitId, 'payeeId')
+            },
           )
+        }
+        if (rowData.rowType === 'splitChild') {
+          return null
         }
         const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'payeeId')) {
-          return (
-            <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
-              <CreatableCombobox
-                value={exp.payeeId}
-                variant="inline"
-                options={activePayees.map((p) => ({
-                  id: p.id as number,
-                  label: p.name,
-                }))}
-                placeholder="Select payee…"
-                createHint="Type a new payee name to add it."
-                allowCreate
-                autoOpen={editing.shouldAutoOpenEditor(exp.id as number, 'payeeId')}
-                autoFocus
-                onChange={(id) => {
-                  const numId = id != null ? Number(id) : undefined
-                  editing.createOnCommit(exp.id as number, 'payeeId', {
-                    stayInEdit: true,
-                  })(numId)
-                }}
-                onEnterSelect={(id, shiftKey) => {
-                  const numId = id != null ? Number(id) : undefined
-                  editing.createOnCommit(exp.id as number, 'payeeId')(numId)
-                  editing.handleEnterNavigation(exp, 'payeeId', shiftKey)
-                }}
-                onTabSelect={(id) => {
-                  const numId = id != null ? Number(id) : undefined
-                  editing.createOnCommit(exp.id as number, 'payeeId')(numId)
-                }}
-                onCreate={async (name) => {
-                  const newId = await StorageService.addPayee(name)
-                  if (newId == null) throw new Error('Failed to create payee')
-                  editing.setPendingName(exp.id as number, 'payeeId', name.trim())
-                  await refreshPayees?.()
-                  return newId as number
-                }}
-                onCancel={editing.createOnCancel()}
-                onTab={(shiftKey) => editing.handleTabNavigation(exp, 'payeeId', shiftKey)}
-              />
-            </div>
-          )
+          return renderPayeeEditor({
+            value: exp.payeeId,
+            options: activePayees.map((p) => ({
+              id: p.id as number,
+              label: p.name,
+            })),
+            autoOpen: editing.shouldAutoOpenEditor(exp.id as number, 'payeeId'),
+            onCommit: (payeeId) => {
+              editing.createOnCommit(exp.id as number, 'payeeId', {
+                stayInEdit: true,
+              })(payeeId)
+            },
+            onEnterSelect: (payeeId, shiftKey) => {
+              editing.createOnCommit(exp.id as number, 'payeeId')(payeeId)
+              editing.handleEnterNavigation(exp, 'payeeId', shiftKey)
+            },
+            onTabSelect: (payeeId) => {
+              editing.createOnCommit(exp.id as number, 'payeeId')(payeeId)
+            },
+            onCreate: async (name) => {
+              const newId = await StorageService.addPayee(name)
+              if (newId == null) throw new Error('Failed to create payee')
+              editing.setPendingName(exp.id as number, 'payeeId', name.trim())
+              await refreshPayees?.()
+              return newId as number
+            },
+            onCancel: editing.createOnCancel(),
+            onTab: (shiftKey) => editing.handleTabNavigation(exp, 'payeeId', shiftKey),
+          })
         }
-        return (
-          <span
-            data-editable-cell
-            data-expense-id={exp.id}
-            data-field="payeeId"
-            {...editableCellActivate(editing, exp, 'payeeId')}
-            className={cn(
+        return renderEditableDisplayCell(
+          {
+            className: cn(
               'cursor-pointer block w-full truncate',
               payeeMap[exp.payeeId as number]?.isArchived
                 ? 'text-theme-muted italic'
                 : 'text-theme-text font-medium',
-            )}
-            title={
+            ),
+            title:
               exp.payeeId && payeeMap[exp.payeeId as number]
                 ? payeeMap[exp.payeeId as number].name
-                : undefined
-            }
-          >
-            {exp.payeeId && payeeMap[exp.payeeId as number]
-              ? payeeMap[exp.payeeId as number].name
-              : exp.payeeId
-                ? (editing.getPendingName(exp.id as number, 'payeeId') ?? 'No payee')
-                : 'No payee'}
-          </span>
+                : undefined,
+            isEditableCell: true,
+            expenseId: exp.id as number,
+            field: 'payeeId',
+            content:
+              exp.payeeId && payeeMap[exp.payeeId as number]
+                ? payeeMap[exp.payeeId as number].name
+                : exp.payeeId
+                  ? (editing.getPendingName(exp.id as number, 'payeeId') ?? 'No payee')
+                  : 'No payee',
+          },
+          editableCellActivate(editing, exp, 'payeeId').onPointerDown,
         )
       },
       meta: {
         className: 'text-left hidden sm:table-cell',
         cellClassName: 'whitespace-nowrap overflow-hidden max-w-[12rem]',
         getCellClassName: (rowData: ExpenseDisplayRow) =>
-          rowData.rowType !== 'splitContainer' &&
-          editing.isCellEditing(rowData.expense.id as number, 'payeeId')
-            ? 'cell-editing'
-            : '',
+          rowData.rowType === 'splitContainer'
+            ? isSplitFieldEditing(editingSplitField, rowData.splitId, 'payeeId')
+              ? 'cell-editing'
+              : ''
+            : rowData.rowType === 'splitChild'
+              ? ''
+              : editing.isCellEditing(rowData.expense.id as number, 'payeeId')
+                ? 'cell-editing'
+                : '',
         width: '18%',
       },
     },
@@ -406,55 +582,51 @@ export function getExpenseColumns({
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
-          if (editingSplitDescriptionId === rowData.splitId) {
-            return (
-              <InlineEditCell
-                initialValue={rowData.split?.description ?? ''}
-                onCommit={(value) => onCommitSplitDescriptionEdit(rowData.splitId, value)}
-                onCancel={onCancelSplitDescriptionEdit}
-                onEnter={() => onCancelSplitDescriptionEdit()}
-                onTab={() => onCancelSplitDescriptionEdit()}
-              />
+          const descriptionValue = rowData.split?.description ?? ''
+          if (isSplitFieldEditing(editingSplitField, rowData.splitId, 'description')) {
+            return renderDescriptionEditor(
+              descriptionValue,
+              (value) => onCommitSplitDescriptionEdit(rowData.splitId, value),
+              onCancelSplitFieldEdit,
+              () => onCancelSplitFieldEdit(),
+              () => onCancelSplitFieldEdit(),
             )
           }
-          return (
-            <span
-              className="block w-full cursor-pointer truncate text-theme-muted"
-              title={rowData.descriptionDisplay || undefined}
-              onPointerDown={(e) => {
-                if (e.button !== 0) return
-                e.preventDefault()
-                e.stopPropagation()
-                onStartSplitDescriptionEdit(rowData.splitId)
-              }}
-            >
-              {rowData.descriptionDisplay || <span className="text-theme-muted">—</span>}
-            </span>
+          return renderEditableDisplayCell(
+            {
+              className: 'block w-full cursor-pointer truncate text-theme-muted',
+              field: 'description',
+              title: descriptionValue || undefined,
+              content: descriptionValue || <span className="text-theme-muted">—</span>,
+            },
+            (e) => {
+              if (e.button !== 0) return
+              e.preventDefault()
+              e.stopPropagation()
+              onStartSplitFieldEdit(rowData.splitId, 'description')
+            },
           )
         }
         const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'description')) {
-          return (
-            <InlineEditCell
-              initialValue={exp.description ?? ''}
-              onCommit={editing.createOnCommit(exp.id as number, 'description')}
-              onCancel={editing.createOnCancel()}
-              onEnter={(shiftKey) => editing.handleEnterNavigation(exp, 'description', shiftKey)}
-              onTab={(shiftKey) => editing.handleTabNavigation(exp, 'description', shiftKey)}
-            />
+          return renderDescriptionEditor(
+            exp.description ?? '',
+            editing.createOnCommit(exp.id as number, 'description'),
+            editing.createOnCancel(),
+            (shiftKey) => editing.handleEnterNavigation(exp, 'description', shiftKey),
+            (shiftKey) => editing.handleTabNavigation(exp, 'description', shiftKey),
           )
         }
-        return (
-          <span
-            data-editable-cell
-            data-expense-id={exp.id}
-            data-field="description"
-            {...editableCellActivate(editing, exp, 'description')}
-            className="cursor-pointer block w-full truncate"
-            title={exp.description ?? undefined}
-          >
-            {exp.description || <span className="text-theme-muted">—</span>}
-          </span>
+        return renderEditableDisplayCell(
+          {
+            className: 'cursor-pointer block w-full truncate',
+            title: exp.description ?? undefined,
+            isEditableCell: true,
+            expenseId: exp.id as number,
+            field: 'description',
+            content: exp.description || <span className="text-theme-muted">—</span>,
+          },
+          editableCellActivate(editing, exp, 'description').onPointerDown,
         )
       },
       meta: {
@@ -462,7 +634,7 @@ export function getExpenseColumns({
         cellClassName: 'text-theme-text overflow-hidden max-w-[14rem]',
         getCellClassName: (rowData: ExpenseDisplayRow) =>
           rowData.rowType === 'splitContainer'
-            ? editingSplitDescriptionId === rowData.splitId
+            ? isSplitFieldEditing(editingSplitField, rowData.splitId, 'description')
               ? 'cell-editing'
               : ''
             : editing.isCellEditing(rowData.expense.id as number, 'description')

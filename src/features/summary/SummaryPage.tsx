@@ -1,17 +1,48 @@
+import { Suspense, lazy } from 'react'
+import PageSectionFallback from '../../components/ui/PageSectionFallback'
 import { useSummary } from './hooks/useSummary'
 import type { Expense } from '../../types'
 import PrivacyToggle from '../../components/privacy/PrivacyToggle'
 import FixedExpensesList from '../fixedExpenses/FixedExpensesList'
 import BudgetFlow from './BudgetFlow'
-import BudgetPaceSection from './BudgetPaceSection'
 import IncomeForm from './IncomeForm'
 import SavingsForm from './SavingsForm'
-import SpendingBreakdown from './SpendingBreakdown'
 import './summary.css'
 
 interface SummaryPageProps {
   expenses: Expense[]
 }
+
+const SummaryInsightsSection = lazy(async () => {
+  const [{ default: BudgetPaceSection }, { default: SpendingBreakdown }] = await Promise.all([
+    import('./BudgetPaceSection'),
+    import('./SpendingBreakdown'),
+  ])
+
+  return {
+    default: function SummaryInsightsSectionInner({
+      expenses,
+      financialSummary,
+      variableBreakdown,
+    }: {
+      expenses: Expense[]
+      financialSummary: ReturnType<typeof useSummary>['financialSummary']
+      variableBreakdown: ReturnType<typeof useSummary>['variableBreakdown']
+    }) {
+      return (
+        <>
+          {financialSummary && <BudgetPaceSection expenses={expenses} summary={financialSummary} />}
+          {variableBreakdown.length > 0 && (
+            <SpendingBreakdown
+              items={variableBreakdown}
+              total={financialSummary?.variableExpenses ?? 0}
+            />
+          )}
+        </>
+      )
+    },
+  }
+})
 
 export default function SummaryPage({ expenses }: SummaryPageProps) {
   const {
@@ -84,13 +115,21 @@ export default function SummaryPage({ expenses }: SummaryPageProps) {
           </>
         )}
 
-        {financialSummary && <BudgetPaceSection expenses={expenses} summary={financialSummary} />}
-
-        {variableBreakdown.length > 0 && (
-          <SpendingBreakdown
-            items={variableBreakdown}
-            total={financialSummary?.variableExpenses ?? 0}
-          />
+        {(financialSummary || variableBreakdown.length > 0) && (
+          <Suspense
+            fallback={
+              <PageSectionFallback
+                title="Loading budget insights…"
+                minHeightClassName="min-h-[20rem]"
+              />
+            }
+          >
+            <SummaryInsightsSection
+              expenses={expenses}
+              financialSummary={financialSummary}
+              variableBreakdown={variableBreakdown}
+            />
+          </Suspense>
         )}
       </div>
     </main>

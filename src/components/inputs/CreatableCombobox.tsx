@@ -692,7 +692,10 @@ export default function CreatableCombobox({
         boxSizing: 'border-box',
       }}
     >
-      <div ref={contentRef} className={cn('h-full overflow-y-auto overscroll-contain')}>
+      <div
+        ref={contentRef}
+        className={cn('h-full overflow-y-auto overscroll-contain scrollbar-themed')}
+      >
         {showCreateHint && (
           <div className="border-b border-theme-border px-3">
             <div className="flex h-[30px] items-center gap-1.5 text-[11px] leading-4 text-theme-muted">
@@ -833,6 +836,7 @@ export default function CreatableCombobox({
         <input
           ref={inputRef}
           role="combobox"
+          aria-label={label}
           aria-expanded={dropdownState.isOpen}
           aria-controls={dropdownState.isOpen ? listboxId : undefined}
           aria-activedescendant={
@@ -840,6 +844,7 @@ export default function CreatableCombobox({
               ? `${optionIdPrefix}-${highlightedIndex}`
               : undefined
           }
+          aria-invalid={Boolean(localError || error)}
           type="text"
           value={displayQuery}
           onChange={handleInputChange}

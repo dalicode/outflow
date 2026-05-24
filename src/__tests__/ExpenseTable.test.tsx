@@ -23,6 +23,8 @@ vi.mock('../context/settingsContext', () => ({
     settings: {
       decimalPlaces: '2',
       currencySymbol: '$',
+      dateFormat: 'YYYY-MM-DD',
+      hapticsEnabled: false,
     },
     formatAmount: (n: number) => `$${n.toFixed(2)}`,
     formatDate: (iso: string) => iso,
@@ -47,6 +49,17 @@ vi.mock('../services/storageService', () => ({
     addPayee: vi.fn(),
   },
 }))
+
+function createDeferredPromise(): {
+  promise: Promise<void>
+  resolve: () => void
+} {
+  let resolve = () => {}
+  const promise = new Promise<void>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
 
 describe('ExpenseTable', () => {
   beforeEach(() => {
@@ -233,6 +246,7 @@ describe('ExpenseTable', () => {
       { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2 },
     ]
     const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-10', amount: 20, description: '' }]
+    const refreshExpenses = vi.fn<() => Promise<void>>().mockResolvedValue()
 
     storageMocks.getExpenseSplits.mockResolvedValue(splits)
     storageMocks.updateExpenseSplit.mockResolvedValue()
@@ -250,11 +264,14 @@ describe('ExpenseTable', () => {
         onToggleSelectAll={vi.fn()}
         onUpdate={vi.fn()}
         onDelete={vi.fn()}
+        refreshExpenses={refreshExpenses}
       />,
     )
 
     await waitFor(() => expect(screen.getByTestId('split-container-10')).toBeInTheDocument())
-    const dash = within(screen.getByTestId('split-container-10')).getByText('—')
+    const dash = within(screen.getByTestId('split-container-10')).getByTestId(
+      'editable-cell-display-description',
+    )
 
     fireEvent.pointerDown(dash)
     const input = await screen.findByDisplayValue('')
@@ -266,7 +283,196 @@ describe('ExpenseTable', () => {
         description: 'Shared receipt',
       })
     })
+    expect(storageMocks.updateExpenseSplit).toHaveBeenCalledTimes(1)
+    expect(refreshExpenses).not.toHaveBeenCalled()
     expect(screen.getByText('Shared receipt')).toBeInTheDocument()
+  })
+
+  it('saves split parent date once and closes editor before delayed refresh resolves', async () => {
+    const expenses: Expense[] = [
+      {
+        id: 1,
+        splitId: 10,
+        date: '2026-05-10',
+        amount: 12,
+        categoryId: 1,
+        payeeId: 1,
+        description: 'A',
+      },
+      {
+        id: 2,
+        splitId: 10,
+        date: '2026-05-10',
+        amount: 8,
+        categoryId: 2,
+        payeeId: 1,
+        description: 'B',
+      },
+    ]
+    const splits: ExpenseSplit[] = [
+      { id: 10, date: '2026-05-10', amount: 20, payeeId: 1, payeeNameSnapshot: 'Cafe' },
+    ]
+    const deferredRefresh = createDeferredPromise()
+    const refreshExpenses = vi.fn<() => Promise<void>>().mockReturnValue(deferredRefresh.promise)
+
+    storageMocks.getExpenseSplits.mockResolvedValue(splits)
+    storageMocks.updateExpenseSplit.mockResolvedValue()
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        refreshExpenses={refreshExpenses}
+      />,
+    )
+
+    const splitRow = await screen.findByTestId('split-container-10')
+    fireEvent.pointerDown(within(splitRow).getByText('2026-05-10'))
+
+    const input = await screen.findByDisplayValue('2026-05-10')
+    fireEvent.change(input, { target: { value: '2026-05-12' } })
+    fireEvent.blur(input)
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(storageMocks.updateExpenseSplit).toHaveBeenCalledWith(10, { date: '2026-05-12' })
+    })
+    expect(storageMocks.updateExpenseSplit).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('2026-05-12')).not.toBeInTheDocument()
+    })
+    expect(refreshExpenses).toHaveBeenCalledTimes(1)
+    deferredRefresh.resolve()
+    expect(refreshExpenses).toHaveBeenCalled()
+  })
+
+  it('saves split parent payee once and closes editor before delayed refresh resolves', async () => {
+    const expenses: Expense[] = [
+      {
+        id: 1,
+        splitId: 10,
+        date: '2026-05-10',
+        amount: 12,
+        categoryId: 1,
+        payeeId: 1,
+        description: 'A',
+      },
+      {
+        id: 2,
+        splitId: 10,
+        date: '2026-05-10',
+        amount: 8,
+        categoryId: 2,
+        payeeId: 1,
+        description: 'B',
+      },
+    ]
+    const splits: ExpenseSplit[] = [
+      { id: 10, date: '2026-05-10', amount: 20, payeeId: 1, payeeNameSnapshot: 'Cafe' },
+    ]
+    const deferredRefresh = createDeferredPromise()
+    const refreshExpenses = vi.fn<() => Promise<void>>().mockReturnValue(deferredRefresh.promise)
+
+    storageMocks.getExpenseSplits.mockResolvedValue(splits)
+    storageMocks.updateExpenseSplit.mockResolvedValue()
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[
+          { id: 1, name: 'Cafe' },
+          { id: 2, name: 'Market' },
+        ]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        refreshExpenses={refreshExpenses}
+      />,
+    )
+
+    const splitRow = await screen.findByTestId('split-container-10')
+    fireEvent.pointerDown(within(splitRow).getByText('Cafe'))
+
+    const input = await screen.findByDisplayValue('Cafe')
+    fireEvent.change(input, { target: { value: 'Market' } })
+    fireEvent.blur(input)
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(storageMocks.updateExpenseSplit).toHaveBeenCalledWith(10, {
+        payeeId: 2,
+        payeeNameSnapshot: 'Market',
+      })
+    })
+    expect(storageMocks.updateExpenseSplit).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('Market')).not.toBeInTheDocument()
+    })
+    expect(refreshExpenses).toHaveBeenCalledTimes(1)
+    deferredRefresh.resolve()
+    expect(refreshExpenses).toHaveBeenCalled()
+  })
+
+  it('does not render payee text for split child rows', async () => {
+    const expenses: Expense[] = [
+      {
+        id: 1,
+        splitId: 10,
+        date: '2026-05-10',
+        amount: 12,
+        categoryId: 1,
+        payeeId: 1,
+        description: 'A',
+      },
+      {
+        id: 2,
+        splitId: 10,
+        date: '2026-05-10',
+        amount: 8,
+        categoryId: 2,
+        payeeId: 1,
+        description: 'B',
+      },
+    ]
+    const splits: ExpenseSplit[] = [
+      { id: 10, date: '2026-05-10', amount: 20, payeeId: 1, payeeNameSnapshot: 'Cafe' },
+    ]
+
+    storageMocks.getExpenseSplits.mockResolvedValue(splits)
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const splitChildRow = await screen.findByTestId('split-child-1')
+    expect(within(splitChildRow).queryByText('Cafe')).not.toBeInTheDocument()
   })
 
   it('persists description edits when switching directly to another row editor', async () => {
@@ -303,7 +509,7 @@ describe('ExpenseTable', () => {
     const firstRow = await screen.findByTestId('expense-1')
     const secondRow = await screen.findByTestId('expense-2')
 
-    fireEvent.pointerDown(within(firstRow).getByText('—'))
+    fireEvent.pointerDown(within(firstRow).getByTestId('editable-cell-display-description'))
     const input = await screen.findByDisplayValue('')
     fireEvent.change(input, { target: { value: 'Coffee' } })
     fireEvent.pointerDown(within(secondRow).getByText('Groceries'))
@@ -348,7 +554,7 @@ describe('ExpenseTable', () => {
     const firstSplitRow = await screen.findByTestId('split-container-10')
     const secondSplitRow = await screen.findByTestId('split-container-20')
 
-    fireEvent.pointerDown(within(firstSplitRow).getByText('—'))
+    fireEvent.pointerDown(within(firstSplitRow).getByTestId('editable-cell-display-description'))
     const input = await screen.findByDisplayValue('')
     fireEvent.change(input, { target: { value: 'Shared receipt' } })
     fireEvent.pointerDown(within(secondSplitRow).getByText('Second split'))
@@ -358,7 +564,7 @@ describe('ExpenseTable', () => {
         description: 'Shared receipt',
       })
     })
-    expect(await screen.findByDisplayValue('Second split')).toBeInTheDocument()
+    expect(screen.getByText('Second split')).toBeInTheDocument()
   })
 
   it('provides parent split mobile unsplit action when one full split is selected', async () => {

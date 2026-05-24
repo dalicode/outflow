@@ -67,7 +67,8 @@ async function buildSplitChildPayload(
     date: split.date,
     splitId,
     categoryId: child.categoryId,
-    payeeId: child.payeeId,
+    payeeId: split.payeeId,
+    payeeNameSnapshot: split.payeeNameSnapshot ?? null,
     description: child.description,
     amount: child.amount,
   })

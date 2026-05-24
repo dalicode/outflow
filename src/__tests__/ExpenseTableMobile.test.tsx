@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import ExpenseTableMobile from '../features/dashboard/ExpenseTableMobile'
 import type { ExpenseDisplayRow } from '../features/dashboard/splitDisplayRows'
@@ -190,6 +190,40 @@ describe('ExpenseTableMobile', () => {
 
     expect(screen.getByText('Split')).toBeInTheDocument()
     expect(screen.queryByText('—')).not.toBeInTheDocument()
+  })
+
+  it('hides payee text for split child rows', () => {
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50, payeeId: 100 },
+        childExpenses: [expenses[0]],
+        payeeDisplay: 'Cafe',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+      {
+        rowType: 'splitChild',
+        rowId: 'split-child-1',
+        splitId: 90,
+        expense: expenses[0],
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    expect(within(screen.getByTestId('expense-row-mobile-1')).queryByText('Cafe')).not.toBeInTheDocument()
   })
 
   it('toggles split parent selection on tap in selection mode', () => {

@@ -223,6 +223,30 @@ describe('MoneyInput', () => {
     expect(output).toHaveTextContent('0.00')
   })
 
+  it('supports the sign toggle outside the input shell', () => {
+    const handleChange = vi.fn()
+
+    render(
+      <MoneyInput
+        label="Amount"
+        value={12.34}
+        onChange={handleChange}
+        allowNegative
+        showSignToggle
+        signTogglePosition="outside-left"
+        positiveLabel="Expense"
+        negativeLabel="Refund"
+        entryMode="decimal"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to Refund' }))
+    expect(handleChange).toHaveBeenLastCalledWith(-12.34)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to Expense' }))
+    expect(handleChange).toHaveBeenLastCalledWith(12.34)
+  })
+
   it('prevents native tab navigation when a custom tab handler is provided', () => {
     const handleTabValue = vi.fn()
 

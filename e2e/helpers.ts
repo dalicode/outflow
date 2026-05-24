@@ -11,6 +11,23 @@ export interface SeedExpenseEntry {
   description?: string
 }
 
+export interface SeedExpenseSplitInput {
+  split: {
+    date: string
+    amount: number
+    payeeId?: number
+    payeeNameSnapshot?: string | null
+    description?: string
+    note?: string
+  }
+  children: Array<{
+    categoryId: number
+    amount: number
+    description?: string
+    payeeId?: number
+  }>
+}
+
 export async function waitForAppReady(page: Page): Promise<void> {
   await page.getByTestId('dashboard').waitFor({ timeout: 15000 })
 }
@@ -72,6 +89,21 @@ export async function seedSettings(page: Page, settings: Record<string, unknown>
     if (!api) throw new Error('outflowTestApi not found')
     await api.seedSettings(data)
   }, settings)
+}
+
+export async function seedExpenseSplit(
+  page: Page,
+  params: SeedExpenseSplitInput,
+): Promise<void> {
+  await page.evaluate(async (data) => {
+    const api = (
+      window as Window & {
+        outflowTestApi?: typeof import('../src/test/testApi').testApi
+      }
+    ).outflowTestApi
+    if (!api) throw new Error('outflowTestApi not found')
+    await api.seedExpenseSplit(data)
+  }, params)
 }
 
 export async function addCategory(page: Page, name: string): Promise<number> {

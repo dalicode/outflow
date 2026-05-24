@@ -173,13 +173,13 @@ export default function ExpenseTableMobile({
 
             const exp = 'rowType' in item ? item.expense : item
             const isSelected = resolvedSelectedIds.has(exp.id as number)
-            const payeeLabel = resolvePayeeName?.(exp) || '—'
+            const isSplitChildRow = 'rowType' in item && item.rowType === 'splitChild'
+            const payeeLabel = isSplitChildRow ? '' : resolvePayeeName?.(exp) || '—'
             const categoryLabel = hideCategory ? '' : resolveName(exp)
             const detailLabel =
               categoryLabel && exp.description
                 ? `${categoryLabel} · ${exp.description}`
                 : categoryLabel || exp.description || ''
-            const isSplitChildRow = 'rowType' in item && item.rowType === 'splitChild'
             return (
               <div
                 key={exp.id}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '../context/toastContext'
@@ -66,9 +66,18 @@ vi.mock('../components/inputs/DesktopDropdown', () => ({
     placeholder?: string
     onChange: (id?: number) => void
   }) => (
-    <button type="button" onClick={() => onChange(options[0]?.id)}>
-      {`Select ${placeholder ?? 'option'}`}
-    </button>
+    <div>
+      <button type="button" onClick={() => onChange(options[0]?.id)}>
+        {`Select ${placeholder ?? 'option'}`}
+      </button>
+      <button
+        type="button"
+        aria-label={`Select alternate ${placeholder ?? 'option'}`}
+        onClick={() => onChange(options[1]?.id)}
+      >
+        Select alternate
+      </button>
+    </div>
   ),
 }))
 
@@ -81,9 +90,17 @@ vi.mock('../components/inputs/MobileEntityPicker', () => ({
 }))
 
 vi.mock('../components/inputs/MoneyInput', () => ({
-  default: ({ value, onChange }: { value: number; onChange: (value: number) => void }) => (
+  default: ({
+    label,
+    value,
+    onChange,
+  }: {
+    label?: string
+    value: number
+    onChange: (value: number) => void
+  }) => (
     <input
-      aria-label="Amount"
+      aria-label={label ?? 'Amount'}
       type="number"
       value={value}
       onChange={(e) => {
@@ -127,8 +144,16 @@ const categories = [
 ]
 
 const getContainerAmountInput = (): HTMLInputElement => {
-  const inputs = screen.getAllByRole('spinbutton')
-  return inputs[inputs.length - 1] as HTMLInputElement
+  return screen.getByRole('spinbutton', { name: 'Amount' }) as HTMLInputElement
+}
+
+const selectSplitCategoryFromDesktopDropdown = (rowIndex: number, optionIndex = 0): void => {
+  const wrapper = screen.getByTestId(`desktop-split-category-dropdown-${rowIndex}`)
+  if (optionIndex === 1) {
+    fireEvent.click(within(wrapper).getByRole('button', { name: /Select alternate/ }))
+    return
+  }
+  fireEvent.click(within(wrapper).getByRole('button', { name: 'Select Select category' }))
 }
 
 describe('ExpenseForm', () => {
@@ -193,11 +218,13 @@ describe('ExpenseForm', () => {
       </ToastProvider>,
     )
 
+    expect(screen.getByRole('checkbox', { name: 'Enable split transaction' })).not.toBeChecked()
     fireEvent.click(screen.getByTestId('toggle-split-mode'))
+    expect(screen.getByRole('checkbox', { name: 'Enable split transaction' })).toBeChecked()
     expect(screen.getByLabelText('Split amount 1')).toHaveValue(0)
 
     fireEvent.change(getContainerAmountInput(), { target: { value: '10' } })
-    fireEvent.change(screen.getByLabelText('Split category 1'), { target: { value: '1' } })
+    selectSplitCategoryFromDesktopDropdown(0)
     fireEvent.change(screen.getByLabelText('Split amount 1'), { target: { value: '10' } })
     fireEvent.submit(screen.getByTestId('expense-form'))
 
@@ -213,6 +240,31 @@ describe('ExpenseForm', () => {
     )
   })
 
+  it('selects split category through desktop dropdown wrapper', async () => {
+    render(
+      <ToastProvider>
+        <ExpenseForm onClose={vi.fn()} categories={categories} />
+      </ToastProvider>,
+    )
+
+    fireEvent.click(screen.getByTestId('toggle-split-mode'))
+    fireEvent.change(getContainerAmountInput(), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText('Split amount 1'), { target: { value: '10' } })
+
+    expect(screen.getByTestId('desktop-split-category-dropdown-0')).toBeInTheDocument()
+    selectSplitCategoryFromDesktopDropdown(0)
+    fireEvent.submit(screen.getByTestId('expense-form'))
+
+    await waitFor(() => {
+      expect(StorageService.saveExpenseSplitWithChildren).toHaveBeenCalledTimes(1)
+    })
+    expect(StorageService.saveExpenseSplitWithChildren).toHaveBeenCalledWith(
+      expect.objectContaining({
+        children: [expect.objectContaining({ categoryId: 1 })],
+      }),
+    )
+  })
+
   it('shows unresolved split modal and distributes before saving', async () => {
     render(
       <ToastProvider>
@@ -224,8 +276,8 @@ describe('ExpenseForm', () => {
     fireEvent.click(screen.getByTestId('btn-add-split-row'))
 
     fireEvent.change(getContainerAmountInput(), { target: { value: '10' } })
-    fireEvent.change(screen.getByLabelText('Split category 1'), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText('Split category 2'), { target: { value: '2' } })
+    selectSplitCategoryFromDesktopDropdown(0)
+    selectSplitCategoryFromDesktopDropdown(1, 1)
     fireEvent.submit(screen.getByTestId('expense-form'))
 
     expect(StorageService.saveExpenseSplitWithChildren).not.toHaveBeenCalled()
@@ -258,8 +310,8 @@ describe('ExpenseForm', () => {
     fireEvent.click(screen.getByTestId('btn-add-split-row'))
 
     fireEvent.change(getContainerAmountInput(), { target: { value: '10' } })
-    fireEvent.change(screen.getByLabelText('Split category 1'), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText('Split category 2'), { target: { value: '2' } })
+    selectSplitCategoryFromDesktopDropdown(0)
+    selectSplitCategoryFromDesktopDropdown(1, 1)
     fireEvent.change(screen.getByLabelText('Split amount 1'), { target: { value: '3' } })
     fireEvent.click(screen.getByTestId('btn-apply-remaining-1'))
 
@@ -278,7 +330,7 @@ describe('ExpenseForm', () => {
 
     fireEvent.click(screen.getByTestId('toggle-split-mode'))
     fireEvent.change(getContainerAmountInput(), { target: { value: '10' } })
-    fireEvent.change(screen.getByLabelText('Split category 1'), { target: { value: '1' } })
+    selectSplitCategoryFromDesktopDropdown(0)
     fireEvent.change(screen.getByLabelText('Split amount 1'), { target: { value: '6' } })
     fireEvent.submit(screen.getByTestId('expense-form'))
 
@@ -349,8 +401,8 @@ describe('ExpenseForm', () => {
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-02-15' } })
     fireEvent.click(screen.getByRole('button', { name: 'Select Select payee' }))
-    fireEvent.change(screen.getByLabelText('Split category 1'), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText('Split category 2'), { target: { value: '2' } })
+    selectSplitCategoryFromDesktopDropdown(0)
+    selectSplitCategoryFromDesktopDropdown(1, 1)
     fireEvent.submit(screen.getByTestId('expense-form'))
 
     await waitFor(() => {
@@ -390,8 +442,8 @@ describe('ExpenseForm', () => {
     fireEvent.click(screen.getByTestId('toggle-split-mode'))
     fireEvent.click(screen.getByTestId('btn-add-split-row'))
     fireEvent.change(getContainerAmountInput(), { target: { value: '10' } })
-    fireEvent.change(screen.getByLabelText('Split category 1'), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText('Split category 2'), { target: { value: '2' } })
+    selectSplitCategoryFromDesktopDropdown(0)
+    selectSplitCategoryFromDesktopDropdown(1, 1)
     fireEvent.submit(screen.getByTestId('expense-form'))
     fireEvent.click(screen.getByRole('button', { name: 'Distribute' }))
 
