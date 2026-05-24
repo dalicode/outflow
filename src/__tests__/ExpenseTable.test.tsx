@@ -506,8 +506,8 @@ describe('ExpenseTable', () => {
 
     render(<TestHarness />)
 
-    const firstRow = await screen.findByTestId('expense-1')
-    const secondRow = await screen.findByTestId('expense-2')
+    const firstRow = await screen.findByTestId('expense-row-1')
+    const secondRow = await screen.findByTestId('expense-row-2')
 
     fireEvent.pointerDown(within(firstRow).getByTestId('editable-cell-display-description'))
     const input = await screen.findByDisplayValue('')

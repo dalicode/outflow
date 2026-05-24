@@ -62,7 +62,11 @@ async function createSplitExpenseThroughUi(
   }
 
   for (const [index, allocation] of params.allocations.entries()) {
-    await page.getByLabel(`Split category ${index + 1}`).selectOption({ label: allocation.category })
+    await selectDesktopDropdownOption(
+      page,
+      `desktop-split-category-dropdown-${index}`,
+      allocation.category,
+    )
     if (allocation.amount != null) {
       await page.getByLabel(`Split amount ${index + 1}`).fill(allocation.amount)
     }

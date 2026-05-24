@@ -108,7 +108,7 @@ export function buildExpenseDisplayRows(params: {
     if (typeof expense.splitId !== 'number') {
       rows.push({
         rowType: 'expense',
-        rowId: `expense-${expense.id}`,
+        rowId: `expense-row-${expense.id}`,
         expense,
       })
       continue

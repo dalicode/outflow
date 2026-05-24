@@ -611,58 +611,59 @@ export default function ExpenseForm({
                 + Manage
               </button>
             </div>
-            {/* Desktop */}
-            <div className="hidden sm:block" data-testid="desktop-payee-dropdown">
-              <DesktopDropdown
-                value={form.payeeId ? Number(form.payeeId) : undefined}
-                options={payeeOptions}
-                recentOptions={recentPayeeOptions}
-                placeholder="Select payee"
-                emptyMessage="No payees found."
-                createHint="Type a new payee name to add it."
-                allowCreate
-                allowClear
-                clearLabel="No payee"
-                autoFocus={false}
-                onChange={handlePayeeManualSelect}
-                onCreate={async (name) => {
-                  const newId = await StorageService.addPayee(name)
-                  await refreshPayees()
-                  await refreshPayeesProp?.()
-                  return newId
-                }}
-              />
-            </div>
-            {/* Mobile */}
-            <div className="block sm:hidden" data-testid="mobile-payee-trigger">
-              <SingleSelectTrigger
-                value={selectedPayeeName}
-                placeholder="Select payee"
-                isOpen={showPayeePicker}
-                onClick={() => setShowPayeePicker(true)}
-              />
-              <MobileEntityPicker
-                open={showPayeePicker}
-                title="Choose Payee"
-                value={form.payeeId ? Number(form.payeeId) : undefined}
-                options={payeeOptions}
-                recentOptions={recentPayeeOptions}
-                placeholder="Search or add payee"
-                emptyMessage="No payees found."
-                createHint="Type a new payee name to add it."
-                allowCreate
-                allowClear
-                clearLabel="No payee"
-                onChange={handlePayeeManualSelect}
-                onCreate={async (name) => {
-                  const newId = await StorageService.addPayee(name)
-                  await refreshPayees()
-                  await refreshPayeesProp?.()
-                  return newId
-                }}
-                onClose={() => setShowPayeePicker(false)}
-              />
-            </div>
+            {isMobileViewport ? (
+              <div data-testid="mobile-payee-trigger">
+                <SingleSelectTrigger
+                  value={selectedPayeeName}
+                  placeholder="Select payee"
+                  isOpen={showPayeePicker}
+                  onClick={() => setShowPayeePicker(true)}
+                />
+                <MobileEntityPicker
+                  open={showPayeePicker}
+                  title="Choose Payee"
+                  value={form.payeeId ? Number(form.payeeId) : undefined}
+                  options={payeeOptions}
+                  recentOptions={recentPayeeOptions}
+                  placeholder="Search or add payee"
+                  emptyMessage="No payees found."
+                  createHint="Type a new payee name to add it."
+                  allowCreate
+                  allowClear
+                  clearLabel="No payee"
+                  onChange={handlePayeeManualSelect}
+                  onCreate={async (name) => {
+                    const newId = await StorageService.addPayee(name)
+                    await refreshPayees()
+                    await refreshPayeesProp?.()
+                    return newId
+                  }}
+                  onClose={() => setShowPayeePicker(false)}
+                />
+              </div>
+            ) : (
+              <div data-testid="desktop-payee-dropdown">
+                <DesktopDropdown
+                  value={form.payeeId ? Number(form.payeeId) : undefined}
+                  options={payeeOptions}
+                  recentOptions={recentPayeeOptions}
+                  placeholder="Select payee"
+                  emptyMessage="No payees found."
+                  createHint="Type a new payee name to add it."
+                  allowCreate
+                  allowClear
+                  clearLabel="No payee"
+                  autoFocus={false}
+                  onChange={handlePayeeManualSelect}
+                  onCreate={async (name) => {
+                    const newId = await StorageService.addPayee(name)
+                    await refreshPayees()
+                    await refreshPayeesProp?.()
+                    return newId
+                  }}
+                />
+              </div>
+            )}
           </div>
           {!isSplitMode && (
             <div className="flex flex-col gap-1">
@@ -676,54 +677,55 @@ export default function ExpenseForm({
                   + Manage
                 </button>
               </div>
-              {/* Desktop */}
-              <div className="hidden sm:block" data-testid="desktop-category-dropdown">
-                <DesktopDropdown
-                  value={form.categoryId ? Number(form.categoryId) : undefined}
-                  options={categoryOptions}
-                  recentOptions={recentCategoryOptions}
-                  placeholder="Select category"
-                  emptyMessage="No categories found."
-                  createHint="Type a new category name to add it."
-                  allowCreate
-                  autoFocus={false}
-                  onChange={(id) =>
-                    setForm((f) => ({
-                      ...f,
-                      categoryId: id != null ? String(id) : '',
-                    }))
-                  }
-                  onCreate={createCategory}
-                />
-              </div>
-              {/* Mobile */}
-              <div className="block sm:hidden" data-testid="mobile-category-trigger">
-                <SingleSelectTrigger
-                  value={selectedCategoryName}
-                  placeholder="Select category"
-                  isOpen={showCategoryPicker}
-                  onClick={() => setShowCategoryPicker(true)}
-                />
-                <MobileEntityPicker
-                  open={showCategoryPicker}
-                  title="Choose Category"
-                  value={form.categoryId ? Number(form.categoryId) : undefined}
-                  options={categoryOptions}
-                  recentOptions={recentCategoryOptions}
-                  placeholder="Search or add category"
-                  emptyMessage="No categories found."
-                  createHint="Type a new category name to add it."
-                  allowCreate
-                  onChange={(id) =>
-                    setForm((f) => ({
-                      ...f,
-                      categoryId: id != null ? String(id) : '',
-                    }))
-                  }
-                  onCreate={createCategory}
-                  onClose={() => setShowCategoryPicker(false)}
-                />
-              </div>
+              {isMobileViewport ? (
+                <div data-testid="mobile-category-trigger">
+                  <SingleSelectTrigger
+                    value={selectedCategoryName}
+                    placeholder="Select category"
+                    isOpen={showCategoryPicker}
+                    onClick={() => setShowCategoryPicker(true)}
+                  />
+                  <MobileEntityPicker
+                    open={showCategoryPicker}
+                    title="Choose Category"
+                    value={form.categoryId ? Number(form.categoryId) : undefined}
+                    options={categoryOptions}
+                    recentOptions={recentCategoryOptions}
+                    placeholder="Search or add category"
+                    emptyMessage="No categories found."
+                    createHint="Type a new category name to add it."
+                    allowCreate
+                    onChange={(id) =>
+                      setForm((f) => ({
+                        ...f,
+                        categoryId: id != null ? String(id) : '',
+                      }))
+                    }
+                    onCreate={createCategory}
+                    onClose={() => setShowCategoryPicker(false)}
+                  />
+                </div>
+              ) : (
+                <div data-testid="desktop-category-dropdown">
+                  <DesktopDropdown
+                    value={form.categoryId ? Number(form.categoryId) : undefined}
+                    options={categoryOptions}
+                    recentOptions={recentCategoryOptions}
+                    placeholder="Select category"
+                    emptyMessage="No categories found."
+                    createHint="Type a new category name to add it."
+                    allowCreate
+                    autoFocus={false}
+                    onChange={(id) =>
+                      setForm((f) => ({
+                        ...f,
+                        categoryId: id != null ? String(id) : '',
+                      }))
+                    }
+                    onCreate={createCategory}
+                  />
+                </div>
+              )}
             </div>
           )}
           <div className="flex flex-col gap-1 text-sm text-theme-muted">
@@ -843,72 +845,69 @@ export default function ExpenseForm({
                       <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                         <div className="flex flex-col gap-1">
                           <label className="block text-sm text-theme-muted">{`Split category ${index + 1}`}</label>
-                          <div
-                            className="hidden sm:block"
-                            data-testid={`desktop-split-category-dropdown-${index}`}
-                          >
-                            <DesktopDropdown
-                              value={child.categoryId ? Number(child.categoryId) : undefined}
-                              options={categoryOptions}
-                              recentOptions={recentCategoryOptions}
-                              placeholder="Select category"
-                              emptyMessage="No categories found."
-                              createHint="Type a new category name to add it."
-                              allowCreate
-                              ariaLabel={`Split category ${index + 1}`}
-                              autoFocus={false}
-                              onChange={(id) =>
-                                setSplitChildField(
-                                  child.rowId,
-                                  'categoryId',
-                                  id != null ? String(id) : '',
-                                )
-                              }
-                              onCreate={createCategory}
-                            />
-                          </div>
-                          <div
-                            className="block sm:hidden"
-                            data-testid={`mobile-split-category-trigger-${index}`}
-                          >
-                            <SingleSelectTrigger
-                              value={selectedSplitCategoryName}
-                              placeholder="Select category"
-                              isOpen={isSplitCategoryPickerOpen}
-                              ariaLabel={`Split category ${index + 1}`}
-                              onClick={() =>
-                                setOpenSplitCategoryPickers((prev) => ({
-                                  ...prev,
-                                  [child.rowId]: true,
-                                }))
-                              }
-                            />
-                            <MobileEntityPicker
-                              open={isSplitCategoryPickerOpen}
-                              title="Choose Category"
-                              value={child.categoryId ? Number(child.categoryId) : undefined}
-                              options={categoryOptions}
-                              recentOptions={recentCategoryOptions}
-                              placeholder="Search or add category"
-                              emptyMessage="No categories found."
-                              createHint="Type a new category name to add it."
-                              allowCreate
-                              onChange={(id) =>
-                                setSplitChildField(
-                                  child.rowId,
-                                  'categoryId',
-                                  id != null ? String(id) : '',
-                                )
-                              }
-                              onCreate={createCategory}
-                              onClose={() =>
-                                setOpenSplitCategoryPickers((prev) => ({
-                                  ...prev,
-                                  [child.rowId]: false,
-                                }))
-                              }
-                            />
-                          </div>
+                          {isMobileViewport ? (
+                            <div data-testid={`mobile-split-category-trigger-${index}`}>
+                              <SingleSelectTrigger
+                                value={selectedSplitCategoryName}
+                                placeholder="Select category"
+                                isOpen={isSplitCategoryPickerOpen}
+                                ariaLabel={`Split category ${index + 1}`}
+                                onClick={() =>
+                                  setOpenSplitCategoryPickers((prev) => ({
+                                    ...prev,
+                                    [child.rowId]: true,
+                                  }))
+                                }
+                              />
+                              <MobileEntityPicker
+                                open={isSplitCategoryPickerOpen}
+                                title="Choose Category"
+                                value={child.categoryId ? Number(child.categoryId) : undefined}
+                                options={categoryOptions}
+                                recentOptions={recentCategoryOptions}
+                                placeholder="Search or add category"
+                                emptyMessage="No categories found."
+                                createHint="Type a new category name to add it."
+                                allowCreate
+                                onChange={(id) =>
+                                  setSplitChildField(
+                                    child.rowId,
+                                    'categoryId',
+                                    id != null ? String(id) : '',
+                                  )
+                                }
+                                onCreate={createCategory}
+                                onClose={() =>
+                                  setOpenSplitCategoryPickers((prev) => ({
+                                    ...prev,
+                                    [child.rowId]: false,
+                                  }))
+                                }
+                              />
+                            </div>
+                          ) : (
+                            <div data-testid={`desktop-split-category-dropdown-${index}`}>
+                              <DesktopDropdown
+                                value={child.categoryId ? Number(child.categoryId) : undefined}
+                                options={categoryOptions}
+                                recentOptions={recentCategoryOptions}
+                                placeholder="Select category"
+                                emptyMessage="No categories found."
+                                createHint="Type a new category name to add it."
+                                allowCreate
+                                ariaLabel={`Split category ${index + 1}`}
+                                autoFocus={false}
+                                onChange={(id) =>
+                                  setSplitChildField(
+                                    child.rowId,
+                                    'categoryId',
+                                    id != null ? String(id) : '',
+                                  )
+                                }
+                                onCreate={createCategory}
+                              />
+                            </div>
+                          )}
                         </div>
                         <MoneyInput
                           label={`Split amount ${index + 1}`}
