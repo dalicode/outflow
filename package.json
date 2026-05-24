@@ -14,9 +14,9 @@
     "e2e:sync:uat": "playwright test -c playwright.uat.config.ts",
     "e2e:headed": "playwright test --headed",
     "e2e:debug": "playwright test --debug",
-    "lint": "biome check src/",
-    "lint:fix": "biome check src/ --apply",
-    "format": "biome format src/ --write"
+    "lint": "biome check src/ e2e/ playwright.config.ts playwright.pwa.config.ts playwright.uat.config.ts",
+    "lint:fix": "biome check src/ e2e/ playwright.config.ts playwright.pwa.config.ts playwright.uat.config.ts --write",
+    "format": "biome format src/ e2e/ playwright.config.ts playwright.pwa.config.ts playwright.uat.config.ts --write"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

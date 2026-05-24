@@ -190,7 +190,7 @@ describe('Modal', () => {
       </Modal>,
     )
     const action = screen.getByRole('button', { name: 'Save' })
-    expect(action).toHaveClass('w-full')
+    expect(action).toBeEnabled()
     expect(screen.getAllByText('Cancel').length).toBe(1)
   })
 

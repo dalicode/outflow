@@ -34,48 +34,6 @@ describe('Navbar', () => {
     expect(onAddExpense).toHaveBeenCalledTimes(1)
   })
 
-  it('uses regular desktop nav hover styling for the Add button', () => {
-    renderNavbar({ onAddExpense: vi.fn() })
-
-    const sidebar = document.querySelector('aside') as HTMLElement
-    fireEvent.click(within(sidebar).getByTitle('Expand'))
-    const addButton = within(sidebar).getByLabelText('Add expense')
-
-    expect(addButton).toHaveClass('text-theme-muted')
-    expect(addButton).toHaveClass('nav-item-hover')
-    expect(addButton).toHaveClass('w-[calc(100%-1rem)]')
-    expect(addButton).toHaveClass('hover:bg-theme-background')
-    expect(addButton).toHaveClass('hover:text-theme-text')
-  })
-
-  it('uses regular desktop nav hover styling for the Sign out button', () => {
-    renderNavbar({ onAddExpense: vi.fn(), onSignOut: vi.fn() })
-
-    const sidebar = document.querySelector('aside') as HTMLElement
-    fireEvent.click(within(sidebar).getByTitle('Expand'))
-    const signOutButton = within(sidebar).getByText('Sign out').closest('button') as HTMLElement
-
-    expect(signOutButton).toHaveClass('text-theme-muted')
-    expect(signOutButton).toHaveClass('nav-item-hover')
-    expect(signOutButton).toHaveClass('w-[calc(100%-1rem)]')
-    expect(signOutButton).toHaveClass('hover:bg-theme-background')
-    expect(signOutButton).toHaveClass('hover:text-theme-text')
-  })
-
-  it('uses regular desktop nav hover styling for the Sign in button', () => {
-    renderNavbar({ onAddExpense: vi.fn(), showSignIn: true, onSignIn: vi.fn() })
-
-    const sidebar = document.querySelector('aside') as HTMLElement
-    fireEvent.click(within(sidebar).getByTitle('Expand'))
-    const signInButton = within(sidebar).getByText('Sign in').closest('button') as HTMLElement
-
-    expect(signInButton).toHaveClass('text-theme-muted')
-    expect(signInButton).toHaveClass('nav-item-hover')
-    expect(signInButton).toHaveClass('w-[calc(100%-1rem)]')
-    expect(signInButton).toHaveClass('hover:bg-theme-background')
-    expect(signInButton).toHaveClass('hover:text-theme-text')
-  })
-
   it('renders sign out button when onSignOut provided', () => {
     renderNavbar({ onAddExpense: vi.fn(), onSignOut: vi.fn(), userEmail: 'test@example.com' })
 
@@ -132,9 +90,6 @@ describe('Navbar', () => {
 
     const dashboardLink = within(sidebar).getByText('Dashboard').closest('a')
     expect(dashboardLink).toHaveAttribute('aria-current', 'page')
-    expect(dashboardLink).toHaveClass('bg-theme-background')
-    expect(dashboardLink).not.toHaveClass('bg-theme-primary-subtle')
-    expect(dashboardLink).not.toHaveClass('nav-item-indicator')
   })
 
   it('marks Analytics as active on /analytics', () => {

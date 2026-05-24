@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider, useToasts } from '../context/toastContext'
 
-function TriggerToastButton() {
+function TriggerToastButton({ onAction = vi.fn() }: { onAction?: () => void }) {
   const { showToast } = useToasts()
 
   return (
@@ -13,7 +13,7 @@ function TriggerToastButton() {
           message: 'Warning message',
           tone: 'warning',
           actionLabel: 'Review',
-          onAction: vi.fn(),
+          onAction,
         })
       }}
     >
@@ -65,10 +65,12 @@ describe('ToastContext', () => {
     vi.useRealTimers()
   })
 
-  it('uses warning token styling for warning toasts', async () => {
+  it('renders warning toast actions and runs them when clicked', async () => {
+    const onAction = vi.fn()
+
     render(
       <ToastProvider>
-        <TriggerToastButton />
+        <TriggerToastButton onAction={onAction} />
       </ToastProvider>,
     )
 
@@ -79,7 +81,8 @@ describe('ToastContext', () => {
     })
 
     const actionButton = screen.getByRole('button', { name: 'Review' })
-    expect(actionButton).toHaveClass('text-theme-warning')
+    fireEvent.click(actionButton)
+    expect(onAction).toHaveBeenCalledTimes(1)
   })
 
   it('marks undo toasts as undo style and keeps them visible longer', async () => {
@@ -98,7 +101,6 @@ describe('ToastContext', () => {
 
     const undoAction = screen.getByRole('button', { name: 'Undo' })
     expect(undoAction).toBeInTheDocument()
-    expect(undoAction.closest('.toast-card-action')).not.toBeNull()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000)
@@ -114,7 +116,9 @@ describe('ToastContext', () => {
   it('keeps an active undo toast visible on mobile when routine toasts are added', async () => {
     const originalWidth = window.innerWidth
     window.innerWidth = 375
-    window.dispatchEvent(new Event('resize'))
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'))
+    })
 
     render(
       <ToastProvider>
@@ -132,6 +136,8 @@ describe('ToastContext', () => {
     expect(screen.queryByText('Routine message')).not.toBeInTheDocument()
 
     window.innerWidth = originalWidth
-    window.dispatchEvent(new Event('resize'))
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'))
+    })
   })
 })

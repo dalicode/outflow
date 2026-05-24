@@ -86,16 +86,4 @@ describe('BudgetFlow', () => {
 
     expect(screen.queryByLabelText('Variable Expenses')).not.toBeInTheDocument()
   })
-
-  it('renders alignment action slots for editable and non-editable rows', () => {
-    renderBudgetFlow()
-
-    const fixedSlot = screen.getByTestId('allocation-action-slot-fixed-expenses')
-    const variableSlot = screen.getByTestId('allocation-action-slot-variable-expenses')
-    const savingsSlot = screen.getByTestId('allocation-action-slot-auto-savings')
-
-    expect(fixedSlot).not.toHaveClass('invisible')
-    expect(savingsSlot).not.toHaveClass('invisible')
-    expect(variableSlot).toHaveClass('invisible')
-  })
 })

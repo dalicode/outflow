@@ -25,7 +25,7 @@ function armPullToRefresh(container: HTMLElement) {
 }
 
 describe('PullToRefreshContainer', () => {
-  it('shows spinner when armed and keeps release guidance sr-only', () => {
+  it('shows release guidance when armed', () => {
     render(
       <PullToRefreshContainer onRefresh={async () => undefined}>
         <div>content</div>
@@ -37,8 +37,6 @@ describe('PullToRefreshContainer', () => {
 
     const releaseTextNodes = screen.getAllByText('Release to update')
     expect(releaseTextNodes).toHaveLength(1)
-    expect(releaseTextNodes[0]).toHaveClass('sr-only')
-    expect(container.querySelector('.animate-spin')).toBeTruthy()
   })
 
   it('does not render inline success text after refresh completion', async () => {
@@ -95,9 +93,6 @@ describe('PullToRefreshContainer', () => {
 
     expect(onRefresh).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('Refreshing')).not.toBeInTheDocument()
-    const indicator = container.querySelector('[role="status"]')?.parentElement as HTMLElement
-    expect(indicator).toBeTruthy()
-    expect(indicator.style.opacity).toBe('0')
 
     await act(async () => {
       resolveRefresh?.()

@@ -307,10 +307,15 @@ import Modal from "../../components/ui/Modal";
 
 1. **Extract pure logic from components** into `src/utils/*.ts` files so it can be unit-tested without React/DOM setup. Example: `historicalDataHelpers.ts` contains all range manipulation logic extracted from `EditHistoricalDataModal.tsx`.
 2. **Test behavior, not markup** — use `screen.getByRole`, `getByLabelText`, `getByText` instead of querying CSS classes or DOM structure.
-3. **Mock browser APIs** (e.g., `history.pushState`, `window.addEventListener`) with `vi.fn()` or `vi.useFakeTimers()`.
-4. **Test files live next to source** in `src/__tests__/*.test.{ts,tsx}`.
-5. **Naming**: `describe('ComponentName', () => { it('does something', () => {}) })`.
-6. **Coverage targets**: 100% of exported utility functions; key component interactions (open/close, click handlers, keyboard events).
+3. **Do not add style-assertion unit tests.** Avoid tests whose primary assertion is a class name, theme token, `viewBox`, inline style, DOM nesting, or a CSS selector count. Examples to avoid: `toHaveClass(...)`, `element.className`, `querySelector('.some-style')`, `querySelectorAll('.some-style').length`, asserting `text-theme-*` / `bg-theme-*` tokens, or checking that a row is hidden via an `invisible` class.
+4. **If a test only proves styling, don’t write it as a unit test.** Pure visual concerns belong in manual QA, screenshots, or E2E/visual regression coverage only when the appearance itself is product-critical.
+5. **When UI logic feels hard to test without class selectors, that is usually a design smell.** Extract the decision-making into a pure helper and test that helper directly, then keep the component test focused on user-visible behavior such as callbacks, accessible state, text, focus management, disabled state, open/close behavior, and keyboard interaction.
+6. **Semantic/accessibility attributes are acceptable when they reflect behavior.** Good examples: `aria-current`, `aria-expanded`, `aria-selected`, `disabled`, dialog open/close, focus movement, and whether a callback fired with the right value.
+7. **Use DOM selectors only as a last resort for behavior that has no accessible hook.** If you must do that, assert the behavioral outcome, not the styling primitive that happens to implement it.
+8. **Mock browser APIs** (e.g., `history.pushState`, `window.addEventListener`) with `vi.fn()` or `vi.useFakeTimers()`.
+9. **Test files live next to source** in `src/__tests__/*.test.{ts,tsx}`.
+10. **Naming**: `describe('ComponentName', () => { it('does something', () => {}) })`.
+11. **Coverage targets**: 100% of exported utility functions; key component interactions (open/close, click handlers, keyboard events).
 
 ### Example test structure
 

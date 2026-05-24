@@ -14,11 +14,6 @@ describe('Card', () => {
     expect(screen.getByText('Content')).toBeInTheDocument()
   })
 
-  it('applies custom className', () => {
-    const { container } = render(<Card className="custom-class">Content</Card>)
-    expect(container.firstChild).toHaveClass('custom-class')
-  })
-
   it('renders actions when provided', () => {
     render(
       <Card title="With Actions" actions={<button>Action</button>}>
@@ -29,8 +24,7 @@ describe('Card', () => {
   })
 
   it('does not render title section when no title provided', () => {
-    const { container } = render(<Card>Content</Card>)
-    const headers = container.querySelectorAll('h3')
-    expect(headers.length).toBe(0)
+    render(<Card>Content</Card>)
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
   })
 })

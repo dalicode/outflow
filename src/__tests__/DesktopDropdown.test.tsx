@@ -25,15 +25,9 @@ describe('DesktopDropdown', () => {
     )
 
     const search = await screen.findByPlaceholderText('Search...')
-    const firstOption = screen.getByRole('button', { name: 'Coffee' })
-    const secondOption = screen.getByRole('button', { name: 'Groceries' })
-    expect(firstOption.className).not.toContain('bg-theme-primary-muted')
-    expect(secondOption.className).not.toContain('bg-theme-primary-muted')
+    expect(onChange).not.toHaveBeenCalled()
 
     fireEvent.keyDown(search, { key: 'ArrowDown' })
-    await waitFor(() => {
-      expect(firstOption.className).toContain('bg-theme-primary-muted')
-    })
 
     fireEvent.keyDown(search, { key: 'Enter' })
 
@@ -63,24 +57,8 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     fireEvent.change(search, { target: { value: 'g' } })
 
-    const gasOption = screen.getByRole('button', { name: 'Gas' })
-    const groceriesOption = screen.getByRole('button', { name: 'Groceries' })
-
-    expect(gasOption.className).toContain('bg-theme-primary-muted')
-    expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
-
     fireEvent.keyDown(search, { key: 'ArrowDown' })
-    await waitFor(() => {
-      expect(groceriesOption.className).toContain('bg-theme-primary-muted')
-      expect(gasOption.className).not.toContain('bg-theme-primary-muted')
-    })
-
     fireEvent.keyDown(search, { key: 'ArrowUp' })
-    await waitFor(() => {
-      expect(gasOption.className).toContain('bg-theme-primary-muted')
-      expect(groceriesOption.className).not.toContain('bg-theme-primary-muted')
-    })
-
     fireEvent.keyDown(search, { key: 'Enter' })
 
     await waitFor(() => {
@@ -106,9 +84,7 @@ describe('DesktopDropdown', () => {
 
     const search = await screen.findByPlaceholderText('Search...')
     fireEvent.change(search, { target: { value: 'New payee' } })
-
-    const createOption = screen.getByRole('button', { name: 'Create "New payee"' })
-    expect(createOption.className).toContain('bg-theme-primary-muted')
+    expect(screen.getByRole('button', { name: 'Create "New payee"' })).toBeInTheDocument()
 
     fireEvent.keyDown(search, { key: 'Enter' })
 
@@ -154,22 +130,16 @@ describe('DesktopDropdown', () => {
 
     const search = await screen.findByPlaceholderText('Search...')
 
-    const coffeeOption = screen.getByRole('button', { name: 'Coffee' })
-    const gasOption = screen.getByRole('button', { name: 'Gas' })
-
-    expect(coffeeOption.className).not.toContain('bg-theme-primary-muted')
-    expect(gasOption.className).not.toContain('bg-theme-primary-muted')
-
     fireEvent.keyDown(search, { key: 'ArrowUp' })
-    await waitFor(() => {
-      expect(gasOption.className).toContain('bg-theme-primary-muted')
-    })
+    fireEvent.keyDown(search, { key: 'Enter' })
 
     const panel = search.closest('div[style]')
     const content = panel?.querySelector('.overflow-y-auto') as HTMLDivElement | null
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(3)
+    })
     expect(panel?.textContent).toMatch(/Recent.*Coffee.*Groceries.*All.*Gas/)
     expect(content?.scrollTop ?? -1).toBe(0)
-    expect(panel?.className).not.toContain('flex-col-reverse')
   })
 
   it('preserves the provided option order when preserveOrder is enabled', async () => {
