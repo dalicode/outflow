@@ -4,6 +4,7 @@ import type {
   Category,
   CategoryMergeHistory,
   Expense,
+  ExpenseSplit,
   FixedExpense,
   FixedExpenseSnapshot,
   IncomeSnapshot,
@@ -28,6 +29,7 @@ const getAllCategoriesMock = vi.hoisted(() => vi.fn(async (): Promise<Category[]
 const getAllPayeesMock = vi.hoisted(() => vi.fn(async (): Promise<Payee[]> => []))
 const getAllFixedExpensesMock = vi.hoisted(() => vi.fn(async (): Promise<FixedExpense[]> => []))
 const getAllSettingsRowsMock = vi.hoisted(() => vi.fn(async (): Promise<SyncedSettingRow[]> => []))
+const getAllExpenseSplitsMock = vi.hoisted(() => vi.fn(async (): Promise<ExpenseSplit[]> => []))
 const getAllFixedExpenseSnapshotsMock = vi.hoisted(() =>
   vi.fn(async (): Promise<FixedExpenseSnapshot[]> => []),
 )
@@ -100,6 +102,7 @@ vi.mock('../services/storageService', () => ({
     getAllPayees: getAllPayeesMock,
     getAllFixedExpenses: getAllFixedExpensesMock,
     getAllSettingsRows: getAllSettingsRowsMock,
+    getAllExpenseSplits: getAllExpenseSplitsMock,
     getAllFixedExpenseSnapshots: getAllFixedExpenseSnapshotsMock,
     getAllIncomeSnapshots: getAllIncomeSnapshotsMock,
     getAllSavingsSnapshots: getAllSavingsSnapshotsMock,

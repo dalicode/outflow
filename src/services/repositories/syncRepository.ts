@@ -18,6 +18,7 @@ const SYNC_METADATA_TABLES = [
   'categories',
   'payees',
   'fixedExpenses',
+  'expenseSplits',
   'fixedExpenseSnapshots',
   'incomeSnapshots',
   'savingsSnapshots',

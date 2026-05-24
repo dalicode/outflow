@@ -5,6 +5,7 @@ const mockDb = vi.hoisted(() => ({
   categories: { toArray: vi.fn() },
   payees: { toArray: vi.fn() },
   fixedExpenses: { toArray: vi.fn() },
+  expenseSplits: { toArray: vi.fn() },
   fixedExpenseSnapshots: { toArray: vi.fn() },
   incomeSnapshots: { toArray: vi.fn() },
   savingsSnapshots: { toArray: vi.fn() },
@@ -34,6 +35,7 @@ function setLocalHealthyData() {
   mockDb.categories.toArray.mockResolvedValue([{ id: 10, name: 'Food' }])
   mockDb.payees.toArray.mockResolvedValue([{ id: 20, name: 'Cafe' }])
   mockDb.fixedExpenses.toArray.mockResolvedValue([])
+  mockDb.expenseSplits.toArray.mockResolvedValue([])
   mockDb.fixedExpenseSnapshots.toArray.mockResolvedValue([])
   mockDb.incomeSnapshots.toArray.mockResolvedValue([{ year: 2026, month: 1, amountSnapshot: 1000 }])
   mockDb.savingsSnapshots.toArray.mockResolvedValue([{ year: 2026, month: 1, rateSnapshot: 0.2 }])
@@ -53,10 +55,11 @@ describe('runRecoveryDiagnostics', () => {
     expect(report.issues).toHaveLength(0)
     expect(report.brokenExpenseCategoryRefs).toBe(0)
     expect(report.brokenExpensePayeeRefs).toBe(0)
+    expect(report.brokenExpenseSplitRefs).toBe(0)
   })
 
   it('returns local_repair_required when local duplicates and broken refs exist', async () => {
-    mockDb.expenses.toArray.mockResolvedValue([{ id: 1, categoryId: 999, payeeId: 888 }])
+    mockDb.expenses.toArray.mockResolvedValue([{ id: 1, categoryId: 999, payeeId: 888, splitId: 777 }])
     mockDb.categories.toArray.mockResolvedValue([
       { id: 10, name: 'Food' },
       { id: 11, name: 'food' },
@@ -65,6 +68,7 @@ describe('runRecoveryDiagnostics', () => {
       { id: 20, name: 'Cafe' },
       { id: 21, name: '  cafe  ' },
     ])
+    mockDb.expenseSplits.toArray.mockResolvedValue([])
     mockDb.incomeSnapshots.toArray.mockResolvedValue([
       { year: 2026, month: 1, amountSnapshot: 1000 },
       { year: 2026, month: 1, amountSnapshot: 1200 },
@@ -82,6 +86,7 @@ describe('runRecoveryDiagnostics', () => {
     expect(report.status).toBe('local_repair_required')
     expect(report.brokenExpenseCategoryRefs).toBe(1)
     expect(report.brokenExpensePayeeRefs).toBe(1)
+    expect(report.brokenExpenseSplitRefs).toBe(1)
     expect(report.duplicateIncomeSnapshots).toBe(1)
     expect(report.duplicateSavingsSnapshots).toBe(1)
     expect(report.duplicateFixedExpenseSnapshots).toBe(1)
@@ -114,6 +119,8 @@ describe('runRecoveryDiagnostics', () => {
                         ? 20
                         : table === 'fixed_expenses'
                           ? 3
+                          : table === 'expense_splits'
+                            ? 4
                           : table === 'fixed_expense_snapshots'
                             ? 3
                             : table === 'income_snapshots'
@@ -135,6 +142,7 @@ describe('runRecoveryDiagnostics', () => {
     expect(report.issues).toContain('Categories count mismatch: local 1, cloud 10')
     expect(report.issues).toContain('Payees count mismatch: local 1, cloud 20')
     expect(report.issues).toContain('Fixed expenses count mismatch: local 0, cloud 3')
+    expect(report.issues).toContain('Expense splits count mismatch: local 0, cloud 4')
     expect(report.issues).toContain('Fixed expense snapshots count mismatch: local 0, cloud 3')
     expect(report.issues).toContain('Income snapshots count mismatch: local 1, cloud 2')
     expect(report.issues).toContain('Savings snapshots count mismatch: local 1, cloud 2')

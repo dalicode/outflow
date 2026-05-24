@@ -4,6 +4,7 @@ type TableName =
   | 'categories'
   | 'payees'
   | 'fixedExpenses'
+  | 'expenseSplits'
   | 'fixedExpenseSnapshots'
   | 'incomeSnapshots'
   | 'savingsSnapshots'
@@ -16,6 +17,7 @@ const localState = vi.hoisted(() => ({
   categories: [] as Array<Record<string, unknown>>,
   payees: [] as Array<Record<string, unknown>>,
   fixedExpenses: [] as Array<Record<string, unknown>>,
+  expenseSplits: [] as Array<Record<string, unknown>>,
   fixedExpenseSnapshots: [] as Array<Record<string, unknown>>,
   incomeSnapshots: [] as Array<Record<string, unknown>>,
   savingsSnapshots: [] as Array<Record<string, unknown>>,
@@ -35,6 +37,7 @@ const remoteState = vi.hoisted(() => ({
   categories: [] as Array<Record<string, unknown>>,
   payees: [] as Array<Record<string, unknown>>,
   fixed_expenses: [] as Array<Record<string, unknown>>,
+  expense_splits: [] as Array<Record<string, unknown>>,
   fixed_expense_snapshots: [] as Array<Record<string, unknown>>,
   income_snapshots: [] as Array<Record<string, unknown>>,
   savings_snapshots: [] as Array<Record<string, unknown>>,
@@ -69,6 +72,11 @@ function makeNumericTable(name: TableName) {
 
   return {
     toArray: async () => getRows().map(cloneRow),
+    where: (field: string) => ({
+      equals: (value: unknown) => ({
+        toArray: async () => getRows().filter((row) => row[field] === value).map(cloneRow),
+      }),
+    }),
     add: async (row: Record<string, unknown>) => {
       const id = nextNumericId(getRows())
       getRows().push({ ...row, id })
@@ -80,6 +88,18 @@ function makeNumericTable(name: TableName) {
       if (index === -1) return 0
       rows[index] = { ...rows[index], ...changes, id }
       return 1
+    },
+    put: async (row: Record<string, unknown>) => {
+      if (typeof row.id === 'number') {
+        const index = getRows().findIndex((entry) => entry.id === row.id)
+        if (index >= 0) {
+          getRows()[index] = { ...getRows()[index], ...row }
+          return row.id
+        }
+      }
+      const id = nextNumericId(getRows())
+      getRows().push({ ...row, id })
+      return id
     },
     bulkAdd: async (rows: Array<Record<string, unknown>>) => {
       bulkWriteCalls.bulkAdd.push({ table: name, count: rows.length })
@@ -143,6 +163,7 @@ const dbMock = vi.hoisted(() => ({
   categories: makeNumericTable('categories'),
   payees: makeNumericTable('payees'),
   fixedExpenses: makeNumericTable('fixedExpenses'),
+  expenseSplits: makeNumericTable('expenseSplits'),
   fixedExpenseSnapshots: makeNumericTable('fixedExpenseSnapshots'),
   incomeSnapshots: makeNumericTable('incomeSnapshots'),
   savingsSnapshots: makeNumericTable('savingsSnapshots'),
@@ -503,6 +524,146 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       bulkWriteCalls.bulkAdd.filter((call) => call.table === 'expenses').map((call) => call.count),
     ).toEqual([500, 100])
   })
+
+  it('resolves expense split relationships through cloud split ids', async () => {
+    localState.categories.push({
+      id: 1,
+      localId: 'cat-1',
+      cloudId: 'cloud-cat-1',
+      name: 'Food',
+      normalizedName: 'food',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+    })
+    localState.payees.push({
+      id: 1,
+      localId: 'payee-1',
+      cloudId: 'cloud-payee-1',
+      name: 'Cafe',
+      normalizedName: 'cafe',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+    })
+    remoteState.expense_splits.push({
+      id: 'cloud-split-1',
+      local_id: 'split-1',
+      date: '2026-05-12',
+      amount: 30,
+      payee_id: 'cloud-payee-1',
+      updated_at: '2026-05-12T00:00:00.000Z',
+      deleted_at: null,
+    })
+    remoteState.expenses.push({
+      id: 'cloud-expense-1',
+      local_id: 'expense-1',
+      date: '2026-05-12',
+      amount: 30,
+      category_id: 'cloud-cat-1',
+      payee_id: 'cloud-payee-1',
+      split_id: 'cloud-split-1',
+      description: 'Split child',
+      updated_at: '2026-05-12T00:00:00.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(localState.expenseSplits).toHaveLength(1)
+    expect(localState.expenses).toHaveLength(1)
+    expect(localState.expenses[0].splitId).toBe(localState.expenseSplits[0].id)
+  })
+
+  it('reconciles child date and payee from a newer remote split container', async () => {
+    localState.categories.push({
+      id: 1,
+      localId: 'cat-1',
+      cloudId: 'cloud-cat-1',
+      name: 'Food',
+      normalizedName: 'food',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+    })
+    localState.payees.push(
+      {
+        id: 1,
+        localId: 'payee-1',
+        cloudId: 'cloud-payee-1',
+        name: 'Cafe',
+        normalizedName: 'cafe',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        deletedAt: null,
+      },
+      {
+        id: 2,
+        localId: 'payee-2',
+        cloudId: 'cloud-payee-2',
+        name: 'Grocer',
+        normalizedName: 'grocer',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        deletedAt: null,
+      },
+    )
+    localState.expenseSplits.push({
+      id: 10,
+      localId: 'split-1',
+      cloudId: 'cloud-split-1',
+      date: '2026-05-01',
+      amount: 30,
+      payeeId: 1,
+      payeeNameSnapshot: 'Cafe',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+      syncStatus: 'synced',
+    })
+    localState.expenses.push({
+      id: 20,
+      localId: 'expense-1',
+      cloudId: 'cloud-expense-1',
+      date: '2026-05-01',
+      amount: 30,
+      categoryId: 1,
+      payeeId: 1,
+      payeeNameSnapshot: 'Cafe',
+      splitId: 10,
+      description: 'Split child',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+      syncStatus: 'synced',
+    })
+
+    remoteState.expense_splits.push({
+      id: 'cloud-split-1',
+      local_id: 'split-1',
+      date: '2026-05-12',
+      amount: 30,
+      payee_id: 'cloud-payee-2',
+      payee_name_snapshot: 'Grocer',
+      updated_at: '2026-05-12T00:00:00.000Z',
+      deleted_at: null,
+    })
+    remoteState.expenses.push({
+      id: 'cloud-expense-1',
+      local_id: 'expense-1',
+      date: '2026-05-01',
+      amount: 30,
+      category_id: 'cloud-cat-1',
+      payee_id: 'cloud-payee-1',
+      payee_name_snapshot: 'Cafe',
+      split_id: 'cloud-split-1',
+      description: 'Split child',
+      updated_at: '2026-05-11T00:00:00.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(localState.expenses).toHaveLength(1)
+    expect(localState.expenses[0].date).toBe('2026-05-12')
+    expect(localState.expenses[0].payeeId).toBe(2)
+    expect(localState.expenses[0].payeeNameSnapshot).toBe('Grocer')
+    expect(localState.expenses[0].syncStatus).toBe('pending')
+    expect(localState.expenses[0].description).toBe('Split child')
+  })
 })
 
 describe('verifySyncIntegrity', () => {
@@ -568,11 +729,23 @@ describe('verifySyncIntegrity', () => {
       },
     )
 
+    localState.expenseSplits.push({
+      id: 100,
+      localId: 'split-100',
+      cloudId: 'cloud-split-100',
+      date: '2026-05-04',
+      amount: 10,
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: '2026-05-02T00:00:00.000Z',
+    })
+    localState.expenses[0].splitId = 100
+
     await verifySyncIntegrity()
 
     const joinedWarnings = warnSpy.mock.calls.flat().join(' ')
     expect(joinedWarnings).toContain('references missing categoryId')
     expect(joinedWarnings).toContain('references missing payeeId')
+    expect(joinedWarnings).toContain('references tombstoned splitId')
     expect(joinedWarnings).toContain('duplicate active category normalizedName')
 
     warnSpy.mockRestore()

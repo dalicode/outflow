@@ -44,6 +44,7 @@ vi.mock('../services/db/schema', () => ({
     categories: { toArray: vi.fn(() => Promise.resolve([])) },
     payees: { toArray: vi.fn(() => Promise.resolve([])) },
     fixedExpenses: { toArray: vi.fn(() => Promise.resolve([])) },
+    expenseSplits: { toArray: vi.fn(() => Promise.resolve([])) },
     expenses: { toArray: vi.fn(() => Promise.resolve([])) },
     settings: { toArray: settingsToArrayMock, bulkPut: settingsPutMock },
     syncQueue: {

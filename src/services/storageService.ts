@@ -8,6 +8,7 @@ import * as payeeRepo from './repositories/payeeRepository'
 import * as syncRepo from './repositories/syncRepository'
 import * as backupRepo from './repositories/backupRepository'
 import * as historicalSnapshotRepo from './repositories/historicalSnapshotRepository'
+import * as expenseSplitRepo from './repositories/expenseSplitRepository'
 import db from './db/schema'
 
 export const StorageService = {
@@ -26,6 +27,16 @@ export const StorageService = {
   replaceAllExpenses: expenseRepo.replaceAll,
   getExpenseCountForCategory: expenseRepo.getExpenseCountForCategory,
   getExpenseCountForPayee: expenseRepo.getExpenseCountForPayee,
+  getExpenseSplits: expenseSplitRepo.getExpenseSplits,
+  getAllExpenseSplits: expenseSplitRepo.getAllExpenseSplits,
+  addExpenseSplit: expenseSplitRepo.addExpenseSplit,
+  updateExpenseSplit: expenseSplitRepo.updateExpenseSplit,
+  getSplitChildExpenses: expenseSplitRepo.getSplitChildExpenses,
+  getAllSplitChildExpenses: expenseSplitRepo.getAllSplitChildExpenses,
+  removeExpenseSplit: expenseSplitRepo.removeExpenseSplit,
+  restoreExpenseSplit: expenseSplitRepo.restoreExpenseSplit,
+  unsplitExpenseSplit: expenseSplitRepo.unsplitExpenseSplit,
+  repairOrphanedSplitChildren: expenseSplitRepo.repairOrphanedSplitChildren,
 
   // ── Settings ──────────────────────────────────────────────
   getSettingsRows: settingsRepo.getSettingsRows,
@@ -125,6 +136,7 @@ export const StorageService = {
   bulkUpsertCategories: backupRepo.bulkUpsertCategories,
   bulkUpsertPayees: backupRepo.bulkUpsertPayees,
   bulkUpsertFixedExpenses: backupRepo.bulkUpsertFixedExpenses,
+  bulkUpsertExpenseSplits: backupRepo.bulkUpsertExpenseSplits,
 
   // ── Full data backup ──────────────────────────────────────
   dbVersion: backupRepo.dbVersion,

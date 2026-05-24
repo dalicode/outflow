@@ -2,6 +2,7 @@ import type {
   Category,
   CategoryMergeHistory,
   Expense,
+  ExpenseSplit,
   FixedExpense,
   FixedExpenseSnapshot,
   IncomeSnapshot,
@@ -115,6 +116,10 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
       (row) =>
         ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as FixedExpense,
     ),
+    expenseSplits: asBackupRows(payload.expenseSplits).map(
+      (row) =>
+        ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as ExpenseSplit,
+    ),
     fixedExpenseSnapshots: asBackupRows(payload.fixedExpenseSnapshots).map(
       (row) =>
         ({
@@ -174,6 +179,7 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     categories: await db.categories.toArray(),
     payees: await db.payees.toArray(),
     fixedExpenses: await db.fixedExpenses.toArray(),
+    expenseSplits: await db.expenseSplits.toArray(),
     fixedExpenseSnapshots: await db.fixedExpenseSnapshots.toArray(),
     incomeSnapshots: await db.incomeSnapshots.toArray(),
     savingsSnapshots: await db.savingsSnapshots.toArray(),
@@ -216,6 +222,10 @@ export function bulkUpsertFixedExpenses(rows: FixedExpense[]): Promise<number> {
   return db.fixedExpenses.bulkPut(rows)
 }
 
+export function bulkUpsertExpenseSplits(rows: ExpenseSplit[]): Promise<number> {
+  return db.expenseSplits.bulkPut(rows)
+}
+
 export async function importAllData(
   data: Record<string, unknown>,
   { replace = false, queueFullSync = false } = {},
@@ -246,6 +256,9 @@ export async function importAllData(
     if (normalizedPayload.payees) await db.payees.bulkPut(normalizedPayload.payees as Payee[])
     if (normalizedPayload.fixedExpenses) {
       await db.fixedExpenses.bulkPut(normalizedPayload.fixedExpenses as FixedExpense[])
+    }
+    if (normalizedPayload.expenseSplits) {
+      await db.expenseSplits.bulkPut(normalizedPayload.expenseSplits as ExpenseSplit[])
     }
     if (normalizedPayload.fixedExpenseSnapshots) {
       await db.fixedExpenseSnapshots.bulkPut(

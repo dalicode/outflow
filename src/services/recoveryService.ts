@@ -10,6 +10,7 @@ export type RecoveryStatus =
 
 export interface TableCounts {
   expenses: number
+  expenseSplits: number
   categories: number
   payees: number
   fixedExpenses: number
@@ -27,6 +28,7 @@ export interface RecoveryReport {
   cloudCounts?: TableCounts
   brokenExpenseCategoryRefs: number
   brokenExpensePayeeRefs: number
+  brokenExpenseSplitRefs: number
   duplicateIncomeSnapshots: number
   duplicateSavingsSnapshots: number
   duplicateFixedExpenseSnapshots: number
@@ -36,6 +38,7 @@ export interface RecoveryReport {
 
 const TABLE_LABELS: Record<keyof TableCounts, string> = {
   expenses: 'Expenses',
+  expenseSplits: 'Expense splits',
   categories: 'Categories',
   payees: 'Payees',
   fixedExpenses: 'Fixed expenses',
@@ -89,6 +92,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
     categories,
     payees,
     fixedExpenses,
+    expenseSplits,
     fixedExpenseSnapshots,
     incomeSnapshots,
     savingsSnapshots,
@@ -99,6 +103,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
     db.categories.toArray(),
     db.payees.toArray(),
     db.fixedExpenses.toArray(),
+    db.expenseSplits.toArray(),
     db.fixedExpenseSnapshots.toArray(),
     db.incomeSnapshots.toArray(),
     db.savingsSnapshots.toArray(),
@@ -108,6 +113,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
 
   const localCounts: TableCounts = {
     expenses: expenses.length,
+    expenseSplits: expenseSplits.length,
     categories: categories.length,
     payees: payees.length,
     fixedExpenses: fixedExpenses.length,
@@ -122,15 +128,24 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
     categories.filter((c) => c.id != null).map((c) => c.id as number),
   )
   const validPayeeIds = new Set(payees.filter((p) => p.id != null).map((p) => p.id as number))
+  const validSplitIds = new Set(
+    expenseSplits
+      .filter((split) => split.id != null && split.deletedAt == null)
+      .map((split) => split.id as number),
+  )
 
   let brokenExpenseCategoryRefs = 0
   let brokenExpensePayeeRefs = 0
+  let brokenExpenseSplitRefs = 0
   for (const exp of expenses) {
     if (exp.categoryId != null && !validCategoryIds.has(exp.categoryId)) {
       brokenExpenseCategoryRefs += 1
     }
     if (exp.payeeId != null && !validPayeeIds.has(exp.payeeId)) {
       brokenExpensePayeeRefs += 1
+    }
+    if (exp.splitId != null && !validSplitIds.has(exp.splitId)) {
+      brokenExpenseSplitRefs += 1
     }
   }
 
@@ -162,6 +177,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
       categoriesCount,
       payeesCount,
       fixedExpensesCount,
+      expenseSplitsCount,
       fixedExpenseSnapshotsCount,
       incomeSnapshotsCount,
       savingsSnapshotsCount,
@@ -172,6 +188,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
       getCloudCount('categories', userId),
       getCloudCount('payees', userId),
       getCloudCount('fixed_expenses', userId),
+      getCloudCount('expense_splits', userId),
       getCloudCount('fixed_expense_snapshots', userId),
       getCloudCount('income_snapshots', userId),
       getCloudCount('savings_snapshots', userId),
@@ -184,6 +201,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
       categories: categoriesCount,
       payees: payeesCount,
       fixedExpenses: fixedExpensesCount,
+      expenseSplits: expenseSplitsCount,
       fixedExpenseSnapshots: fixedExpenseSnapshotsCount,
       incomeSnapshots: incomeSnapshotsCount,
       savingsSnapshots: savingsSnapshotsCount,
@@ -199,6 +217,9 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
   if (brokenExpensePayeeRefs > 0) {
     issues.push(`${brokenExpensePayeeRefs} expenses reference missing payees`)
   }
+  if (brokenExpenseSplitRefs > 0) {
+    issues.push(`${brokenExpenseSplitRefs} expenses reference missing or deleted split containers`)
+  }
   if (duplicateIncomeSnapshots > 0)
     issues.push(`${duplicateIncomeSnapshots} duplicate income snapshots`)
   if (duplicateSavingsSnapshots > 0)
@@ -213,6 +234,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
   if (cloudCounts) {
     const fields: Array<keyof TableCounts> = [
       'expenses',
+      'expenseSplits',
       'categories',
       'payees',
       'fixedExpenses',
@@ -236,6 +258,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
   const localIntegrityFailed =
     brokenExpenseCategoryRefs > 0 ||
     brokenExpensePayeeRefs > 0 ||
+    brokenExpenseSplitRefs > 0 ||
     duplicateIncomeSnapshots > 0 ||
     duplicateSavingsSnapshots > 0 ||
     duplicateFixedExpenseSnapshots > 0 ||
@@ -257,6 +280,7 @@ export async function runRecoveryDiagnostics(userId?: string): Promise<RecoveryR
     cloudCounts,
     brokenExpenseCategoryRefs,
     brokenExpensePayeeRefs,
+    brokenExpenseSplitRefs,
     duplicateIncomeSnapshots,
     duplicateSavingsSnapshots,
     duplicateFixedExpenseSnapshots,

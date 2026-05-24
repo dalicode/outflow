@@ -1,6 +1,7 @@
 import type {
   Category,
   Expense,
+  ExpenseSplit,
   FixedExpense,
   Payee,
   RecordSyncStatus,
@@ -422,6 +423,7 @@ export async function migrateLocalToSupabase(
     allPayees,
     allFixedExpenses,
     allSettings,
+    allExpenseSplits,
     allFixedExpenseSnapshots,
     allIncomeSnapshots,
     allSavingsSnapshots,
@@ -434,6 +436,7 @@ export async function migrateLocalToSupabase(
     StorageService.getAllPayees() as Promise<Payee[]>,
     StorageService.getAllFixedExpenses() as Promise<FixedExpense[]>,
     StorageService.getAllSettingsRows(),
+    StorageService.getAllExpenseSplits() as Promise<ExpenseSplit[]>,
     StorageService.getAllFixedExpenseSnapshots(),
     StorageService.getAllIncomeSnapshots(),
     StorageService.getAllSavingsSnapshots(),
@@ -446,6 +449,7 @@ export async function migrateLocalToSupabase(
     categoryIdToCloudId: toLocalCloudMap(allCategories),
     payeeIdToCloudId: toLocalCloudMap(allPayees),
     fixedExpenseIdToCloudId: toLocalCloudMap(allFixedExpenses),
+    expenseSplitIdToCloudId: toLocalCloudMap(allExpenseSplits),
   }
 
   const uploadConfigs: Array<UploadTableConfig<SyncableRow>> = [
@@ -472,6 +476,15 @@ export async function migrateLocalToSupabase(
       mapperTable: 'fixedExpenses',
       getRows: async () => allFixedExpenses,
       localTableName: 'fixedExpenses',
+      getPrimaryKey: (row) => (typeof row.id === 'number' ? row.id : null),
+      conflictTarget: 'user_id,local_id',
+      includeLegacyBridge: true,
+    },
+    {
+      cloudTable: 'expense_splits',
+      mapperTable: 'expenseSplits',
+      getRows: async () => allExpenseSplits,
+      localTableName: 'expenseSplits',
       getPrimaryKey: (row) => (typeof row.id === 'number' ? row.id : null),
       conflictTarget: 'user_id,local_id',
       includeLegacyBridge: true,
@@ -610,6 +623,14 @@ export async function migrateLocalToSupabase(
           const cloudId = getCloudId(entry.row)
           if (typeof entry.row.id === 'number' && cloudId) {
             maps.fixedExpenseIdToCloudId?.set(entry.row.id, cloudId)
+          }
+        }
+      }
+      if (config.cloudTable === 'expense_splits') {
+        for (const entry of entriesToUpload) {
+          const cloudId = getCloudId(entry.row)
+          if (typeof entry.row.id === 'number' && cloudId) {
+            maps.expenseSplitIdToCloudId?.set(entry.row.id, cloudId)
           }
         }
       }

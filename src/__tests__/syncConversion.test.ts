@@ -47,4 +47,37 @@ describe('sync conversion archivedAt removal', () => {
     expect('archivedAt' in payee).toBe(false)
     expect('archivedAt' in fixedExpense).toBe(false)
   })
+
+  it('maps expense split relationship ids for cloud/local conversion', () => {
+    const cloudExpense = toCloud(
+      'expenses',
+      {
+        date: '2026-05-01',
+        amount: 20,
+        splitId: 50,
+      },
+      'user-1',
+      {
+        expenseSplitIdToCloudId: new Map([[50, 'cloud-split-50']]),
+      },
+    )
+    expect(cloudExpense.split_id).toBe('cloud-split-50')
+
+    const localExpense = fromCloud(
+      'expenses',
+      {
+        id: 'cloud-exp-1',
+        local_id: 'local-exp-1',
+        date: '2026-05-01',
+        amount: 20,
+        split_id: 'cloud-split-50',
+        updated_at: '2026-05-01T00:00:00.000Z',
+      },
+      {
+        cloudIdToExpenseSplitId: new Map([['cloud-split-50', 77]]),
+      },
+    )
+
+    expect(localExpense.splitId).toBe(77)
+  })
 })

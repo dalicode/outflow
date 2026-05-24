@@ -63,6 +63,7 @@ const tables = vi.hoisted(() => {
   const categories = createTable('categories')
   const payees = createTable('payees')
   const fixedExpenses = createTable('fixedExpenses')
+  const expenseSplits = createTable('expenseSplits')
   const fixedExpenseSnapshots = createTable('fixedExpenseSnapshots')
   const incomeSnapshots = createTable('incomeSnapshots')
   const savingsSnapshots = createTable('savingsSnapshots')
@@ -77,6 +78,7 @@ const tables = vi.hoisted(() => {
     categories,
     payees,
     fixedExpenses,
+    expenseSplits,
     fixedExpenseSnapshots,
     incomeSnapshots,
     savingsSnapshots,
@@ -93,6 +95,7 @@ const tables = vi.hoisted(() => {
     categories,
     payees,
     fixedExpenses,
+    expenseSplits,
     fixedExpenseSnapshots,
     incomeSnapshots,
     savingsSnapshots,
@@ -119,6 +122,7 @@ vi.mock('../services/db/schema', () => ({
     categories: tables.categories,
     payees: tables.payees,
     fixedExpenses: tables.fixedExpenses,
+    expenseSplits: tables.expenseSplits,
     fixedExpenseSnapshots: tables.fixedExpenseSnapshots,
     incomeSnapshots: tables.incomeSnapshots,
     savingsSnapshots: tables.savingsSnapshots,
@@ -131,7 +135,7 @@ vi.mock('../services/db/schema', () => ({
     transaction: vi.fn(async (_mode: string, _scope: unknown, callback: () => Promise<void>) => {
       await callback()
     }),
-    verno: 18,
+    verno: 20,
   },
 }))
 
@@ -185,6 +189,16 @@ describe('backupRepository', () => {
         syncStatus: 'synced',
       },
     ])
+    tables.expenseSplits.seed([
+      {
+        id: 55,
+        localId: 'split-55',
+        date: '2026-05-01',
+        amount: 22,
+        deletedAt: null,
+        syncStatus: 'pending',
+      },
+    ])
 
     const payload = await exportAllData()
 
@@ -202,6 +216,13 @@ describe('backupRepository', () => {
         localId: 'category-7',
         normalizedName: 'dining',
         syncStatus: 'synced',
+      }),
+    ])
+    expect(payload.expenseSplits).toEqual([
+      expect.objectContaining({
+        id: 55,
+        localId: 'split-55',
+        syncStatus: 'pending',
       }),
     ])
   })
@@ -228,11 +249,13 @@ describe('backupRepository', () => {
               id: 30,
               date: '2026-05-01',
               amount: 17,
+              splitId: 91,
               categoryId: 10,
               payeeId: 20,
               deletedAt: '2026-05-03T00:00:00.000Z',
             },
           ],
+          expenseSplits: [{ id: 91, date: '2026-05-01', amount: 17 }],
           settings: [{ key: 'visualTheme', value: 'mint' }],
           syncQueue: [
             {
@@ -260,9 +283,18 @@ describe('backupRepository', () => {
     expect(tables.expenses.rows()).toEqual([
       expect.objectContaining({
         id: 30,
+        splitId: 91,
         categoryNameSnapshot: ' Dining Out  ',
         payeeNameSnapshot: 'Tim Hortons',
         deletedAt: '2026-05-03T00:00:00.000Z',
+        syncStatus: 'pending',
+        localId: expect.any(String),
+      }),
+    ])
+    expect(tables.expenseSplits.rows()).toEqual([
+      expect.objectContaining({
+        id: 91,
+        amount: 17,
         syncStatus: 'pending',
         localId: expect.any(String),
       }),

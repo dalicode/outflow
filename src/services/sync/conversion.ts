@@ -2,6 +2,7 @@ import type {
   Category,
   CategoryMergeHistory,
   Expense,
+  ExpenseSplit,
   FixedExpense,
   FixedExpenseSnapshot,
   IncomeSnapshot,
@@ -137,10 +138,23 @@ export function toCloud(
       date: p.date,
       category_id: resolveCloudRelationshipId(p.categoryId, maps?.categoryIdToCloudId),
       payee_id: resolveCloudRelationshipId(p.payeeId, maps?.payeeIdToCloudId),
+      split_id: resolveCloudRelationshipId(p.splitId, maps?.expenseSplitIdToCloudId),
       category_name_snapshot: p.categoryNameSnapshot ?? null,
       payee_name_snapshot: p.payeeNameSnapshot ?? null,
       description: p.description ?? '',
       amount: p.amount,
+    }
+  }
+  if (table === 'expenseSplits') {
+    const p = payload as unknown as ExpenseSplit
+    return {
+      ...base,
+      date: p.date,
+      payee_id: resolveCloudRelationshipId(p.payeeId, maps?.payeeIdToCloudId),
+      payee_name_snapshot: p.payeeNameSnapshot ?? null,
+      description: p.description ?? '',
+      amount: p.amount,
+      note: p.note ?? null,
     }
   }
   if (table === 'categories') {
@@ -284,6 +298,9 @@ export function fromCloud(
   function resolveFixed(cloudId: unknown) {
     return resolveLocalRelationshipId(cloudId, maps?.cloudIdToFixedExpenseId)
   }
+  function resolveSplit(cloudId: unknown) {
+    return resolveLocalRelationshipId(cloudId, maps?.cloudIdToExpenseSplitId)
+  }
 
   if (table === 'expenses') {
     return {
@@ -293,10 +310,24 @@ export function fromCloud(
       categoryId: resolveCat(row.category_id),
       cloudPayeeId: row.payee_id != null ? String(row.payee_id) : undefined,
       payeeId: resolvePay(row.payee_id),
+      cloudSplitId: row.split_id != null ? String(row.split_id) : undefined,
+      splitId: resolveSplit(row.split_id) ?? toNumberOrUndefined(row.split_id),
       categoryNameSnapshot: row.category_name_snapshot ?? null,
       payeeNameSnapshot: row.payee_name_snapshot ?? null,
       description: row.description ?? '',
       amount: row.amount,
+    }
+  }
+  if (table === 'expense_splits') {
+    return {
+      ...syncMetadata,
+      date: row.date,
+      cloudPayeeId: row.payee_id != null ? String(row.payee_id) : undefined,
+      payeeId: resolvePay(row.payee_id),
+      payeeNameSnapshot: row.payee_name_snapshot ?? null,
+      description: row.description ?? '',
+      amount: row.amount,
+      note: row.note ?? undefined,
     }
   }
   if (table === 'categories') {

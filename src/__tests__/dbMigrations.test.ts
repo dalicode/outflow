@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { migrateV10CategoryPayeeIds } from '../services/db/migrations'
 import { migrateV18SyncMetadata, migrateV19StripArchivedAt } from '../services/db/schema'
@@ -254,5 +255,19 @@ describe('migrateV19StripArchivedAt', () => {
     expect('archivedAt' in payee).toBe(false)
     expect('archivedAt' in fixedExpense).toBe(false)
     expect(expense.archivedAt).toBe('keep-me')
+  })
+})
+
+describe('Dexie v20 split schema definitions', () => {
+  it('declares split-aware version 20 stores for expenses and expenseSplits', () => {
+    const schemaSource = readFileSync('src/services/db/schema.ts', 'utf8')
+
+    expect(schemaSource).toContain('this.version(20).stores({')
+    expect(schemaSource).toContain(
+      "'++id, date, splitId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]'",
+    )
+    expect(schemaSource).toContain(
+      "expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt'",
+    )
   })
 })

@@ -5,6 +5,7 @@ declare
     'categories',
     'payees',
     'fixed_expenses',
+    'expense_splits',
     'fixed_expense_snapshots',
     'income_snapshots',
     'savings_snapshots',

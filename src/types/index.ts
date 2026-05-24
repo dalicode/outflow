@@ -27,11 +27,25 @@ export interface Expense extends SyncedRecord {
   cloudId?: string | null
   date: string
   amount: number
+  splitId?: number
   categoryId?: number
   payeeId?: number
   categoryNameSnapshot?: string | null
   payeeNameSnapshot?: string | null
   description?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ExpenseSplit extends SyncedRecord {
+  id?: number
+  cloudId?: string | null
+  date: string
+  payeeId?: number
+  payeeNameSnapshot?: string | null
+  description?: string
+  amount: number
+  note?: string
   createdAt?: string
   updatedAt?: string
 }

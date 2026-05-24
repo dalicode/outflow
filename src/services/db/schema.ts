@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type {
   Expense,
+  ExpenseSplit,
   Category,
   CategoryMergeHistory,
   FixedExpense,
@@ -176,6 +177,7 @@ class OutflowDB extends Dexie {
   syncQueue!: Table<SyncQueueItem, number>
   categoryMergeHistory!: Table<CategoryMergeHistory, number>
   payeeMergeHistory!: Table<PayeeMergeHistory, number>
+  expenseSplits!: Table<ExpenseSplit, number>
 
   constructor() {
     super('Outflow')
@@ -469,6 +471,28 @@ class OutflowDB extends Dexie {
       .upgrade(async (tx) => {
         await migrateV19StripArchivedAt(tx)
       })
+
+    this.version(20).stores({
+      expenses:
+        '++id, date, splitId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
+      expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt',
+      settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
+      fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
+      categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      payees: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots:
+        '++id, [fixedExpenseId+year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      schedules:
+        '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
+      incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      savingsSnapshots:
+        '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      categoryMergeHistory:
+        '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
+      payeeMergeHistory:
+        '++id, sourcePayeeId, targetPayeeId, localId, cloudId, syncStatus, deletedAt',
+    })
 
     this.on('populate', () => {
       const now = new Date().toISOString()

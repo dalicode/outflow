@@ -75,19 +75,32 @@ export async function deduplicateByName(
 }
 
 export async function verifySyncIntegrity(): Promise<void> {
-  const [cats, pays, exps] = await Promise.all([
+  const [cats, pays, exps, splits] = await Promise.all([
     db.categories.toArray(),
     db.payees.toArray(),
     db.expenses.toArray(),
+    db.expenseSplits.toArray(),
   ])
   const activeCats = cats.filter((category) => category.deletedAt == null)
   const activePays = pays.filter((payee) => payee.deletedAt == null)
   const activeExpenses = exps.filter((expense) => expense.deletedAt == null)
   const validCatIds = new Set(activeCats.filter(hasLocalId).map((c) => c.id))
   const validPayeeIds = new Set(activePays.filter(hasLocalId).map((p) => p.id))
+  const activeSplitIds = new Set(
+    splits
+      .filter((split) => split.deletedAt == null && split.id != null)
+      .map((split) => split.id as number),
+  )
+  const tombstonedSplitIds = new Set(
+    splits
+      .filter((split) => split.deletedAt != null && split.id != null)
+      .map((split) => split.id as number),
+  )
 
   let brokenCats = 0
   let brokenPayees = 0
+  let brokenSplitRefs = 0
+  let tombstonedSplitRefs = 0
   for (const e of activeExpenses) {
     if (e.categoryId != null && !validCatIds.has(e.categoryId)) {
       brokenCats++
@@ -115,6 +128,33 @@ export async function verifySyncIntegrity(): Promise<void> {
         )
       }
     }
+    if (e.splitId != null && !activeSplitIds.has(e.splitId)) {
+      if (tombstonedSplitIds.has(e.splitId)) {
+        tombstonedSplitRefs++
+        if (tombstonedSplitRefs <= 3) {
+          console.warn(
+            '[integrity] expense',
+            e.id,
+            'references tombstoned splitId:',
+            e.splitId,
+            'cloudId:',
+            e.cloudId,
+          )
+        }
+      } else {
+        brokenSplitRefs++
+        if (brokenSplitRefs <= 3) {
+          console.warn(
+            '[integrity] expense',
+            e.id,
+            'references missing splitId:',
+            e.splitId,
+            'cloudId:',
+            e.cloudId,
+          )
+        }
+      }
+    }
   }
   const duplicateCategories = logDuplicateActiveNames('category', activeCats)
   const duplicatePayees = logDuplicateActiveNames('payee', activePays)
@@ -124,6 +164,15 @@ export async function verifySyncIntegrity(): Promise<void> {
   }
   if (brokenPayees > 0) {
     debugWarn('[integrity] total expenses with broken payee link:', brokenPayees)
+  }
+  if (brokenSplitRefs > 0) {
+    debugWarn('[integrity] total expenses with broken split link:', brokenSplitRefs)
+  }
+  if (tombstonedSplitRefs > 0) {
+    debugWarn(
+      '[integrity] total expenses with tombstoned split link:',
+      tombstonedSplitRefs,
+    )
   }
   debugLog(
     '[integrity] checked',
@@ -135,6 +184,10 @@ export async function verifySyncIntegrity(): Promise<void> {
     'broken,',
     brokenPayees,
     'broken payees,',
+    brokenSplitRefs,
+    'broken split links,',
+    tombstonedSplitRefs,
+    'tombstoned split links,',
     duplicateCategories,
     'duplicate categories,',
     duplicatePayees,
@@ -188,6 +241,7 @@ async function logTombstoneConflicts(): Promise<number> {
     'incomeSnapshots',
     'savingsSnapshots',
     'schedules',
+    'expenseSplits',
     'categoryMergeHistory',
     'payeeMergeHistory',
   ] as const

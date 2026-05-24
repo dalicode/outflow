@@ -20,10 +20,12 @@ export interface ToCloudMaps {
   categoryIdToCloudId?: Map<number, string>
   payeeIdToCloudId?: Map<number, string>
   fixedExpenseIdToCloudId?: Map<number, string>
+  expenseSplitIdToCloudId?: Map<number, string>
 }
 
 export interface FromCloudMaps {
   cloudIdToCategoryId?: Map<string, number>
   cloudIdToPayeeId?: Map<string, number>
   cloudIdToFixedExpenseId?: Map<string, number>
+  cloudIdToExpenseSplitId?: Map<string, number>
 }

@@ -1,13 +1,14 @@
 import db from '../db/schema'
 import { supabase } from '../supabase'
 import { normalizeNameForSync } from '../../utils/syncMetadata'
+import { markRecordPending } from '../../utils/syncMetadata'
 import { debugLog } from '../../utils/debug'
 import { fromCloud, fromCloudLocalMap } from './conversion'
 import { SYNC_BATCH_SIZE } from './constants'
 import { verifySyncIntegrity } from './integrity'
 import { fetchAllRowsForUser, getIsoTimestampMs } from './supabaseUtils'
 import type { FromCloudMaps } from './types'
-import type { SyncedSettingRow } from '../../types'
+import type { Expense, ExpenseSplit, SyncedSettingRow } from '../../types'
 
 type SyncRow = Record<string, unknown> & {
   id?: number
@@ -190,11 +191,13 @@ function buildRelationshipMaps(
   categories: SyncRow[],
   payees: SyncRow[],
   fixedExpenses: SyncRow[],
+  expenseSplits: SyncRow[],
 ): FromCloudMaps {
   return {
     cloudIdToCategoryId: fromCloudLocalMap(categories),
     cloudIdToPayeeId: fromCloudLocalMap(payees),
     cloudIdToFixedExpenseId: fromCloudLocalMap(fixedExpenses),
+    cloudIdToExpenseSplitId: fromCloudLocalMap(expenseSplits),
   }
 }
 
@@ -238,6 +241,45 @@ function resolveExpenseRelationships(
     ...expense,
     categoryId,
     payeeId,
+  }
+}
+
+async function reconcileSplitChildFields(splits: ExpenseSplit[]): Promise<void> {
+  const activeSplits = splits.filter(
+    (split): split is ExpenseSplit & { id: number } =>
+      split.deletedAt == null && typeof split.id === 'number',
+  )
+  if (activeSplits.length === 0) return
+
+  const now = new Date().toISOString()
+
+  for (const split of activeSplits) {
+    const children = (await db.expenses.where('splitId').equals(split.id).toArray()).filter(
+      (expense): expense is Expense & { id: number } =>
+        expense.deletedAt == null && typeof expense.id === 'number',
+    )
+    for (const child of children) {
+      const nextPayeeNameSnapshot = split.payeeNameSnapshot ?? null
+      const needsUpdate =
+        child.date !== split.date ||
+        child.payeeId !== split.payeeId ||
+        (child.payeeNameSnapshot ?? null) !== nextPayeeNameSnapshot
+      if (!needsUpdate) continue
+
+      const pendingChild = markRecordPending(
+        {
+          ...child,
+          date: split.date,
+          payeeId: split.payeeId,
+          payeeNameSnapshot: nextPayeeNameSnapshot,
+        },
+        now,
+      )
+      await db.expenses.put({
+        ...pendingChild,
+        id: child.id,
+      })
+    }
   }
 }
 
@@ -290,6 +332,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     scheduleRows,
     categoryMergeRows,
     payeeMergeRows,
+    expenseSplitRows,
     expRows,
   ] = await Promise.all([
     fetchAllRowsForUser('categories', userId),
@@ -302,6 +345,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     fetchAllRowsForUser('schedules', userId),
     fetchAllRowsForUser('category_merge_history', userId),
     fetchAllRowsForUser('payee_merge_history', userId),
+    fetchAllRowsForUser('expense_splits', userId),
     fetchAllRowsForUser('expenses', userId),
   ])
 
@@ -335,7 +379,21 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   const syncCategories = categories as unknown as SyncRow[]
   const syncPayees = payees as unknown as SyncRow[]
   const syncFixedExpenses = fixedExpenses as unknown as SyncRow[]
-  const identityMaps = buildRelationshipMaps(syncCategories, syncPayees, syncFixedExpenses)
+  const baseIdentityMaps = buildRelationshipMaps(syncCategories, syncPayees, syncFixedExpenses, [])
+  if (expenseSplitRows.length > 0) {
+    await mergeRows(
+      'expenseSplits',
+      expenseSplitRows.map((row) => fromCloud('expense_splits', row, baseIdentityMaps)),
+    )
+  }
+  const expenseSplits = await db.expenseSplits.toArray()
+  const syncExpenseSplits = expenseSplits as unknown as SyncRow[]
+  const identityMaps = buildRelationshipMaps(
+    syncCategories,
+    syncPayees,
+    syncFixedExpenses,
+    syncExpenseSplits,
+  )
   const categoryNameToId = buildActiveNameToIdMap(syncCategories)
   const payeeNameToId = buildActiveNameToIdMap(syncPayees)
 
@@ -347,6 +405,8 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     identityMaps.cloudIdToPayeeId?.size ?? 0,
     'fixed:',
     identityMaps.cloudIdToFixedExpenseId?.size ?? 0,
+    'splits:',
+    identityMaps.cloudIdToExpenseSplitId?.size ?? 0,
   )
 
   if (snapRows.length > 0) {
@@ -393,6 +453,8 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       ),
     )
   }
+
+  await reconcileSplitChildFields(expenseSplits)
 
   await verifySyncIntegrity()
 }

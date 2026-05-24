@@ -1,0 +1,298 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+type Row = Record<string, unknown>
+
+function createSplitTable(initial: Row[] = []) {
+  let rows = [...initial]
+  let nextId = 1
+
+  return {
+    reset: () => {
+      rows = []
+      nextId = 1
+    },
+    rows: () => rows,
+    toArray: async () => rows.map((row) => ({ ...row })),
+    orderBy: (_key: string) => ({
+      toArray: async () => [...rows].sort((a, b) => String(a.date).localeCompare(String(b.date))),
+    }),
+    add: async (row: Row) => {
+      const id = nextId++
+      rows.push({ ...row, id })
+      return id
+    },
+    get: async (id: number) => rows.find((row) => row.id === id),
+    put: async (row: Row) => {
+      if (typeof row.id !== 'number') {
+        const id = nextId++
+        rows.push({ ...row, id })
+        return id
+      }
+      const index = rows.findIndex((entry) => entry.id === row.id)
+      if (index >= 0) {
+        rows[index] = { ...row }
+      } else {
+        rows.push({ ...row })
+      }
+      return row.id
+    },
+  }
+}
+
+function createExpenseTable(initial: Row[] = []) {
+  let rows = [...initial]
+
+  return {
+    reset: () => {
+      rows = []
+    },
+    seed: (nextRows: Row[]) => {
+      rows = nextRows.map((row) => ({ ...row }))
+    },
+    rows: () => rows,
+    toArray: async () => rows.map((row) => ({ ...row })),
+    where: (field: string) => ({
+      equals: (value: unknown) => ({
+        toArray: async () => rows.filter((row) => row[field] === value),
+      }),
+    }),
+    put: async (row: Row) => {
+      if (typeof row.id !== 'number') return
+      const index = rows.findIndex((entry) => entry.id === row.id)
+      if (index >= 0) {
+        rows[index] = { ...row }
+      } else {
+        rows.push({ ...row })
+      }
+    },
+  }
+}
+
+const { splitTable, expenseTable, transaction } = vi.hoisted(() => ({
+  splitTable: createSplitTable(),
+  expenseTable: createExpenseTable(),
+  transaction: vi.fn(async (_mode: string, ...args: unknown[]) => {
+    const scope = args[args.length - 1] as () => Promise<void>
+    await scope()
+  }),
+}))
+
+vi.mock('../services/db/schema', () => ({
+  default: {
+    expenseSplits: splitTable,
+    expenses: expenseTable,
+    transaction,
+  },
+}))
+
+import {
+  addExpenseSplit,
+  getAllSplitChildExpenses,
+  getExpenseSplits,
+  repairOrphanedSplitChildren,
+  removeExpenseSplit,
+  restoreExpenseSplit,
+  updateExpenseSplit,
+  unsplitExpenseSplit,
+} from '../services/repositories/expenseSplitRepository'
+
+describe('expenseSplitRepository', () => {
+  beforeEach(() => {
+    splitTable.reset()
+    expenseTable.reset()
+    vi.clearAllMocks()
+  })
+
+  it('separates active split reads from tombstoned rows', async () => {
+    const splitId = await addExpenseSplit({
+      date: '2026-05-01',
+      amount: 100,
+      description: 'Groceries run',
+    })
+
+    await removeExpenseSplit(splitId)
+
+    const active = await getExpenseSplits()
+    const allChildren = await getAllSplitChildExpenses(splitId)
+
+    expect(active).toHaveLength(0)
+    expect(allChildren).toHaveLength(0)
+  })
+
+  it('tombstones and restores container with linked child expenses', async () => {
+    const splitId = await addExpenseSplit({
+      date: '2026-05-04',
+      amount: 78,
+      payeeId: 14,
+    })
+
+    expenseTable.seed([
+      { id: 1, date: '2026-05-04', amount: 38, splitId, deletedAt: null },
+      { id: 2, date: '2026-05-04', amount: 40, splitId, deletedAt: null },
+      { id: 3, date: '2026-05-04', amount: 15, deletedAt: null },
+    ])
+
+    await removeExpenseSplit(splitId)
+
+    const deletedChildren = await getAllSplitChildExpenses(splitId)
+    expect(deletedChildren).toHaveLength(2)
+    expect(deletedChildren.every((row) => row.deletedAt != null)).toBe(true)
+
+    await restoreExpenseSplit(splitId)
+
+    const restoredChildren = await getAllSplitChildExpenses(splitId)
+    expect(restoredChildren).toHaveLength(2)
+    expect(restoredChildren.every((row) => row.deletedAt == null)).toBe(true)
+  })
+
+  it('propagates container date and payee updates to child expenses', async () => {
+    const splitId = await addExpenseSplit({
+      date: '2026-05-04',
+      amount: 78,
+      payeeId: 14,
+      payeeNameSnapshot: 'Cafe',
+    })
+
+    expenseTable.seed([
+      {
+        id: 1,
+        date: '2026-05-04',
+        amount: 38,
+        splitId,
+        payeeId: 14,
+        payeeNameSnapshot: 'Cafe',
+        deletedAt: null,
+      },
+      {
+        id: 2,
+        date: '2026-05-04',
+        amount: 40,
+        splitId,
+        payeeId: 14,
+        payeeNameSnapshot: 'Cafe',
+        deletedAt: null,
+      },
+    ])
+
+    await updateExpenseSplit(splitId, {
+      date: '2026-05-09',
+      payeeId: 33,
+      payeeNameSnapshot: 'Grocer',
+      description: 'Container only',
+    })
+
+    const children = await getAllSplitChildExpenses(splitId)
+    expect(children.map((row) => row.date)).toEqual(['2026-05-09', '2026-05-09'])
+    expect(children.map((row) => row.payeeId)).toEqual([33, 33])
+    expect(children.map((row) => row.payeeNameSnapshot)).toEqual(['Grocer', 'Grocer'])
+    expect(children.every((row) => row.syncStatus === 'pending')).toBe(true)
+  })
+
+  it('re-normalizes restored child date and payee from the container', async () => {
+    const splitId = await addExpenseSplit({
+      date: '2026-05-04',
+      amount: 78,
+      payeeId: 14,
+      payeeNameSnapshot: 'Cafe',
+    })
+
+    expenseTable.seed([
+      {
+        id: 1,
+        date: '2026-05-01',
+        amount: 38,
+        splitId,
+        payeeId: 99,
+        payeeNameSnapshot: 'Wrong',
+        deletedAt: '2026-05-05T00:00:00.000Z',
+      },
+    ])
+
+    await restoreExpenseSplit(splitId)
+
+    const [child] = await getAllSplitChildExpenses(splitId)
+    expect(child.date).toBe('2026-05-04')
+    expect(child.payeeId).toBe(14)
+    expect(child.payeeNameSnapshot).toBe('Cafe')
+    expect(child.deletedAt).toBeNull()
+  })
+
+  it('unsplits by removing child splitId while tombstoning the container', async () => {
+    const splitId = await addExpenseSplit({
+      date: '2026-05-10',
+      amount: 120,
+      description: 'Split dinner',
+    })
+
+    expenseTable.seed([
+      { id: 1, date: '2026-05-10', amount: 70, splitId, categoryId: 8, deletedAt: null },
+      { id: 2, date: '2026-05-10', amount: 50, splitId, categoryId: 9, deletedAt: null },
+    ])
+
+    await unsplitExpenseSplit(splitId)
+
+    const children = await getAllSplitChildExpenses(splitId)
+    expect(children).toHaveLength(0)
+
+    const allRows = expenseTable.rows()
+    expect(allRows.map((row) => row.splitId)).toEqual([undefined, undefined])
+    expect(allRows.every((row) => row.deletedAt == null)).toBe(true)
+    expect(allRows.every((row) => row.syncStatus === 'pending')).toBe(true)
+  })
+
+  it('detaches orphaned child expenses for missing or tombstoned containers', async () => {
+    const activeSplitId = await addExpenseSplit({
+      date: '2026-05-10',
+      amount: 120,
+      description: 'Valid split',
+    })
+    const tombstonedSplitId = await addExpenseSplit({
+      date: '2026-05-11',
+      amount: 90,
+      description: 'Deleted split',
+    })
+    await removeExpenseSplit(tombstonedSplitId)
+
+    expenseTable.seed([
+      {
+        id: 1,
+        date: '2026-05-10',
+        amount: 70,
+        splitId: 999,
+        categoryId: 8,
+        description: 'Missing parent',
+        deletedAt: null,
+      },
+      {
+        id: 2,
+        date: '2026-05-11',
+        amount: 50,
+        splitId: tombstonedSplitId,
+        categoryId: 9,
+        description: 'Deleted parent',
+        deletedAt: null,
+      },
+      {
+        id: 3,
+        date: '2026-05-12',
+        amount: 30,
+        splitId: activeSplitId,
+        categoryId: 10,
+        description: 'Valid child',
+        deletedAt: null,
+      },
+    ])
+
+    const repairedCount = await repairOrphanedSplitChildren()
+
+    expect(repairedCount).toBe(2)
+    const rows = expenseTable.rows()
+    expect(rows[0].splitId).toBeUndefined()
+    expect(rows[1].splitId).toBeUndefined()
+    expect(rows[2].splitId).toBe(activeSplitId)
+    expect(rows[0].description).toBe('Missing parent')
+    expect(rows[1].description).toBe('Deleted parent')
+    expect(rows[0].syncStatus).toBe('pending')
+    expect(rows[1].syncStatus).toBe('pending')
+  })
+})
