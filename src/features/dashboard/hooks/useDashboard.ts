@@ -6,6 +6,7 @@ import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
 } from '../../../utils/dashboardHelpers'
+import { getEffectiveSplitParentExpanded } from '../splitDisplayRows'
 import { useDashboardData } from './useDashboardData'
 import type { DashboardFiltersState } from './useDashboardFilters'
 import { useDashboardFilters } from './useDashboardFilters'
@@ -21,6 +22,7 @@ export interface DashboardSessionState {
   showGrandTotal: boolean
   viewMode: DashboardView
   filters: DashboardFiltersState
+  splitParentExpansionOverrides: Record<number, boolean>
 }
 
 export function useDashboard(
@@ -163,6 +165,43 @@ export function useDashboard(
     }
   }, [selection.selectedIds])
 
+  const splitParentDefaultExpanded = monthNav.viewportWidth >= 640
+  const [localSplitParentExpansionOverrides, setLocalSplitParentExpansionOverrides] = useState<
+    Record<number, boolean>
+  >({})
+  const splitParentExpansionOverrides =
+    sessionState?.splitParentExpansionOverrides ?? localSplitParentExpansionOverrides
+
+  const isSplitParentExpanded = useCallback(
+    (splitId: number) =>
+      getEffectiveSplitParentExpanded({
+        splitId,
+        defaultExpanded: splitParentDefaultExpanded,
+        overrides: splitParentExpansionOverrides,
+      }),
+    [splitParentDefaultExpanded, splitParentExpansionOverrides],
+  )
+
+  const toggleSplitParentExpanded = useCallback(
+    (splitId: number) => {
+      const isCurrentlyExpanded = getEffectiveSplitParentExpanded({
+        splitId,
+        defaultExpanded: splitParentDefaultExpanded,
+        overrides: splitParentExpansionOverrides,
+      })
+      const nextOverrides = {
+        ...splitParentExpansionOverrides,
+        [splitId]: !isCurrentlyExpanded,
+      }
+      if (onSessionStateChange) {
+        onSessionStateChange({ splitParentExpansionOverrides: nextOverrides })
+      } else {
+        setLocalSplitParentExpansionOverrides(nextOverrides)
+      }
+    },
+    [onSessionStateChange, splitParentDefaultExpanded, splitParentExpansionOverrides],
+  )
+
   return {
     // Navigation
     ...monthNav,
@@ -185,6 +224,8 @@ export function useDashboard(
     drilldownPayeeExpenses,
     groupedDrilldownExpenses,
     spanVariableTotal,
+    isSplitParentExpanded,
+    toggleSplitParentExpanded,
     mobileEditTrigger,
     refreshData,
     triggerMobileEdit,

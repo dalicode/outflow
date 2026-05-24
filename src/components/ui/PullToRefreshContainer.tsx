@@ -27,6 +27,12 @@ const PULL_START_SLOP = 8
 const STATUS_FADE_MS = 220
 const INDICATOR_OPACITY_MS = 220
 
+function hasOpenModal(): boolean {
+  if (typeof document === 'undefined') return false
+
+  return document.querySelector('[data-outflow-modal="true"]') !== null
+}
+
 function getResistedPullDistance(delta: number): number {
   if (delta <= 0) return 0
 
@@ -106,6 +112,7 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
     const handleTouchStart = useCallback(
       (event: TouchEvent<HTMLDivElement>) => {
         if (disabled || isRefreshing || event.touches.length !== 1) return
+        if (hasOpenModal()) return
 
         const el = scrollTargetRef?.current ?? containerRef.current
         if (!el || el.scrollTop > 0) return

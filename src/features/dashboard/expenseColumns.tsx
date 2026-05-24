@@ -219,7 +219,7 @@ export function getExpenseColumns({
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
           return (
-            <span className="block w-full truncate font-medium text-theme-text">
+            <span className="block w-full truncate font-medium text-theme-muted">
               {rowData.payeeDisplay}
             </span>
           )
@@ -315,7 +315,7 @@ export function getExpenseColumns({
           return (
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 text-theme-text font-medium"
+              className="inline-flex items-center gap-1.5 font-medium text-theme-muted"
               onClick={() => onToggleSplitExpanded(rowData.splitId)}
               aria-expanded={expanded}
             >
@@ -419,7 +419,7 @@ export function getExpenseColumns({
           }
           return (
             <span
-              className="cursor-pointer block w-full truncate text-theme-text"
+              className="block w-full cursor-pointer truncate text-theme-muted"
               title={rowData.descriptionDisplay || undefined}
               onPointerDown={(e) => {
                 if (e.button !== 0) return

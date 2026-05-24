@@ -28,6 +28,7 @@ export function useAppSessionState(): {
       selectedCategories: [],
       selectedPayees: [],
     },
+    splitParentExpansionOverrides: {},
   })
 
   const [analyticsSession, setAnalyticsSession] = useState<AnalyticsSessionState>(() => {

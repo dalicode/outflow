@@ -23,6 +23,9 @@ interface ExpensesViewProps {
   onMobileExtraMenuActionsChange?: (
     actions: Array<{ label: string; onClick: () => void; danger?: boolean }>,
   ) => void
+  onMobileSplitParentSelectionChange?: (splitId: number | null) => void
+  isSplitParentExpanded: (splitId: number) => boolean
+  onToggleSplitParentExpanded: (splitId: number) => void
 }
 
 const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, ExpensesViewProps>(
@@ -45,6 +48,9 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
       refreshExpenses,
       triggerSync,
       onMobileExtraMenuActionsChange,
+      onMobileSplitParentSelectionChange,
+      isSplitParentExpanded,
+      onToggleSplitParentExpanded,
     },
     ref,
   ) {
@@ -73,6 +79,9 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
           refreshExpenses={refreshExpenses}
           triggerSync={triggerSync}
           onMobileExtraMenuActionsChange={onMobileExtraMenuActionsChange}
+          onMobileSplitParentSelectionChange={onMobileSplitParentSelectionChange}
+          isSplitParentExpanded={isSplitParentExpanded}
+          onToggleSplitParentExpanded={onToggleSplitParentExpanded}
         />
       </div>
     )

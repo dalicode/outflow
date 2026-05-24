@@ -57,6 +57,9 @@ describe('ExpenseTable', () => {
     storageMocks.unsplitExpenseSplit.mockReset()
     storageMocks.unsplitSplitChildExpense.mockReset()
     toastMocks.showToast.mockReset()
+    storageMocks.getExpenseSplits.mockResolvedValue([])
+    storageMocks.getAllExpenseSplits.mockResolvedValue([])
+    storageMocks.getAllSplitChildExpenses.mockResolvedValue([])
   })
 
   it('renders split container rows with grouped children and unsplit action', async () => {
@@ -358,7 +361,7 @@ describe('ExpenseTable', () => {
     expect(await screen.findByDisplayValue('Second split')).toBeInTheDocument()
   })
 
-  it('provides parent split mobile menu actions when one full split is selected', async () => {
+  it('provides parent split mobile unsplit action when one full split is selected', async () => {
     const expenses: Expense[] = [
       { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
       { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
@@ -389,12 +392,14 @@ describe('ExpenseTable', () => {
       />,
     )
 
+    fireEvent.click(await screen.findByRole('button', { expanded: true }))
+    await waitFor(() => {
+      expect(screen.queryByTestId('expense-row-mobile-1')).not.toBeInTheDocument()
+    })
+
     await waitFor(() => {
       expect(onMobileExtraMenuActionsChange).toHaveBeenLastCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ label: 'Edit split transaction' }),
-          expect.objectContaining({ label: 'Unsplit transaction' }),
-        ]),
+        expect.arrayContaining([expect.objectContaining({ label: 'Unsplit transaction' })]),
       )
     })
 
@@ -403,11 +408,48 @@ describe('ExpenseTable', () => {
       onClick: () => void
       danger?: boolean
     }>
+    expect(parentActions.some((action) => action.label === 'Edit split transaction')).toBe(false)
     parentActions.find((action) => action.label === 'Unsplit transaction')?.onClick()
 
     await waitFor(() => expect(storageMocks.unsplitExpenseSplit).toHaveBeenCalledWith(10))
     expect(refreshExpenses).toHaveBeenCalled()
     expect(triggerSync).toHaveBeenCalled()
+  })
+
+  it('reports full split-parent mobile selection while the split is collapsed', async () => {
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+    ]
+    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 20 }])
+    const onMobileSplitParentSelectionChange = vi.fn()
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[]}
+        selectedIds={new Set<number>([1, 2])}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+        onMobileSplitParentSelectionChange={onMobileSplitParentSelectionChange}
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { expanded: true }))
+    await waitFor(() => {
+      expect(screen.queryByTestId('expense-row-mobile-1')).not.toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(onMobileSplitParentSelectionChange).toHaveBeenLastCalledWith(10)
+    })
   })
 
   it('provides single child unsplit mobile action when one split child is selected', async () => {
@@ -457,5 +499,191 @@ describe('ExpenseTable', () => {
     await waitFor(() => expect(storageMocks.unsplitSplitChildExpense).toHaveBeenCalledWith(1))
     expect(refreshExpenses).toHaveBeenCalled()
     expect(triggerSync).toHaveBeenCalled()
+  })
+
+  it('collapses and expands split children from the compact mobile Split toggle', async () => {
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+    ]
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+    ])
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+      />,
+    )
+
+    const splitRow = await screen.findByTestId('split-container-mobile-10')
+    expect(screen.getByTestId('expense-row-mobile-1')).toBeInTheDocument()
+
+    const splitToggle = within(splitRow).getByRole('button', { expanded: true })
+    fireEvent.click(splitToggle)
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('expense-row-mobile-1')).not.toBeInTheDocument()
+    })
+    expect(within(splitRow).getByRole('button', { expanded: false })).toBeInTheDocument()
+
+    fireEvent.click(within(splitRow).getByRole('button', { expanded: false }))
+    await waitFor(() => {
+      expect(screen.getByTestId('expense-row-mobile-1')).toBeInTheDocument()
+    })
+    expect(within(splitRow).getByRole('button', { expanded: true })).toBeInTheDocument()
+  })
+
+  it('does not collapse split children when tapping split description text on mobile', async () => {
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+    ]
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+    ])
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+      />,
+    )
+
+    const splitRow = await screen.findByTestId('split-container-mobile-10')
+    const splitToggle = within(splitRow).getByRole('button', { expanded: true })
+
+    fireEvent.click(within(splitRow).getByText('Trip food'))
+
+    expect(within(splitRow).getByRole('button', { expanded: true })).toBeInTheDocument()
+    expect(splitToggle).toBeInTheDocument()
+    expect(screen.getByTestId('expense-row-mobile-1')).toBeInTheDocument()
+  })
+
+  it('opens split editor flow when tapping a split parent row on mobile', async () => {
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+    ]
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+    ])
+    storageMocks.getAllExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+    ])
+    storageMocks.getAllSplitChildExpenses.mockResolvedValue(expenses)
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+      />,
+    )
+
+    fireEvent.click(await screen.findByTestId('split-container-mobile-10'))
+
+    await waitFor(() => expect(screen.getAllByText('Edit Expense').length).toBeGreaterThan(0))
+    expect(storageMocks.getAllExpenseSplits).toHaveBeenCalled()
+    expect(storageMocks.getAllSplitChildExpenses).toHaveBeenCalledWith(10)
+  })
+
+  it('toggles split parent selection from parent card taps outside the Split toggle in mobile selection mode', async () => {
+    const onToggleSelect = vi.fn()
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+    ]
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+    ])
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>([999])}
+        onToggleSelect={onToggleSelect}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+      />,
+    )
+
+    const splitRow = await screen.findByTestId('split-container-mobile-10')
+    fireEvent.click(splitRow)
+
+    expect(onToggleSelect).toHaveBeenCalledTimes(2)
+    expect(onToggleSelect).toHaveBeenCalledWith(1)
+    expect(onToggleSelect).toHaveBeenCalledWith(2)
+  })
+
+  it('toggles only the tapped split child from mobile selection mode', async () => {
+    const onToggleSelect = vi.fn()
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 3, date: '2026-05-09', amount: 5, categoryId: 1, description: 'Solo' },
+    ]
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+    ])
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>([3])}
+        onToggleSelect={onToggleSelect}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+      />,
+    )
+
+    fireEvent.click(await screen.findByTestId('expense-row-mobile-1'))
+
+    expect(onToggleSelect).toHaveBeenCalledTimes(1)
+    expect(onToggleSelect).toHaveBeenCalledWith(1)
   })
 })

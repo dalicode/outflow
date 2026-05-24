@@ -26,6 +26,16 @@ export interface SplitChildRowModel {
 
 export type ExpenseDisplayRow = ExpenseRowModel | SplitContainerRowModel | SplitChildRowModel
 
+export function getEffectiveSplitParentExpanded(params: {
+  splitId: number
+  defaultExpanded: boolean
+  overrides: Record<number, boolean>
+}): boolean {
+  const { splitId, defaultExpanded, overrides } = params
+  const override = overrides[splitId]
+  return typeof override === 'boolean' ? override : defaultExpanded
+}
+
 function getPayeeName(payeeId: number | undefined, payeeMap: Record<number, Payee>): string {
   if (typeof payeeId !== 'number') return 'No payee'
   return payeeMap[payeeId]?.name ?? 'No payee'

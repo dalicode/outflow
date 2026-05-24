@@ -95,8 +95,19 @@ export default function Dashboard({
   const [mobileExtraMenuActions, setMobileExtraMenuActions] = useState<
     Array<{ label: string; onClick: () => void; danger?: boolean }>
   >([])
+  const [mobileSplitParentSelectionId, setMobileSplitParentSelectionId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (dash.viewMode !== DASHBOARD_VIEWS.EXPENSES || dash.selectedIds.size === 0) {
+      setMobileSplitParentSelectionId(null)
+    }
+  }, [dash.viewMode, dash.selectedIds.size])
 
   const triggerMobileEdit = useCallback(() => {
+    if (mobileSplitParentSelectionId != null) {
+      expenseTableRef.current?.handleSplitEditRequest(mobileSplitParentSelectionId)
+      return
+    }
     if (dash.selectedIds.size > 1) {
       expenseTableRef.current?.handleEditRequest(Array.from(dash.selectedIds))
     } else {
@@ -106,7 +117,7 @@ export default function Dashboard({
         requestAnimationFrame(() => dash.setMobileEditTrigger(null))
       }
     }
-  }, [dash.selectedIds, dash.setMobileEditTrigger])
+  }, [dash.selectedIds, dash.setMobileEditTrigger, mobileSplitParentSelectionId])
 
   const handleMobileCopy = useCallback(() => {
     const ids = Array.from(dash.selectedIds)
@@ -339,6 +350,9 @@ export default function Dashboard({
                   refreshExpenses={refreshExpenses}
                   triggerSync={triggerSync}
                   onMobileExtraMenuActionsChange={setMobileExtraMenuActions}
+                  onMobileSplitParentSelectionChange={setMobileSplitParentSelectionId}
+                  isSplitParentExpanded={dash.isSplitParentExpanded}
+                  onToggleSplitParentExpanded={dash.toggleSplitParentExpanded}
                 />
               )}
             </section>

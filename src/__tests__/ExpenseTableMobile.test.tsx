@@ -157,7 +157,9 @@ describe('ExpenseTableMobile', () => {
     expect(screen.queryByRole('button', { name: /split actions/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /split child actions/i })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /split trip food/i }))
+    expect(screen.getByText('Trip food')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /split/i }))
     expect(onToggleSplitExpanded).toHaveBeenCalledWith(90)
   })
 
@@ -192,6 +194,7 @@ describe('ExpenseTableMobile', () => {
 
   it('toggles split parent selection on tap in selection mode', () => {
     const onToggleSplitParentSelect = vi.fn()
+    const onSplitParentEdit = vi.fn()
     const displayRows: ExpenseDisplayRow[] = [
       {
         rowType: 'splitContainer',
@@ -217,6 +220,7 @@ describe('ExpenseTableMobile', () => {
         displayRows={displayRows}
         selectedIds={new Set<number>([999])}
         onToggleSplitParentSelect={onToggleSplitParentSelect}
+        onSplitParentEdit={onSplitParentEdit}
         formatDate={(iso) => iso}
         formatAmount={(value) => `$${value.toFixed(2)}`}
         resolveName={() => 'Food'}
@@ -227,6 +231,148 @@ describe('ExpenseTableMobile', () => {
     fireEvent.click(screen.getByTestId('split-container-mobile-90'))
 
     expect(onToggleSplitParentSelect).toHaveBeenCalledWith(90)
+    expect(onSplitParentEdit).not.toHaveBeenCalled()
+  })
+
+  it('does not double-toggle split parent selection when touchend is followed by click', () => {
+    const onToggleSplitParentSelect = vi.fn()
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50 },
+        childExpenses: [expenses[0]],
+        payeeDisplay: 'Cafe',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        selectedIds={new Set<number>([999])}
+        onToggleSplitParentSelect={onToggleSplitParentSelect}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    const row = screen.getByTestId('split-container-mobile-90')
+    fireEvent.touchStart(row, { touches: [{ clientX: 10, clientY: 10 }] })
+    fireEvent.touchEnd(row)
+    fireEvent.click(row)
+
+    expect(onToggleSplitParentSelect).toHaveBeenCalledTimes(1)
+    expect(onToggleSplitParentSelect).toHaveBeenCalledWith(90)
+  })
+
+  it('toggles only the split child when tapping a split child in selection mode', () => {
+    const onToggleSelect = vi.fn()
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50 },
+        childExpenses: [expenses[0]],
+        payeeDisplay: 'Cafe',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+      {
+        rowType: 'splitChild',
+        rowId: 'split-child-1',
+        splitId: 90,
+        expense: expenses[0],
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        selectedIds={new Set<number>([999])}
+        onToggleSelect={onToggleSelect}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('expense-row-mobile-1'))
+
+    expect(onToggleSelect).toHaveBeenCalledWith(1)
+  })
+
+  it('opens split parent edit on parent row tap when not in selection mode', () => {
+    const onSplitParentEdit = vi.fn()
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50 },
+        childExpenses: [expenses[0]],
+        payeeDisplay: 'Cafe',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        onSplitParentEdit={onSplitParentEdit}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('split-container-mobile-90'))
+    expect(onSplitParentEdit).toHaveBeenCalledWith(90)
+  })
+
+  it('does not open split parent edit when tapping the split expand toggle', () => {
+    const onSplitParentEdit = vi.fn()
+    const onToggleSplitExpanded = vi.fn()
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50 },
+        childExpenses: [expenses[0]],
+        payeeDisplay: 'Cafe',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        onSplitParentEdit={onSplitParentEdit}
+        onToggleSplitExpanded={onToggleSplitExpanded}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /split/i }))
+    expect(onToggleSplitExpanded).toHaveBeenCalledWith(90)
+    expect(onSplitParentEdit).not.toHaveBeenCalled()
   })
 
   it('toggles split parent selection on long press', () => {
@@ -260,5 +406,86 @@ describe('ExpenseTableMobile', () => {
     fireEvent.touchStart(row, { touches: [{ clientX: 10, clientY: 10 }] })
     vi.advanceTimersByTime(550)
     expect(onToggleSplitParentSelect).toHaveBeenCalledWith(90)
+  })
+
+  it('toggles only the split child when long-pressing a split child in selection mode', () => {
+    const onToggleSelect = vi.fn()
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50 },
+        childExpenses: [expenses[0]],
+        payeeDisplay: 'Cafe',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+      {
+        rowType: 'splitChild',
+        rowId: 'split-child-1',
+        splitId: 90,
+        expense: expenses[0],
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        selectedIds={new Set<number>([999])}
+        onToggleSelect={onToggleSelect}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    const row = screen.getByTestId('expense-row-mobile-1')
+    fireEvent.touchStart(row, { touches: [{ clientX: 10, clientY: 10 }] })
+    vi.advanceTimersByTime(550)
+
+    expect(onToggleSelect).toHaveBeenCalledWith(1)
+  })
+
+  it('starts selection with only the split child when long-pressing without active selection', () => {
+    const onToggleSelect = vi.fn()
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50 },
+        childExpenses: [expenses[0]],
+        payeeDisplay: 'Cafe',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+      {
+        rowType: 'splitChild',
+        rowId: 'split-child-1',
+        splitId: 90,
+        expense: expenses[0],
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        onToggleSelect={onToggleSelect}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    const row = screen.getByTestId('expense-row-mobile-1')
+    fireEvent.touchStart(row, { touches: [{ clientX: 10, clientY: 10 }] })
+    vi.advanceTimersByTime(550)
+
+    expect(onToggleSelect).toHaveBeenCalledWith(1)
   })
 })

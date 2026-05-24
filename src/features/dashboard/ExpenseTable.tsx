@@ -22,7 +22,11 @@ import { cn } from '../../utils/cn'
 import { copyExpensesToClipboard } from '../../utils/copyExpenses'
 import ExpenseTableMobile from './ExpenseTableMobile'
 import { getExpenseColumns } from './expenseColumns'
-import { buildExpenseDisplayRows, type ExpenseDisplayRow } from './splitDisplayRows'
+import {
+  buildExpenseDisplayRows,
+  getEffectiveSplitParentExpanded,
+  type ExpenseDisplayRow,
+} from './splitDisplayRows'
 import { useExpenseCellEditing } from './useExpenseCellEditing'
 import { StorageService } from '../../services/storageService'
 
@@ -47,10 +51,14 @@ interface ExpenseTableProps {
   onMobileExtraMenuActionsChange?: (
     actions: Array<{ label: string; onClick: () => void; danger?: boolean }>,
   ) => void
+  onMobileSplitParentSelectionChange?: (splitId: number | null) => void
+  isSplitParentExpanded?: (splitId: number) => boolean
+  onToggleSplitParentExpanded?: (splitId: number) => void
 }
 
 export interface ExpenseTableHandle {
   handleEditRequest: (ids: number[]) => void
+  handleSplitEditRequest: (splitId: number) => void
   handleCopyRequest: (ids: number[]) => Promise<void>
 }
 
@@ -72,6 +80,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     refreshExpenses,
     triggerSync,
     onMobileExtraMenuActionsChange,
+    onMobileSplitParentSelectionChange,
+    isSplitParentExpanded,
+    onToggleSplitParentExpanded,
   }: ExpenseTableProps,
   ref: React.Ref<ExpenseTableHandle>,
 ) {
@@ -86,7 +97,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([])
-  const [expandedSplitIds, setExpandedSplitIds] = useState<Set<number>>(new Set<number>())
+  const [localSplitParentExpansionOverrides, setLocalSplitParentExpansionOverrides] = useState<
+    Record<number, boolean>
+  >({})
   const [activeSplitTargetId, setActiveSplitTargetId] = useState<number | null>(null)
   const [activeSplitChildTargetId, setActiveSplitChildTargetId] = useState<number | null>(null)
   const [editingSplitDescriptionId, setEditingSplitDescriptionId] = useState<number | null>(null)
@@ -99,6 +112,36 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const payeeMap = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])
   const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
   const activePayees = useMemo(() => payees.filter((p) => !p.isArchived), [payees])
+  const resolvedIsSplitParentExpanded = useCallback(
+    (splitId: number) => {
+      if (isSplitParentExpanded) {
+        return isSplitParentExpanded(splitId)
+      }
+      return getEffectiveSplitParentExpanded({
+        splitId,
+        defaultExpanded: true,
+        overrides: localSplitParentExpansionOverrides,
+      })
+    },
+    [isSplitParentExpanded, localSplitParentExpansionOverrides],
+  )
+  const resolvedOnToggleSplitParentExpanded = useCallback(
+    (splitId: number) => {
+      if (onToggleSplitParentExpanded) {
+        onToggleSplitParentExpanded(splitId)
+        return
+      }
+      setLocalSplitParentExpansionOverrides((prev) => ({
+        ...prev,
+        [splitId]: !getEffectiveSplitParentExpanded({
+          splitId,
+          defaultExpanded: true,
+          overrides: prev,
+        }),
+      }))
+    },
+    [onToggleSplitParentExpanded],
+  )
 
   useEffect(() => {
     if (mobileEditTrigger == null) return
@@ -115,14 +158,6 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         .map((expense) => expense.splitId)
         .filter((splitId): splitId is number => typeof splitId === 'number'),
     )
-
-    setExpandedSplitIds((prev) => {
-      const next = new Set<number>(prev)
-      splitIds.forEach((id) => {
-        if (!next.has(id)) next.add(id)
-      })
-      return next
-    })
 
     if (splitIds.size === 0) {
       setSplits([])
@@ -155,20 +190,26 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         expenses,
         splits,
         payeeMap,
-        expandedSplitIds,
+        expandedSplitIds: new Set(
+          expenses
+            .map((expense) => expense.splitId)
+            .filter((splitId): splitId is number => typeof splitId === 'number')
+            .filter((splitId, index, splitIds) => splitIds.indexOf(splitId) === index)
+            .filter((splitId) => resolvedIsSplitParentExpanded(splitId)),
+        ),
       }),
-    [expenses, splits, payeeMap, expandedSplitIds],
+    [expenses, splits, payeeMap, resolvedIsSplitParentExpanded],
   )
   const splitChildIdsBySplitId = useMemo(() => {
     const map = new Map<number, number[]>()
-    displayRows.forEach((row) => {
-      if (row.rowType !== 'splitChild' || typeof row.expense.id !== 'number') return
-      const existing = map.get(row.splitId) ?? []
-      existing.push(row.expense.id)
-      map.set(row.splitId, existing)
+    expenses.forEach((expense) => {
+      if (typeof expense.splitId !== 'number' || typeof expense.id !== 'number') return
+      const existing = map.get(expense.splitId) ?? []
+      existing.push(expense.id)
+      map.set(expense.splitId, existing)
     })
     return map
-  }, [displayRows])
+  }, [expenses])
   const splitChildIds = useMemo(() => {
     const ids = new Set<number>()
     splitChildIdsBySplitId.forEach((childIds) => {
@@ -273,6 +314,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
 
   useImperativeHandle(ref, () => ({
     handleEditRequest,
+    handleSplitEditRequest: openSplitEditor,
     handleCopyRequest,
   }))
 
@@ -521,14 +563,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         activeCategories,
         activePayees,
         payeeMap,
-        onToggleSplitExpanded: (splitId) =>
-          setExpandedSplitIds((prev) => {
-            const next = new Set(prev)
-            if (next.has(splitId)) next.delete(splitId)
-            else next.add(splitId)
-            return next
-          }),
-        isSplitExpanded: (splitId) => expandedSplitIds.has(splitId),
+        onToggleSplitExpanded: resolvedOnToggleSplitParentExpanded,
+        isSplitExpanded: resolvedIsSplitParentExpanded,
         editingSplitDescriptionId,
         onStartSplitDescriptionEdit: handleStartSplitDescriptionEdit,
         onCommitSplitDescriptionEdit: handleCommitSplitDescriptionEdit,
@@ -548,7 +584,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       activeCategories,
       activePayees,
       payeeMap,
-      expandedSplitIds,
+      resolvedOnToggleSplitParentExpanded,
+      resolvedIsSplitParentExpanded,
       editingSplitDescriptionId,
       handleStartSplitDescriptionEdit,
       handleCommitSplitDescriptionEdit,
@@ -610,10 +647,6 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     if (mobileSplitContext.singleSplitParentContext != null) {
       const splitId = mobileSplitContext.singleSplitParentContext
       actions.push({
-        label: 'Edit split transaction',
-        onClick: () => openSplitEditor(splitId),
-      })
-      actions.push({
         label: 'Unsplit transaction',
         onClick: () => void handleUnsplit(splitId),
         danger: true,
@@ -631,10 +664,18 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     isMobile,
     selectedIds,
     mobileSplitContext,
-    openSplitEditor,
     handleUnsplit,
     handleUnsplitChild,
   ])
+
+  useEffect(() => {
+    if (!onMobileSplitParentSelectionChange) return
+    if (!isMobile || selectedIds.size === 0) {
+      onMobileSplitParentSelectionChange(null)
+      return
+    }
+    onMobileSplitParentSelectionChange(mobileSplitContext.singleSplitParentContext)
+  }, [onMobileSplitParentSelectionChange, isMobile, selectedIds, mobileSplitContext])
 
   if (expenses.length === 0) {
     return (
@@ -655,20 +696,14 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
           onCellEdit={(exp) => editing.startCellEdit(exp, 'description')}
+          onSplitParentEdit={openSplitEditor}
           onToggleSplitParentSelect={toggleSplitParentSelection}
           isSplitParentSelected={(splitId) => {
             const childIds = splitChildIdsBySplitId.get(splitId) ?? []
             return childIds.length > 0 && childIds.every((id) => selectedIds.has(id))
           }}
-          onToggleSplitExpanded={(splitId) =>
-            setExpandedSplitIds((prev) => {
-              const next = new Set(prev)
-              if (next.has(splitId)) next.delete(splitId)
-              else next.add(splitId)
-              return next
-            })
-          }
-          isSplitExpanded={(splitId) => expandedSplitIds.has(splitId)}
+          onToggleSplitExpanded={resolvedOnToggleSplitParentExpanded}
+          isSplitExpanded={resolvedIsSplitParentExpanded}
           formatDate={formatDate}
           formatAmount={formatAmount}
           resolveName={resolveName}

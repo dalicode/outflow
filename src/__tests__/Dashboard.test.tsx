@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from '../features/dashboard/Dashboard'
 import { DASHBOARD_VIEWS } from '../features/dashboard/constants'
 import { useDashboard } from '../features/dashboard/hooks/useDashboard'
@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => ({
   payeeViewSpy: vi.fn(),
   drilldownSpy: vi.fn(),
   expensesViewSpy: vi.fn(),
+  mobileSelectionBannerSpy: vi.fn(),
+  handleEditRequest: vi.fn(),
+  handleSplitEditRequest: vi.fn(),
+  handleCopyRequest: vi.fn(),
 }))
 
 vi.mock('../context/settingsContext', () => ({
@@ -128,10 +132,25 @@ vi.mock('../features/dashboard/ExpensesView', async () => {
   const React = await vi.importActual<typeof import('react')>('react')
 
   return {
-    default: React.forwardRef<HTMLDivElement, { expenses: Expense[] }>((props, ref) => {
+    default: React.forwardRef<
+      {
+        handleEditRequest: (ids: number[]) => void
+        handleSplitEditRequest: (splitId: number) => void
+        handleCopyRequest: (ids: number[]) => Promise<void>
+      },
+      {
+        expenses: Expense[]
+        onMobileSplitParentSelectionChange?: (splitId: number | null) => void
+      }
+    >((props, ref) => {
+      React.useImperativeHandle(ref, () => ({
+        handleEditRequest: mocks.handleEditRequest,
+        handleSplitEditRequest: mocks.handleSplitEditRequest,
+        handleCopyRequest: mocks.handleCopyRequest,
+      }))
       mocks.expensesViewSpy(props)
       return (
-        <div ref={ref} data-testid="expenses-view">
+        <div data-testid="expenses-view">
           {props.expenses.map((expense) => (
             <span key={expense.id}>{expense.description}</span>
           ))}
@@ -158,7 +177,14 @@ vi.mock('../features/dashboard/FilterModal', () => ({
 }))
 
 vi.mock('../features/dashboard/components/MobileSelectionBanner', () => ({
-  default: () => null,
+  default: (props: { onEdit: () => void }) => {
+    mocks.mobileSelectionBannerSpy(props)
+    return (
+      <button type="button" onClick={props.onEdit}>
+        Trigger Edit
+      </button>
+    )
+  },
 }))
 
 type DashboardState = ReturnType<typeof useDashboard>
@@ -307,6 +333,18 @@ function renderDashboard(state: DashboardState) {
 }
 
 describe('Dashboard', () => {
+  beforeEach(() => {
+    mocks.categoryViewSpy.mockReset()
+    mocks.payeeViewSpy.mockReset()
+    mocks.drilldownSpy.mockReset()
+    mocks.expensesViewSpy.mockReset()
+    mocks.mobileSelectionBannerSpy.mockReset()
+    mocks.handleEditRequest.mockReset()
+    mocks.handleSplitEditRequest.mockReset()
+    mocks.handleCopyRequest.mockReset()
+    mocks.handleCopyRequest.mockResolvedValue(undefined)
+  })
+
   it('renders the category view using dashboard-derived rows and payee drilldown resolution', () => {
     renderDashboard(
       makeDash({
@@ -360,5 +398,30 @@ describe('Dashboard', () => {
     expect(mocks.expensesViewSpy).toHaveBeenCalledWith(
       expect.objectContaining({ expenses: [categoryExpense, payeeExpense] }),
     )
+  })
+
+  it('routes mobile banner edit to split editor for one full split-parent selection', () => {
+    const setMobileEditTrigger = vi.fn()
+    renderDashboard(
+      makeDash({
+        viewMode: DASHBOARD_VIEWS.EXPENSES,
+        viewportWidth: 375,
+        selectedIds: new Set([1, 2]),
+        setMobileEditTrigger,
+      }),
+    )
+
+    const expensesViewProps = mocks.expensesViewSpy.mock.calls.at(-1)?.[0] as {
+      onMobileSplitParentSelectionChange?: (splitId: number | null) => void
+    }
+    act(() => {
+      expensesViewProps.onMobileSplitParentSelectionChange?.(10)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger Edit' }))
+
+    expect(mocks.handleSplitEditRequest).toHaveBeenCalledWith(10)
+    expect(mocks.handleEditRequest).not.toHaveBeenCalled()
+    expect(setMobileEditTrigger).not.toHaveBeenCalled()
   })
 })

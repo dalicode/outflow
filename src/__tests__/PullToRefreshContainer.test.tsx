@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import Modal from '../components/ui/Modal'
 import PullToRefreshContainer from '../components/ui/PullToRefreshContainer'
 
 vi.mock('../hooks/useHaptics', () => ({
@@ -127,5 +128,23 @@ describe('PullToRefreshContainer', () => {
     expect(screen.queryByText("Couldn't refresh")).not.toBeInTheDocument()
 
     vi.useRealTimers()
+  })
+
+  it('does not arm pull to refresh while a modal is open', () => {
+    render(
+      <>
+        <PullToRefreshContainer onRefresh={async () => undefined}>
+          <div>content</div>
+        </PullToRefreshContainer>
+        <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
+          Modal Content
+        </Modal>
+      </>,
+    )
+
+    const container = document.querySelector('[aria-busy]') as HTMLElement
+    armPullToRefresh(container)
+
+    expect(screen.queryByText('Release to update')).not.toBeInTheDocument()
   })
 })

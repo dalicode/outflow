@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildExpenseDisplayRows,
+  getEffectiveSplitParentExpanded,
   getSplitContainerPayeeDisplay,
 } from '../features/dashboard/splitDisplayRows'
 import type { Expense, ExpenseSplit, Payee } from '../types'
@@ -90,5 +91,39 @@ describe('splitDisplayRows', () => {
         descriptionDisplay: '',
       }),
     )
+  })
+
+  it('uses default split expansion when no override exists', () => {
+    expect(
+      getEffectiveSplitParentExpanded({
+        splitId: 10,
+        defaultExpanded: false,
+        overrides: {},
+      }),
+    ).toBe(false)
+    expect(
+      getEffectiveSplitParentExpanded({
+        splitId: 10,
+        defaultExpanded: true,
+        overrides: {},
+      }),
+    ).toBe(true)
+  })
+
+  it('uses split-specific override when present', () => {
+    expect(
+      getEffectiveSplitParentExpanded({
+        splitId: 10,
+        defaultExpanded: false,
+        overrides: { 10: true },
+      }),
+    ).toBe(true)
+    expect(
+      getEffectiveSplitParentExpanded({
+        splitId: 10,
+        defaultExpanded: true,
+        overrides: { 10: false },
+      }),
+    ).toBe(false)
   })
 })

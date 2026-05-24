@@ -317,6 +317,7 @@ export default function Modal({
 
   const modalContent = (
     <div
+      data-outflow-modal="true"
       className={cn(
         'fixed left-0 top-0 right-0 bottom-0 z-50',
         'flex justify-center',
