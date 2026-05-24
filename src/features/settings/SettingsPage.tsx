@@ -41,7 +41,7 @@ function Row({ label, value, onChange, options }: RowProps) {
   return (
     <div className="flex items-center justify-between py-1">
       <span className="text-xs text-theme-muted">{label}</span>
-      <div className="w-36">
+      <div className="shrink-0">
         <DesktopDropdown
           value={value}
           options={options}
@@ -56,6 +56,7 @@ function Row({ label, value, onChange, options }: RowProps) {
           preserveOrder
           searchable={false}
           triggerSize="sm"
+          triggerClassName="w-auto min-w-[8rem]"
         />
       </div>
     </div>

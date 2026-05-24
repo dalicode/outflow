@@ -232,12 +232,12 @@ describe('DesktopDropdown', () => {
     const content = panel?.querySelector('.overflow-y-auto') as HTMLDivElement | null
 
     await waitFor(() => {
-      expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(147)
-      expect(Number.parseFloat(content?.style.height ?? '0')).toBe(90)
+      expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(155)
+      expect(Number.parseFloat(content?.style.height ?? '0')).toBe(98)
     })
   })
 
-  it('opens below when the desired height fits below even if above has more space', async () => {
+  it('opens above when the padding-aware desired height no longer fits below but does fit above', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       x: 40,
       y: 300,
@@ -270,7 +270,7 @@ describe('DesktopDropdown', () => {
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
     await waitFor(() => {
-      expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(344)
+      expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(141)
     })
   })
 
@@ -306,7 +306,7 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(369)
+    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(361)
   })
 
   it('opens above when below is usable but above can fit the full desired height', async () => {
@@ -348,7 +348,7 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(29)
+    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(21)
   })
 
   it('opens above when below has about one row and above has more usable space', async () => {
@@ -390,8 +390,8 @@ describe('DesktopDropdown', () => {
     const search = await screen.findByPlaceholderText('Search...')
     const panel = search.closest('div[style]') as HTMLDivElement | null
 
-    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(199)
-    expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(297)
+    expect(Number.parseFloat(panel?.style.top ?? '0')).toBe(191)
+    expect(Number.parseFloat(panel?.style.height ?? '0')).toBe(305)
   })
 
   it('falls back to opening below when neither side fits the desired height', async () => {

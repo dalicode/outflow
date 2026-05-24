@@ -8,12 +8,10 @@ import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './combob
 const DROPDOWN_GAP = 4
 const DROPDOWN_PANEL_MAX_HEIGHT = 420
 const SEARCH_SECTION_HEIGHT = 57
-const SECTION_LABEL_HEIGHT = 30
-const OPTION_ROW_HEIGHT = 30
-const CREATE_HINT_HEIGHT = 30
-const CREATE_ROW_HEIGHT = 30
-const CLEAR_ROW_HEIGHT = 30
-const EMPTY_STATE_HEIGHT = 60
+const CONTENT_TOP_PADDING = 3
+const CONTENT_BOTTOM_PADDING = 5
+const CONTENT_VERTICAL_PADDING = CONTENT_TOP_PADDING + CONTENT_BOTTOM_PADDING
+const CONTENT_SIDE_PADDING = 3
 const MAX_VISIBLE_OPTION_ROWS = 8
 const MIN_ROWS_BEFORE_FLIP = 4
 
@@ -39,6 +37,7 @@ interface DesktopDropdownProps {
   preserveOrder?: boolean
   searchable?: boolean
   triggerSize?: 'md' | 'sm'
+  triggerClassName?: string
   onChange: (id: string | number | undefined) => void
   onCreate?: (name: string) => Promise<string | number>
 }
@@ -60,6 +59,7 @@ export default function DesktopDropdown({
   preserveOrder = false,
   searchable = true,
   triggerSize = 'md',
+  triggerClassName,
   onChange,
   onCreate,
 }: DesktopDropdownProps) {
@@ -75,6 +75,13 @@ export default function DesktopDropdown({
   const contentRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastAutoHighlightQueryRef = useRef('')
+  const isSmallTrigger = triggerSize === 'sm'
+  const sectionLabelHeight = isSmallTrigger ? 28 : 30
+  const optionRowHeight = isSmallTrigger ? 28 : 30
+  const createHintHeight = isSmallTrigger ? 28 : 30
+  const createRowHeight = isSmallTrigger ? 28 : 30
+  const clearRowHeight = isSmallTrigger ? 28 : 30
+  const emptyStateHeight = isSmallTrigger ? 56 : 60
 
   useEffect(() => {
     if (!autoFocus) return
@@ -150,25 +157,34 @@ export default function DesktopDropdown({
     )
 
     let nonOptionHeight = 0
-    if (showCreateHint) nonOptionHeight += CREATE_HINT_HEIGHT
-    if (recentVisibleOptions.length > 0) nonOptionHeight += SECTION_LABEL_HEIGHT
-    if (showRecentSection && displayOptions.length > 0) nonOptionHeight += SECTION_LABEL_HEIGHT
+    if (showCreateHint) nonOptionHeight += createHintHeight
+    if (recentVisibleOptions.length > 0) nonOptionHeight += sectionLabelHeight
+    if (showRecentSection && displayOptions.length > 0) nonOptionHeight += sectionLabelHeight
     if (displayOptions.length === 0 && query.trim() && !showCreateOption) {
-      nonOptionHeight += EMPTY_STATE_HEIGHT
+      nonOptionHeight += emptyStateHeight
     }
     if (showCreateOption) {
-      nonOptionHeight += CREATE_ROW_HEIGHT
+      nonOptionHeight += createRowHeight
       if (createError) nonOptionHeight += 24
     }
-    if (allowClear && value != null) nonOptionHeight += CLEAR_ROW_HEIGHT
+    if (allowClear && value != null) nonOptionHeight += clearRowHeight
 
-    return Math.max(OPTION_ROW_HEIGHT, nonOptionHeight + visibleOptionRows * OPTION_ROW_HEIGHT)
+    return Math.max(
+      optionRowHeight + CONTENT_VERTICAL_PADDING,
+      CONTENT_VERTICAL_PADDING + nonOptionHeight + visibleOptionRows * optionRowHeight,
+    )
   }, [
     allowClear,
+    clearRowHeight,
+    createHintHeight,
+    createRowHeight,
     createError,
     displayOptions.length,
+    emptyStateHeight,
+    optionRowHeight,
     query,
     recentVisibleOptions.length,
+    sectionLabelHeight,
     showCreateHint,
     showCreateOption,
     showRecentSection,
@@ -177,10 +193,13 @@ export default function DesktopDropdown({
 
   const getResolvedContentViewportHeight = useCallback(
     (availableHeight: number) => {
-      const contentAvailable = Math.max(OPTION_ROW_HEIGHT, availableHeight - topSectionHeight)
+      const contentAvailable = Math.max(
+        optionRowHeight + CONTENT_VERTICAL_PADDING,
+        availableHeight - topSectionHeight,
+      )
       return Math.min(getDesiredContentViewportHeight(), contentAvailable)
     },
-    [getDesiredContentViewportHeight, topSectionHeight],
+    [getDesiredContentViewportHeight, optionRowHeight, topSectionHeight],
   )
 
   const updatePanelPosition = useCallback(() => {
@@ -193,23 +212,26 @@ export default function DesktopDropdown({
     const nextPanelStyle = getDropdownFloatingPosition(rect, {
       idealHeight: desiredPanelHeight,
       maxHeight: DROPDOWN_PANEL_MAX_HEIGHT,
-      minUsableHeight: topSectionHeight + MIN_ROWS_BEFORE_FLIP * OPTION_ROW_HEIGHT,
+      minUsableHeight: topSectionHeight + MIN_ROWS_BEFORE_FLIP * optionRowHeight,
       matchTriggerWidth: true,
       gap: DROPDOWN_GAP,
     })
     setPanelStyle(nextPanelStyle)
-  }, [getDesiredContentViewportHeight, topSectionHeight])
+  }, [getDesiredContentViewportHeight, optionRowHeight, topSectionHeight])
 
   const contentMaxHeight = useMemo(() => {
-    if (!panelStyle) return OPTION_ROW_HEIGHT * 4
+    if (!panelStyle) return optionRowHeight * 4
     return getResolvedContentViewportHeight(panelStyle.availableHeight)
-  }, [getResolvedContentViewportHeight, panelStyle])
+  }, [getResolvedContentViewportHeight, optionRowHeight, panelStyle])
 
   const panelHeight = useMemo(() => {
     if (!panelStyle) return topSectionHeight + contentMaxHeight
     return Math.min(topSectionHeight + contentMaxHeight, panelStyle.availableHeight)
   }, [contentMaxHeight, panelStyle, topSectionHeight])
-  const visibleContentHeight = Math.max(OPTION_ROW_HEIGHT, panelHeight - topSectionHeight)
+  const visibleContentHeight = Math.max(
+    optionRowHeight + CONTENT_VERTICAL_PADDING,
+    panelHeight - topSectionHeight,
+  )
   const panelTop = panelStyle
     ? panelStyle.placement === 'bottom'
       ? panelStyle.top
@@ -397,6 +419,21 @@ export default function DesktopDropdown({
 
   const highlightedItemClassName =
     'bg-theme-primary-muted text-theme-primary shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--theme-primary)_28%,transparent)]'
+  const sectionLabelClassName = isSmallTrigger
+    ? 'flex h-[28px] items-center px-2 text-[10px] font-medium text-theme-muted'
+    : 'flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted'
+  const optionButtonClassName = isSmallTrigger
+    ? 'flex h-[28px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-[11px] transition-colors hover:bg-theme-background'
+    : 'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background'
+  const emptyStateClassName = isSmallTrigger
+    ? 'flex min-h-[56px] items-center justify-center px-3 py-2 text-center text-xs text-theme-muted'
+    : 'flex min-h-[60px] items-center justify-center px-4 py-3 text-center text-sm text-theme-muted'
+  const createHintClassName = isSmallTrigger
+    ? 'flex min-h-[28px] items-center justify-center px-3 py-2 text-center text-[10px] text-theme-muted'
+    : 'flex min-h-[30px] items-center justify-center px-4 py-2 text-center text-[11px] text-theme-muted'
+  const createErrorClassName = isSmallTrigger
+    ? 'px-2 pb-1 text-[10px] text-theme-danger'
+    : 'px-2 pb-1 text-xs text-theme-danger'
 
   return (
     <div className="relative" ref={triggerRef}>
@@ -408,6 +445,7 @@ export default function DesktopDropdown({
         disabled={disabled}
         ariaLabel={ariaLabel}
         size={triggerSize}
+        className={triggerClassName}
       />
 
       {isOpen &&
@@ -432,7 +470,10 @@ export default function DesktopDropdown({
             )}
           >
             {searchable && (
-              <div className="border-b border-theme-border bg-theme-background-muted p-2">
+              <div
+                className="border-b border-theme-border bg-theme-background-muted py-2"
+                style={{ paddingInline: CONTENT_SIDE_PADDING * 4 }}
+              >
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -443,7 +484,7 @@ export default function DesktopDropdown({
                   }}
                   onKeyDown={handleInputKeyDown}
                   placeholder="Search..."
-                  className="w-full rounded-theme-small border border-theme-border bg-theme-background px-2.5 py-1.5 text-sm outline-none focus:border-theme-primary"
+                  className="w-full rounded-theme-small border border-theme-border bg-theme-background px-3 py-1.5 text-sm outline-none focus:border-theme-primary"
                 />
               </div>
             )}
@@ -451,14 +492,20 @@ export default function DesktopDropdown({
             <div
               ref={contentRef}
               className="overflow-y-auto overscroll-contain"
-              style={{ height: visibleContentHeight, maxHeight: visibleContentHeight }}
+              style={{
+                height: visibleContentHeight,
+                maxHeight: visibleContentHeight,
+                paddingTop: CONTENT_TOP_PADDING,
+                paddingBottom: CONTENT_BOTTOM_PADDING,
+              }}
             >
               <div className="min-h-full">
                 {showRecentSection && (
-                  <div className="border-b border-theme-border px-2">
-                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
-                      {recentLabel}
-                    </div>
+                  <div
+                    className="border-b border-theme-border pb-2"
+                    style={{ paddingInline: CONTENT_SIDE_PADDING * 4 }}
+                  >
+                    <div className={sectionLabelClassName}>{recentLabel}</div>
                     {recentVisibleOptions.map((option) => (
                       <button
                         id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'recent' && item.id === option.id)}`}
@@ -466,7 +513,7 @@ export default function DesktopDropdown({
                         type="button"
                         onClick={() => handleSelect(option.id)}
                         className={cn(
-                          'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
+                          optionButtonClassName,
                           isItemHighlighted({
                             type: 'recent',
                             id: option.id,
@@ -485,17 +532,18 @@ export default function DesktopDropdown({
                         {option.isArchived && (
                           <span className="text-xs text-theme-muted">(archived)</span>
                         )}
-                        <span>{option.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{option.label}</span>
                       </button>
                     ))}
                   </div>
                 )}
 
                 {showRecentSection && displayOptions.length > 0 && (
-                  <div className="border-b border-theme-border px-2">
-                    <div className="flex h-[30px] items-center px-2 text-[11px] font-medium text-theme-muted">
-                      All
-                    </div>
+                  <div
+                    className="border-b border-theme-border pt-2"
+                    style={{ paddingInline: CONTENT_SIDE_PADDING * 4 }}
+                  >
+                    <div className={sectionLabelClassName}>All</div>
                     {displayOptions.map((option) => (
                       <button
                         id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
@@ -503,7 +551,7 @@ export default function DesktopDropdown({
                         type="button"
                         onClick={() => handleSelect(option.id)}
                         className={cn(
-                          'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
+                          optionButtonClassName,
                           isItemHighlighted({
                             type: 'option',
                             id: option.id,
@@ -522,14 +570,14 @@ export default function DesktopDropdown({
                         {option.isArchived && (
                           <span className="text-xs text-theme-muted">(archived)</span>
                         )}
-                        <span>{option.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{option.label}</span>
                       </button>
                     ))}
                   </div>
                 )}
 
                 {!showRecentSection && displayOptions.length > 0 && (
-                  <div className="px-2">
+                  <div style={{ paddingInline: CONTENT_SIDE_PADDING * 4 }}>
                     {displayOptions.map((option) => (
                       <button
                         id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'option' && item.id === option.id)}`}
@@ -537,7 +585,7 @@ export default function DesktopDropdown({
                         type="button"
                         onClick={() => handleSelect(option.id)}
                         className={cn(
-                          'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm transition-colors hover:bg-theme-background',
+                          optionButtonClassName,
                           isItemHighlighted({
                             type: 'option',
                             id: option.id,
@@ -556,27 +604,29 @@ export default function DesktopDropdown({
                         {option.isArchived && (
                           <span className="text-xs text-theme-muted">(archived)</span>
                         )}
-                        <span>{option.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{option.label}</span>
                       </button>
                     ))}
                   </div>
                 )}
 
                 {displayOptions.length === 0 && query.trim() && !showCreateOption && (
-                  <div className="flex min-h-[60px] items-center justify-center px-4 py-3 text-center text-sm text-theme-muted">
-                    {emptyMessage}
-                  </div>
+                  <div className={emptyStateClassName}>{emptyMessage}</div>
                 )}
 
                 {showCreateOption && (
-                  <div className="border-t border-theme-border px-2">
+                  <div
+                    className="border-t border-theme-border"
+                    style={{ paddingInline: CONTENT_SIDE_PADDING * 4 }}
+                  >
                     <button
                       id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'create')}`}
                       type="button"
                       onClick={handleCreate}
                       disabled={isCreating}
                       className={cn(
-                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-primary transition-colors hover:bg-theme-background disabled:opacity-50',
+                        optionButtonClassName,
+                        'text-theme-primary disabled:opacity-50',
                         isItemHighlighted({ type: 'create', label: `Create "${query.trim()}"` }) &&
                           highlightedItemClassName,
                       )}
@@ -587,7 +637,7 @@ export default function DesktopDropdown({
                       }
                     >
                       <svg
-                        className="h-4 w-4 shrink-0"
+                        className={cn('shrink-0', isSmallTrigger ? 'h-3.5 w-3.5' : 'h-4 w-4')}
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
@@ -595,27 +645,27 @@ export default function DesktopDropdown({
                       >
                         <path strokeLinecap="round" d="M12 5v14M5 12h14" />
                       </svg>
-                      <span>Create &quot;{query.trim()}&quot;</span>
+                      <span className="min-w-0 flex-1 truncate">
+                        Create &quot;{query.trim()}&quot;
+                      </span>
                     </button>
-                    {createError && (
-                      <p className="px-2 pb-1 text-xs text-theme-danger">{createError}</p>
-                    )}
+                    {createError && <p className={createErrorClassName}>{createError}</p>}
                   </div>
                 )}
-                {showCreateHint && (
-                  <div className="flex min-h-[30px] items-center justify-center px-4 py-2 text-center text-[11px] text-theme-muted">
-                    {createHint}
-                  </div>
-                )}
+                {showCreateHint && <div className={createHintClassName}>{createHint}</div>}
 
                 {allowClear && value != null && (
-                  <div className="border-t border-theme-border px-2">
+                  <div
+                    className="border-t border-theme-border"
+                    style={{ paddingInline: CONTENT_SIDE_PADDING * 4 }}
+                  >
                     <button
                       id={`desktop-dropdown-option-${navigableItems.findIndex((item) => item.type === 'clear')}`}
                       type="button"
                       onClick={handleClear}
                       className={cn(
-                        'flex h-[30px] w-full items-center gap-2 rounded-theme-small px-2 text-left text-sm text-theme-danger transition-colors hover:bg-theme-background',
+                        optionButtonClassName,
+                        'text-theme-danger',
                         isItemHighlighted({ type: 'clear', label: clearLabel }) &&
                           highlightedItemClassName,
                       )}
@@ -625,7 +675,7 @@ export default function DesktopDropdown({
                         )
                       }
                     >
-                      <span>{clearLabel}</span>
+                      <span className="min-w-0 flex-1 truncate">{clearLabel}</span>
                     </button>
                   </div>
                 )}
