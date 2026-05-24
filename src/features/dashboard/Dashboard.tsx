@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../../utils/cn'
 import './dashboard.css'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -36,6 +36,8 @@ interface DashboardProps {
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
+  refreshExpenses?: () => Promise<void>
+  triggerSync?: () => void
   registerCycleView?: (fn: () => void) => void
   sessionState?: DashboardSessionState
   onSessionStateChange?: (patch: Partial<DashboardSessionState>) => void
@@ -54,6 +56,8 @@ export default function Dashboard({
   onScroll,
   refreshCategories,
   refreshPayees,
+  refreshExpenses,
+  triggerSync,
   registerCycleView,
   sessionState,
   onSessionStateChange,
@@ -88,6 +92,9 @@ export default function Dashboard({
   }, [dash.viewMode, registerCycleView, dash.setView, VIEW_CYCLE])
 
   const expenseTableRef = useRef<ExpenseTableHandle>(null)
+  const [mobileExtraMenuActions, setMobileExtraMenuActions] = useState<
+    Array<{ label: string; onClick: () => void; danger?: boolean }>
+  >([])
 
   const triggerMobileEdit = useCallback(() => {
     if (dash.selectedIds.size > 1) {
@@ -329,6 +336,9 @@ export default function Dashboard({
                   viewAnimation={dash.viewAnimation}
                   refreshCategories={refreshCategories}
                   refreshPayees={refreshPayees}
+                  refreshExpenses={refreshExpenses}
+                  triggerSync={triggerSync}
+                  onMobileExtraMenuActionsChange={setMobileExtraMenuActions}
                 />
               )}
             </section>
@@ -344,6 +354,7 @@ export default function Dashboard({
             onDelete={dash.openDeleteConfirmation}
             onSelectAll={dash.toggleSelectAll}
             onDeselectAll={dash.clearSelection}
+            extraMenuActions={mobileExtraMenuActions}
           />
         )}
 

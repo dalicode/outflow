@@ -402,6 +402,8 @@ function AppShell() {
                         onScroll={handlePageScroll}
                         refreshCategories={refreshCategories}
                         refreshPayees={refreshPayees}
+                        refreshExpenses={refreshExpenses}
+                        triggerSync={syncLocalChanges}
                         registerCycleView={(fn) => {
                           cycleDashboardViewRef.current = fn
                         }}

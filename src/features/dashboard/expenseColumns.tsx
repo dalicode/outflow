@@ -23,6 +23,10 @@ interface GetExpenseColumnsParams {
   payeeMap: Record<number, Payee>
   onToggleSplitExpanded: (splitId: number) => void
   isSplitExpanded: (splitId: number) => boolean
+  editingSplitDescriptionId?: number | null
+  onStartSplitDescriptionEdit: (splitId: number) => void
+  onCommitSplitDescriptionEdit: (splitId: number, value: string) => void
+  onCancelSplitDescriptionEdit: () => void
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
 }
@@ -60,6 +64,10 @@ export function getExpenseColumns({
   payeeMap,
   onToggleSplitExpanded,
   isSplitExpanded,
+  editingSplitDescriptionId,
+  onStartSplitDescriptionEdit,
+  onCommitSplitDescriptionEdit,
+  onCancelSplitDescriptionEdit,
   refreshCategories,
   refreshPayees,
 }: GetExpenseColumnsParams): ColumnDef<ExpenseDisplayRow>[] {
@@ -368,7 +376,6 @@ export function getExpenseColumns({
             {...editableCellActivate(editing, exp, 'categoryId')}
             className={cn(
               'cursor-pointer',
-              rowData.rowType === 'splitChild' && 'pl-5',
               catMap[exp.categoryId as number]?.isArchived
                 ? 'text-theme-muted italic'
                 : 'text-theme-text font-medium',
@@ -399,12 +406,29 @@ export function getExpenseColumns({
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
+          if (editingSplitDescriptionId === rowData.splitId) {
+            return (
+              <InlineEditCell
+                initialValue={rowData.split?.description ?? ''}
+                onCommit={(value) => onCommitSplitDescriptionEdit(rowData.splitId, value)}
+                onCancel={onCancelSplitDescriptionEdit}
+                onEnter={() => onCancelSplitDescriptionEdit()}
+                onTab={() => onCancelSplitDescriptionEdit()}
+              />
+            )
+          }
           return (
             <span
-              className="block w-full truncate text-theme-text"
-              title={rowData.descriptionDisplay}
+              className="cursor-pointer block w-full truncate text-theme-text"
+              title={rowData.descriptionDisplay || undefined}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return
+                e.preventDefault()
+                e.stopPropagation()
+                onStartSplitDescriptionEdit(rowData.splitId)
+              }}
             >
-              {rowData.descriptionDisplay}
+              {rowData.descriptionDisplay || <span className="text-theme-muted">—</span>}
             </span>
           )
         }
@@ -437,10 +461,13 @@ export function getExpenseColumns({
         className: 'text-left',
         cellClassName: 'text-theme-text overflow-hidden max-w-[14rem]',
         getCellClassName: (rowData: ExpenseDisplayRow) =>
-          rowData.rowType !== 'splitContainer' &&
-          editing.isCellEditing(rowData.expense.id as number, 'description')
-            ? 'cell-editing'
-            : '',
+          rowData.rowType === 'splitContainer'
+            ? editingSplitDescriptionId === rowData.splitId
+              ? 'cell-editing'
+              : ''
+            : editing.isCellEditing(rowData.expense.id as number, 'description')
+              ? 'cell-editing'
+              : '',
         width: '28%',
       },
     },

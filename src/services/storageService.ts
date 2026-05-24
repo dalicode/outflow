@@ -37,6 +37,7 @@ export const StorageService = {
   removeExpenseSplit: expenseSplitRepo.removeExpenseSplit,
   restoreExpenseSplit: expenseSplitRepo.restoreExpenseSplit,
   unsplitExpenseSplit: expenseSplitRepo.unsplitExpenseSplit,
+  unsplitSplitChildExpense: expenseSplitRepo.unsplitSplitChildExpense,
   repairOrphanedSplitChildren: expenseSplitRepo.repairOrphanedSplitChildren,
 
   // ── Settings ──────────────────────────────────────────────

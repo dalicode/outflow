@@ -8,6 +8,11 @@ interface MobileSelectionBannerProps {
   onDelete: () => void
   onSelectAll: () => void
   onDeselectAll: () => void
+  extraMenuActions?: Array<{
+    label: string
+    onClick: () => void
+    danger?: boolean
+  }>
 }
 
 export default function MobileSelectionBanner({
@@ -17,6 +22,7 @@ export default function MobileSelectionBanner({
   onDelete,
   onSelectAll,
   onDeselectAll,
+  extraMenuActions = [],
 }: MobileSelectionBannerProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -71,6 +77,21 @@ export default function MobileSelectionBanner({
                 bottom: 'calc(100% + 8px)',
               }}
             >
+              {extraMenuActions.map((action) => (
+                <button
+                  key={action.label}
+                  className={cn(
+                    'context-menu-item w-full text-left',
+                    action.danger && 'context-menu-item-danger',
+                  )}
+                  onClick={() => {
+                    action.onClick()
+                    setMenuOpen(false)
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
               <button
                 className="context-menu-item w-full text-left"
                 data-testid="btn-copy-selection"

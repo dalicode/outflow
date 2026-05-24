@@ -7,7 +7,7 @@ export interface ContextMenuState {
 }
 
 const MENU_WIDTH = 160
-const MENU_HEIGHT = 80
+const MENU_HEIGHT = 168
 
 export function useContextMenu() {
   const [menu, setMenu] = useState<ContextMenuState | null>(null)

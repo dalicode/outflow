@@ -118,7 +118,7 @@ export function buildExpenseDisplayRows(params: {
       split,
       childExpenses: children,
       payeeDisplay: getSplitContainerPayeeDisplay(children, payeeMap),
-      descriptionDisplay: split?.description ?? 'Split transaction',
+      descriptionDisplay: split?.description ?? '',
       amountDisplay: children.reduce((sum, child) => sum + (child.amount ?? 0), 0),
     })
 

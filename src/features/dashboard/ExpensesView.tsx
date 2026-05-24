@@ -18,6 +18,11 @@ interface ExpensesViewProps {
   viewAnimation: 'slide-left' | 'slide-right' | null
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
+  refreshExpenses?: () => Promise<void>
+  triggerSync?: () => void
+  onMobileExtraMenuActionsChange?: (
+    actions: Array<{ label: string; onClick: () => void; danger?: boolean }>,
+  ) => void
 }
 
 const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, ExpensesViewProps>(
@@ -37,6 +42,9 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
       viewAnimation,
       refreshCategories,
       refreshPayees,
+      refreshExpenses,
+      triggerSync,
+      onMobileExtraMenuActionsChange,
     },
     ref,
   ) {
@@ -62,6 +70,9 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
           mobileEditTrigger={mobileEditTrigger}
           refreshCategories={refreshCategories}
           refreshPayees={refreshPayees}
+          refreshExpenses={refreshExpenses}
+          triggerSync={triggerSync}
+          onMobileExtraMenuActionsChange={onMobileExtraMenuActionsChange}
         />
       </div>
     )

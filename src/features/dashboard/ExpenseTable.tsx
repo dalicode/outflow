@@ -6,6 +6,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -41,6 +42,11 @@ interface ExpenseTableProps {
   mobileEditTrigger?: number | null
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
+  refreshExpenses?: () => Promise<void>
+  triggerSync?: () => void
+  onMobileExtraMenuActionsChange?: (
+    actions: Array<{ label: string; onClick: () => void; danger?: boolean }>,
+  ) => void
 }
 
 export interface ExpenseTableHandle {
@@ -63,6 +69,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     mobileEditTrigger,
     refreshCategories,
     refreshPayees,
+    refreshExpenses,
+    triggerSync,
+    onMobileExtraMenuActionsChange,
   }: ExpenseTableProps,
   ref: React.Ref<ExpenseTableHandle>,
 ) {
@@ -79,7 +88,11 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([])
   const [expandedSplitIds, setExpandedSplitIds] = useState<Set<number>>(new Set<number>())
   const [activeSplitTargetId, setActiveSplitTargetId] = useState<number | null>(null)
+  const [activeSplitChildTargetId, setActiveSplitChildTargetId] = useState<number | null>(null)
+  const [editingSplitDescriptionId, setEditingSplitDescriptionId] = useState<number | null>(null)
   const [splits, setSplits] = useState<Awaited<ReturnType<typeof StorageService.getExpenseSplits>>>([])
+  const pendingSplitDescriptionSwitchRef = useRef<number | null>(null)
+  const pendingSplitDescriptionTimeoutRef = useRef<number | null>(null)
 
   const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
 
@@ -146,11 +159,43 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       }),
     [expenses, splits, payeeMap, expandedSplitIds],
   )
+  const splitChildIdsBySplitId = useMemo(() => {
+    const map = new Map<number, number[]>()
+    displayRows.forEach((row) => {
+      if (row.rowType !== 'splitChild' || typeof row.expense.id !== 'number') return
+      const existing = map.get(row.splitId) ?? []
+      existing.push(row.expense.id)
+      map.set(row.splitId, existing)
+    })
+    return map
+  }, [displayRows])
+  const splitChildIds = useMemo(() => {
+    const ids = new Set<number>()
+    splitChildIdsBySplitId.forEach((childIds) => {
+      childIds.forEach((id) => ids.add(id))
+    })
+    return ids
+  }, [splitChildIdsBySplitId])
 
   const cancelMobileEdit = useCallback(() => {
     setShowMobileEditModal(false)
     setMobileEditExpense(null)
   }, [])
+
+  const clearPendingSplitDescriptionSwitch = useCallback(() => {
+    pendingSplitDescriptionSwitchRef.current = null
+    if (pendingSplitDescriptionTimeoutRef.current != null) {
+      window.clearTimeout(pendingSplitDescriptionTimeoutRef.current)
+      pendingSplitDescriptionTimeoutRef.current = null
+    }
+  }, [])
+
+  const findSplitEditorExpense = useCallback(
+    (splitId: number): Expense | null => {
+      return expenses.find((expense) => expense.splitId === splitId) ?? null
+    },
+    [expenses],
+  )
 
   const openExpenseEditor = useCallback(
     (expense: Expense | null) => {
@@ -162,6 +207,13 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       }
     },
     [cancelMobileEdit],
+  )
+
+  const openSplitEditor = useCallback(
+    (splitId: number) => {
+      openExpenseEditor(findSplitEditorExpense(splitId))
+    },
+    [findSplitEditorExpense, openExpenseEditor],
   )
 
   const closeBulkEditModal = useCallback(() => {
@@ -244,28 +296,160 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       if (isMobile) return
       if (row.rowType === 'splitContainer') {
         setActiveSplitTargetId(row.splitId)
+        setActiveSplitChildTargetId(null)
         openContextMenu(e, -(row.splitId + 1))
         return
       }
+      if (row.rowType === 'splitChild') {
+        setActiveSplitTargetId(null)
+        setActiveSplitChildTargetId(row.expense.id as number)
+        openContextMenu(e, row.expense.id as number)
+        return
+      }
       setActiveSplitTargetId(null)
+      setActiveSplitChildTargetId(null)
       openContextMenu(e, row.expense.id as number)
     },
     [openContextMenu, isMobile],
   )
 
   const handleUnsplit = useCallback(async (splitId: number) => {
-    await StorageService.unsplitExpenseSplit(splitId)
-    showToast({ message: 'Transaction unsplit', tone: 'success' })
-  }, [showToast])
+    try {
+      await StorageService.unsplitExpenseSplit(splitId)
+      await refreshExpenses?.()
+      triggerSync?.()
+      showToast({ message: 'Transaction unsplit', tone: 'success' })
+    } catch (error) {
+      console.error('Failed to unsplit transaction:', error)
+      showToast({ message: 'Could not unsplit transaction.', tone: 'danger' })
+    }
+  }, [refreshExpenses, showToast, triggerSync])
+
+  const handleUnsplitChild = useCallback(async (expenseId: number) => {
+    try {
+      await StorageService.unsplitSplitChildExpense(expenseId)
+      await refreshExpenses?.()
+      triggerSync?.()
+      showToast({ message: 'Split allocation unsplit', tone: 'success' })
+    } catch (error) {
+      console.error('Failed to unsplit split allocation:', error)
+      showToast({ message: 'Could not unsplit split allocation.', tone: 'danger' })
+    }
+  }, [refreshExpenses, showToast, triggerSync])
+
+  const toggleSplitParentSelection = useCallback(
+    (splitId: number) => {
+      const childIds = splitChildIdsBySplitId.get(splitId) ?? []
+      if (childIds.length === 0) return
+      const allSelectedForSplit = childIds.every((id) => selectedIds.has(id))
+      childIds.forEach((id) => {
+        const shouldSelect = !allSelectedForSplit
+        const isSelected = selectedIds.has(id)
+        if (shouldSelect && !isSelected) onToggleSelect(id)
+        if (!shouldSelect && isSelected) onToggleSelect(id)
+      })
+    },
+    [onToggleSelect, selectedIds, splitChildIdsBySplitId],
+  )
+
+  const handleStartSplitDescriptionEdit = useCallback(
+    (splitId: number) => {
+      if (editingSplitDescriptionId === splitId) return
+
+      if (editingSplitDescriptionId == null) {
+        clearPendingSplitDescriptionSwitch()
+        setEditingSplitDescriptionId(splitId)
+        return
+      }
+
+      clearPendingSplitDescriptionSwitch()
+      pendingSplitDescriptionSwitchRef.current = splitId
+
+      const activeElement = document.activeElement
+      if (activeElement instanceof HTMLElement) {
+        activeElement.blur()
+      }
+
+      pendingSplitDescriptionTimeoutRef.current = window.setTimeout(() => {
+        if (pendingSplitDescriptionSwitchRef.current !== splitId) {
+          return
+        }
+        setEditingSplitDescriptionId(splitId)
+        clearPendingSplitDescriptionSwitch()
+      }, 0)
+    },
+    [clearPendingSplitDescriptionSwitch, editingSplitDescriptionId],
+  )
+
+  const handleCancelSplitDescriptionEdit = useCallback(() => {
+    clearPendingSplitDescriptionSwitch()
+    setEditingSplitDescriptionId(null)
+  }, [clearPendingSplitDescriptionSwitch])
+
+  const handleCommitSplitDescriptionEdit = useCallback(
+    async (splitId: number, value: string) => {
+      const description = value.trim()
+      try {
+        await StorageService.updateExpenseSplit(splitId, { description })
+        setSplits((current) =>
+          current.map((split) =>
+            split.id === splitId
+              ? {
+                  ...split,
+                  description,
+                }
+              : split,
+          ),
+        )
+      } catch (error) {
+        console.error('Failed to update split description:', error)
+        showToast({ message: 'Could not update split description.', tone: 'danger' })
+      } finally {
+        setEditingSplitDescriptionId((current) => (current === splitId ? null : current))
+      }
+    },
+    [showToast],
+  )
+
+  useEffect(() => {
+    return () => {
+      clearPendingSplitDescriptionSwitch()
+    }
+  }, [clearPendingSplitDescriptionSwitch])
 
   const contextMenuItems = useMemo(() => {
     if (!menu) return []
     if (activeSplitTargetId != null) {
       return [
         {
+          label: 'Edit split transaction',
+          onClick: () => openSplitEditor(activeSplitTargetId),
+        },
+        {
           label: 'Unsplit transaction',
           onClick: () => void handleUnsplit(activeSplitTargetId),
           danger: true,
+        },
+      ]
+    }
+    if (activeSplitChildTargetId != null) {
+      return [
+        {
+          label: 'Edit',
+          onClick: () => handleEditRequest([activeSplitChildTargetId]),
+        },
+        {
+          label: 'Copy',
+          onClick: () => void handleCopyRequest([activeSplitChildTargetId]),
+        },
+        {
+          label: 'Delete',
+          onClick: () => handleDeleteRequest([activeSplitChildTargetId]),
+          danger: true,
+        },
+        {
+          label: 'Unsplit allocation',
+          onClick: () => void handleUnsplitChild(activeSplitChildTargetId),
         },
       ]
     }
@@ -305,7 +489,10 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     handleDeleteRequest,
     handleEditRequest,
     handleCopyRequest,
+    openSplitEditor,
     handleUnsplit,
+    activeSplitChildTargetId,
+    handleUnsplitChild,
   ])
 
   const bulkEditExpenses = useMemo(
@@ -342,6 +529,10 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
             return next
           }),
         isSplitExpanded: (splitId) => expandedSplitIds.has(splitId),
+        editingSplitDescriptionId,
+        onStartSplitDescriptionEdit: handleStartSplitDescriptionEdit,
+        onCommitSplitDescriptionEdit: handleCommitSplitDescriptionEdit,
+        onCancelSplitDescriptionEdit: handleCancelSplitDescriptionEdit,
         refreshCategories,
         refreshPayees,
       }),
@@ -358,6 +549,10 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       activePayees,
       payeeMap,
       expandedSplitIds,
+      editingSplitDescriptionId,
+      handleStartSplitDescriptionEdit,
+      handleCommitSplitDescriptionEdit,
+      handleCancelSplitDescriptionEdit,
       refreshCategories,
       refreshPayees,
     ],
@@ -371,6 +566,75 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     },
     [selectedIds],
   )
+
+  const mobileSplitContext = useMemo(() => {
+    if (selectedIds.size === 0) {
+      return {
+        singleSplitParentContext: null as number | null,
+        singleSplitChildContext: null as number | null,
+      }
+    }
+
+    const selectedIdArray = Array.from(selectedIds)
+    let singleSplitParentContext: number | null = null
+    splitChildIdsBySplitId.forEach((childIds, splitId) => {
+      if (childIds.length === 0 || childIds.length !== selectedIdArray.length) return
+      const fullMatch = childIds.every((id) => selectedIds.has(id))
+      if (fullMatch) singleSplitParentContext = splitId
+    })
+    if (singleSplitParentContext != null) {
+      return { singleSplitParentContext, singleSplitChildContext: null as number | null }
+    }
+
+    if (selectedIdArray.length === 1 && splitChildIds.has(selectedIdArray[0])) {
+      return {
+        singleSplitParentContext: null as number | null,
+        singleSplitChildContext: selectedIdArray[0],
+      }
+    }
+
+    return {
+      singleSplitParentContext: null as number | null,
+      singleSplitChildContext: null as number | null,
+    }
+  }, [selectedIds, splitChildIdsBySplitId, splitChildIds])
+
+  useEffect(() => {
+    if (!onMobileExtraMenuActionsChange) return
+    if (!isMobile || selectedIds.size === 0) {
+      onMobileExtraMenuActionsChange([])
+      return
+    }
+
+    const actions: Array<{ label: string; onClick: () => void; danger?: boolean }> = []
+    if (mobileSplitContext.singleSplitParentContext != null) {
+      const splitId = mobileSplitContext.singleSplitParentContext
+      actions.push({
+        label: 'Edit split transaction',
+        onClick: () => openSplitEditor(splitId),
+      })
+      actions.push({
+        label: 'Unsplit transaction',
+        onClick: () => void handleUnsplit(splitId),
+        danger: true,
+      })
+    } else if (mobileSplitContext.singleSplitChildContext != null) {
+      const expenseId = mobileSplitContext.singleSplitChildContext
+      actions.push({
+        label: 'Unsplit allocation',
+        onClick: () => void handleUnsplitChild(expenseId),
+      })
+    }
+    onMobileExtraMenuActionsChange(actions)
+  }, [
+    onMobileExtraMenuActionsChange,
+    isMobile,
+    selectedIds,
+    mobileSplitContext,
+    openSplitEditor,
+    handleUnsplit,
+    handleUnsplitChild,
+  ])
 
   if (expenses.length === 0) {
     return (
@@ -391,6 +655,11 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
           onCellEdit={(exp) => editing.startCellEdit(exp, 'description')}
+          onToggleSplitParentSelect={toggleSplitParentSelection}
+          isSplitParentSelected={(splitId) => {
+            const childIds = splitChildIdsBySplitId.get(splitId) ?? []
+            return childIds.length > 0 && childIds.every((id) => selectedIds.has(id))
+          }}
           onToggleSplitExpanded={(splitId) =>
             setExpandedSplitIds((prev) => {
               const next = new Set(prev)
@@ -400,7 +669,6 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
             })
           }
           isSplitExpanded={(splitId) => expandedSplitIds.has(splitId)}
-          onUnsplitSplit={(splitId) => void handleUnsplit(splitId)}
           formatDate={formatDate}
           formatAmount={formatAmount}
           resolveName={resolveName}

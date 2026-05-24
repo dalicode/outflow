@@ -139,6 +139,7 @@ import {
   removeExpenseSplit,
   restoreExpenseSplit,
   saveExpenseSplitWithChildren,
+  unsplitSplitChildExpense,
   updateExpenseSplit,
   unsplitExpenseSplit,
 } from '../services/repositories/expenseSplitRepository'
@@ -287,6 +288,75 @@ describe('expenseSplitRepository', () => {
     expect(allRows.map((row) => row.splitId)).toEqual([undefined, undefined])
     expect(allRows.every((row) => row.deletedAt == null)).toBe(true)
     expect(allRows.every((row) => row.syncStatus === 'pending')).toBe(true)
+  })
+
+  it('unsplits one child allocation and keeps the remaining split balanced', async () => {
+    const splitId = await addExpenseSplit({
+      date: '2026-05-10',
+      amount: 120,
+      description: 'Split dinner',
+    })
+
+    expenseTable.seed([
+      { id: 1, date: '2026-05-10', amount: 70, splitId, categoryId: 8, deletedAt: null },
+      { id: 2, date: '2026-05-10', amount: 50, splitId, categoryId: 9, deletedAt: null },
+    ])
+
+    await unsplitSplitChildExpense(1)
+
+    const allRows = expenseTable.rows()
+    expect(allRows.find((row) => row.id === 1)).toEqual(
+      expect.objectContaining({
+        id: 1,
+        splitId: undefined,
+        amount: 70,
+        deletedAt: null,
+        syncStatus: 'pending',
+      }),
+    )
+    expect(allRows.find((row) => row.id === 2)).toEqual(
+      expect.objectContaining({
+        id: 2,
+        splitId,
+        amount: 50,
+        deletedAt: null,
+      }),
+    )
+    expect(splitTable.rows()[0]).toEqual(
+      expect.objectContaining({
+        id: splitId,
+        amount: 50,
+        deletedAt: null,
+        syncStatus: 'pending',
+      }),
+    )
+  })
+
+  it('tombstones the split container when unsplitting its last child allocation', async () => {
+    const splitId = await addExpenseSplit({
+      date: '2026-05-10',
+      amount: 40,
+      description: 'Single split line',
+    })
+
+    expenseTable.seed([{ id: 1, date: '2026-05-10', amount: 40, splitId, categoryId: 8, deletedAt: null }])
+
+    await unsplitSplitChildExpense(1)
+
+    expect(expenseTable.rows()[0]).toEqual(
+      expect.objectContaining({
+        id: 1,
+        splitId: undefined,
+        deletedAt: null,
+        syncStatus: 'pending',
+      }),
+    )
+    expect(splitTable.rows()[0]).toEqual(
+      expect.objectContaining({
+        id: splitId,
+        deletedAt: expect.any(String),
+      }),
+    )
   })
 
   it('detaches orphaned child expenses for missing or tombstoned containers', async () => {

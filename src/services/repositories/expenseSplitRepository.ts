@@ -345,6 +345,58 @@ export async function unsplitExpenseSplit(id: number): Promise<void> {
   })
 }
 
+export async function unsplitSplitChildExpense(expenseId: number): Promise<void> {
+  await db.transaction('rw', db.expenseSplits, db.expenses, async () => {
+    const child = await db.expenses.get(expenseId)
+    if (!child || typeof child.id !== 'number' || typeof child.splitId !== 'number') return
+
+    const splitId = child.splitId
+    const split = await db.expenseSplits.get(splitId)
+    const now = new Date().toISOString()
+
+    await db.expenses.put({
+      ...markPendingActiveRecord(child, now),
+      splitId: undefined,
+      id: child.id,
+    })
+
+    if (!split || split.deletedAt != null) {
+      return
+    }
+
+    const splitChildren = await db.expenses.where('splitId').equals(splitId).toArray()
+    const remainingChildren = splitChildren.filter(
+      (expense): expense is Expense & { id: number } =>
+        typeof expense.id === 'number' && expense.id !== child.id && expense.deletedAt == null,
+    )
+
+    if (remainingChildren.length === 0) {
+      await db.expenseSplits.put({
+        ...split,
+        ...markDeletedSyncRecord(split, now),
+        id: splitId,
+      })
+      return
+    }
+
+    const remainingAmount = remainingChildren.reduce(
+      (sum, expense) => sum + (expense.amount ?? 0),
+      0,
+    )
+
+    await db.expenseSplits.put({
+      ...markPendingActiveRecord(
+        {
+          ...split,
+          amount: remainingAmount,
+        },
+        now,
+      ),
+      id: splitId,
+    })
+  })
+}
+
 export async function repairOrphanedSplitChildren(): Promise<number> {
   const allExpenses = await db.expenses.toArray()
   const activeExpenses = allExpenses.filter(

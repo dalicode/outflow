@@ -72,6 +72,7 @@ export function useExpenseCellEditing({
 
   const editingCellRef = useRef<EditingCell | null>(null)
   const pendingSwitchRef = useRef<EditingCell | null>(null)
+  const pendingSwitchTimeoutRef = useRef<number | null>(null)
   const expensesRef = useRef<Expense[]>(expenses)
 
   editingCellRef.current = editingCell
@@ -81,6 +82,21 @@ export function useExpenseCellEditing({
     (expenseId: number, field: EditableField) => `${expenseId}:${field}`,
     [],
   )
+
+  const clearPendingSwitch = useCallback(() => {
+    pendingSwitchRef.current = null
+    if (pendingSwitchTimeoutRef.current != null) {
+      window.clearTimeout(pendingSwitchTimeoutRef.current)
+      pendingSwitchTimeoutRef.current = null
+    }
+  }, [])
+
+  const activateCell = useCallback((cell: EditingCell) => {
+    setValidationError(null)
+    setEditingCell(cell)
+    setAutoOpenCell(cell)
+    editingCellRef.current = cell
+  }, [])
 
   const isFieldEditable = useCallback((expense: Expense, field: EditableField): boolean => {
     if (field === 'date' && typeof expense.splitId === 'number') {
@@ -132,13 +148,13 @@ export function useExpenseCellEditing({
         expenseId: expense.id as number,
         field,
       }
-      setEditingCell(cell)
-      setAutoOpenCell(cell)
-      editingCellRef.current = cell
-      setValidationError(null)
+      clearPendingSwitch()
+      activateCell(cell)
       setPendingNames({})
     },
     [
+      activateCell,
+      clearPendingSwitch,
       isFieldEditable,
       isMobile,
       selectedIds,
@@ -153,9 +169,9 @@ export function useExpenseCellEditing({
     setAutoOpenCell(null)
     editingCellRef.current = null
     setValidationError(null)
-    pendingSwitchRef.current = null
+    clearPendingSwitch()
     setPendingNames({})
-  }, [])
+  }, [clearPendingSwitch])
 
   const switchCellEdit = useCallback(
     (nextExpense: Expense, nextField: EditableField) => {
@@ -192,22 +208,26 @@ export function useExpenseCellEditing({
         }
       }
 
+      clearPendingSwitch()
       pendingSwitchRef.current = nextCell
 
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur()
+      const activeElement = document.activeElement
+      if (activeElement instanceof HTMLElement) {
+        activeElement.blur()
       }
 
-      setValidationError(null)
-      setEditingCell(nextCell)
-      setAutoOpenCell(nextCell)
-      editingCellRef.current = nextCell
-
-      setTimeout(() => {
-        pendingSwitchRef.current = null
-      }, 150)
+      pendingSwitchTimeoutRef.current = window.setTimeout(() => {
+        if (
+          pendingSwitchRef.current?.expenseId !== nextCell.expenseId ||
+          pendingSwitchRef.current?.field !== nextField
+        ) {
+          return
+        }
+        activateCell(nextCell)
+        clearPendingSwitch()
+      }, 0)
     },
-    [isFieldEditable, startCellEdit],
+    [activateCell, clearPendingSwitch, isFieldEditable, startCellEdit],
   )
 
   const isCellEditing = useCallback(

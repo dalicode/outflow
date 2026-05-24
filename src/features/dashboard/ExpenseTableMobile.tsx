@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useLongPress } from './hooks/useLongPress'
 import type { Expense } from '../../types'
 import { cn } from '../../utils/cn'
@@ -11,8 +11,9 @@ interface ExpenseTableMobileProps {
   onToggleSelect?: (id: number) => void
   onCellEdit?: (expense: Expense) => void
   onToggleSplitExpanded?: (splitId: number) => void
+  onToggleSplitParentSelect?: (splitId: number) => void
+  isSplitParentSelected?: (splitId: number) => boolean
   isSplitExpanded?: (splitId: number) => boolean
-  onUnsplitSplit?: (splitId: number) => void
   formatDate: (iso: string) => string
   formatAmount: (n: number) => string
   resolveName: (exp: Expense) => string
@@ -28,7 +29,8 @@ export default function ExpenseTableMobile({
   onCellEdit,
   onToggleSplitExpanded,
   isSplitExpanded,
-  onUnsplitSplit,
+  onToggleSplitParentSelect,
+  isSplitParentSelected,
   formatDate,
   formatAmount,
   resolveName,
@@ -39,10 +41,11 @@ export default function ExpenseTableMobile({
   const resolvedOnToggleSelect = onToggleSelect ?? (() => {})
   const resolvedOnCellEdit = onCellEdit ?? (() => {})
   const resolvedOnToggleSplitExpanded = onToggleSplitExpanded ?? (() => {})
+  const resolvedOnToggleSplitParentSelect = onToggleSplitParentSelect ?? (() => {})
+  const resolvedIsSplitParentSelected = isSplitParentSelected ?? (() => false)
   const resolvedIsSplitExpanded = isSplitExpanded ?? (() => true)
-  const resolvedOnUnsplitSplit = onUnsplitSplit ?? (() => {})
-  const isInteractive = onToggleSelect != null || onCellEdit != null
-  const [openSplitActionId, setOpenSplitActionId] = useState<number | null>(null)
+  const isInteractive =
+    onToggleSelect != null || onCellEdit != null || onToggleSplitParentSelect != null
 
   const groupedExpenses = useMemo(() => {
     if (displayRows && displayRows.length > 0) {
@@ -70,6 +73,11 @@ export default function ExpenseTableMobile({
 
   const { onTouchStart, onTouchMove, onTouchEnd } = useLongPress({
     onLongPress: (id: number) => {
+      if (id < 0) {
+        const splitId = -(id + 1)
+        resolvedOnToggleSplitParentSelect(splitId)
+        return
+      }
       resolvedOnToggleSelect(id)
     },
   })
@@ -87,59 +95,62 @@ export default function ExpenseTableMobile({
               return (
                 <div
                   key={item.rowId}
+                  data-testid={`split-container-mobile-${item.splitId}`}
                   className={cn(
                     'border-b border-theme-muted-subtle px-1.5 py-2',
                     'grid grid-cols-[minmax(0,1fr)_6.5rem] grid-rows-[auto_auto] gap-x-3 gap-y-0.5',
-                    'bg-theme-background',
+                    resolvedIsSplitParentSelected(item.splitId) &&
+                      'selected-row bg-theme-primary-subtle shadow-[inset_4px_0_0_var(--theme-primary)]',
                   )}
+                  onTouchStart={
+                    isInteractive ? (e) => onTouchStart(e, -(item.splitId + 1)) : undefined
+                  }
+                  onTouchMove={isInteractive ? onTouchMove : undefined}
+                  onTouchEnd={
+                    isInteractive
+                      ? (e) => {
+                          onTouchEnd(e, -(item.splitId + 1))
+                          if (!e.defaultPrevented) {
+                            const target = e.target as HTMLElement | null
+                            if (target?.closest('[data-split-expand="true"]')) return
+                            if (resolvedSelectedIds.size > 0) {
+                              resolvedOnToggleSplitParentSelect(item.splitId)
+                            }
+                          }
+                        }
+                      : undefined
+                  }
+                  onClick={(e) => {
+                    if (!isInteractive) return
+                    if (resolvedSelectedIds.size === 0) return
+                    const target = e.target as HTMLElement | null
+                    if (target?.closest('[data-split-expand="true"]')) return
+                    resolvedOnToggleSplitParentSelect(item.splitId)
+                  }}
                 >
                   <div className="col-start-1 row-start-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        aria-expanded={expanded}
-                        className="text-xs text-theme-muted"
-                        onClick={() => resolvedOnToggleSplitExpanded(item.splitId)}
-                      >
-                        {expanded ? '▾' : '▸'}
-                      </button>
-                      <span className="min-w-0 truncate text-sm font-medium text-theme-text">
-                        {item.payeeDisplay}
-                      </span>
-                    </div>
+                    <span className="block min-w-0 truncate text-sm font-medium text-theme-text">
+                      {item.payeeDisplay}
+                    </span>
                   </div>
                   <span className="col-start-2 row-span-2 row-start-1 self-center text-right text-sm font-semibold tabular-nums text-theme-text">
                     {formatAmount(item.amountDisplay)}
                   </span>
                   <div className="col-start-1 row-start-2 min-w-0 flex items-center gap-2 text-xs text-theme-muted">
-                    <span className="font-medium">Split</span>
-                    <span className="truncate">{item.descriptionDisplay}</span>
-                    <div className="ml-auto relative">
-                      <button
-                        type="button"
-                        aria-label="Split actions"
-                        onClick={() =>
-                          setOpenSplitActionId((prev) => (prev === item.splitId ? null : item.splitId))
-                        }
-                        className="px-1 text-sm text-theme-muted hover:text-theme-text"
-                      >
-                        ⋮
-                      </button>
-                      {openSplitActionId === item.splitId && (
-                        <div className="absolute right-0 top-6 z-20 min-w-[10rem] rounded-theme-medium border border-theme-border bg-theme-surface shadow-lg">
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-sm text-theme-text hover:bg-theme-background"
-                            onClick={() => {
-                              resolvedOnUnsplitSplit(item.splitId)
-                              setOpenSplitActionId(null)
-                            }}
-                          >
-                            Unsplit transaction
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      data-split-expand="true"
+                      className="inline-flex min-w-0 flex-1 items-center gap-2 text-left text-theme-muted"
+                      onClick={() => resolvedOnToggleSplitExpanded(item.splitId)}
+                    >
+                      <span className="text-xs text-theme-muted">{expanded ? '▾' : '▸'}</span>
+                      <span className="font-medium">Split</span>
+                      {item.descriptionDisplay ? (
+                        <span className="truncate">{item.descriptionDisplay}</span>
+                      ) : null}
+                    </button>
+                    <span className="ml-auto" />
                   </div>
                 </div>
               )
@@ -153,6 +164,7 @@ export default function ExpenseTableMobile({
               categoryLabel && exp.description
                 ? `${categoryLabel} · ${exp.description}`
                 : categoryLabel || exp.description || ''
+            const isSplitChildRow = 'rowType' in item && item.rowType === 'splitChild'
             return (
               <div
                 key={exp.id}
@@ -176,15 +188,26 @@ export default function ExpenseTableMobile({
                   }
                 }}
               >
-                <span className="col-start-1 row-start-1 min-w-0 truncate text-sm font-medium text-theme-text">
+                <span
+                  className={cn(
+                    'col-start-1 row-start-1 min-w-0 truncate text-sm font-medium text-theme-text',
+                    isSplitChildRow && 'pl-5',
+                  )}
+                >
                   {payeeLabel}
                 </span>
                 <span className="col-start-2 row-span-2 row-start-1 self-center text-right text-sm font-semibold tabular-nums text-theme-text">
                   {formatAmount(exp.amount)}
                 </span>
-                <span className="col-start-1 row-start-2 min-w-0 truncate text-xs text-theme-muted">
-                  {detailLabel || '—'}
-                </span>
+                <div
+                  className={cn(
+                    'col-start-1 row-start-2 min-w-0 flex items-center gap-2 text-xs text-theme-muted',
+                    isSplitChildRow && 'pl-5',
+                  )}
+                >
+                  <span className="min-w-0 truncate">{detailLabel || '—'}</span>
+                  {isSplitChildRow ? <span className="ml-auto" /> : null}
+                </div>
               </div>
             )
           })}
