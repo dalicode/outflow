@@ -135,7 +135,7 @@ export default function ImportReviewModal({
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide p-4 md:p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
           {reviewRows.length > 0 ? (
             <div className="space-y-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-theme-muted">

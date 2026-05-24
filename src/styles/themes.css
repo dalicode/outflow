@@ -720,29 +720,37 @@
   transform: scale(0.9);
 }
 
-/* Scrollbar hidden by default, visible only while scrolling */
+/* Legacy alias retained while callers migrate to scrollbar-themed */
 .scrollbar-auto-hide {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border) var(--theme-background);
 }
 .scrollbar-auto-hide::-webkit-scrollbar {
-  display: none;
+  display: block;
+  width: 8px;
+  height: 8px;
 }
-
-/* Show scrollbar while actively scrolling */
+.scrollbar-auto-hide::-webkit-scrollbar-track {
+  background: var(--theme-background);
+}
+.scrollbar-auto-hide::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: var(--radius-small);
+}
 .scrollbar-auto-hide.is-scrolling {
   scrollbar-width: thin;
-  scrollbar-color: var(--theme-muted) transparent;
+  scrollbar-color: var(--theme-border) var(--theme-background);
 }
 .scrollbar-auto-hide.is-scrolling::-webkit-scrollbar {
   display: block;
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 .scrollbar-auto-hide.is-scrolling::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--theme-background);
 }
 .scrollbar-auto-hide.is-scrolling::-webkit-scrollbar-thumb {
-  background: var(--theme-muted);
+  background: var(--theme-border);
   border-radius: var(--radius-small);
 }
 

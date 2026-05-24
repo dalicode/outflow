@@ -171,7 +171,7 @@ export default function MobileEntityPicker({
         </div>
 
         {/* List */}
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide overscroll-contain p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
           {showRecentSection && recentVisibleOptions.length > 0 && (
             <div className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
               {recentLabel}

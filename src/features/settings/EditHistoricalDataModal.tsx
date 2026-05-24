@@ -74,7 +74,7 @@ interface HistoricalYearTabsProps {
 
 function HistoricalYearTabs({ years, activeYear, dirtyYears, onSelect }: HistoricalYearTabsProps) {
   return (
-    <div className="shrink-0 flex items-end gap-0.5 overflow-x-auto scrollbar-auto-hide px-1 pb-0">
+    <div className="shrink-0 flex items-end gap-0.5 overflow-x-auto px-1 pb-0">
       {years.map((y) => {
         const isActive = y === activeYear
         const isDirty = dirtyYears.has(y) && !isActive

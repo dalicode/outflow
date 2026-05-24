@@ -37,24 +37,28 @@ body {
   color: var(--theme-primary);
 }
 
-/* Themed scrollbar — apply explicitly where visible scrollbars are desired */
-.scrollbar-themed {
+/* Themed scrollbar — default for all scrollable containers */
+* {
   scrollbar-width: thin;
   scrollbar-color: var(--theme-border) var(--theme-background);
 }
-.scrollbar-themed::-webkit-scrollbar {
+*::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-.scrollbar-themed::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
   background: var(--theme-background);
 }
-.scrollbar-themed::-webkit-scrollbar-thumb {
+*::-webkit-scrollbar-thumb {
   background: var(--theme-border);
   border-radius: var(--radius-small);
 }
-.scrollbar-themed::-webkit-scrollbar-thumb:hover {
+*::-webkit-scrollbar-thumb:hover {
   background: var(--theme-border);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--theme-background);
 }
 
 /* Selection theming */

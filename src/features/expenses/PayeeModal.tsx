@@ -193,7 +193,7 @@ export default function PayeeModal({
               No payees match your search.
             </div>
           ) : (
-            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
+            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {filteredPayees.map((payee) => (
                 <li key={payee.id} className="border-b border-theme-border p-3 last:border-b-0">
                   {editId === payee.id ? (

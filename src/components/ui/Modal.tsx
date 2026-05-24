@@ -433,7 +433,7 @@ export default function Modal({
         {/* Content */}
         <div
           className={cn(
-            'flex-1 overflow-x-hidden overflow-y-auto scrollbar-auto-hide overscroll-contain min-h-0',
+            'flex-1 overflow-x-hidden overflow-y-auto overscroll-contain min-h-0',
             isScrolling && 'is-scrolling',
             isFullScreenMobile ? 'p-4' : 'p-5',
             hasHeader && 'pt-4',

@@ -694,7 +694,7 @@ export default function CreatableCombobox({
     >
       <div
         ref={contentRef}
-        className={cn('h-full overflow-y-auto overscroll-contain scrollbar-themed')}
+        className={cn('h-full overflow-y-auto overscroll-contain')}
       >
         {showCreateHint && (
           <div className="border-b border-theme-border px-3">

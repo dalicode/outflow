@@ -163,7 +163,7 @@ export default function ThemeSelector({ value, onChange }: ThemeSelectorProps) {
   )
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
+    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
       {themeList.map((theme) => (
         <ThemeCard
           key={theme.id}

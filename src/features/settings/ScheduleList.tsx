@@ -24,7 +24,7 @@ export default function ScheduleList({
   const { upcoming, archived } = partitionSchedulesForList(schedules)
 
   return (
-    <div className="space-y-1.5 mb-2 max-h-48 overflow-y-auto scrollbar-themed">
+    <div className="space-y-1.5 mb-2 max-h-48 overflow-y-auto">
       {upcoming.length > 0 && (
         <div className="space-y-1">
           <p className="text-[10px] font-semibold text-theme-muted uppercase tracking-wide">

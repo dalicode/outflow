@@ -179,7 +179,7 @@ export default function CategoryModal({
               No categories match your search.
             </div>
           ) : (
-            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-themed">
+            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {filteredCategories.map((cat) => (
                 <li
                   key={cat.id}

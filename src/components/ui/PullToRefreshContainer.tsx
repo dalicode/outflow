@@ -240,7 +240,7 @@ const PullToRefreshContainer = forwardRef<HTMLDivElement, PullToRefreshContainer
         ref={containerRef}
         className={cn(
           'relative h-full',
-          scrollable && 'overflow-y-auto overscroll-contain scrollbar-auto-hide',
+          scrollable && 'overflow-y-auto overscroll-contain',
           className,
         )}
         onScroll={handleScroll}

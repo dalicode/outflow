@@ -194,11 +194,11 @@ function MultiSelectDropdown({
   )
 
   const desktopOptionList = (
-    <div className="mt-2 min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide">{optionItems}</div>
+    <div className="mt-2 min-h-0 flex-1 overflow-y-auto">{optionItems}</div>
   )
 
   const mobileOptionList = (
-    <div className="min-h-0 flex-1 overflow-y-auto scrollbar-auto-hide p-2">{optionItems}</div>
+    <div className="min-h-0 flex-1 overflow-y-auto p-2">{optionItems}</div>
   )
 
   const selectionFooter = (

@@ -492,7 +492,7 @@ export default function DesktopDropdown({
 
             <div
               ref={contentRef}
-              className="overflow-y-auto overscroll-contain scrollbar-themed"
+              className="overflow-y-auto overscroll-contain"
               style={{
                 height: visibleContentHeight,
                 maxHeight: visibleContentHeight,
