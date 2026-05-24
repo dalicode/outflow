@@ -489,6 +489,23 @@ describe('getYearVariableGrid', () => {
     expect(result.monthlyVariableTotals[0]).toBe(300)
     expect(result.monthlyVariableTotals[1]).toBe(50)
   })
+
+  it('includes split child expenses in category rollups without double counting', () => {
+    const expenses: Expense[] = [
+      makeExpense({ date: '2024-01-15', amount: 60, categoryId: 1, splitId: 10 }),
+      makeExpense({ date: '2024-01-15', amount: 40, categoryId: 2, splitId: 10 }),
+    ]
+    const categories = [
+      { id: 1, name: 'Food' },
+      { id: 2, name: 'Transport' },
+    ]
+
+    const result = getYearVariableGrid(2024, expenses, categories)
+    expect(result.yearVariableTotal).toBe(100)
+    expect(result.monthlyVariableTotals[0]).toBe(100)
+    expect(result.variableRows.find((row) => row.key === '1')?.yearTotal).toBe(60)
+    expect(result.variableRows.find((row) => row.key === '2')?.yearTotal).toBe(40)
+  })
 })
 
 // ── getEditHistoricalDataPreviewTimeline ──────────────────────────────────────────────

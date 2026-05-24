@@ -256,6 +256,7 @@ export function toCloud(
       source_payee_id: resolveCloudRelationshipId(p.sourcePayeeId, maps?.payeeIdToCloudId),
       target_payee_id: resolveCloudRelationshipId(p.targetPayeeId, maps?.payeeIdToCloudId),
       affected_expense_ids: p.affectedExpenseIds,
+      affected_split_ids: p.affectedSplitIds ?? [],
       reverted_at: p.revertedAt ?? null,
     }
   }
@@ -420,6 +421,7 @@ export function fromCloud(
       sourcePayeeId: resolvePay(row.source_payee_id) ?? 0,
       targetPayeeId: resolvePay(row.target_payee_id) ?? 0,
       affectedExpenseIds: toNumberArray(row.affected_expense_ids),
+      affectedSplitIds: toNumberArray(row.affected_split_ids),
       revertedAt: row.reverted_at ?? null,
     }
   }

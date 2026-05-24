@@ -95,6 +95,7 @@ export interface PayeeMergeHistory extends SyncedRecord {
   sourcePayeeId: number
   targetPayeeId: number
   affectedExpenseIds: number[]
+  affectedSplitIds?: number[]
   createdAt: string
   revertedAt?: string | null
   updatedAt?: string
@@ -209,6 +210,7 @@ export interface SyncedSettingRow extends SyncedRecord {
 
 export interface FinanceEngineData {
   expenses: Expense[]
+  expenseSplits?: ExpenseSplit[]
   snapshots: FixedExpenseSnapshot[]
   fixedExpenses: FixedExpense[]
   globalIncome: number

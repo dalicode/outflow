@@ -573,7 +573,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
     expect(localState.expenses[0].splitId).toBe(localState.expenseSplits[0].id)
   })
 
-  it('reconciles child date and payee from a newer remote split container', async () => {
+  it('reconciles child date but preserves child payee divergence on pull', async () => {
     localState.categories.push({
       id: 1,
       localId: 'cat-1',
@@ -659,8 +659,8 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
 
     expect(localState.expenses).toHaveLength(1)
     expect(localState.expenses[0].date).toBe('2026-05-12')
-    expect(localState.expenses[0].payeeId).toBe(2)
-    expect(localState.expenses[0].payeeNameSnapshot).toBe('Grocer')
+    expect(localState.expenses[0].payeeId).toBe(1)
+    expect(localState.expenses[0].payeeNameSnapshot).toBe('Cafe')
     expect(localState.expenses[0].syncStatus).toBe('pending')
     expect(localState.expenses[0].description).toBe('Split child')
   })

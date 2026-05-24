@@ -12,6 +12,11 @@ function createSplitTable(initial: Row[] = []) {
       nextId = 1
     },
     rows: () => rows,
+    setRows: (nextRows: Row[]) => {
+      rows = nextRows.map((row) => ({ ...row }))
+      nextId =
+        nextRows.reduce((maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId), 0) + 1
+    },
     toArray: async () => rows.map((row) => ({ ...row })),
     orderBy: (_key: string) => ({
       toArray: async () => [...rows].sort((a, b) => String(a.date).localeCompare(String(b.date))),
@@ -41,21 +46,36 @@ function createSplitTable(initial: Row[] = []) {
 
 function createExpenseTable(initial: Row[] = []) {
   let rows = [...initial]
+  let nextId = 1
 
   return {
     reset: () => {
       rows = []
+      nextId = 1
     },
     seed: (nextRows: Row[]) => {
       rows = nextRows.map((row) => ({ ...row }))
+      nextId =
+        nextRows.reduce((maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId), 0) + 1
     },
     rows: () => rows,
+    setRows: (nextRows: Row[]) => {
+      rows = nextRows.map((row) => ({ ...row }))
+      nextId =
+        nextRows.reduce((maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId), 0) + 1
+    },
     toArray: async () => rows.map((row) => ({ ...row })),
     where: (field: string) => ({
       equals: (value: unknown) => ({
         toArray: async () => rows.filter((row) => row[field] === value),
       }),
     }),
+    get: async (id: number) => rows.find((row) => row.id === id),
+    add: async (row: Row) => {
+      const id = nextId++
+      rows.push({ ...row, id })
+      return id
+    },
     put: async (row: Row) => {
       if (typeof row.id !== 'number') return
       const index = rows.findIndex((entry) => entry.id === row.id)
@@ -68,12 +88,36 @@ function createExpenseTable(initial: Row[] = []) {
   }
 }
 
-const { splitTable, expenseTable, transaction } = vi.hoisted(() => ({
+function createLookupTable(initial: Row[] = []) {
+  let rows = [...initial]
+
+  return {
+    reset: () => {
+      rows = []
+    },
+    seed: (nextRows: Row[]) => {
+      rows = nextRows.map((row) => ({ ...row }))
+    },
+    get: async (id: number) => rows.find((row) => row.id === id),
+  }
+}
+
+const { splitTable, expenseTable, categoriesTable, payeesTable, transaction } = vi.hoisted(() => ({
   splitTable: createSplitTable(),
   expenseTable: createExpenseTable(),
+  categoriesTable: createLookupTable(),
+  payeesTable: createLookupTable(),
   transaction: vi.fn(async (_mode: string, ...args: unknown[]) => {
     const scope = args[args.length - 1] as () => Promise<void>
-    await scope()
+    const splitSnapshot = splitTable.rows().map((row) => ({ ...row }))
+    const expenseSnapshot = expenseTable.rows().map((row) => ({ ...row }))
+    try {
+      await scope()
+    } catch (error) {
+      splitTable.setRows(splitSnapshot)
+      expenseTable.setRows(expenseSnapshot)
+      throw error
+    }
   }),
 }))
 
@@ -81,6 +125,8 @@ vi.mock('../services/db/schema', () => ({
   default: {
     expenseSplits: splitTable,
     expenses: expenseTable,
+    categories: categoriesTable,
+    payees: payeesTable,
     transaction,
   },
 }))
@@ -92,6 +138,7 @@ import {
   repairOrphanedSplitChildren,
   removeExpenseSplit,
   restoreExpenseSplit,
+  saveExpenseSplitWithChildren,
   updateExpenseSplit,
   unsplitExpenseSplit,
 } from '../services/repositories/expenseSplitRepository'
@@ -100,6 +147,8 @@ describe('expenseSplitRepository', () => {
   beforeEach(() => {
     splitTable.reset()
     expenseTable.reset()
+    categoriesTable.reset()
+    payeesTable.reset()
     vi.clearAllMocks()
   })
 
@@ -294,5 +343,105 @@ describe('expenseSplitRepository', () => {
     expect(rows[1].description).toBe('Deleted parent')
     expect(rows[0].syncStatus).toBe('pending')
     expect(rows[1].syncStatus).toBe('pending')
+  })
+
+  it('saves split edits atomically, including child removal and new child insertion', async () => {
+    categoriesTable.seed([
+      { id: 1, name: 'Food', deletedAt: null },
+      { id: 2, name: 'Travel', deletedAt: null },
+      { id: 3, name: 'Coffee', deletedAt: null },
+    ])
+    payeesTable.seed([{ id: 9, name: 'Cafe Nova', deletedAt: null }])
+
+    const splitId = await addExpenseSplit({
+      date: '2026-05-10',
+      amount: 12,
+      payeeId: 9,
+      payeeNameSnapshot: 'Cafe Nova',
+      description: 'Original split',
+    })
+
+    expenseTable.seed([
+      { id: 1, date: '2026-05-10', amount: 5, splitId, categoryId: 1, deletedAt: null },
+      { id: 2, date: '2026-05-10', amount: 7, splitId, categoryId: 2, deletedAt: null },
+    ])
+
+    await saveExpenseSplitWithChildren({
+      splitId,
+      split: {
+        date: '2026-05-11',
+        amount: 15,
+        payeeId: 9,
+        payeeNameSnapshot: 'Cafe Nova',
+        description: 'Updated split',
+      },
+      children: [
+        { expenseId: 1, categoryId: 1, payeeId: 9, description: 'Updated child', amount: 6 },
+        { categoryId: 3, payeeId: 9, description: 'New child', amount: 9 },
+      ],
+    })
+
+    const rows = expenseTable.rows()
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toEqual(expect.objectContaining({ id: 1, date: '2026-05-11', amount: 6, splitId }))
+    expect(rows[1]).toEqual(expect.objectContaining({ id: 2, deletedAt: expect.any(String) }))
+    expect(rows[2]).toEqual(
+      expect.objectContaining({
+        date: '2026-05-11',
+        amount: 9,
+        splitId,
+        categoryId: 3,
+        payeeId: 9,
+        categoryNameSnapshot: 'Coffee',
+        payeeNameSnapshot: 'Cafe Nova',
+      }),
+    )
+    expect(transaction).toHaveBeenCalledWith(
+      'rw',
+      splitTable,
+      expenseTable,
+      categoriesTable,
+      payeesTable,
+      expect.any(Function),
+    )
+  })
+
+  it('rolls back the split save when a child write fails', async () => {
+    categoriesTable.seed([{ id: 1, name: 'Food', deletedAt: null }])
+
+    const splitId = await addExpenseSplit({
+      date: '2026-05-10',
+      amount: 12,
+      description: 'Original split',
+    })
+
+    expenseTable.seed([{ id: 1, date: '2026-05-10', amount: 12, splitId, categoryId: 1, deletedAt: null }])
+
+    const originalAdd = expenseTable.add
+    const addSpy = vi.spyOn(expenseTable, 'add').mockImplementationOnce(async (_row: Row) => {
+      throw new Error('insert failed')
+    })
+
+    await expect(
+      saveExpenseSplitWithChildren({
+        splitId,
+        split: {
+          date: '2026-05-11',
+          amount: 12,
+          description: 'Updated split',
+        },
+        children: [
+          { expenseId: 1, categoryId: 1, amount: 6 },
+          { categoryId: 1, amount: 6 },
+        ],
+      }),
+    ).rejects.toThrow('insert failed')
+
+    expect(splitTable.rows()[0]).toEqual(expect.objectContaining({ id: splitId, date: '2026-05-10' }))
+    expect(expenseTable.rows()).toEqual([
+      expect.objectContaining({ id: 1, date: '2026-05-10', amount: 12, splitId, deletedAt: null }),
+    ])
+
+    addSpy.mockImplementation(originalAdd)
   })
 })

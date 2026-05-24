@@ -7,6 +7,7 @@ const { state, resetState, dbMock } = vi.hoisted(() => {
     payees: new Map<number, Record<string, unknown>>(),
     categoryMergeHistory: new Map<number, Record<string, unknown>>(),
     payeeMergeHistory: new Map<number, Record<string, unknown>>(),
+    expenseSplits: [] as Array<Record<string, unknown>>,
   }
 
   const resetState = () => {
@@ -15,6 +16,7 @@ const { state, resetState, dbMock } = vi.hoisted(() => {
     state.payees.clear()
     state.categoryMergeHistory.clear()
     state.payeeMergeHistory.clear()
+    state.expenseSplits = []
   }
 
   const dbMock = {
@@ -76,7 +78,31 @@ const { state, resetState, dbMock } = vi.hoisted(() => {
         state.payeeMergeHistory.set(row.id as number, row)
         return row.id as number
       }),
-      add: vi.fn(async () => 1),
+      add: vi.fn(async (row: Record<string, unknown>) => {
+        const id = 1
+        state.payeeMergeHistory.set(id, { ...row, id })
+        return id
+      }),
+    },
+    expenseSplits: {
+      bulkGet: vi.fn(async (ids: number[]) =>
+        ids.map((id) => state.expenseSplits.find((split) => split.id === id)),
+      ),
+      bulkPut: vi.fn(async (rows: Array<Record<string, unknown>>) => {
+        for (const row of rows) {
+          const index = state.expenseSplits.findIndex((split) => split.id === row.id)
+          if (index >= 0) {
+            state.expenseSplits[index] = row
+          } else {
+            state.expenseSplits.push(row)
+          }
+        }
+      }),
+      where: vi.fn((field: string) => ({
+        equals: vi.fn((value: unknown) => ({
+          toArray: vi.fn(async () => state.expenseSplits.filter((split) => split[field] === value)),
+        })),
+      })),
     },
   }
 
@@ -88,7 +114,7 @@ vi.mock('../services/db/schema', () => ({
 }))
 
 import { revertCategoryMerge } from '../services/repositories/categoryRepository'
-import { revertPayeeMerge } from '../services/repositories/payeeRepository'
+import { mergePayee, revertPayeeMerge } from '../services/repositories/payeeRepository'
 
 describe('merge revert snapshot restoration', () => {
   beforeEach(() => {
@@ -148,5 +174,30 @@ describe('merge revert snapshot restoration', () => {
 
     expect(state.expenses[0].payeeId).toBe(3)
     expect(state.expenses[0].payeeNameSnapshot).toBe('Cafe')
+  })
+
+  it('updates split container payee defaults on merge and restores them on revert', async () => {
+    state.payees.set(3, { id: 3, name: 'Cafe', deletedAt: null, isArchived: false })
+    state.payees.set(4, { id: 4, name: 'Coffee House', deletedAt: null, isArchived: false })
+    state.expenseSplits.push({
+      id: 71,
+      date: '2026-05-01',
+      amount: 25,
+      payeeId: 3,
+      payeeNameSnapshot: 'Cafe',
+      deletedAt: null,
+    })
+
+    const mergeId = await mergePayee(3, 4)
+    expect(state.expenseSplits[0].payeeId).toBe(4)
+    expect(state.expenseSplits[0].payeeNameSnapshot).toBe('Coffee House')
+
+    const mergeHistory = state.payeeMergeHistory.get(mergeId)
+    expect(mergeHistory?.affectedSplitIds).toEqual([71])
+
+    await revertPayeeMerge(mergeId)
+
+    expect(state.expenseSplits[0].payeeId).toBe(3)
+    expect(state.expenseSplits[0].payeeNameSnapshot).toBe('Cafe')
   })
 })

@@ -21,7 +21,9 @@ import { cn } from '../../utils/cn'
 import { copyExpensesToClipboard } from '../../utils/copyExpenses'
 import ExpenseTableMobile from './ExpenseTableMobile'
 import { getExpenseColumns } from './expenseColumns'
+import { buildExpenseDisplayRows, type ExpenseDisplayRow } from './splitDisplayRows'
 import { useExpenseCellEditing } from './useExpenseCellEditing'
+import { StorageService } from '../../services/storageService'
 
 const BulkEditExpensesModal = lazy(() => import('./BulkEditExpensesModal'))
 
@@ -75,6 +77,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([])
+  const [expandedSplitIds, setExpandedSplitIds] = useState<Set<number>>(new Set<number>())
+  const [activeSplitTargetId, setActiveSplitTargetId] = useState<number | null>(null)
+  const [splits, setSplits] = useState<Awaited<ReturnType<typeof StorageService.getExpenseSplits>>>([])
 
   const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
 
@@ -91,6 +96,36 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     }
   }, [mobileEditTrigger, expenses])
 
+  useEffect(() => {
+    const splitIds = new Set(
+      expenses
+        .map((expense) => expense.splitId)
+        .filter((splitId): splitId is number => typeof splitId === 'number'),
+    )
+
+    setExpandedSplitIds((prev) => {
+      const next = new Set<number>(prev)
+      splitIds.forEach((id) => {
+        if (!next.has(id)) next.add(id)
+      })
+      return next
+    })
+
+    if (splitIds.size === 0) {
+      setSplits([])
+      return
+    }
+
+    let isCancelled = false
+    void StorageService.getExpenseSplits().then((allSplits) => {
+      if (isCancelled) return
+      setSplits(allSplits.filter((split) => typeof split.id === 'number' && splitIds.has(split.id)))
+    })
+    return () => {
+      isCancelled = true
+    }
+  }, [expenses])
+
   const resolveName = useCallback(
     (exp: Expense) => {
       const cat = catMap[exp.categoryId as number]
@@ -101,6 +136,16 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   )
 
   const allSelected = expenses.length > 0 && expenses.every((e) => selectedIds.has(e.id as number))
+  const displayRows = useMemo(
+    () =>
+      buildExpenseDisplayRows({
+        expenses,
+        splits,
+        payeeMap,
+        expandedSplitIds,
+      }),
+    [expenses, splits, payeeMap, expandedSplitIds],
+  )
 
   const cancelMobileEdit = useCallback(() => {
     setShowMobileEditModal(false)
@@ -147,9 +192,20 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         if (expense) openExpenseEditor(expense)
         return
       }
+      const includesSplitChild = expenses.some(
+        (expense) => ids.includes(expense.id as number) && typeof expense.splitId === 'number',
+      )
+      if (includesSplitChild) {
+        showToast({
+          message: 'Bulk edit is unavailable when selection includes split allocations.',
+          tone: 'default',
+          durationMs: 5000,
+        })
+        return
+      }
       openBulkEditModal(ids)
     },
-    [expenses, openBulkEditModal, openExpenseEditor],
+    [expenses, openBulkEditModal, openExpenseEditor, showToast],
   )
 
   const handleCopyRequest = useCallback(
@@ -184,15 +240,35 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   }, [deleteTargetIds, onDelete, onBulkDelete])
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent, expense: Expense) => {
+    (e: React.MouseEvent, row: ExpenseDisplayRow) => {
       if (isMobile) return
-      openContextMenu(e, expense.id as number)
+      if (row.rowType === 'splitContainer') {
+        setActiveSplitTargetId(row.splitId)
+        openContextMenu(e, -(row.splitId + 1))
+        return
+      }
+      setActiveSplitTargetId(null)
+      openContextMenu(e, row.expense.id as number)
     },
     [openContextMenu, isMobile],
   )
 
+  const handleUnsplit = useCallback(async (splitId: number) => {
+    await StorageService.unsplitExpenseSplit(splitId)
+    showToast({ message: 'Transaction unsplit', tone: 'success' })
+  }, [showToast])
+
   const contextMenuItems = useMemo(() => {
     if (!menu) return []
+    if (activeSplitTargetId != null) {
+      return [
+        {
+          label: 'Unsplit transaction',
+          onClick: () => void handleUnsplit(activeSplitTargetId),
+          danger: true,
+        },
+      ]
+    }
     const ids =
       selectedIds.size > 1 && selectedIds.has(menu.expenseId)
         ? Array.from(selectedIds)
@@ -222,7 +298,15 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     })
 
     return items
-  }, [menu, selectedIds, handleDeleteRequest, handleEditRequest, handleCopyRequest])
+  }, [
+    menu,
+    activeSplitTargetId,
+    selectedIds,
+    handleDeleteRequest,
+    handleEditRequest,
+    handleCopyRequest,
+    handleUnsplit,
+  ])
 
   const bulkEditExpenses = useMemo(
     () => expenses.filter((expense) => bulkEditTargetIds.includes(expense.id as number)),
@@ -250,6 +334,14 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         activeCategories,
         activePayees,
         payeeMap,
+        onToggleSplitExpanded: (splitId) =>
+          setExpandedSplitIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(splitId)) next.delete(splitId)
+            else next.add(splitId)
+            return next
+          }),
+        isSplitExpanded: (splitId) => expandedSplitIds.has(splitId),
         refreshCategories,
         refreshPayees,
       }),
@@ -265,15 +357,17 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       activeCategories,
       activePayees,
       payeeMap,
+      expandedSplitIds,
       refreshCategories,
       refreshPayees,
     ],
   )
 
   const getRowClassName = useCallback(
-    (exp: Expense) => {
-      const isSelected = selectedIds.has(exp.id as number)
-      return cn(isSelected && 'selected-row', 'row-hover')
+    (row: ExpenseDisplayRow) => {
+      if (row.rowType === 'splitContainer') return 'row-hover'
+      const isSelected = selectedIds.has(row.expense.id as number)
+      return cn(isSelected && 'selected-row', 'row-hover', row.rowType === 'splitChild' && 'opacity-90')
     },
     [selectedIds],
   )
@@ -293,9 +387,20 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       {isMobile ? (
         <ExpenseTableMobile
           expenses={expenses}
+          displayRows={displayRows}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
           onCellEdit={(exp) => editing.startCellEdit(exp, 'description')}
+          onToggleSplitExpanded={(splitId) =>
+            setExpandedSplitIds((prev) => {
+              const next = new Set(prev)
+              if (next.has(splitId)) next.delete(splitId)
+              else next.add(splitId)
+              return next
+            })
+          }
+          isSplitExpanded={(splitId) => expandedSplitIds.has(splitId)}
+          onUnsplitSplit={(splitId) => void handleUnsplit(splitId)}
           formatDate={formatDate}
           formatAmount={formatAmount}
           resolveName={resolveName}
@@ -306,11 +411,11 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         />
       ) : (
         <DataTable
-          data={expenses}
+          data={displayRows}
           columns={columns}
           fixedLayout
           getRowClassName={getRowClassName}
-          getRowId={(exp) => `expense-row-${exp.id}`}
+          getRowId={(row) => row.rowId}
           onRowContextMenu={handleContextMenu}
         />
       )}

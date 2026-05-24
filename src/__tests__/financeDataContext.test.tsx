@@ -66,7 +66,7 @@ describe('FinanceDataProvider', () => {
   })
 
   it('exposes safe defaults while live queries are loading', () => {
-    mockLiveResults(Array(9).fill(undefined))
+    mockLiveResults(Array(10).fill(undefined))
 
     const { result } = renderHook(
       () => ({
@@ -87,6 +87,7 @@ describe('FinanceDataProvider', () => {
     mockLiveResults([
       [{ id: 1, date: '2026-05-01', amount: 10 }],
       [{ id: 1, name: 'Food' }],
+      [{ id: 1, date: '2026-05-01', amount: 10 }],
       [{ id: 1, name: 'Store' }],
       [
         { id: 1, name: 'Rent', amount: 1200 },
@@ -125,6 +126,7 @@ describe('FinanceDataProvider', () => {
 
     expect(result.current.engineData.globalIncome).toBe(5000)
     expect(result.current.engineData.globalSavingsRate).toBe(20)
+    expect(result.current.expenseSplits).toEqual([{ id: 1, date: '2026-05-01', amount: 10 }])
     expect(result.current.activeFixedExpenses).toEqual([{ id: 1, name: 'Rent', amount: 1200 }])
     expect(result.current.activeSchedules).toEqual([
       {
@@ -139,7 +141,7 @@ describe('FinanceDataProvider', () => {
   })
 
   it('writes current income through StorageService actions', async () => {
-    mockLiveResults([[], [], [], [], [], [], [], [], []])
+    mockLiveResults([[], [], [], [], [], [], [], [], [], []])
     vi.mocked(StorageService.setSetting).mockResolvedValue(undefined)
 
     const { result } = renderHook(() => useFinanceActions(), { wrapper })
@@ -165,7 +167,7 @@ describe('FinanceDataProvider', () => {
   })
 
   it('saves historical snapshot configs through StorageService and refreshes live queries', async () => {
-    mockLiveResults([[], [], [], [], [], [], [], [], []])
+    mockLiveResults([[], [], [], [], [], [], [], [], [], []])
     vi.mocked(StorageService.saveHistoricalSnapshotConfigs).mockResolvedValue(undefined)
 
     const { result } = renderHook(() => useFinanceActions(), { wrapper })
@@ -185,7 +187,7 @@ describe('FinanceDataProvider', () => {
     })
 
     expect(StorageService.saveHistoricalSnapshotConfigs).toHaveBeenCalledWith(params)
-    expect(mockUseLiveQuery.mock.calls[9]?.[1]).toEqual([1])
+    expect(mockUseLiveQuery.mock.calls[10]?.[1]).toEqual([1])
     expect(mockSyncLocalChanges).toHaveBeenCalledTimes(1)
   })
 })

@@ -3,11 +3,74 @@ import { normalizeImportedSyncMetadata } from '../../utils/syncMetadata'
 import db from '../db/schema'
 import { filterActiveRows, markDeletedSyncRecord, markPendingActiveRecord } from './common'
 
+export interface SplitChildExpenseInput {
+  expenseId?: number
+  categoryId?: number
+  payeeId?: number
+  description?: string
+  amount: number
+}
+
+export interface SaveExpenseSplitWithChildrenParams {
+  splitId?: number
+  replaceExpenseId?: number
+  split: Omit<ExpenseSplit, 'id'>
+  children: SplitChildExpenseInput[]
+}
+
 function normalizeSplitForImport(split: Omit<ExpenseSplit, 'id'>, now: string): ExpenseSplit {
   return normalizeImportedSyncMetadata(split as unknown as Record<string, unknown>, {
     now,
     forcePending: true,
   }) as unknown as ExpenseSplit
+}
+
+function normalizeExpenseForImport(expense: Omit<Expense, 'id'>, now: string): Expense {
+  return normalizeImportedSyncMetadata(expense as unknown as Record<string, unknown>, {
+    now,
+    forcePending: true,
+  }) as unknown as Expense
+}
+
+async function withResolvedNameSnapshots(
+  expense: Omit<Expense, 'id'>,
+): Promise<Omit<Expense, 'id'>> {
+  let categoryNameSnapshot = expense.categoryNameSnapshot
+  if (typeof expense.categoryId === 'number') {
+    const category = await db.categories.get(expense.categoryId)
+    if (category && category.deletedAt == null) {
+      categoryNameSnapshot = category.name
+    }
+  }
+
+  let payeeNameSnapshot = expense.payeeNameSnapshot
+  if (typeof expense.payeeId === 'number') {
+    const payee = await db.payees.get(expense.payeeId)
+    if (payee && payee.deletedAt == null) {
+      payeeNameSnapshot = payee.name
+    }
+  }
+
+  return {
+    ...expense,
+    categoryNameSnapshot,
+    payeeNameSnapshot,
+  }
+}
+
+async function buildSplitChildPayload(
+  splitId: number,
+  split: Omit<ExpenseSplit, 'id'>,
+  child: SplitChildExpenseInput,
+): Promise<Omit<Expense, 'id'>> {
+  return withResolvedNameSnapshots({
+    date: split.date,
+    splitId,
+    categoryId: child.categoryId,
+    payeeId: child.payeeId,
+    description: child.description,
+    amount: child.amount,
+  })
 }
 
 export async function getAllExpenseSplits(): Promise<ExpenseSplit[]> {
@@ -92,6 +155,110 @@ export async function updateExpenseSplit(id: number, changes: Partial<ExpenseSpl
       })
     }
   })
+}
+
+export async function saveExpenseSplitWithChildren(
+  params: SaveExpenseSplitWithChildrenParams,
+): Promise<number> {
+  const { children, replaceExpenseId, split, splitId } = params
+  const now = new Date().toISOString()
+
+  return db.transaction(
+    'rw',
+    db.expenseSplits,
+    db.expenses,
+    db.categories,
+    db.payees,
+    async () => {
+    let resolvedSplitId = splitId
+    if (typeof resolvedSplitId === 'number') {
+      const existingSplit = await db.expenseSplits.get(resolvedSplitId)
+      if (!existingSplit) {
+        throw new Error(`Split container ${resolvedSplitId} was not found.`)
+      }
+      await updateExpenseSplit(resolvedSplitId, split)
+    } else {
+      resolvedSplitId = await db.expenseSplits.add(normalizeSplitForImport(split, now))
+    }
+
+    if (typeof resolvedSplitId !== 'number') {
+      throw new Error('Split save did not produce a valid split id.')
+    }
+
+    if (typeof splitId === 'number') {
+      const existingChildren = await db.expenses.where('splitId').equals(resolvedSplitId).toArray()
+      const retainedExpenseIds = new Set(
+        children
+          .filter((child): child is SplitChildExpenseInput & { expenseId: number } => typeof child.expenseId === 'number')
+          .map((child) => child.expenseId),
+      )
+
+      for (const existingChild of existingChildren) {
+        if (
+          existingChild.deletedAt == null &&
+          typeof existingChild.id === 'number' &&
+          !retainedExpenseIds.has(existingChild.id)
+        ) {
+          await db.expenses.put({
+            ...existingChild,
+            ...markDeletedSyncRecord(existingChild, now),
+            id: existingChild.id,
+          })
+        }
+      }
+    }
+
+    let didReplaceExistingExpense = false
+    for (const child of children) {
+      const childPayload = await buildSplitChildPayload(resolvedSplitId, split, child)
+
+      if (typeof child.expenseId === 'number') {
+        const existingChild = await db.expenses.get(child.expenseId)
+        if (!existingChild) {
+          throw new Error(`Split child expense ${child.expenseId} was not found.`)
+        }
+
+        await db.expenses.put({
+          ...markPendingActiveRecord(
+            {
+              ...existingChild,
+              ...childPayload,
+              deletedAt: null,
+            },
+            now,
+          ),
+          id: child.expenseId,
+        })
+        continue
+      }
+
+      if (!didReplaceExistingExpense && typeof replaceExpenseId === 'number') {
+        const existingExpense = await db.expenses.get(replaceExpenseId)
+        if (!existingExpense) {
+          throw new Error(`Expense ${replaceExpenseId} was not found for split conversion.`)
+        }
+
+        await db.expenses.put({
+          ...markPendingActiveRecord(
+            {
+              ...existingExpense,
+              ...childPayload,
+              deletedAt: null,
+            },
+            now,
+          ),
+          id: replaceExpenseId,
+        })
+        didReplaceExistingExpense = true
+        continue
+      }
+
+      await db.expenses.add(normalizeExpenseForImport(childPayload, now))
+    }
+
+    return resolvedSplitId
+    },
+  )
 }
 
 export async function getSplitChildExpenses(splitId: number): Promise<Expense[]> {

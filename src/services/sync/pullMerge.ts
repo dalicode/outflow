@@ -259,19 +259,13 @@ async function reconcileSplitChildFields(splits: ExpenseSplit[]): Promise<void> 
         expense.deletedAt == null && typeof expense.id === 'number',
     )
     for (const child of children) {
-      const nextPayeeNameSnapshot = split.payeeNameSnapshot ?? null
-      const needsUpdate =
-        child.date !== split.date ||
-        child.payeeId !== split.payeeId ||
-        (child.payeeNameSnapshot ?? null) !== nextPayeeNameSnapshot
+      const needsUpdate = child.date !== split.date
       if (!needsUpdate) continue
 
       const pendingChild = markRecordPending(
         {
           ...child,
           date: split.date,
-          payeeId: split.payeeId,
-          payeeNameSnapshot: nextPayeeNameSnapshot,
         },
         now,
       )

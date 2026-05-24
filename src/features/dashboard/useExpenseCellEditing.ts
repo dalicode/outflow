@@ -43,6 +43,7 @@ export interface CellEditingAPI {
   setPendingName: (expenseId: number, field: EditableField, name: string) => void
   getPendingName: (expenseId: number, field: EditableField) => string | null
   shouldAutoOpenEditor: (expenseId: number, field: EditableField) => boolean
+  isFieldEditable: (expense: Expense, field: EditableField) => boolean
 }
 
 interface UseExpenseCellEditingParams {
@@ -81,6 +82,16 @@ export function useExpenseCellEditing({
     [],
   )
 
+  const isFieldEditable = useCallback((expense: Expense, field: EditableField): boolean => {
+    if (field === 'date' && typeof expense.splitId === 'number') {
+      return false
+    }
+    if (field === 'amount' && typeof expense.splitId === 'number') {
+      return false
+    }
+    return true
+  }, [])
+
   const setPendingName = useCallback(
     (expenseId: number, field: EditableField, name: string) => {
       setPendingNames((prev) => ({
@@ -100,6 +111,14 @@ export function useExpenseCellEditing({
 
   const startCellEdit = useCallback(
     (expense: Expense, field: EditableField) => {
+      if (field === 'amount' && typeof expense.splitId === 'number') {
+        setMobileEditExpense(expense)
+        setShowMobileEditModal(true)
+        return
+      }
+      if (!isFieldEditable(expense, field)) {
+        return
+      }
       if (isMobile && selectedIds.size > 0) {
         onToggleSelect(expense.id as number)
         return
@@ -119,7 +138,14 @@ export function useExpenseCellEditing({
       setValidationError(null)
       setPendingNames({})
     },
-    [isMobile, selectedIds, onToggleSelect, setMobileEditExpense, setShowMobileEditModal],
+    [
+      isFieldEditable,
+      isMobile,
+      selectedIds,
+      onToggleSelect,
+      setMobileEditExpense,
+      setShowMobileEditModal,
+    ],
   )
 
   const cancelCurrentCellEdit = useCallback(() => {
@@ -133,6 +159,9 @@ export function useExpenseCellEditing({
 
   const switchCellEdit = useCallback(
     (nextExpense: Expense, nextField: EditableField) => {
+      if (!isFieldEditable(nextExpense, nextField)) {
+        return
+      }
       const nextCell: EditingCell = {
         expenseId: nextExpense.id as number,
         field: nextField,
@@ -178,7 +207,7 @@ export function useExpenseCellEditing({
         pendingSwitchRef.current = null
       }, 150)
     },
-    [startCellEdit],
+    [isFieldEditable, startCellEdit],
   )
 
   const isCellEditing = useCallback(
@@ -293,5 +322,6 @@ export function useExpenseCellEditing({
     setPendingName,
     getPendingName,
     shouldAutoOpenEditor,
+    isFieldEditable,
   }
 }

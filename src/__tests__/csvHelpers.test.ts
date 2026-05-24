@@ -84,4 +84,24 @@ describe('parseCSV', () => {
     expect(rows[0].month).toBe('5')
     expect(rows[0].year).toBe('2026')
   })
+
+  it('exports split child allocations as regular flat rows', () => {
+    const splitChild: Expense = {
+      date: '2026-05-12',
+      amount: 8.25,
+      splitId: 42,
+      categoryId: 3,
+      payeeId: 7,
+      description: 'Split child allocation',
+    }
+
+    const row = expenseToRow(
+      splitChild,
+      { 3: 'Transport' },
+      { 7: 'Metro' },
+      (iso) => iso,
+    )
+
+    expect(row).toEqual(['2026-05-12', 'Transport', 'Metro', 'Split child allocation', 8.25, 5, '2026'])
+  })
 })

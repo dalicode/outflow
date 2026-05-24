@@ -12,7 +12,6 @@
  */
 
 import type {
-  Expense,
   FinanceEngineData,
   FixedExpense,
   FixedExpenseSnapshot,
@@ -21,6 +20,7 @@ import type {
   VariableGridResult,
   YearSummary,
 } from '../types'
+import { getExpenseAllocations } from './expenseAllocations'
 
 interface MonthlySummaryOptions {
   currentYear?: number
@@ -223,12 +223,12 @@ function getFixedExpensesForMonth(
 /**
  * Get variable expenses for a specific month.
  */
-const getVariableExpensesForMonth = (year: number, month: number, expenses: Expense[]) => {
+const getVariableExpensesForMonth = (year: number, month: number, data: FinanceEngineData) => {
   const monthStr = String(month + 1).padStart(2, '0')
   const prefix = `${year}-${monthStr}`
-  return (expenses || [])
-    .filter((e) => e.date?.startsWith(prefix))
-    .reduce((sum, e) => sum + (e.amount || 0), 0)
+  return getExpenseAllocations(data.expenses)
+    .filter((allocation) => allocation.date?.startsWith(prefix))
+    .reduce((sum, allocation) => sum + (allocation.amount || 0), 0)
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ export function getMonthlyFinancialSummary(
   data: FinanceEngineData,
   opts: MonthlySummaryOptions = {},
 ): MonthlySummary {
-  const { expenses, snapshots, fixedExpenses, globalIncome, globalSavingsRate, schedules } = data
+  const { snapshots, fixedExpenses, globalIncome, globalSavingsRate, schedules } = data
 
   const now = {
     currentYear: opts.currentYear ?? new Date().getFullYear(),
@@ -284,7 +284,7 @@ export function getMonthlyFinancialSummary(
   )
   const fixedExpensesTotal = fixedResult.total
 
-  const variableExpenses = getVariableExpensesForMonth(year, month, expenses)
+  const variableExpenses = getVariableExpensesForMonth(year, month, data)
 
   const autoSavings = Math.max(0, income * (savingsRate / 100))
   const remaining = income - fixedExpensesTotal - autoSavings - variableExpenses
@@ -426,19 +426,21 @@ export function getYearFinancialSummary(
  */
 export function getYearVariableGrid(
   year: number,
-  expenses: Expense[],
+  expenses: FinanceEngineData['expenses'],
   categories: { id?: number; name: string; isArchived?: boolean }[],
 ): VariableGridResult {
   const activeCategories = (categories || []).filter((c) => !c.isArchived)
 
-  const yearExpenses = (expenses || []).filter((e) => e.date?.startsWith(`${year}-`))
+  const yearAllocations = getExpenseAllocations(expenses).filter((allocation) =>
+    allocation.date?.startsWith(`${year}-`),
+  )
 
   const grid: Record<string, number[]> = {}
-  yearExpenses.forEach((e) => {
-    const key = e.categoryId != null ? String(e.categoryId) : 'Uncategorized'
-    const m = parseInt(e.date.slice(5, 7), 10) - 1
+  yearAllocations.forEach((allocation) => {
+    const key = allocation.categoryId != null ? String(allocation.categoryId) : 'Uncategorized'
+    const m = parseInt(allocation.date.slice(5, 7), 10) - 1
     if (!grid[key]) grid[key] = Array(12).fill(0)
-    grid[key][m] += e.amount || 0
+    grid[key][m] += allocation.amount || 0
   })
 
   const result: Array<{ key: string; name: string }> = []

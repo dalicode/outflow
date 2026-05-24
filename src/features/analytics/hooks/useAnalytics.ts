@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useFinanceData } from '../../../context/financeDataContext'
 import type { AnalyticsData, Category, Expense, Payee } from '../../../types'
+import { getExpenseAllocations } from '../../../utils/expenseAllocations'
 import { getYearFinancialSummary, getYearVariableGrid } from '../../../utils/financeEngine'
 
 export interface AnalyticsSessionState {
@@ -84,14 +85,17 @@ function buildAnalyticsDataForYear(
 
   const payeeById = new Map(db.payees.map((p) => [p.id, p.name]))
   const monthlyAmountsByPayee = new Map<string, number[]>()
-  const yearExpenses = expenses.filter((e) => e.date?.startsWith(`${year}-`))
-  for (const exp of yearExpenses) {
-    const monthIdx = parseInt(exp.date.slice(5, 7), 10) - 1
+  const yearAllocations = getExpenseAllocations(expenses).filter((allocation) =>
+    allocation.date?.startsWith(`${year}-`),
+  )
+  for (const allocation of yearAllocations) {
+    const monthIdx = parseInt(allocation.date.slice(5, 7), 10) - 1
     if (monthIdx < 0 || monthIdx > 11) continue
-    const name = exp.payeeId != null ? (payeeById.get(exp.payeeId) ?? 'Unknown') : 'No Payee'
+    const name =
+      allocation.payeeId != null ? (payeeById.get(allocation.payeeId) ?? 'Unknown') : 'No Payee'
     if (!monthlyAmountsByPayee.has(name)) monthlyAmountsByPayee.set(name, Array(12).fill(0))
     const amounts = monthlyAmountsByPayee.get(name)
-    if (amounts) amounts[monthIdx] += exp.amount
+    if (amounts) amounts[monthIdx] += allocation.amount
   }
   const payeeRows = Array.from(monthlyAmountsByPayee.entries())
     .map(([name, amounts]) => ({
@@ -104,7 +108,7 @@ function buildAnalyticsDataForYear(
 
   const monthlyHasData = Array.from({ length: 12 }, (_, m) => {
     const monthStr = String(m + 1).padStart(2, '0')
-    return expenses.some((e) => e.date?.startsWith(`${year}-${monthStr}`))
+    return yearAllocations.some((allocation) => allocation.date?.startsWith(`${year}-${monthStr}`))
   })
 
   const isCurrentYear = year === now.getFullYear()

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import ExpenseTableMobile from '../features/dashboard/ExpenseTableMobile'
+import type { ExpenseDisplayRow } from '../features/dashboard/splitDisplayRows'
 import type { Expense } from '../types'
 
 const expenses: Expense[] = [
@@ -114,5 +115,52 @@ describe('ExpenseTableMobile', () => {
     fireEvent.touchStart(row, { touches: [{ clientX: 10, clientY: 10 }] })
     vi.advanceTimersByTime(550)
     expect(onToggleSelect).toHaveBeenCalledWith(1)
+  })
+
+  it('renders split container rows with expand/collapse and unsplit action', () => {
+    const onToggleSplitExpanded = vi.fn()
+    const onUnsplitSplit = vi.fn()
+    const displayRows: ExpenseDisplayRow[] = [
+      {
+        rowType: 'splitContainer',
+        rowId: 'split-container-90',
+        splitId: 90,
+        split: { id: 90, date: '2026-05-13', amount: 50 },
+        childExpenses: [expenses[0], expenses[1]],
+        payeeDisplay: 'Cafe (+1 more)',
+        descriptionDisplay: 'Trip food',
+        amountDisplay: 50,
+      },
+      {
+        rowType: 'splitChild',
+        rowId: 'split-child-1',
+        splitId: 90,
+        expense: expenses[0],
+      },
+    ]
+
+    render(
+      <ExpenseTableMobile
+        expenses={expenses}
+        displayRows={displayRows}
+        onToggleSplitExpanded={onToggleSplitExpanded}
+        isSplitExpanded={() => true}
+        onUnsplitSplit={onUnsplitSplit}
+        formatDate={(iso) => iso}
+        formatAmount={(value) => `$${value.toFixed(2)}`}
+        resolveName={() => 'Food'}
+        resolvePayeeName={() => 'Cafe'}
+      />,
+    )
+
+    expect(screen.getByText('Split')).toBeInTheDocument()
+    expect(screen.getByText('Cafe (+1 more)')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /split actions/i }))
+    fireEvent.click(screen.getByRole('button', { name: /unsplit transaction/i }))
+    expect(onUnsplitSplit).toHaveBeenCalledWith(90)
+
+    fireEvent.click(screen.getByRole('button', { expanded: true }))
+    expect(onToggleSplitExpanded).toHaveBeenCalledWith(90)
   })
 })

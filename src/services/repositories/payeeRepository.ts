@@ -1,4 +1,4 @@
-import type { Expense, Payee, PayeeMergeHistory } from '../../types'
+import type { Expense, ExpenseSplit, Payee, PayeeMergeHistory } from '../../types'
 import { normalizeNameForSync } from '../../utils/syncMetadata'
 import db from '../db/schema'
 import { buildCreatedSyncRecord, filterActiveRows, markPendingActiveRecord } from './common'
@@ -207,6 +207,22 @@ export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): 
     await db.expenses.bulkPut(updates as Expense[])
   }
 
+  const affectedSplits = filterActiveRows(
+    await db.expenseSplits.where('payeeId').equals(sourcePayeeId).toArray(),
+  )
+  if (affectedSplits.length > 0) {
+    const splitUpdates = affectedSplits
+      .filter((split) => split.id != null)
+      .map((split) => ({
+        ...split,
+        ...markPendingActiveRecord(split, now),
+        id: split.id as number,
+        payeeId: targetPayeeId,
+        payeeNameSnapshot: targetPayee?.name ?? split.payeeNameSnapshot ?? null,
+      }))
+    await db.expenseSplits.bulkPut(splitUpdates)
+  }
+
   const mergeId = await db.payeeMergeHistory.add(
     buildCreatedSyncRecord(
       {
@@ -215,6 +231,9 @@ export async function mergePayee(sourcePayeeId: number, targetPayeeId: number): 
         affectedExpenseIds: affected
           .map((expense) => expense.id)
           .filter((expenseId): expenseId is number => typeof expenseId === 'number'),
+        affectedSplitIds: affectedSplits
+          .map((split) => split.id)
+          .filter((splitId): splitId is number => typeof splitId === 'number'),
         revertedAt: null,
       },
       now,
@@ -256,6 +275,30 @@ export async function revertPayeeMerge(mergeId: number): Promise<void> {
       }))
     if (reverted.length > 0) {
       await db.expenses.bulkPut(reverted)
+    }
+  }
+
+  const affectedSplitIds = mergeRow.affectedSplitIds ?? []
+  if (affectedSplitIds.length > 0) {
+    const targetPayee = await db.payees.get(mergeRow.targetPayeeId)
+    const affected = await db.expenseSplits.bulkGet(affectedSplitIds)
+    const existingSplits = affected.filter((split): split is ExpenseSplit => Boolean(split))
+    const reverted = filterActiveRows(existingSplits).filter(
+      (split) =>
+        split.id != null &&
+        (split.payeeId === mergeRow.targetPayeeId ||
+          split.payeeNameSnapshot === targetPayee?.name ||
+          split.payeeNameSnapshot == null),
+    )
+    const splitRows = reverted.map((split) => ({
+      ...split,
+      ...markPendingActiveRecord(split, now),
+      id: split.id as number,
+      payeeId: mergeRow.sourcePayeeId,
+      payeeNameSnapshot: sourcePayee?.name ?? split.payeeNameSnapshot ?? null,
+    }))
+    if (splitRows.length > 0) {
+      await db.expenseSplits.bulkPut(splitRows)
     }
   }
 

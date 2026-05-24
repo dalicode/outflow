@@ -6,6 +6,7 @@ import type { SaveHistoricalSnapshotConfigsParams } from '../services/repositori
 import type {
   Category,
   Expense,
+  ExpenseSplit,
   FinanceEngineData,
   FixedExpense,
   FixedExpenseSnapshot,
@@ -17,6 +18,7 @@ import type {
 
 interface FinanceDataValue {
   expenses: Expense[]
+  expenseSplits: ExpenseSplit[]
   categories: Category[]
   payees: Payee[]
   fixedExpenses: FixedExpense[]
@@ -64,6 +66,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
   const expenses = useLiveQuery(() => StorageService.getExpenses(), [refreshNonce])
   const categories = useLiveQuery(() => StorageService.getCategories(), [refreshNonce])
+  const expenseSplits = useLiveQuery(() => StorageService.getExpenseSplits(), [refreshNonce])
   const payees = useLiveQuery(() => StorageService.getPayees(), [refreshNonce])
   const fixedExpenses = useLiveQuery(() => StorageService.getFixedExpenses(), [refreshNonce])
   const fixedExpenseSnapshots = useLiveQuery(
@@ -87,6 +90,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
   const dataValue = useMemo<FinanceDataValue>(() => {
     const loadedExpenses = expenses ?? []
+    const loadedExpenseSplits = expenseSplits ?? []
     const loadedCategories = categories ?? []
     const loadedPayees = payees ?? []
     const loadedFixedExpenses = fixedExpenses ?? []
@@ -101,6 +105,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
     return {
       expenses: loadedExpenses,
+      expenseSplits: loadedExpenseSplits,
       categories: loadedCategories,
       payees: loadedPayees,
       fixedExpenses: loadedFixedExpenses,
@@ -115,6 +120,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       incomeFrequency: String(settings.incomeFrequency ?? 'monthly'),
       engineData: {
         expenses: loadedExpenses,
+        expenseSplits: loadedExpenseSplits,
         snapshots: loadedFixedExpenseSnapshots,
         fixedExpenses: loadedFixedExpenses,
         globalIncome: monthlyIncome,
@@ -126,6 +132,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     }
   }, [
     expenses,
+    expenseSplits,
     categories,
     payees,
     fixedExpenses,
@@ -313,6 +320,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     () => ({
       isLoading:
         expenses === undefined ||
+        expenseSplits === undefined ||
         categories === undefined ||
         payees === undefined ||
         fixedExpenses === undefined ||
@@ -325,6 +333,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     }),
     [
       expenses,
+      expenseSplits,
       categories,
       payees,
       fixedExpenses,

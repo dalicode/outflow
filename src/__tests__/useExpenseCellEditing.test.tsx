@@ -87,4 +87,66 @@ describe('useExpenseCellEditing', () => {
 
     expect(result.current.editingCell).toBeNull()
   })
+
+  it('blocks date editing for split child expenses', () => {
+    const splitChild: Expense = {
+      id: 4,
+      splitId: 12,
+      date: '2024-06-04',
+      amount: 12,
+      description: 'Split child',
+    }
+
+    const { result } = renderHook(() =>
+      useExpenseCellEditing({
+        expenses: [...expenses, splitChild],
+        onUpdate: vi.fn(),
+        isMobile: false,
+        selectedIds: new Set<number>(),
+        onToggleSelect: vi.fn(),
+        setMobileEditExpense: vi.fn(),
+        setShowMobileEditModal: vi.fn(),
+      }),
+    )
+
+    act(() => {
+      result.current.startCellEdit(splitChild, 'date')
+    })
+
+    expect(result.current.editingCell).toBeNull()
+    expect(result.current.isFieldEditable(splitChild, 'date')).toBe(false)
+  })
+
+  it('routes split child amount editing through the modal editor', () => {
+    const splitChild: Expense = {
+      id: 4,
+      splitId: 12,
+      date: '2024-06-04',
+      amount: 12,
+      description: 'Split child',
+    }
+    const setMobileEditExpense = vi.fn()
+    const setShowMobileEditModal = vi.fn()
+
+    const { result } = renderHook(() =>
+      useExpenseCellEditing({
+        expenses: [...expenses, splitChild],
+        onUpdate: vi.fn(),
+        isMobile: false,
+        selectedIds: new Set<number>(),
+        onToggleSelect: vi.fn(),
+        setMobileEditExpense,
+        setShowMobileEditModal,
+      }),
+    )
+
+    act(() => {
+      result.current.startCellEdit(splitChild, 'amount')
+    })
+
+    expect(result.current.editingCell).toBeNull()
+    expect(result.current.isFieldEditable(splitChild, 'amount')).toBe(false)
+    expect(setMobileEditExpense).toHaveBeenCalledWith(splitChild)
+    expect(setShowMobileEditModal).toHaveBeenCalledWith(true)
+  })
 })

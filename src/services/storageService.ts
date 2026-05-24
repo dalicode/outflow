@@ -31,6 +31,7 @@ export const StorageService = {
   getAllExpenseSplits: expenseSplitRepo.getAllExpenseSplits,
   addExpenseSplit: expenseSplitRepo.addExpenseSplit,
   updateExpenseSplit: expenseSplitRepo.updateExpenseSplit,
+  saveExpenseSplitWithChildren: expenseSplitRepo.saveExpenseSplitWithChildren,
   getSplitChildExpenses: expenseSplitRepo.getSplitChildExpenses,
   getAllSplitChildExpenses: expenseSplitRepo.getAllSplitChildExpenses,
   removeExpenseSplit: expenseSplitRepo.removeExpenseSplit,

@@ -6,6 +6,7 @@ import type { Category, Expense, Payee } from '../../types'
 import { cn } from '../../utils/cn'
 import InlineEditCell from './InlineEditCell'
 import InlineMoneyEditCell from './InlineMoneyEditCell'
+import type { ExpenseDisplayRow } from './splitDisplayRows'
 import type { CellEditingAPI } from './useExpenseCellEditing'
 
 interface GetExpenseColumnsParams {
@@ -20,6 +21,8 @@ interface GetExpenseColumnsParams {
   activeCategories: Category[]
   activePayees: Payee[]
   payeeMap: Record<number, Payee>
+  onToggleSplitExpanded: (splitId: number) => void
+  isSplitExpanded: (splitId: number) => boolean
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
 }
@@ -55,9 +58,11 @@ export function getExpenseColumns({
   activeCategories,
   activePayees,
   payeeMap,
+  onToggleSplitExpanded,
+  isSplitExpanded,
   refreshCategories,
   refreshPayees,
-}: GetExpenseColumnsParams): ColumnDef<Expense>[] {
+}: GetExpenseColumnsParams): ColumnDef<ExpenseDisplayRow>[] {
   return [
     {
       id: 'select',
@@ -95,7 +100,11 @@ export function getExpenseColumns({
         </div>
       ),
       cell: ({ row }) => {
-        const exp = row.original
+        const rowData = row.original
+        if (rowData.rowType === 'splitContainer') {
+          return null
+        }
+        const exp = rowData.expense
         const isSelected = selectedIds.has(exp.id as number)
         return (
           <label className={cn('expense-checkbox-wrapper cursor-pointer', isSelected && 'checked')}>
@@ -142,7 +151,19 @@ export function getExpenseColumns({
       id: 'date',
       header: 'Date',
       cell: ({ row }) => {
-        const exp = row.original
+        const rowData = row.original
+        if (rowData.rowType === 'splitChild') {
+          return null
+        }
+        if (rowData.rowType === 'splitContainer') {
+          const dateValue = rowData.split?.date ?? rowData.childExpenses[0]?.date
+          return dateValue ? (
+            <span>{formatDate(dateValue)}</span>
+          ) : (
+            <span className="text-theme-muted">—</span>
+          )
+        }
+        const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'date')) {
           return (
             <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
@@ -175,8 +196,11 @@ export function getExpenseColumns({
       meta: {
         className: 'text-left',
         cellClassName: 'text-theme-text whitespace-nowrap overflow-hidden',
-        getCellClassName: (exp: Expense) =>
-          editing.isCellEditing(exp.id as number, 'date') ? 'cell-editing' : '',
+        getCellClassName: (rowData: ExpenseDisplayRow) =>
+          rowData.rowType === 'expense' &&
+          editing.isCellEditing(rowData.expense.id as number, 'date')
+            ? 'cell-editing'
+            : '',
         width: '6rem',
       },
     },
@@ -184,7 +208,15 @@ export function getExpenseColumns({
       id: 'payee',
       header: 'Payee',
       cell: ({ row }) => {
-        const exp = row.original
+        const rowData = row.original
+        if (rowData.rowType === 'splitContainer') {
+          return (
+            <span className="block w-full truncate font-medium text-theme-text">
+              {rowData.payeeDisplay}
+            </span>
+          )
+        }
+        const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'payeeId')) {
           return (
             <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
@@ -257,8 +289,11 @@ export function getExpenseColumns({
       meta: {
         className: 'text-left hidden sm:table-cell',
         cellClassName: 'whitespace-nowrap overflow-hidden max-w-[12rem]',
-        getCellClassName: (exp: Expense) =>
-          editing.isCellEditing(exp.id as number, 'payeeId') ? 'cell-editing' : '',
+        getCellClassName: (rowData: ExpenseDisplayRow) =>
+          rowData.rowType !== 'splitContainer' &&
+          editing.isCellEditing(rowData.expense.id as number, 'payeeId')
+            ? 'cell-editing'
+            : '',
         width: '18%',
       },
     },
@@ -266,7 +301,22 @@ export function getExpenseColumns({
       id: 'category',
       header: 'Category',
       cell: ({ row }) => {
-        const exp = row.original
+        const rowData = row.original
+        if (rowData.rowType === 'splitContainer') {
+          const expanded = isSplitExpanded(rowData.splitId)
+          return (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 text-theme-text font-medium"
+              onClick={() => onToggleSplitExpanded(rowData.splitId)}
+              aria-expanded={expanded}
+            >
+              <span className="text-theme-muted">{expanded ? '▾' : '▸'}</span>
+              <span>Split</span>
+            </button>
+          )
+        }
+        const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'categoryId')) {
           return (
             <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
@@ -318,6 +368,7 @@ export function getExpenseColumns({
             {...editableCellActivate(editing, exp, 'categoryId')}
             className={cn(
               'cursor-pointer',
+              rowData.rowType === 'splitChild' && 'pl-5',
               catMap[exp.categoryId as number]?.isArchived
                 ? 'text-theme-muted italic'
                 : 'text-theme-text font-medium',
@@ -334,8 +385,11 @@ export function getExpenseColumns({
       meta: {
         className: 'text-left',
         cellClassName: 'whitespace-nowrap overflow-hidden',
-        getCellClassName: (exp: Expense) =>
-          editing.isCellEditing(exp.id as number, 'categoryId') ? 'cell-editing' : '',
+        getCellClassName: (rowData: ExpenseDisplayRow) =>
+          rowData.rowType !== 'splitContainer' &&
+          editing.isCellEditing(rowData.expense.id as number, 'categoryId')
+            ? 'cell-editing'
+            : '',
         width: '18%',
       },
     },
@@ -343,7 +397,18 @@ export function getExpenseColumns({
       id: 'description',
       header: 'Description',
       cell: ({ row }) => {
-        const exp = row.original
+        const rowData = row.original
+        if (rowData.rowType === 'splitContainer') {
+          return (
+            <span
+              className="block w-full truncate text-theme-text"
+              title={rowData.descriptionDisplay}
+            >
+              {rowData.descriptionDisplay}
+            </span>
+          )
+        }
+        const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'description')) {
           return (
             <InlineEditCell
@@ -371,8 +436,11 @@ export function getExpenseColumns({
       meta: {
         className: 'text-left',
         cellClassName: 'text-theme-text overflow-hidden max-w-[14rem]',
-        getCellClassName: (exp: Expense) =>
-          editing.isCellEditing(exp.id as number, 'description') ? 'cell-editing' : '',
+        getCellClassName: (rowData: ExpenseDisplayRow) =>
+          rowData.rowType !== 'splitContainer' &&
+          editing.isCellEditing(rowData.expense.id as number, 'description')
+            ? 'cell-editing'
+            : '',
         width: '28%',
       },
     },
@@ -380,7 +448,29 @@ export function getExpenseColumns({
       id: 'amount',
       header: 'Amount',
       cell: ({ row }) => {
-        const exp = row.original
+        const rowData = row.original
+        if (rowData.rowType === 'splitContainer') {
+          return <span className="text-theme-text">{formatAmount(rowData.amountDisplay ?? 0)}</span>
+        }
+        const exp = rowData.expense
+        if (rowData.rowType === 'splitChild') {
+          return (
+            <span
+              data-editable-cell
+              data-expense-id={exp.id}
+              data-field="amount"
+              onPointerDown={(e) => {
+                if (e.button !== 0) return
+                e.preventDefault()
+                e.stopPropagation()
+                editing.startCellEdit(exp, 'amount')
+              }}
+              className="cursor-pointer text-theme-text"
+            >
+              {formatAmount(exp.amount ?? 0)}
+            </span>
+          )
+        }
         if (editing.isCellEditing(exp.id as number, 'amount')) {
           return (
             <InlineMoneyEditCell
@@ -409,8 +499,11 @@ export function getExpenseColumns({
       meta: {
         className: 'text-right tabular-nums',
         cellClassName: 'text-right tabular-nums font-semibold whitespace-nowrap',
-        getCellClassName: (exp: Expense) =>
-          editing.isCellEditing(exp.id as number, 'amount') ? 'cell-editing' : '',
+        getCellClassName: (rowData: ExpenseDisplayRow) =>
+          rowData.rowType !== 'splitContainer' &&
+          editing.isCellEditing(rowData.expense.id as number, 'amount')
+            ? 'cell-editing'
+            : '',
         width: '7rem',
       },
     },

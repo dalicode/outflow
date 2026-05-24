@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useFinanceActions, useFinanceData } from '../../../context/financeDataContext'
 import type { FixedExpense, MonthlySummary } from '../../../types'
+import { getExpenseAllocations } from '../../../utils/expenseAllocations'
 import { getMonthEngineData } from '../../../utils/financeDataHelpers'
 import { getMonthlyFinancialSummary } from '../../../utils/financeEngine'
 
@@ -51,14 +52,16 @@ export function useSummary(): UseSummaryState {
   const variableBreakdown = useMemo<VariableBreakdownItem[]>(() => {
     const monthStr = String(currentMonth + 1).padStart(2, '0')
     const prefix = `${currentYear}-${monthStr}`
-    const monthExpenses = expenses.filter((e) => e.date?.startsWith(prefix))
+    const monthAllocations = getExpenseAllocations(expenses).filter((allocation) =>
+      allocation.date?.startsWith(prefix),
+    )
 
     const byCategory: Record<string, number> = {}
-    monthExpenses.forEach((e) => {
-      const categoryId = e.categoryId != null ? Number(e.categoryId) : null
+    monthAllocations.forEach((allocation) => {
+      const categoryId = allocation.categoryId != null ? Number(allocation.categoryId) : null
       const cat = categoryId != null ? categories.find((c) => c.id === categoryId) : undefined
       const key = cat?.name ?? 'Uncategorized'
-      byCategory[key] = (byCategory[key] || 0) + (e.amount || 0)
+      byCategory[key] = (byCategory[key] || 0) + (allocation.amount || 0)
     })
 
     const total = Object.values(byCategory).reduce((s, v) => s + v, 0)
