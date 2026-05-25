@@ -54,6 +54,7 @@ describe('FilterModal', () => {
           filterDateTo: '',
           selectedCategories: new Set(),
           selectedPayees: new Set(),
+          selectedTags: new Set(),
           filterDescription: '',
           filterAmount: '',
         }}
@@ -64,6 +65,10 @@ describe('FilterModal', () => {
         payees={[
           { id: 1, name: 'Cafe', isArchived: false },
           { id: 2, name: 'Market', isArchived: false },
+        ]}
+        tags={[
+          { id: 1, name: 'Work', isArchived: false },
+          { id: 2, name: 'Urgent', isArchived: false },
         ]}
       />,
     )

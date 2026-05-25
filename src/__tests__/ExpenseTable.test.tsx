@@ -89,7 +89,9 @@ describe('ExpenseTable', () => {
     const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-10', amount: 20 }]
     storageMocks.getExpenseSplits.mockResolvedValue(splits)
     storageMocks.getAllExpenseSplits.mockResolvedValue(splits)
-    storageMocks.getAllSplitChildExpenses.mockResolvedValue(expenses.filter((expense) => expense.splitId === 10))
+    storageMocks.getAllSplitChildExpenses.mockResolvedValue(
+      expenses.filter((expense) => expense.splitId === 10),
+    )
     storageMocks.unsplitExpenseSplit.mockResolvedValue()
     const refreshExpenses = vi.fn<() => Promise<void>>().mockResolvedValue()
     const triggerSync = vi.fn()
@@ -128,6 +130,38 @@ describe('ExpenseTable', () => {
     await waitFor(() => expect(storageMocks.unsplitExpenseSplit).toHaveBeenCalledWith(10))
     expect(refreshExpenses).toHaveBeenCalled()
     expect(triggerSync).toHaveBeenCalled()
+  })
+
+  it('shows tags under the description in mobile rows', async () => {
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, payeeId: 1, description: 'Lunch' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+        expenseTagsMap={{
+          1: [
+            { id: 101, name: 'Travel', isArchived: false },
+            { id: 102, name: 'Work', isArchived: false },
+          ],
+        }}
+      />,
+    )
+
+    const mobileRow = await screen.findByTestId('expense-row-mobile-1')
+    expect(within(mobileRow).getByText('Cafe')).toBeInTheDocument()
+    expect(within(mobileRow).getByText('Food · Lunch')).toBeInTheDocument()
+    expect(within(mobileRow).getByText('Travel')).toBeInTheDocument()
+    expect(within(mobileRow).getByText('Work')).toBeInTheDocument()
   })
 
   it('blocks bulk edit when multi-select includes split allocations', async () => {

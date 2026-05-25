@@ -16,6 +16,7 @@ vi.mock('../context/settingsContext', () => ({
 vi.mock('../hooks/useLocalData', () => ({
   useExpenses: () => ({ expenses: [] }),
   usePayees: () => ({ payees: mockPayees, refresh: vi.fn() }),
+  useTags: () => ({ tags: [], refresh: vi.fn() }),
 }))
 
 const hapticsError = vi.fn()
@@ -129,10 +130,15 @@ vi.mock('../services/storageService', () => ({
     addExpenseSplit: vi.fn(async () => 100),
     updateExpenseSplit: vi.fn(async () => {}),
     saveExpenseSplitWithChildren: vi.fn(async () => 100),
+    getSplitChildExpenses: vi.fn(async () => [{ id: 101 }, { id: 102 }]),
     getAllExpenseSplits: vi.fn(async () => []),
     getAllSplitChildExpenses: vi.fn(async () => []),
     addPayee: vi.fn(async () => 1),
     addCategory: vi.fn(async () => 1),
+    getTagIdsForExpense: vi.fn(async () => []),
+    setExpenseTags: vi.fn(async () => undefined),
+    setTagsForExpenses: vi.fn(async () => undefined),
+    addTag: vi.fn(async () => 1),
   },
 }))
 

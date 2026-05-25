@@ -12,6 +12,8 @@ type TableName =
   | 'categoryMergeHistory'
   | 'payeeMergeHistory'
   | 'expenses'
+  | 'tags'
+  | 'expenseTags'
 
 const localState = vi.hoisted(() => ({
   categories: [] as Array<Record<string, unknown>>,
@@ -25,6 +27,8 @@ const localState = vi.hoisted(() => ({
   categoryMergeHistory: [] as Array<Record<string, unknown>>,
   payeeMergeHistory: [] as Array<Record<string, unknown>>,
   expenses: [] as Array<Record<string, unknown>>,
+  tags: [] as Array<Record<string, unknown>>,
+  expenseTags: [] as Array<Record<string, unknown>>,
   settings: [] as Array<Record<string, unknown>>,
 }))
 
@@ -45,6 +49,8 @@ const remoteState = vi.hoisted(() => ({
   category_merge_history: [] as Array<Record<string, unknown>>,
   payee_merge_history: [] as Array<Record<string, unknown>>,
   expenses: [] as Array<Record<string, unknown>>,
+  tags: [] as Array<Record<string, unknown>>,
+  expense_tags: [] as Array<Record<string, unknown>>,
   settings: [] as Array<Record<string, unknown>>,
 }))
 
@@ -171,6 +177,8 @@ const dbMock = vi.hoisted(() => ({
   categoryMergeHistory: makeNumericTable('categoryMergeHistory'),
   payeeMergeHistory: makeNumericTable('payeeMergeHistory'),
   expenses: makeNumericTable('expenses'),
+  tags: makeNumericTable('tags'),
+  expenseTags: makeNumericTable('expenseTags'),
   settings: makeSettingsTable(),
 }))
 
@@ -749,5 +757,52 @@ describe('verifySyncIntegrity', () => {
     expect(joinedWarnings).toContain('duplicate active category normalizedName')
 
     warnSpy.mockRestore()
+  })
+
+  it('merges remote tags and expense tag joins onto local expense ids', async () => {
+    localState.expenses.push({
+      id: 1,
+      localId: 'expense-1',
+      cloudId: 'cloud-expense-1',
+      date: '2026-05-04',
+      amount: 10,
+      updatedAt: '2026-05-04T00:00:00.000Z',
+      deletedAt: null,
+    })
+
+    remoteState.tags.push({
+      id: 'cloud-tag-1',
+      local_id: 'tag-1',
+      name: 'Work',
+      normalized_name: 'work',
+      is_archived: false,
+      updated_at: '2026-05-10T00:00:00.000Z',
+      deleted_at: null,
+    })
+    remoteState.expense_tags.push({
+      id: 'cloud-expense-tag-1',
+      local_id: 'expense-tag-1',
+      expense_id: 'cloud-expense-1',
+      tag_id: 'cloud-tag-1',
+      updated_at: '2026-05-10T00:00:00.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(localState.tags).toEqual([
+      expect.objectContaining({
+        name: 'Work',
+        normalizedName: 'work',
+        cloudId: 'cloud-tag-1',
+      }),
+    ])
+    expect(localState.expenseTags).toEqual([
+      expect.objectContaining({
+        expenseId: 1,
+        tagId: 1,
+        cloudId: 'cloud-expense-tag-1',
+      }),
+    ])
   })
 })

@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import type { Category, Expense, Payee } from '../../types'
+import type { Category, Expense, Payee, Tag } from '../../types'
 import { cn } from '../../utils/cn'
 import ExpenseTable from './ExpenseTable'
 
@@ -7,6 +7,7 @@ interface ExpensesViewProps {
   expenses: Expense[]
   categories: Category[]
   payees: Payee[]
+  expenseTagsMap: Record<number, Tag[]>
   selectedIds: Set<number>
   onToggleSelect: (id: number) => void
   onToggleSelectAll: () => void
@@ -34,6 +35,7 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
       expenses,
       categories,
       payees,
+      expenseTagsMap,
       selectedIds,
       onToggleSelect,
       onToggleSelectAll,
@@ -69,6 +71,7 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
           onBulkDelete={onBulkDelete}
           categories={categories}
           payees={payees}
+          expenseTagsMap={expenseTagsMap}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
           onToggleSelectAll={onToggleSelectAll}

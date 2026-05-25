@@ -5,6 +5,7 @@ export { default as MobileEntityPicker } from './MobileEntityPicker'
 export { default as MoneyInput } from './MoneyInput'
 export { default as PercentInput } from './PercentInput'
 export { default as SingleSelectTrigger } from './SingleSelectTrigger'
+export { default as TagMultiSelect } from './TagMultiSelect'
 export {
   normalizeSearchText,
   getFilteredOptions,

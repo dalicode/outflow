@@ -1,12 +1,13 @@
 import { useMemo, useRef } from 'react'
 import { useLongPress } from './hooks/useLongPress'
-import type { Expense } from '../../types'
+import type { Expense, Tag } from '../../types'
 import { cn } from '../../utils/cn'
 import type { ExpenseDisplayRow } from './splitDisplayRows'
 
 interface ExpenseTableMobileProps {
   expenses: Expense[]
   displayRows?: ExpenseDisplayRow[]
+  expenseTagsMap?: Record<number, Tag[]>
   selectedIds?: Set<number>
   onToggleSelect?: (id: number) => void
   onCellEdit?: (expense: Expense) => void
@@ -25,6 +26,7 @@ interface ExpenseTableMobileProps {
 export default function ExpenseTableMobile({
   expenses,
   displayRows,
+  expenseTagsMap = {},
   selectedIds,
   onToggleSelect,
   onCellEdit,
@@ -180,6 +182,9 @@ export default function ExpenseTableMobile({
               categoryLabel && exp.description
                 ? `${categoryLabel} · ${exp.description}`
                 : categoryLabel || exp.description || ''
+            const tags = expenseTagsMap[exp.id as number] ?? []
+            const primaryTag = tags[0]
+            const additionalTagCount = Math.max(tags.length - 1, 0)
             return (
               <div
                 key={exp.id}
@@ -216,12 +221,31 @@ export default function ExpenseTableMobile({
                 </span>
                 <div
                   className={cn(
-                    'col-start-1 row-start-2 min-w-0 flex items-center gap-2 text-xs text-theme-muted',
+                    'col-start-1 row-start-2 min-w-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 text-xs text-theme-muted',
                     isSplitChildRow && 'pl-5',
                   )}
                 >
                   <span className="min-w-0 truncate">{detailLabel || '—'}</span>
-                  {isSplitChildRow ? <span className="ml-auto" /> : null}
+                  {primaryTag ? (
+                    <span
+                      className={cn(
+                        'inline-flex min-w-0 max-w-full items-center rounded-full border border-theme-border px-1.5 py-0.5 text-[11px] text-theme-muted',
+                        primaryTag.isArchived && 'italic',
+                      )}
+                      title={
+                        additionalTagCount > 0
+                          ? `${primaryTag.name} +${additionalTagCount}`
+                          : primaryTag.name
+                      }
+                    >
+                      <span className="truncate">
+                        {primaryTag.name}
+                        {additionalTagCount > 0 ? ` +${additionalTagCount}` : ''}
+                      </span>
+                    </span>
+                  ) : isSplitChildRow ? (
+                    <span />
+                  ) : null}
                 </div>
               </div>
             )

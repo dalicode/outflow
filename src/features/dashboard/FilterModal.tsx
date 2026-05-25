@@ -5,7 +5,7 @@ import DatePicker from '../../components/inputs/DatePicker'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
-import type { Category, Payee } from '../../types'
+import type { Category, Payee, Tag } from '../../types'
 import { cn } from '../../utils/cn'
 import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
 import { toggleInSet } from '../../utils/setUtils'
@@ -16,6 +16,7 @@ interface FilterDraft {
   filterDateTo: string
   selectedCategories: Set<string>
   selectedPayees: Set<string>
+  selectedTags: Set<string>
   filterDescription: string
   filterAmount: string
 }
@@ -27,6 +28,7 @@ interface FilterModalProps {
   onApply: (filters: FilterDraft) => void
   categories: Category[]
   payees: Payee[]
+  tags: Tag[]
 }
 
 const EMPTY_DRAFT: FilterDraft = {
@@ -35,6 +37,7 @@ const EMPTY_DRAFT: FilterDraft = {
   filterDateTo: '',
   selectedCategories: new Set(),
   selectedPayees: new Set(),
+  selectedTags: new Set(),
   filterDescription: '',
   filterAmount: '',
 }
@@ -327,6 +330,7 @@ export default function FilterModal({
   onApply,
   categories,
   payees,
+  tags,
 }: FilterModalProps) {
   const [draft, setDraft] = useState<FilterDraft>(EMPTY_DRAFT)
   const draftRef = useRef<FilterDraft>(EMPTY_DRAFT)
@@ -340,6 +344,7 @@ export default function FilterModal({
         filterDateTo: appliedFilters.filterDateTo,
         selectedCategories: new Set(appliedFilters.selectedCategories),
         selectedPayees: new Set(appliedFilters.selectedPayees),
+        selectedTags: new Set(appliedFilters.selectedTags),
         filterDescription: appliedFilters.filterDescription,
         filterAmount: appliedFilters.filterAmount,
       }
@@ -353,6 +358,7 @@ export default function FilterModal({
     appliedFilters.filterDateTo,
     appliedFilters.selectedCategories,
     appliedFilters.selectedPayees,
+    appliedFilters.selectedTags,
     appliedFilters.filterDescription,
     appliedFilters.filterAmount,
   ])
@@ -383,6 +389,15 @@ export default function FilterModal({
       draftRef.current = nextDraft
       return nextDraft
     })
+  const toggleTag = (name: string) =>
+    setDraft((d) => {
+      const nextDraft = {
+        ...d,
+        selectedTags: toggleInSet(d.selectedTags, name),
+      }
+      draftRef.current = nextDraft
+      return nextDraft
+    })
 
   const handleClearAll = () => {
     draftRef.current = EMPTY_DRAFT
@@ -397,6 +412,10 @@ export default function FilterModal({
   const activeCategories = categories.filter((c) => !c.isArchived)
   const activePayees = payees
     .filter((p) => !p.isArchived)
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const selectableTags = tags
+    .filter((tag) => tag.id != null)
+    .map((tag) => ({ id: tag.id, name: tag.name }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
@@ -432,7 +451,7 @@ export default function FilterModal({
             type="text"
             value={draft.filterGlobal}
             onChange={(e) => set('filterGlobal')(e.target.value)}
-            placeholder="Description, category, or amount..."
+            placeholder="Description, category, payee, tag, or amount..."
             className="input-md w-full"
           />
         </div>
@@ -478,6 +497,19 @@ export default function FilterModal({
           onClear={() =>
             setDraft((d) => {
               const nextDraft = { ...d, selectedCategories: new Set<string>() }
+              draftRef.current = nextDraft
+              return nextDraft
+            })
+          }
+        />
+        <MultiSelectDropdown
+          label="Tags"
+          items={selectableTags}
+          selected={draft.selectedTags}
+          onToggle={toggleTag}
+          onClear={() =>
+            setDraft((d) => {
+              const nextDraft = { ...d, selectedTags: new Set<string>() }
               draftRef.current = nextDraft
               return nextDraft
             })

@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type {
   Expense,
+  ExpenseTag,
   ExpenseSplit,
   Category,
   CategoryMergeHistory,
@@ -12,6 +13,7 @@ import type {
   SavingsSnapshot,
   Schedule,
   SyncedSettingRow,
+  Tag,
   SyncQueueItem,
 } from '../../types'
 import { buildDefaultCategories, buildDefaultPayees } from '../defaults'
@@ -178,6 +180,8 @@ class OutflowDB extends Dexie {
   categoryMergeHistory!: Table<CategoryMergeHistory, number>
   payeeMergeHistory!: Table<PayeeMergeHistory, number>
   expenseSplits!: Table<ExpenseSplit, number>
+  tags!: Table<Tag, number>
+  expenseTags!: Table<ExpenseTag, number>
 
   constructor() {
     super('Outflow')
@@ -476,6 +480,29 @@ class OutflowDB extends Dexie {
       expenses:
         '++id, date, splitId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
       expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt',
+      settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
+      fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
+      categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      payees: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots:
+        '++id, [fixedExpenseId+year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      schedules:
+        '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
+      incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      savingsSnapshots:
+        '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      categoryMergeHistory:
+        '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
+      payeeMergeHistory:
+        '++id, sourcePayeeId, targetPayeeId, localId, cloudId, syncStatus, deletedAt',
+    })
+    this.version(21).stores({
+      expenses:
+        '++id, date, splitId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
+      expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt',
+      tags: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      expenseTags: '++id, expenseId, tagId, localId, cloudId, syncStatus, deletedAt, [expenseId+tagId]',
       settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
       fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
       categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',

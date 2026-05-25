@@ -2,6 +2,7 @@ import type {
   Category,
   CategoryMergeHistory,
   Expense,
+  ExpenseTag,
   ExpenseSplit,
   FixedExpense,
   FixedExpenseSnapshot,
@@ -10,6 +11,7 @@ import type {
   PayeeMergeHistory,
   SavingsSnapshot,
   Schedule,
+  Tag,
 } from '../../types'
 import { normalizeNameForSync } from '../../utils/syncMetadata'
 import type { FromCloudMaps, ToCloudMaps } from './types'
@@ -183,6 +185,23 @@ export function toCloud(
       ),
     }
   }
+  if (table === 'tags') {
+    const p = payload as unknown as Tag
+    return {
+      ...base,
+      name: p.name,
+      normalized_name: p.normalizedName ?? null,
+      is_archived: p.isArchived ?? false,
+    }
+  }
+  if (table === 'expenseTags') {
+    const p = payload as unknown as ExpenseTag
+    return {
+      ...base,
+      expense_id: resolveCloudRelationshipId(p.expenseId, maps?.expenseIdToCloudId),
+      tag_id: resolveCloudRelationshipId(p.tagId, maps?.tagIdToCloudId),
+    }
+  }
   if (table === 'fixedExpenses') {
     const p = payload as unknown as FixedExpense
     return {
@@ -302,6 +321,12 @@ export function fromCloud(
   function resolveSplit(cloudId: unknown) {
     return resolveLocalRelationshipId(cloudId, maps?.cloudIdToExpenseSplitId)
   }
+  function resolveExpense(cloudId: unknown) {
+    return resolveLocalRelationshipId(cloudId, maps?.cloudIdToExpenseId)
+  }
+  function resolveTag(cloudId: unknown) {
+    return resolveLocalRelationshipId(cloudId, maps?.cloudIdToTagId)
+  }
 
   if (table === 'expenses') {
     return {
@@ -351,6 +376,23 @@ export function fromCloud(
         (typeof row.name === 'string' ? normalizeNameForSync(row.name) : undefined),
       isArchived: row.is_archived,
       mergedIntoPayeeId: resolvePay(row.merged_into_payee_id),
+    }
+  }
+  if (table === 'tags') {
+    return {
+      ...syncMetadata,
+      name: row.name,
+      normalizedName:
+        (row.normalized_name as string | undefined) ??
+        (typeof row.name === 'string' ? normalizeNameForSync(row.name) : undefined),
+      isArchived: row.is_archived,
+    }
+  }
+  if (table === 'expense_tags') {
+    return {
+      ...syncMetadata,
+      expenseId: resolveExpense(row.expense_id),
+      tagId: resolveTag(row.tag_id),
     }
   }
   if (table === 'fixed_expenses') {

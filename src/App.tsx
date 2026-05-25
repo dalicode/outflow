@@ -239,13 +239,14 @@ function AppShell() {
   }
 
   const handleAdd = async (expense: Omit<Expense, 'id'>) => {
-    await StorageService.add(expense)
+    const newId = await StorageService.add(expense)
     setExpenses(await StorageService.getAll())
     void saveSettings({
       lastCheckInCompletedAt: new Date().toISOString(),
     }).catch((error) => console.warn('Check-in completion stamp failed:', error))
     setShowForm(false)
     void syncLocalChanges()
+    return newId
   }
 
   const handleUpdate = async (id: number, changes: Partial<Expense>) => {

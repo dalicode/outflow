@@ -64,7 +64,10 @@ function isSplitFieldEditing(
   return editingSplitField?.splitId === splitId && editingSplitField.field === field
 }
 
-function getSplitPayeeLabel(rowData: Extract<ExpenseDisplayRow, { rowType: 'splitContainer' }>, payeeMap: Record<number, Payee>): string {
+function getSplitPayeeLabel(
+  rowData: Extract<ExpenseDisplayRow, { rowType: 'splitContainer' }>,
+  payeeMap: Record<number, Payee>,
+): string {
   const splitPayeeId = rowData.split?.payeeId
   if (typeof splitPayeeId === 'number') {
     return payeeMap[splitPayeeId]?.name ?? rowData.split?.payeeNameSnapshot?.trim() ?? 'No payee'
@@ -620,7 +623,7 @@ export function getExpenseColumns({
         return renderEditableDisplayCell(
           {
             className: 'cursor-pointer block w-full truncate',
-            title: exp.description ?? undefined,
+            title: exp.description || undefined,
             isEditableCell: true,
             expenseId: exp.id as number,
             field: 'description',

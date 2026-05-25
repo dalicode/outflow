@@ -4,6 +4,7 @@ import type {
   Category,
   CategoryMergeHistory,
   Expense,
+  ExpenseTag,
   ExpenseSplit,
   FixedExpense,
   FixedExpenseSnapshot,
@@ -13,6 +14,7 @@ import type {
   SavingsSnapshot,
   Schedule,
   SyncedSettingRow,
+  Tag,
 } from '../types'
 
 const deduplicateByNameMock = vi.hoisted(() => vi.fn(async () => undefined))
@@ -27,6 +29,7 @@ const upsertRowsInBatchesMock = vi.hoisted(() => vi.fn<UpsertRowsInBatchesMock>(
 const getAllExpensesMock = vi.hoisted(() => vi.fn(async (): Promise<Expense[]> => []))
 const getAllCategoriesMock = vi.hoisted(() => vi.fn(async (): Promise<Category[]> => []))
 const getAllPayeesMock = vi.hoisted(() => vi.fn(async (): Promise<Payee[]> => []))
+const getAllTagsMock = vi.hoisted(() => vi.fn(async (): Promise<Tag[]> => []))
 const getAllFixedExpensesMock = vi.hoisted(() => vi.fn(async (): Promise<FixedExpense[]> => []))
 const getAllSettingsRowsMock = vi.hoisted(() => vi.fn(async (): Promise<SyncedSettingRow[]> => []))
 const getAllExpenseSplitsMock = vi.hoisted(() => vi.fn(async (): Promise<ExpenseSplit[]> => []))
@@ -44,6 +47,7 @@ const categoryMergeHistoryToArrayMock = vi.hoisted(() =>
 const payeeMergeHistoryToArrayMock = vi.hoisted(() =>
   vi.fn(async (): Promise<PayeeMergeHistory[]> => []),
 )
+const expenseTagsToArrayMock = vi.hoisted(() => vi.fn(async (): Promise<ExpenseTag[]> => []))
 const supabaseDeleteEqMock = vi.hoisted(() =>
   vi.fn(
     async (): Promise<{ error: { message: string; code?: string; details?: string } | null }> => ({
@@ -100,6 +104,7 @@ vi.mock('../services/storageService', () => ({
     getAllExpenses: getAllExpensesMock,
     getAllCategories: getAllCategoriesMock,
     getAllPayees: getAllPayeesMock,
+    getAllTags: getAllTagsMock,
     getAllFixedExpenses: getAllFixedExpensesMock,
     getAllSettingsRows: getAllSettingsRowsMock,
     getAllExpenseSplits: getAllExpenseSplitsMock,
@@ -110,6 +115,7 @@ vi.mock('../services/storageService', () => ({
     db: {
       categoryMergeHistory: { toArray: categoryMergeHistoryToArrayMock },
       payeeMergeHistory: { toArray: payeeMergeHistoryToArrayMock },
+      expenseTags: { toArray: expenseTagsToArrayMock },
     },
   },
 }))
@@ -158,6 +164,68 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     tableRows.clear()
     upsertRowsInBatchesMock.mockImplementation(async () => [])
     supabaseSelectInMock.mockResolvedValue({ data: [], error: null })
+  })
+
+  it('uploads tags before expense tag joins and maps relationship cloud ids', async () => {
+    getAllExpensesMock.mockResolvedValue([
+      {
+        id: 100,
+        localId: 'exp-100',
+        cloudId: 'cloud-exp-100',
+        syncStatus: 'synced',
+        date: '2026-05-20',
+        amount: 44.5,
+      },
+    ])
+    getAllTagsMock.mockResolvedValue([
+      {
+        id: 5,
+        localId: 'tag-5',
+        name: 'Work',
+        normalizedName: 'work',
+        syncStatus: 'pending',
+      },
+    ])
+    expenseTagsToArrayMock.mockResolvedValue([
+      {
+        id: 15,
+        localId: 'expense-tag-15',
+        expenseId: 100,
+        tagId: 5,
+        syncStatus: 'pending',
+      },
+    ])
+    upsertRowsInBatchesMock.mockImplementation(async (table: string, rows: Record<string, unknown>[]) => {
+      if (table === 'tags') {
+        return rows.map((row) => ({
+          ...row,
+          id: 'cloud-tag-5',
+          local_id: row.local_id,
+          updated_at: '2026-05-21T00:00:00.000Z',
+        }))
+      }
+      if (table === 'expense_tags') {
+        return rows
+      }
+      return []
+    })
+
+    await migrateLocalToSupabase('user-1')
+
+    const tagCallIndex = upsertRowsInBatchesMock.mock.calls.findIndex(([table]) => table === 'tags')
+    const expenseTagCallIndex = upsertRowsInBatchesMock.mock.calls.findIndex(
+      ([table]) => table === 'expense_tags',
+    )
+    expect(tagCallIndex).toBeGreaterThanOrEqual(0)
+    expect(expenseTagCallIndex).toBeGreaterThan(tagCallIndex)
+
+    const expenseTagPayload = upsertRowsInBatchesMock.mock.calls[expenseTagCallIndex]?.[1]?.[0]
+    expect(expenseTagPayload).toEqual(
+      expect.objectContaining({
+        expense_id: 'cloud-exp-100',
+        tag_id: 'cloud-tag-5',
+      }),
+    )
   })
 
   it('uploads only pending/failed rows and keeps synced rows out of upload', async () => {

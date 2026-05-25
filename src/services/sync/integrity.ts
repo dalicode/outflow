@@ -75,17 +75,33 @@ export async function deduplicateByName(
 }
 
 export async function verifySyncIntegrity(): Promise<void> {
-  const [cats, pays, exps, splits] = await Promise.all([
+  const tagsPromise =
+    'tags' in db
+      ? (db as unknown as { tags: { toArray: () => Promise<NamedSyncRow[]> } }).tags.toArray()
+      : Promise.resolve([])
+  const expenseTagsPromise =
+    'expenseTags' in db
+      ? (
+          db as unknown as {
+            expenseTags: { toArray: () => Promise<Array<{ deletedAt?: string | null; tagId: number; expenseId: number }>> }
+          }
+        ).expenseTags.toArray()
+      : Promise.resolve([])
+  const [cats, pays, exps, splits, tags, expenseTags] = await Promise.all([
     db.categories.toArray(),
     db.payees.toArray(),
     db.expenses.toArray(),
     db.expenseSplits.toArray(),
+    tagsPromise,
+    expenseTagsPromise,
   ])
   const activeCats = cats.filter((category) => category.deletedAt == null)
   const activePays = pays.filter((payee) => payee.deletedAt == null)
   const activeExpenses = exps.filter((expense) => expense.deletedAt == null)
   const validCatIds = new Set(activeCats.filter(hasLocalId).map((c) => c.id))
   const validPayeeIds = new Set(activePays.filter(hasLocalId).map((p) => p.id))
+  const validTagIds = new Set(tags.filter((tag) => tag.deletedAt == null && tag.id != null).map((tag) => tag.id as number))
+  const validExpenseIds = new Set(activeExpenses.filter(hasLocalId).map((expense) => expense.id))
   const activeSplitIds = new Set(
     splits
       .filter((split) => split.deletedAt == null && split.id != null)
@@ -101,6 +117,7 @@ export async function verifySyncIntegrity(): Promise<void> {
   let brokenPayees = 0
   let brokenSplitRefs = 0
   let tombstonedSplitRefs = 0
+  let brokenExpenseTagRefs = 0
   for (const e of activeExpenses) {
     if (e.categoryId != null && !validCatIds.has(e.categoryId)) {
       brokenCats++
@@ -156,8 +173,14 @@ export async function verifySyncIntegrity(): Promise<void> {
       }
     }
   }
+  for (const link of expenseTags.filter((row) => row.deletedAt == null)) {
+    if (!validTagIds.has(link.tagId) || !validExpenseIds.has(link.expenseId)) {
+      brokenExpenseTagRefs++
+    }
+  }
   const duplicateCategories = logDuplicateActiveNames('category', activeCats)
   const duplicatePayees = logDuplicateActiveNames('payee', activePays)
+  const duplicateTags = logDuplicateActiveNames('tag', tags.filter((tag) => tag.deletedAt == null))
   const tombstoneConflicts = await logTombstoneConflicts()
   if (brokenCats > 0) {
     debugWarn('[integrity] total expenses with broken category link:', brokenCats)
@@ -192,6 +215,10 @@ export async function verifySyncIntegrity(): Promise<void> {
     'duplicate categories,',
     duplicatePayees,
     'duplicate payees,',
+    duplicateTags,
+    'duplicate tags,',
+    brokenExpenseTagRefs,
+    'broken expense-tag links,',
     tombstoneConflicts,
     'tombstone conflicts',
   )
@@ -207,7 +234,7 @@ function resolveNormalizedName(row: NamedSyncRow): string | null {
   return null
 }
 
-function logDuplicateActiveNames(label: 'category' | 'payee', rows: NamedSyncRow[]): number {
+function logDuplicateActiveNames(label: 'category' | 'payee' | 'tag', rows: NamedSyncRow[]): number {
   const groups = new Map<string, NamedSyncRow[]>()
   for (const row of rows) {
     const normalizedName = resolveNormalizedName(row)
@@ -242,13 +269,20 @@ async function logTombstoneConflicts(): Promise<number> {
     'savingsSnapshots',
     'schedules',
     'expenseSplits',
+    'tags',
+    'expenseTags',
     'categoryMergeHistory',
     'payeeMergeHistory',
   ] as const
 
   let conflicts = 0
   for (const tableName of tableNames) {
-    const rows = (await db.table(tableName).toArray()) as NamedSyncRow[]
+    let rows: NamedSyncRow[] = []
+    try {
+      rows = (await db.table(tableName).toArray()) as NamedSyncRow[]
+    } catch {
+      continue
+    }
     const groups = new Map<string, NamedSyncRow[]>()
 
     for (const row of rows) {

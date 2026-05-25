@@ -3,6 +3,7 @@ import type {
   CategoryMergeHistory,
   Expense,
   ExpenseSplit,
+  ExpenseTag,
   FixedExpense,
   FixedExpenseSnapshot,
   IncomeSnapshot,
@@ -10,6 +11,7 @@ import type {
   PayeeMergeHistory,
   SavingsSnapshot,
   Schedule,
+  Tag,
   SyncQueueItem,
 } from '../../types'
 import type { Setting } from '../db/schema'
@@ -61,6 +63,22 @@ function normalizePayeeRows(rows: BackupRow[], now: string): Payee[] {
   })
 }
 
+function normalizeTagRows(rows: BackupRow[], now: string): Tag[] {
+  return rows.map((row) => {
+    const normalized = normalizeImportedSyncMetadata(row, { now })
+    const name = typeof row.name === 'string' ? row.name : ''
+    return {
+      ...row,
+      ...normalized,
+      name,
+      normalizedName:
+        typeof row.normalizedName === 'string' && row.normalizedName.length > 0
+          ? row.normalizedName
+          : normalizeNameForSync(name),
+    } as Tag
+  })
+}
+
 function normalizeExpenseRows(
   rows: BackupRow[],
   categories: Category[],
@@ -106,12 +124,14 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
   const now = new Date().toISOString()
   const categories = normalizeCategoryRows(asBackupRows(payload.categories), now)
   const payees = normalizePayeeRows(asBackupRows(payload.payees), now)
+  const tags = normalizeTagRows(asBackupRows(payload.tags), now)
 
   return {
     ...payload,
     expenses: normalizeExpenseRows(asBackupRows(payload.expenses), categories, payees, now),
     categories,
     payees,
+    tags,
     fixedExpenses: asBackupRows(payload.fixedExpenses).map(
       (row) =>
         ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as FixedExpense,
@@ -155,6 +175,10 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
           ...normalizeImportedSyncMetadata(row, { now }),
         }) as unknown as PayeeMergeHistory,
     ),
+    expenseTags: asBackupRows(payload.expenseTags).map(
+      (row) =>
+        ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as ExpenseTag,
+    ),
   }
 }
 
@@ -174,6 +198,10 @@ export function dbVersion(): number {
 }
 
 export async function exportAllData(): Promise<Record<string, unknown>> {
+  const tagsTable = (db as unknown as { tags?: { toArray: () => Promise<Tag[]> } }).tags
+  const expenseTagsTable = (db as unknown as {
+    expenseTags?: { toArray: () => Promise<ExpenseTag[]> }
+  }).expenseTags
   return {
     expenses: await db.expenses.toArray(),
     categories: await db.categories.toArray(),
@@ -188,6 +216,8 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     syncQueue: await db.syncQueue.toArray(),
     categoryMergeHistory: await db.categoryMergeHistory.toArray(),
     payeeMergeHistory: await db.payeeMergeHistory.toArray(),
+    tags: tagsTable ? await tagsTable.toArray() : [],
+    expenseTags: expenseTagsTable ? await expenseTagsTable.toArray() : [],
   }
 }
 
@@ -225,6 +255,12 @@ export function bulkUpsertFixedExpenses(rows: FixedExpense[]): Promise<number> {
 export function bulkUpsertExpenseSplits(rows: ExpenseSplit[]): Promise<number> {
   return db.expenseSplits.bulkPut(rows)
 }
+export function bulkUpsertTags(rows: Tag[]): Promise<number> {
+  return db.tags.bulkPut(rows)
+}
+export function bulkUpsertExpenseTags(rows: ExpenseTag[]): Promise<number> {
+  return db.expenseTags.bulkPut(rows)
+}
 
 export async function importAllData(
   data: Record<string, unknown>,
@@ -254,11 +290,21 @@ export async function importAllData(
       await db.categories.bulkPut(normalizedPayload.categories as Category[])
     }
     if (normalizedPayload.payees) await db.payees.bulkPut(normalizedPayload.payees as Payee[])
+    if (normalizedPayload.tags && 'tags' in db) {
+      await (db as unknown as { tags: { bulkPut: (rows: Tag[]) => Promise<number> } }).tags.bulkPut(
+        normalizedPayload.tags as Tag[],
+      )
+    }
     if (normalizedPayload.fixedExpenses) {
       await db.fixedExpenses.bulkPut(normalizedPayload.fixedExpenses as FixedExpense[])
     }
     if (normalizedPayload.expenseSplits) {
       await db.expenseSplits.bulkPut(normalizedPayload.expenseSplits as ExpenseSplit[])
+    }
+    if (normalizedPayload.expenseTags && 'expenseTags' in db) {
+      await (
+        db as unknown as { expenseTags: { bulkPut: (rows: ExpenseTag[]) => Promise<number> } }
+      ).expenseTags.bulkPut(normalizedPayload.expenseTags as ExpenseTag[])
     }
     if (normalizedPayload.fixedExpenseSnapshots) {
       await db.fixedExpenseSnapshots.bulkPut(

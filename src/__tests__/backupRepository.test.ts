@@ -64,6 +64,8 @@ const tables = vi.hoisted(() => {
   const payees = createTable('payees')
   const fixedExpenses = createTable('fixedExpenses')
   const expenseSplits = createTable('expenseSplits')
+  const tags = createTable('tags')
+  const expenseTags = createTable('expenseTags')
   const fixedExpenseSnapshots = createTable('fixedExpenseSnapshots')
   const incomeSnapshots = createTable('incomeSnapshots')
   const savingsSnapshots = createTable('savingsSnapshots')
@@ -79,6 +81,8 @@ const tables = vi.hoisted(() => {
     payees,
     fixedExpenses,
     expenseSplits,
+    tags,
+    expenseTags,
     fixedExpenseSnapshots,
     incomeSnapshots,
     savingsSnapshots,
@@ -96,6 +100,8 @@ const tables = vi.hoisted(() => {
     payees,
     fixedExpenses,
     expenseSplits,
+    tags,
+    expenseTags,
     fixedExpenseSnapshots,
     incomeSnapshots,
     savingsSnapshots,
@@ -123,6 +129,8 @@ vi.mock('../services/db/schema', () => ({
     payees: tables.payees,
     fixedExpenses: tables.fixedExpenses,
     expenseSplits: tables.expenseSplits,
+    tags: tables.tags,
+    expenseTags: tables.expenseTags,
     fixedExpenseSnapshots: tables.fixedExpenseSnapshots,
     incomeSnapshots: tables.incomeSnapshots,
     savingsSnapshots: tables.savingsSnapshots,
@@ -199,6 +207,26 @@ describe('backupRepository', () => {
         syncStatus: 'pending',
       },
     ])
+    tables.tags.seed([
+      {
+        id: 8,
+        localId: 'tag-8',
+        name: 'Work',
+        normalizedName: 'work',
+        deletedAt: null,
+        syncStatus: 'pending',
+      },
+    ])
+    tables.expenseTags.seed([
+      {
+        id: 9,
+        localId: 'expense-tag-9',
+        expenseId: 3,
+        tagId: 8,
+        deletedAt: null,
+        syncStatus: 'pending',
+      },
+    ])
 
     const payload = await exportAllData()
 
@@ -225,6 +253,21 @@ describe('backupRepository', () => {
         syncStatus: 'pending',
       }),
     ])
+    expect(payload.tags).toEqual([
+      expect.objectContaining({
+        id: 8,
+        localId: 'tag-8',
+        normalizedName: 'work',
+      }),
+    ])
+    expect(payload.expenseTags).toEqual([
+      expect.objectContaining({
+        id: 9,
+        localId: 'expense-tag-9',
+        expenseId: 3,
+        tagId: 8,
+      }),
+    ])
   })
 
   it('normalizes legacy backup rows, preserves tombstones, and queues one repair sync', async () => {
@@ -244,6 +287,7 @@ describe('backupRepository', () => {
         data: {
           categories: [{ id: 10, name: ' Dining Out  ' }],
           payees: [{ id: 20, name: 'Tim Hortons' }],
+          tags: [{ id: 40, name: ' Work Travel ' }],
           expenses: [
             {
               id: 30,
@@ -255,6 +299,7 @@ describe('backupRepository', () => {
               deletedAt: '2026-05-03T00:00:00.000Z',
             },
           ],
+          expenseTags: [{ id: 41, expenseId: 30, tagId: 40 }],
           expenseSplits: [{ id: 91, date: '2026-05-01', amount: 17 }],
           settings: [{ key: 'visualTheme', value: 'mint' }],
           syncQueue: [
@@ -295,6 +340,24 @@ describe('backupRepository', () => {
       expect.objectContaining({
         id: 91,
         amount: 17,
+        syncStatus: 'pending',
+        localId: expect.any(String),
+      }),
+    ])
+    expect(tables.tags.rows()).toEqual([
+      expect.objectContaining({
+        id: 40,
+        name: ' Work Travel ',
+        normalizedName: 'work travel',
+        syncStatus: 'pending',
+        localId: expect.any(String),
+      }),
+    ])
+    expect(tables.expenseTags.rows()).toEqual([
+      expect.objectContaining({
+        id: 41,
+        expenseId: 30,
+        tagId: 40,
         syncStatus: 'pending',
         localId: expect.any(String),
       }),

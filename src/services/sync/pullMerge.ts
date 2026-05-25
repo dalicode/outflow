@@ -188,14 +188,18 @@ async function mergeRows(
 }
 
 function buildRelationshipMaps(
+  expenses: SyncRow[],
   categories: SyncRow[],
   payees: SyncRow[],
+  tags: SyncRow[],
   fixedExpenses: SyncRow[],
   expenseSplits: SyncRow[],
 ): FromCloudMaps {
   return {
+    cloudIdToExpenseId: fromCloudLocalMap(expenses),
     cloudIdToCategoryId: fromCloudLocalMap(categories),
     cloudIdToPayeeId: fromCloudLocalMap(payees),
+    cloudIdToTagId: fromCloudLocalMap(tags),
     cloudIdToFixedExpenseId: fromCloudLocalMap(fixedExpenses),
     cloudIdToExpenseSplitId: fromCloudLocalMap(expenseSplits),
   }
@@ -312,12 +316,21 @@ async function mergeSettingsRows(rows: Record<string, unknown>[]): Promise<void>
   }
 }
 
+async function fetchOptionalRowsForUser(table: string, userId: string): Promise<Record<string, unknown>[]> {
+  try {
+    return await fetchAllRowsForUser(table, userId)
+  } catch {
+    return []
+  }
+}
+
 export async function pullFromSupabase(userId: string): Promise<void> {
   if (!supabase || !userId) return
 
   const [
     catRows,
     payRows,
+    tagRows,
     fixRows,
     setRows,
     snapRows,
@@ -328,9 +341,11 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     payeeMergeRows,
     expenseSplitRows,
     expRows,
+    expenseTagRows,
   ] = await Promise.all([
     fetchAllRowsForUser('categories', userId),
     fetchAllRowsForUser('payees', userId),
+    fetchOptionalRowsForUser('tags', userId),
     fetchAllRowsForUser('fixed_expenses', userId),
     fetchAllRowsForUser('settings', userId),
     fetchAllRowsForUser('fixed_expense_snapshots', userId),
@@ -341,6 +356,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     fetchAllRowsForUser('payee_merge_history', userId),
     fetchAllRowsForUser('expense_splits', userId),
     fetchAllRowsForUser('expenses', userId),
+    fetchOptionalRowsForUser('expense_tags', userId),
   ])
 
   if (catRows.length > 0) {
@@ -357,6 +373,13 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       { normalizedNameFallback: true },
     )
   }
+  if (tagRows.length > 0) {
+    await mergeRows(
+      'tags',
+      tagRows.map((row) => fromCloud('tags', row)),
+      { normalizedNameFallback: true },
+    )
+  }
   if (fixRows.length > 0) {
     await mergeRows(
       'fixedExpenses',
@@ -370,10 +393,24 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   const categories = await db.categories.toArray()
   const payees = await db.payees.toArray()
   const fixedExpenses = await db.fixedExpenses.toArray()
+  const tags =
+    'tags' in db
+      ? await (db as unknown as { tags: { toArray: () => Promise<SyncRow[]> } }).tags.toArray()
+      : []
+  const expenses = await db.expenses.toArray()
+  const syncExpenses = expenses as unknown as SyncRow[]
   const syncCategories = categories as unknown as SyncRow[]
   const syncPayees = payees as unknown as SyncRow[]
+  const syncTags = tags as unknown as SyncRow[]
   const syncFixedExpenses = fixedExpenses as unknown as SyncRow[]
-  const baseIdentityMaps = buildRelationshipMaps(syncCategories, syncPayees, syncFixedExpenses, [])
+  const baseIdentityMaps = buildRelationshipMaps(
+    syncExpenses,
+    syncCategories,
+    syncPayees,
+    syncTags,
+    syncFixedExpenses,
+    [],
+  )
   if (expenseSplitRows.length > 0) {
     await mergeRows(
       'expenseSplits',
@@ -383,8 +420,10 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   const expenseSplits = await db.expenseSplits.toArray()
   const syncExpenseSplits = expenseSplits as unknown as SyncRow[]
   const identityMaps = buildRelationshipMaps(
+    syncExpenses,
     syncCategories,
     syncPayees,
+    syncTags,
     syncFixedExpenses,
     syncExpenseSplits,
   )
@@ -399,6 +438,8 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     identityMaps.cloudIdToPayeeId?.size ?? 0,
     'fixed:',
     identityMaps.cloudIdToFixedExpenseId?.size ?? 0,
+    'tags:',
+    identityMaps.cloudIdToTagId?.size ?? 0,
     'splits:',
     identityMaps.cloudIdToExpenseSplitId?.size ?? 0,
   )
@@ -445,6 +486,16 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       expRows.map((row) =>
         resolveExpenseRelationships(row, identityMaps, categoryNameToId, payeeNameToId),
       ),
+    )
+  }
+  if (expenseTagRows.length > 0) {
+    await mergeRows(
+      'expenseTags',
+      expenseTagRows
+        .map((row) => fromCloud('expense_tags', row, identityMaps))
+        .filter(
+          (row) => typeof row.expenseId === 'number' && typeof row.tagId === 'number',
+        ),
     )
   }
 

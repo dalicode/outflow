@@ -17,7 +17,7 @@ import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
 import { useContextMenu } from './hooks/useContextMenu'
 import ExpenseForm from '../expenses/ExpenseForm'
-import type { Category, Expense, Payee } from '../../types'
+import type { Category, Expense, Payee, Tag } from '../../types'
 import { cn } from '../../utils/cn'
 import { copyExpensesToClipboard } from '../../utils/copyExpenses'
 import ExpenseTableMobile from './ExpenseTableMobile'
@@ -46,6 +46,7 @@ interface ExpenseTableProps {
   onBulkDelete?: (ids: number[]) => void
   categories?: Category[]
   payees?: Payee[]
+  expenseTagsMap?: Record<number, Tag[]>
   selectedIds: Set<number>
   onToggleSelect: (id: number) => void
   onToggleSelectAll: () => void
@@ -77,6 +78,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     onBulkDelete,
     categories = [],
     payees = [],
+    expenseTagsMap = {},
     selectedIds,
     onToggleSelect,
     onToggleSelectAll,
@@ -779,6 +781,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         <ExpenseTableMobile
           expenses={expenses}
           displayRows={displayRows}
+          expenseTagsMap={expenseTagsMap}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
           onCellEdit={(exp) => editing.startCellEdit(exp, 'description')}

@@ -3,6 +3,8 @@ export const TABLE_MAP: Record<string, string> = {
   expenseSplits: 'expense_splits',
   categories: 'categories',
   payees: 'payees',
+  tags: 'tags',
+  expenseTags: 'expense_tags',
   fixedExpenses: 'fixed_expenses',
   fixedExpenseSnapshots: 'fixed_expense_snapshots',
   incomeSnapshots: 'income_snapshots',
@@ -30,10 +32,13 @@ export const FULL_SYNC_ORDER = [
   'schedules',
   'category_merge_history',
   'payee_merge_history',
+  'tags',
   'expenses',
+  'expense_tags',
 ] as const
 
 export const FULL_SYNC_DELETE_ORDER = [
+  'expense_tags',
   'expenses',
   'expense_splits',
   'category_merge_history',
@@ -45,6 +50,7 @@ export const FULL_SYNC_DELETE_ORDER = [
   'fixed_expenses',
   'categories',
   'payees',
+  'tags',
   'settings',
 ] as const
 
@@ -52,6 +58,7 @@ export const UPSERT_CONFLICT_MAP: Partial<Record<string, string>> = {
   settings: 'user_id,key',
   categories: 'user_id,name',
   payees: 'user_id,name',
+  tags: 'user_id,name',
   fixed_expenses: 'user_id,local_id',
   expense_splits: 'user_id,local_id',
   fixed_expense_snapshots: 'user_id,local_id',
@@ -61,6 +68,7 @@ export const UPSERT_CONFLICT_MAP: Partial<Record<string, string>> = {
   category_merge_history: 'user_id,local_id',
   payee_merge_history: 'user_id,local_id',
   expenses: 'user_id,local_id',
+  expense_tags: 'user_id,local_id',
 }
 
 export const CLOUD_ID_TABLES = [
@@ -68,6 +76,7 @@ export const CLOUD_ID_TABLES = [
   'expenseSplits',
   'categories',
   'payees',
+  'tags',
   'fixedExpenses',
   'fixedExpenseSnapshots',
   'incomeSnapshots',
@@ -75,4 +84,5 @@ export const CLOUD_ID_TABLES = [
   'schedules',
   'categoryMergeHistory',
   'payeeMergeHistory',
+  'expenseTags',
 ] as const

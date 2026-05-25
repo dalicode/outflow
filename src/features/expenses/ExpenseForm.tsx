@@ -10,7 +10,7 @@ import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
 import { useHaptics } from '../../hooks/useHaptics'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
-import { useExpenses, usePayees } from '../../hooks/useLocalData'
+import { useExpenses, usePayees, useTags } from '../../hooks/useLocalData'
 import { StorageService } from '../../services/storageService'
 import { getMostLikelyRelatedEntityId, getRecentEntityIds } from '../../utils/entityHistory'
 import type { ComboboxOption } from '../../components/inputs/comboboxUtils'
@@ -24,6 +24,7 @@ import './expenses.css'
 import type { Category, Expense, ExpenseSplit, Payee } from '../../types'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
+import TagMultiSelect from '../../components/inputs/TagMultiSelect'
 
 const CategoryModal = lazy(() => import('./CategoryModal'))
 const PayeeModal = lazy(() => import('./PayeeModal'))
@@ -55,8 +56,8 @@ interface SplitChildDraft {
 }
 
 interface ExpenseFormProps {
-  onAdd?: (expense: Omit<Expense, 'id'>) => void
-  onUpdate?: (id: number, changes: Partial<Expense>) => void
+  onAdd?: (expense: Omit<Expense, 'id'>) => Promise<number | void> | number | void
+  onUpdate?: (id: number, changes: Partial<Expense>) => Promise<void> | void
   onSplitSave?: () => void | Promise<void>
   onClose: () => void
   categories: Category[]
@@ -89,6 +90,7 @@ export default function ExpenseForm({
     isEdit && typeof initialExpense?.splitId === 'number' ? initialExpense.splitId : null
   const { expenses } = useExpenses()
   const { payees, refresh: refreshPayees } = usePayees()
+  const { tags, refresh: refreshTags } = useTags()
   const { settings, formatAmount } = useSettings()
   const { showToast } = useToasts()
   const isMobileViewport = useViewportWidth() < 640
@@ -117,6 +119,7 @@ export default function ExpenseForm({
   const [splitChildren, setSplitChildren] = useState<SplitChildDraft[]>([])
   const [showDistributePrompt, setShowDistributePrompt] = useState(false)
   const [isLoadingSplit, setIsLoadingSplit] = useState(false)
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const haptics = useHaptics()
 
   const activeCategories = useMemo(
@@ -330,6 +333,26 @@ export default function ExpenseForm({
   }, [decimalPlaces, editingSplitId])
 
   useEffect(() => {
+    let isCancelled = false
+    const load = async () => {
+      if (!isEdit || !initialExpense?.id) {
+        setSelectedTagIds([])
+        return
+      }
+      if (typeof StorageService.getTagIdsForExpense !== 'function') {
+        setSelectedTagIds([])
+        return
+      }
+      const ids = await StorageService.getTagIdsForExpense(initialExpense.id)
+      if (!isCancelled) setSelectedTagIds(ids)
+    }
+    void load()
+    return () => {
+      isCancelled = true
+    }
+  }, [initialExpense?.id, isEdit])
+
+  useEffect(() => {
     if (!isSplitMode || splitChildren.length > 0) return
     setSplitChildren([createSplitChild()])
   }, [createSplitChild, isSplitMode, splitChildren.length])
@@ -402,7 +425,7 @@ export default function ExpenseForm({
 
   const saveSplit = async (rows: SplitChildDraft[]) => {
     const inheritedPayeeId = form.payeeId ? Number(form.payeeId) : undefined
-    await StorageService.saveExpenseSplitWithChildren({
+    return StorageService.saveExpenseSplitWithChildren({
       splitId: editingSplitId ?? undefined,
       replaceExpenseId: editingSplitId == null && isEdit ? initialExpense?.id : undefined,
       split: getSplitContainerPayload(),
@@ -419,7 +442,22 @@ export default function ExpenseForm({
   const hasSplitRows = (rows: SplitChildDraft[]): boolean => rows.length > 0
 
   const finalizeSplitSave = async (rows: SplitChildDraft[]) => {
-    await saveSplit(rows)
+    const splitId = await saveSplit(rows)
+    const splitChildren =
+      typeof StorageService.getSplitChildExpenses === 'function'
+        ? await StorageService.getSplitChildExpenses(splitId)
+        : []
+    const childIds = splitChildren
+      .map((row) => row.id)
+      .filter((id): id is number => typeof id === 'number')
+    try {
+      if (typeof StorageService.setTagsForExpenses === 'function') {
+        await StorageService.setTagsForExpenses(childIds, selectedTagIds)
+      }
+    } catch {
+      showToast({ message: 'Could not save tags for split transaction.', tone: 'danger' })
+      return
+    }
     await refreshExpensesProp?.()
     await onSplitSave?.()
     triggerSync?.()
@@ -518,15 +556,38 @@ export default function ExpenseForm({
     }
 
     if (isEdit && initialExpense) {
+      await onUpdate?.(initialExpense.id as number, payload)
+      try {
+        if (typeof StorageService.setExpenseTags === 'function') {
+          await StorageService.setExpenseTags(initialExpense.id as number, selectedTagIds)
+        }
+      } catch {
+        haptics.error()
+        showToast({ message: 'Could not save tags for expense.', tone: 'danger' })
+        return
+      }
+      triggerSync?.()
       haptics.success()
-      onUpdate?.(initialExpense.id as number, payload)
       onClose()
       return
     }
 
+    const newId = await onAdd?.(payload)
+    if (typeof newId === 'number') {
+      try {
+        if (typeof StorageService.setExpenseTags === 'function') {
+          await StorageService.setExpenseTags(newId, selectedTagIds)
+        }
+      } catch {
+        haptics.error()
+        showToast({ message: 'Could not save tags for expense.', tone: 'danger' })
+        return
+      }
+      triggerSync?.()
+    }
     haptics.success()
-    onAdd?.(payload)
     setForm(EMPTY_FORM)
+    setSelectedTagIds([])
   }
 
   const inputCls = 'input-md w-full'
@@ -746,6 +807,16 @@ export default function ExpenseForm({
               className={inputCls}
             />
           </div>
+          <TagMultiSelect
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onChange={setSelectedTagIds}
+            onCreate={async (name) => {
+              const id = await StorageService.addTag(name)
+              await refreshTags()
+              return id
+            }}
+          />
           <div className="space-y-3">
             <label
               className={cn(

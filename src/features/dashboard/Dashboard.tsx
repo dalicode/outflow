@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { cn } from '../../utils/cn'
 import './dashboard.css'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -24,6 +25,7 @@ import FilterModal from './FilterModal'
 import MonthSpanSelector from './MonthSpanSelector'
 import PayeeViewTable from './PayeeViewTable'
 import PrivateValue from '../../components/privacy/PrivateValue'
+import { StorageService } from '../../services/storageService'
 
 interface DashboardProps {
   expenses: Expense[]
@@ -65,12 +67,35 @@ export default function Dashboard({
   onRefresh,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings()
+  const expenseIds = useMemo(
+    () => expenses.map((expense) => expense.id).filter((id): id is number => typeof id === 'number'),
+    [expenses],
+  )
+  const activeTags = useLiveQuery(() => StorageService.getActiveTags(), []) ?? []
+  const expenseTagsMap = useLiveQuery(() => StorageService.getExpenseTagsMap(expenseIds), [expenseIds]) ?? {}
+  const filterTags = useMemo(() => {
+    const tagsById = new Map<number, (typeof activeTags)[number]>()
+    for (const tag of activeTags) {
+      if (typeof tag.id === 'number') {
+        tagsById.set(tag.id, tag)
+      }
+    }
+    for (const expenseTags of Object.values(expenseTagsMap)) {
+      for (const tag of expenseTags) {
+        if (typeof tag.id === 'number' && !tagsById.has(tag.id)) {
+          tagsById.set(tag.id, tag)
+        }
+      }
+    }
+    return Array.from(tagsById.values())
+  }, [activeTags, expenseTagsMap])
 
   // ── Hooks ──
   const dash = useDashboard(
     expenses,
     categories,
     payees,
+    expenseTagsMap,
     onBulkDelete,
     onSelectionChange,
     sessionState,
@@ -336,6 +361,7 @@ export default function Dashboard({
                   expenses={dash.filteredExpenses}
                   categories={categories}
                   payees={payees}
+                  expenseTagsMap={dash.expenseTagsMap}
                   selectedIds={dash.selectedIds}
                   onToggleSelect={dash.toggleExpenseSelection}
                   onToggleSelectAll={dash.toggleSelectAll}
@@ -408,6 +434,7 @@ export default function Dashboard({
             filterDateTo: dash.filterDateTo,
             selectedCategories: dash.selectedCategories,
             selectedPayees: dash.selectedPayees,
+            selectedTags: dash.selectedTags,
             filterDescription: dash.filterDescription,
             filterAmount: dash.filterAmount,
           }}
@@ -420,11 +447,13 @@ export default function Dashboard({
               filterAmount: draft.filterAmount,
               selectedCategories: Array.from(draft.selectedCategories),
               selectedPayees: Array.from(draft.selectedPayees),
+              selectedTags: Array.from(draft.selectedTags),
             })
           }}
-          categories={categories}
-          payees={payees}
-        />
+        categories={categories}
+        payees={payees}
+        tags={filterTags}
+      />
       </div>
     </PullToRefreshContainer>
   )

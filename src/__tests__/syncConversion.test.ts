@@ -80,4 +80,76 @@ describe('sync conversion archivedAt removal', () => {
 
     expect(localExpense.splitId).toBe(77)
   })
+
+  it('converts tags and expense tag joins between local and cloud shapes', () => {
+    const cloudTag = toCloud(
+      'tags',
+      {
+        name: 'Work',
+        normalizedName: 'work',
+        isArchived: true,
+      },
+      'user-1',
+    )
+    expect(cloudTag).toEqual(
+      expect.objectContaining({
+        name: 'Work',
+        normalized_name: 'work',
+        is_archived: true,
+      }),
+    )
+
+    const localTag = fromCloud('tags', {
+      id: 'tag-cloud-1',
+      local_id: 'tag-local-1',
+      name: 'Project X',
+      updated_at: '2026-05-01T00:00:00.000Z',
+    })
+    expect(localTag).toEqual(
+      expect.objectContaining({
+        name: 'Project X',
+        normalizedName: 'project x',
+      }),
+    )
+
+    const cloudExpenseTag = toCloud(
+      'expenseTags',
+      {
+        expenseId: 11,
+        tagId: 22,
+      },
+      'user-1',
+      {
+        expenseIdToCloudId: new Map([[11, 'cloud-exp-11']]),
+        tagIdToCloudId: new Map([[22, 'cloud-tag-22']]),
+      },
+    )
+    expect(cloudExpenseTag).toEqual(
+      expect.objectContaining({
+        expense_id: 'cloud-exp-11',
+        tag_id: 'cloud-tag-22',
+      }),
+    )
+
+    const localExpenseTag = fromCloud(
+      'expense_tags',
+      {
+        id: 'expense-tag-cloud-1',
+        local_id: 'expense-tag-local-1',
+        expense_id: 'cloud-exp-11',
+        tag_id: 'cloud-tag-22',
+        updated_at: '2026-05-01T00:00:00.000Z',
+      },
+      {
+        cloudIdToExpenseId: new Map([['cloud-exp-11', 111]]),
+        cloudIdToTagId: new Map([['cloud-tag-22', 222]]),
+      },
+    )
+    expect(localExpenseTag).toEqual(
+      expect.objectContaining({
+        expenseId: 111,
+        tagId: 222,
+      }),
+    )
+  })
 })

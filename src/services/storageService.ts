@@ -9,6 +9,7 @@ import * as syncRepo from './repositories/syncRepository'
 import * as backupRepo from './repositories/backupRepository'
 import * as historicalSnapshotRepo from './repositories/historicalSnapshotRepository'
 import * as expenseSplitRepo from './repositories/expenseSplitRepository'
+import * as tagRepo from './repositories/tagRepository'
 import db from './db/schema'
 
 export const StorageService = {
@@ -123,6 +124,19 @@ export const StorageService = {
   mergePayee: payeeRepo.mergePayee,
   revertPayeeMerge: payeeRepo.revertPayeeMerge,
 
+  // ── Tags ─────────────────────────────────────────────────
+  getAllTags: tagRepo.getAllTags,
+  getTags: tagRepo.getTags,
+  getActiveTags: tagRepo.getActiveTags,
+  addTag: tagRepo.addTag,
+  updateTag: tagRepo.updateTag,
+  archiveTag: tagRepo.archiveTag,
+  setExpenseTags: tagRepo.setExpenseTags,
+  setTagsForExpenses: tagRepo.setTagsForExpenses,
+  getTagIdsForExpense: tagRepo.getTagIdsForExpense,
+  getTagsForExpense: tagRepo.getTagsForExpense,
+  getExpenseTagsMap: tagRepo.getExpenseTagsMap,
+
   // ── Sync Queue ───────────────────────────────────────────
   getSyncQueue: syncRepo.getSyncQueue,
   hasPendingSyncMetadata: syncRepo.hasPendingSyncMetadata,
@@ -139,6 +153,8 @@ export const StorageService = {
   bulkUpsertPayees: backupRepo.bulkUpsertPayees,
   bulkUpsertFixedExpenses: backupRepo.bulkUpsertFixedExpenses,
   bulkUpsertExpenseSplits: backupRepo.bulkUpsertExpenseSplits,
+  bulkUpsertTags: backupRepo.bulkUpsertTags,
+  bulkUpsertExpenseTags: backupRepo.bulkUpsertExpenseTags,
 
   // ── Full data backup ──────────────────────────────────────
   dbVersion: backupRepo.dbVersion,

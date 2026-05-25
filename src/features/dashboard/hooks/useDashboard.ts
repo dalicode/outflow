@@ -14,6 +14,7 @@ import { useDashboardMonthNav } from './useDashboardMonthNav'
 import { useDashboardSelection } from './useDashboardSelection'
 import { useDashboardView } from './useDashboardView'
 import { useIncomeSavingsModals } from './useIncomeSavingsModals'
+import type { Tag } from '../../../types'
 
 export interface DashboardSessionState {
   selectedYear: number
@@ -29,6 +30,7 @@ export function useDashboard(
   expenses: Expense[],
   categories: Category[],
   payees: Payee[],
+  expenseTagsMap: Record<number, Tag[]>,
   onBulkDelete: (ids: number[]) => void,
   onSelectionChange?: (active: boolean) => void,
   sessionState?: DashboardSessionState,
@@ -57,6 +59,7 @@ export function useDashboard(
     data.monthKeys,
     categories,
     payees,
+    expenseTagsMap,
     sessionState?.filters,
     (patch) =>
       onSessionStateChange?.({
@@ -220,6 +223,7 @@ export function useDashboard(
     multiFixedRows,
     multiPayeeRows,
     getExpensePayeeName,
+    expenseTagsMap,
     drilldownExpenses,
     drilldownPayeeExpenses,
     groupedDrilldownExpenses,

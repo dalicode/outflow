@@ -76,6 +76,25 @@ export interface Payee extends SyncedRecord {
   mergedIntoPayeeId?: number | null
 }
 
+export interface Tag extends SyncedRecord {
+  id?: number
+  cloudId?: string | null
+  name: string
+  normalizedName?: string
+  isArchived?: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ExpenseTag extends SyncedRecord {
+  id?: number
+  cloudId?: string | null
+  expenseId: number
+  tagId: number
+  createdAt?: string
+  updatedAt?: string
+}
+
 // ── Merge History ────────────────────────────────────────────────────────────
 
 export interface CategoryMergeHistory extends SyncedRecord {

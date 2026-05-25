@@ -17,15 +17,19 @@ export interface SupabaseResult {
 }
 
 export interface ToCloudMaps {
+  expenseIdToCloudId?: Map<number, string>
   categoryIdToCloudId?: Map<number, string>
   payeeIdToCloudId?: Map<number, string>
+  tagIdToCloudId?: Map<number, string>
   fixedExpenseIdToCloudId?: Map<number, string>
   expenseSplitIdToCloudId?: Map<number, string>
 }
 
 export interface FromCloudMaps {
+  cloudIdToExpenseId?: Map<string, number>
   cloudIdToCategoryId?: Map<string, number>
   cloudIdToPayeeId?: Map<string, number>
+  cloudIdToTagId?: Map<string, number>
   cloudIdToFixedExpenseId?: Map<string, number>
   cloudIdToExpenseSplitId?: Map<string, number>
 }

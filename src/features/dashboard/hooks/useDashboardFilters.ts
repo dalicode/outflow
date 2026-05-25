@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { Category, Expense, Payee } from '../../../types'
+import type { Category, Expense, Payee, Tag } from '../../../types'
 import { compareExpensesByDateDescThenIdDesc } from '../../../utils/expenseOrdering'
 
 export interface DashboardFiltersState {
@@ -10,6 +10,7 @@ export interface DashboardFiltersState {
   filterAmount: string
   selectedCategories: string[]
   selectedPayees: string[]
+  selectedTags?: string[]
 }
 
 export function useDashboardFilters(
@@ -17,6 +18,7 @@ export function useDashboardFilters(
   monthKeys: Array<{ key: string }>,
   categories: Category[],
   payees: Payee[],
+  expenseTagsMap: Record<number, Tag[]>,
   initialFilters?: DashboardFiltersState,
   onFiltersChange?: (patch: Partial<DashboardFiltersState>) => void,
 ) {
@@ -33,6 +35,9 @@ export function useDashboardFilters(
   )
   const [selectedPayees, setSelectedPayeesState] = useState<Set<string>>(
     new Set(initialFilters?.selectedPayees ?? []),
+  )
+  const [selectedTags, setSelectedTagsState] = useState<Set<string>>(
+    new Set(initialFilters?.selectedTags ?? []),
   )
 
   // Wrapped setters that also notify the parent
@@ -101,6 +106,18 @@ export function useDashboardFilters(
     },
     [onFiltersChange],
   )
+  const setSelectedTags = useCallback(
+    (v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+      setSelectedTagsState((prev) => {
+        const next = typeof v === 'function' ? v(prev) : v
+        queueMicrotask(() => {
+          onFiltersChange?.({ selectedTags: Array.from(next) })
+        })
+        return next
+      })
+    },
+    [onFiltersChange],
+  )
 
   const applyDashboardFilters = useCallback(
     (nextFilters: DashboardFiltersState) => {
@@ -111,6 +128,7 @@ export function useDashboardFilters(
       setFilterAmountState(nextFilters.filterAmount)
       setSelectedCategoriesState(new Set(nextFilters.selectedCategories))
       setSelectedPayeesState(new Set(nextFilters.selectedPayees))
+      setSelectedTagsState(new Set(nextFilters.selectedTags ?? []))
       onFiltersChange?.(nextFilters)
     },
     [onFiltersChange],
@@ -140,6 +158,11 @@ export function useDashboardFilters(
       .sort(compareExpensesByDateDescThenIdDesc)
   }, [expenses, monthKeys])
 
+  const getExpenseTagNames = useCallback(
+    (exp: Expense) => (exp.id != null ? (expenseTagsMap[exp.id] ?? []).map((tag) => tag.name) : []),
+    [expenseTagsMap],
+  )
+
   const filteredExpenses = useMemo(() => {
     let result = expensesInSelectedSpan
 
@@ -150,6 +173,9 @@ export function useDashboardFilters(
     if (selectedPayees.size > 0) {
       result = result.filter((e) => selectedPayees.has(getExpensePayeeName(e)))
     }
+    if (selectedTags.size > 0) {
+      result = result.filter((e) => getExpenseTagNames(e).some((name) => selectedTags.has(name)))
+    }
 
     if (filterGlobal) {
       const q = filterGlobal.toLowerCase()
@@ -158,6 +184,7 @@ export function useDashboardFilters(
           e.description?.toLowerCase().includes(q) ||
           getExpenseCategoryName(e).toLowerCase().includes(q) ||
           getExpensePayeeName(e).toLowerCase().includes(q) ||
+          getExpenseTagNames(e).some((name) => name.toLowerCase().includes(q)) ||
           String(e.amount).includes(q),
       )
     }
@@ -183,8 +210,10 @@ export function useDashboardFilters(
     expensesInSelectedSpan,
     selectedCategories,
     selectedPayees,
+    selectedTags,
     getExpenseCategoryName,
     getExpensePayeeName,
+    getExpenseTagNames,
     filterGlobal,
     filterDateFrom,
     filterDateTo,
@@ -198,6 +227,7 @@ export function useDashboardFilters(
     filterDateTo,
     selectedCategories.size > 0 ? 'categories' : '',
     selectedPayees.size > 0 ? 'payees' : '',
+    selectedTags.size > 0 ? 'tags' : '',
     filterDescription,
     filterAmount,
   ].filter(Boolean).length
@@ -208,6 +238,7 @@ export function useDashboardFilters(
     setFilterDateTo('')
     setSelectedCategories(new Set())
     setSelectedPayees(new Set())
+    setSelectedTags(new Set())
     setFilterDescription('')
     setFilterAmount('')
   }, [
@@ -216,6 +247,7 @@ export function useDashboardFilters(
     setFilterDateTo,
     setSelectedCategories,
     setSelectedPayees,
+    setSelectedTags,
     setFilterDescription,
     setFilterAmount,
   ])
@@ -237,12 +269,15 @@ export function useDashboardFilters(
     setSelectedCategories,
     selectedPayees,
     setSelectedPayees,
+    selectedTags,
+    setSelectedTags,
     applyDashboardFilters,
     filteredExpenses,
     activeFilterCount,
     clearAllFilters,
     getExpenseCategoryName,
     getExpensePayeeName,
+    getExpenseTagNames,
     expensesInSelectedSpan,
   }
 }
