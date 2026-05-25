@@ -481,7 +481,7 @@ export function getExpenseColumns({
               : editing.isCellEditing(rowData.expense.id as number, 'payeeId')
                 ? 'cell-editing'
                 : '',
-        width: '18%',
+        width: '20%',
       },
     },
     {
@@ -576,7 +576,7 @@ export function getExpenseColumns({
           editing.isCellEditing(rowData.expense.id as number, 'categoryId')
             ? 'cell-editing'
             : '',
-        width: '18%',
+        width: '20%',
       },
     },
     {
@@ -643,7 +643,7 @@ export function getExpenseColumns({
             : editing.isCellEditing(rowData.expense.id as number, 'notes')
               ? 'cell-editing'
               : '',
-        width: '28%',
+        width: '20%',
       },
     },
     {
