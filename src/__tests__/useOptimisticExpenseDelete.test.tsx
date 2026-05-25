@@ -21,9 +21,9 @@ vi.mock('../services/storageService', () => ({
 }))
 
 const baseExpenses: Expense[] = [
-  { id: 1, date: '2026-05-01', amount: 100, description: 'Rent' },
-  { id: 2, date: '2026-05-02', amount: 50, description: 'Food' },
-  { id: 3, date: '2026-05-03', amount: 20, description: 'Coffee' },
+  { id: 1, date: '2026-05-01', amount: 100, notes: 'Rent' },
+  { id: 2, date: '2026-05-02', amount: 50, notes: 'Food' },
+  { id: 3, date: '2026-05-03', amount: 20, notes: 'Coffee' },
 ]
 
 describe('useOptimisticExpenseDelete', () => {

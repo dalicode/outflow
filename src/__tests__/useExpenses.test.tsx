@@ -47,7 +47,7 @@ function ExpenseListConsumer() {
     <ul>
       {expenses.map((expense) => (
         <li key={expense.id}>
-          {expense.description} - {expense.amount}
+          {expense.notes} - {expense.amount}
         </li>
       ))}
     </ul>
@@ -65,13 +65,13 @@ describe('useExpenses', () => {
       id: 1,
       date: '2026-05-01',
       amount: 20,
-      description: 'Coffee',
+      notes: 'Coffee',
     }
     const secondExpense: Expense = {
       id: 2,
       date: '2026-05-02',
       amount: 45,
-      description: 'Groceries',
+      notes: 'Groceries',
     }
 
     liveExpenseStore.set([firstExpense])
@@ -95,12 +95,12 @@ describe('useExpenses', () => {
       id: 1,
       date: '2026-05-01',
       amount: 20,
-      description: 'Coffee',
+      notes: 'Coffee',
     }
     const updatedExpense: Expense = {
       ...firstExpense,
       amount: 24,
-      description: 'Coffee beans',
+      notes: 'Coffee beans',
     }
 
     liveExpenseStore.set([firstExpense])
@@ -123,13 +123,13 @@ describe('useExpenses', () => {
       id: 1,
       date: '2026-05-01',
       amount: 20,
-      description: 'Coffee',
+      notes: 'Coffee',
     }
     const optimisticExpense: Expense = {
       id: 2,
       date: '2026-05-03',
       amount: 70,
-      description: 'Transit pass',
+      notes: 'Transit pass',
     }
 
     liveExpenseStore.set([firstExpense])

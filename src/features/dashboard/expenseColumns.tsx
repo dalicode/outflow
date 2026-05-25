@@ -9,7 +9,7 @@ import InlineMoneyEditCell from './InlineMoneyEditCell'
 import type { ExpenseDisplayRow } from './splitDisplayRows'
 import type { CellEditingAPI } from './useExpenseCellEditing'
 
-type EditableSplitField = 'date' | 'payeeId' | 'description'
+type EditableSplitField = 'date' | 'payeeId' | 'notes'
 
 interface GetExpenseColumnsParams {
   selectedIds: Set<number>
@@ -29,7 +29,7 @@ interface GetExpenseColumnsParams {
   onStartSplitFieldEdit: (splitId: number, field: EditableSplitField) => void
   onCommitSplitDateEdit: (splitId: number, value: string) => void
   onCommitSplitPayeeEdit: (splitId: number, payeeId: number | undefined) => void
-  onCommitSplitDescriptionEdit: (splitId: number, value: string) => void
+  onCommitSplitNotesEdit: (splitId: number, value: string) => void
   onCancelSplitFieldEdit: () => void
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
@@ -171,7 +171,7 @@ function renderPayeeEditor(config: PayeeEditorConfig): React.ReactNode {
   )
 }
 
-function renderDescriptionEditor(
+function renderNotesEditor(
   value: string,
   onCommit: (nextValue: string) => void,
   onCancel: () => void,
@@ -207,7 +207,7 @@ export function getExpenseColumns({
   onStartSplitFieldEdit,
   onCommitSplitDateEdit,
   onCommitSplitPayeeEdit,
-  onCommitSplitDescriptionEdit,
+  onCommitSplitNotesEdit,
   onCancelSplitFieldEdit,
   refreshCategories,
   refreshPayees,
@@ -265,7 +265,7 @@ export function getExpenseColumns({
                 onToggleSelect(exp.id as number)
               }}
               className="sr-only"
-              aria-label={`Select ${exp.description || 'expense'}`}
+              aria-label={`Select ${exp.notes || 'expense'}`}
             />
             <div
               className={cn(
@@ -580,16 +580,16 @@ export function getExpenseColumns({
       },
     },
     {
-      id: 'description',
-      header: 'Description',
+      id: 'notes',
+      header: 'Notes',
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
-          const descriptionValue = rowData.split?.description ?? ''
-          if (isSplitFieldEditing(editingSplitField, rowData.splitId, 'description')) {
-            return renderDescriptionEditor(
-              descriptionValue,
-              (value) => onCommitSplitDescriptionEdit(rowData.splitId, value),
+          const notesValue = rowData.split?.notes ?? ''
+          if (isSplitFieldEditing(editingSplitField, rowData.splitId, 'notes')) {
+            return renderNotesEditor(
+              notesValue,
+              (value) => onCommitSplitNotesEdit(rowData.splitId, value),
               onCancelSplitFieldEdit,
               () => onCancelSplitFieldEdit(),
               () => onCancelSplitFieldEdit(),
@@ -598,38 +598,38 @@ export function getExpenseColumns({
           return renderEditableDisplayCell(
             {
               className: 'block w-full cursor-pointer truncate text-theme-muted',
-              field: 'description',
-              title: descriptionValue || undefined,
-              content: descriptionValue || <span className="text-theme-muted">—</span>,
+              field: 'notes',
+              title: notesValue || undefined,
+              content: notesValue || <span className="text-theme-muted">—</span>,
             },
             (e) => {
               if (e.button !== 0) return
               e.preventDefault()
               e.stopPropagation()
-              onStartSplitFieldEdit(rowData.splitId, 'description')
+              onStartSplitFieldEdit(rowData.splitId, 'notes')
             },
           )
         }
         const exp = rowData.expense
-        if (editing.isCellEditing(exp.id as number, 'description')) {
-          return renderDescriptionEditor(
-            exp.description ?? '',
-            editing.createOnCommit(exp.id as number, 'description'),
+        if (editing.isCellEditing(exp.id as number, 'notes')) {
+          return renderNotesEditor(
+            exp.notes ?? '',
+            editing.createOnCommit(exp.id as number, 'notes'),
             editing.createOnCancel(),
-            (shiftKey) => editing.handleEnterNavigation(exp, 'description', shiftKey),
-            (shiftKey) => editing.handleTabNavigation(exp, 'description', shiftKey),
+            (shiftKey) => editing.handleEnterNavigation(exp, 'notes', shiftKey),
+            (shiftKey) => editing.handleTabNavigation(exp, 'notes', shiftKey),
           )
         }
         return renderEditableDisplayCell(
           {
             className: 'cursor-pointer block w-full truncate',
-            title: exp.description || undefined,
+            title: exp.notes || undefined,
             isEditableCell: true,
             expenseId: exp.id as number,
-            field: 'description',
-            content: exp.description || <span className="text-theme-muted">—</span>,
+            field: 'notes',
+            content: exp.notes || <span className="text-theme-muted">—</span>,
           },
-          editableCellActivate(editing, exp, 'description').onPointerDown,
+          editableCellActivate(editing, exp, 'notes').onPointerDown,
         )
       },
       meta: {
@@ -637,10 +637,10 @@ export function getExpenseColumns({
         cellClassName: 'text-theme-text overflow-hidden max-w-[14rem]',
         getCellClassName: (rowData: ExpenseDisplayRow) =>
           rowData.rowType === 'splitContainer'
-            ? isSplitFieldEditing(editingSplitField, rowData.splitId, 'description')
+            ? isSplitFieldEditing(editingSplitField, rowData.splitId, 'notes')
               ? 'cell-editing'
               : ''
-            : editing.isCellEditing(rowData.expense.id as number, 'description')
+            : editing.isCellEditing(rowData.expense.id as number, 'notes')
               ? 'cell-editing'
               : '',
         width: '28%',

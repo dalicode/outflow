@@ -73,7 +73,7 @@ describe('ScheduleModal', () => {
     await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
   })
 
-  it('shows expense fields (date, payee, category, description, amount) when type is expense', async () => {
+  it('shows expense fields (date, payee, category, notes, amount) when type is expense', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
     const typeSelect = screen.getAllByRole('combobox')[0]
@@ -83,19 +83,19 @@ describe('ScheduleModal', () => {
       expect(screen.getByText('Date')).toBeInTheDocument()
       expect(screen.getByText('Payee')).toBeInTheDocument()
       expect(screen.getByText('Category')).toBeInTheDocument()
-      expect(screen.getByText('Description')).toBeInTheDocument()
+      expect(screen.getByText('Notes')).toBeInTheDocument()
       expect(screen.getByText('Amount')).toBeInTheDocument()
     })
   })
 
-  it('does not show note field for expense type', async () => {
+  it('shows notes field for expense type', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
     const typeSelect = screen.getAllByRole('combobox')[0]
     fireEvent.change(typeSelect, { target: { value: 'expense' } })
 
     await waitFor(() => {
-      expect(screen.queryByText('Note')).not.toBeInTheDocument()
+      expect(screen.getByText('Notes')).toBeInTheDocument()
     })
   })
 
@@ -120,10 +120,10 @@ describe('ScheduleModal', () => {
     })
   })
 
-  it('shows note field for non-expense types', async () => {
+  it('shows notes field for non-expense types', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     // Default type is income
-    expect(screen.getByText('Note')).toBeInTheDocument()
+    expect(screen.getByText('Notes')).toBeInTheDocument()
     await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
   })
 

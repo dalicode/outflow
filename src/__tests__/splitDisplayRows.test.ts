@@ -14,7 +14,7 @@ describe('splitDisplayRows', () => {
       { id: 3, date: '2026-05-01', amount: 5, categoryId: 7 },
     ]
     const splits: ExpenseSplit[] = [
-      { id: 10, date: '2026-05-02', amount: 20, description: 'Lunch split' },
+      { id: 10, date: '2026-05-02', amount: 20, notes: 'Lunch split' },
     ]
 
     const rows = buildExpenseDisplayRows({
@@ -56,7 +56,7 @@ describe('splitDisplayRows', () => {
       { id: 1, date: '2026-05-02', amount: 12, splitId: 10, categoryId: 3 },
     ]
     const splits: ExpenseSplit[] = [
-      { id: 10, date: '2026-05-02', amount: 20, description: 'Lunch split' },
+      { id: 10, date: '2026-05-02', amount: 20, notes: 'Lunch split' },
     ]
 
     const rows = buildExpenseDisplayRows({
@@ -74,7 +74,7 @@ describe('splitDisplayRows', () => {
     )
   })
 
-  it('keeps split container descriptions empty when the parent has no description', () => {
+  it('keeps split container notes empty when the parent has no notes', () => {
     const expenses: Expense[] = [{ id: 1, date: '2026-05-02', amount: 12, splitId: 10, categoryId: 3 }]
     const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-02', amount: 12 }]
 
@@ -88,7 +88,7 @@ describe('splitDisplayRows', () => {
     expect(rows[0]).toEqual(
       expect.objectContaining({
         rowType: 'splitContainer',
-        descriptionDisplay: '',
+        notesDisplay: '',
       }),
     )
   })

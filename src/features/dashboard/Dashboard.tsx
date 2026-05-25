@@ -435,7 +435,7 @@ export default function Dashboard({
             selectedCategories: dash.selectedCategories,
             selectedPayees: dash.selectedPayees,
             selectedTags: dash.selectedTags,
-            filterDescription: dash.filterDescription,
+            filterNotes: dash.filterNotes,
             filterAmount: dash.filterAmount,
           }}
           onApply={(draft) => {
@@ -443,7 +443,7 @@ export default function Dashboard({
               filterGlobal: draft.filterGlobal,
               filterDateFrom: draft.filterDateFrom,
               filterDateTo: draft.filterDateTo,
-              filterDescription: draft.filterDescription,
+              filterNotes: draft.filterNotes,
               filterAmount: draft.filterAmount,
               selectedCategories: Array.from(draft.selectedCategories),
               selectedPayees: Array.from(draft.selectedPayees),

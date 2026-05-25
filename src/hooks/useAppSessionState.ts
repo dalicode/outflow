@@ -23,7 +23,7 @@ export function useAppSessionState(): {
       filterGlobal: '',
       filterDateFrom: '',
       filterDateTo: '',
-      filterDescription: '',
+      filterNotes: '',
       filterAmount: '',
       selectedCategories: [],
       selectedPayees: [],

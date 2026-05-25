@@ -16,7 +16,7 @@ describe('getExpenseAllocations', () => {
         amount: 20,
         categoryId: 1,
         payeeId: 1,
-        description: undefined,
+        notes: undefined,
       },
       {
         expenseId: 2,
@@ -25,7 +25,7 @@ describe('getExpenseAllocations', () => {
         amount: 80,
         categoryId: 2,
         payeeId: 2,
-        description: undefined,
+        notes: undefined,
       },
     ])
   })

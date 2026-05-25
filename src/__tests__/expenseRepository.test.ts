@@ -140,7 +140,7 @@ describe('expenseRepository', () => {
     const id = await add({
       date: '2026-05-01',
       amount: 20,
-      description: 'Coffee',
+      notes: 'Coffee',
     })
     await remove(id)
 
@@ -154,8 +154,8 @@ describe('expenseRepository', () => {
   })
 
   it('tombstones bulk deletes and keeps same row identity for restores', async () => {
-    const firstId = await add({ date: '2026-05-01', amount: 20, description: 'Coffee' })
-    const secondId = await add({ date: '2026-05-02', amount: 45, description: 'Groceries' })
+    const firstId = await add({ date: '2026-05-01', amount: 20, notes: 'Coffee' })
+    const secondId = await add({ date: '2026-05-02', amount: 45, notes: 'Groceries' })
 
     await removeMany([firstId, secondId])
 
@@ -170,7 +170,7 @@ describe('expenseRepository', () => {
   })
 
   it('restores a single tombstoned expense on the same id', async () => {
-    const id = await add({ date: '2026-05-03', amount: 12, description: 'Transit' })
+    const id = await add({ date: '2026-05-03', amount: 12, notes: 'Transit' })
     await remove(id)
     await restore(id)
 
@@ -190,7 +190,7 @@ describe('expenseRepository', () => {
       amount: 32,
       categoryId: 10,
       payeeId: 20,
-      description: 'Dinner',
+      notes: 'Dinner',
     })
 
     const all = await getAllExpenses()
@@ -207,7 +207,7 @@ describe('expenseRepository', () => {
       amount: 8,
       categoryId: 10,
       payeeId: 20,
-      description: 'Morning coffee',
+      notes: 'Morning coffee',
     })
 
     setCategory(11, 'Transit')
@@ -229,7 +229,7 @@ describe('expenseRepository', () => {
       const id = await add({
         date: '2026-05-07',
         amount: 8,
-        description: 'Morning coffee',
+        notes: 'Morning coffee',
       })
 
       const before = (await getAllExpenses()).find((expense) => expense.id === id)

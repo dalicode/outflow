@@ -49,7 +49,7 @@ export function useOptimisticExpenseDelete({
     pendingExpenseDeleteTimersRef.current.push(timer)
     setPendingExpenseDeleteIds((current) => [...new Set([...current, id])])
     setExpenses((prev) => prev.filter((item) => item.id !== id))
-    showUndoToast(`Deleted ${expense.description?.trim() || 'expense'}.`, async () => {
+    showUndoToast(`Deleted ${expense.notes?.trim() || 'expense'}.`, async () => {
       clearTimeout(timer)
       pendingExpenseDeleteTimersRef.current = pendingExpenseDeleteTimersRef.current.filter(
         (item) => item !== timer,

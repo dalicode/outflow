@@ -49,7 +49,7 @@ export const testApi = {
       amount: number
       categoryId?: number
       payeeId?: number
-      description?: string
+      notes?: string
     }>,
   ) => {
     for (const e of entries) {
@@ -62,7 +62,7 @@ export const testApi = {
     children: Array<{
       categoryId: number
       amount: number
-      description?: string
+      notes?: string
       payeeId?: number
     }>
   }) => {

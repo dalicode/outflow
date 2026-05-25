@@ -29,6 +29,37 @@ function asBackupRows(value: unknown): BackupRow[] {
   return value.filter((row): row is BackupRow => typeof row === 'object' && row !== null)
 }
 
+function readStringField(row: BackupRow, key: string): string {
+  const value = row[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function isNonEmpty(value: string): boolean {
+  return value.trim().length > 0
+}
+
+function resolveExpenseNotes(row: BackupRow): string {
+  return readStringField(row, 'notes') || readStringField(row, 'description')
+}
+
+function resolveSplitNotes(row: BackupRow): string {
+  const existingNotes = readStringField(row, 'notes')
+  if (isNonEmpty(existingNotes)) return existingNotes
+
+  const legacyDescription = readStringField(row, 'description')
+  const legacyNote = readStringField(row, 'note')
+  if (isNonEmpty(legacyDescription) && isNonEmpty(legacyNote)) {
+    return legacyDescription
+  }
+  if (isNonEmpty(legacyDescription)) return legacyDescription
+  if (isNonEmpty(legacyNote)) return legacyNote
+  return legacyDescription || legacyNote
+}
+
+function resolveScheduleNotes(row: BackupRow): string {
+  return readStringField(row, 'notes') || readStringField(row, 'note')
+}
+
 function normalizeCategoryRows(rows: BackupRow[], now: string): Category[] {
   return rows.map((row) => {
     const normalized = normalizeImportedSyncMetadata(row, { now })
@@ -114,9 +145,11 @@ function normalizeExpenseRows(
     return {
       ...row,
       ...normalized,
+      notes: resolveExpenseNotes(row),
+      description: undefined,
       categoryNameSnapshot,
       payeeNameSnapshot,
-    } as Expense
+    } as unknown as Expense
   })
 }
 
@@ -137,8 +170,15 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
         ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as FixedExpense,
     ),
     expenseSplits: asBackupRows(payload.expenseSplits).map(
-      (row) =>
-        ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as ExpenseSplit,
+      (row) => {
+        return {
+          ...row,
+          ...normalizeImportedSyncMetadata(row, { now }),
+          notes: resolveSplitNotes(row),
+          description: undefined,
+          note: undefined,
+        } as unknown as ExpenseSplit
+      },
     ),
     fixedExpenseSnapshots: asBackupRows(payload.fixedExpenseSnapshots).map(
       (row) =>
@@ -156,7 +196,13 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
         ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as SavingsSnapshot,
     ),
     schedules: asBackupRows(payload.schedules).map(
-      (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as Schedule,
+      (row) =>
+        ({
+          ...row,
+          ...normalizeImportedSyncMetadata(row, { now }),
+          notes: resolveScheduleNotes(row),
+          note: undefined,
+        }) as unknown as Schedule,
     ),
     settings: asBackupRows(payload.settings).map(
       (row) => ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as Setting,

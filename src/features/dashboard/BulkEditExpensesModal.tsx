@@ -57,11 +57,11 @@ export default function BulkEditExpensesModal({
   const [applyDate, setApplyDate] = useState(false)
   const [applyPayee, setApplyPayee] = useState(false)
   const [applyCategory, setApplyCategory] = useState(false)
-  const [applyDescription, setApplyDescription] = useState(false)
+  const [applyNotes, setApplyNotes] = useState(false)
   const [date, setDate] = useState('')
   const [payeeId, setPayeeId] = useState<number | undefined>(undefined)
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined)
-  const [description, setDescription] = useState('')
+  const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [showPayeePicker, setShowPayeePicker] = useState(false)
@@ -110,11 +110,11 @@ export default function BulkEditExpensesModal({
     setApplyDate(false)
     setApplyPayee(false)
     setApplyCategory(false)
-    setApplyDescription(false)
+    setApplyNotes(false)
     setDate(firstExpense?.date ?? '')
     setPayeeId(firstExpense?.payeeId)
     setCategoryId(firstExpense?.categoryId)
-    setDescription(firstExpense?.description ?? '')
+    setNotes(firstExpense?.notes ?? '')
     setError('')
     setSaving(false)
   }, [isOpen, selectedExpenses])
@@ -136,8 +136,8 @@ export default function BulkEditExpensesModal({
     if (applyCategory) {
       changes.categoryId = categoryId
     }
-    if (applyDescription) {
-      changes.description = description.trim()
+    if (applyNotes) {
+      changes.notes = notes.trim()
     }
 
     if (Object.keys(changes).length === 0) {
@@ -308,19 +308,19 @@ export default function BulkEditExpensesModal({
         </BulkEditField>
 
         <BulkEditField
-          checked={applyDescription}
-          label="Description"
-          onToggle={setApplyDescription}
+          checked={applyNotes}
+          label="Notes"
+          onToggle={setApplyNotes}
         >
           <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
             rows={3}
-            placeholder="Enter description..."
+            placeholder="Enter notes..."
             className="input-md w-full resize-none"
           />
           <p className="mt-2 text-xs text-theme-muted">
-            Leave blank to clear the description on all selected expenses.
+            Leave blank to clear the notes on all selected expenses.
           </p>
         </BulkEditField>
       </form>

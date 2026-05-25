@@ -17,7 +17,7 @@ import type {
   SyncQueueItem,
 } from '../../types'
 import { buildDefaultCategories, buildDefaultPayees } from '../defaults'
-import { migrateV10CategoryPayeeIds } from './migrations'
+import { migrateV10CategoryPayeeIds, migrateV22NotesFields } from './migrations'
 import { createSyncMetadata, normalizeNameForSync } from '../../utils/syncMetadata'
 
 type Setting = SyncedSettingRow
@@ -520,6 +520,35 @@ class OutflowDB extends Dexie {
       payeeMergeHistory:
         '++id, sourcePayeeId, targetPayeeId, localId, cloudId, syncStatus, deletedAt',
     })
+    this.version(22)
+      .stores({
+        expenses:
+          '++id, date, splitId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
+        expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt',
+        tags: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+        expenseTags:
+          '++id, expenseId, tagId, localId, cloudId, syncStatus, deletedAt, [expenseId+tagId]',
+        settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
+        fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
+        categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+        payees: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+        syncQueue: '++id, table, timestamp',
+        fixedExpenseSnapshots:
+          '++id, [fixedExpenseId+year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        schedules:
+          '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
+        incomeSnapshots:
+          '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        savingsSnapshots:
+          '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        categoryMergeHistory:
+          '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
+        payeeMergeHistory:
+          '++id, sourcePayeeId, targetPayeeId, localId, cloudId, syncStatus, deletedAt',
+      })
+      .upgrade(async (tx) => {
+        await migrateV22NotesFields(tx)
+      })
 
     this.on('populate', () => {
       const now = new Date().toISOString()

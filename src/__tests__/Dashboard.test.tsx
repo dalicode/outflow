@@ -152,7 +152,7 @@ vi.mock('../features/dashboard/ExpensesView', async () => {
       return (
         <div data-testid="expenses-view">
           {props.expenses.map((expense) => (
-            <span key={expense.id}>{expense.description}</span>
+            <span key={expense.id}>{expense.notes}</span>
           ))}
         </div>
       )
@@ -195,7 +195,7 @@ const categoryExpense: Expense = {
   amount: 45,
   categoryId: 10,
   payeeId: 20,
-  description: 'Category drilldown expense',
+  notes: 'Category drilldown expense',
 }
 
 const payeeExpense: Expense = {
@@ -204,7 +204,7 @@ const payeeExpense: Expense = {
   amount: 32,
   categoryId: 11,
   payeeId: 21,
-  description: 'Payee drilldown expense',
+  notes: 'Payee drilldown expense',
 }
 
 function makeDash(overrides: Partial<DashboardState> = {}): DashboardState {
@@ -250,8 +250,8 @@ function makeDash(overrides: Partial<DashboardState> = {}): DashboardState {
     setSelectedCategories: vi.fn(),
     selectedPayees: new Set(),
     setSelectedPayees: vi.fn(),
-    filterDescription: '',
-    setFilterDescription: vi.fn(),
+    filterNotes: '',
+    setFilterNotes: vi.fn(),
     filterAmount: '',
     setFilterAmount: vi.fn(),
     activeFilterCount: 0,

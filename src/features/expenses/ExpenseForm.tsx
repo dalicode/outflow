@@ -33,7 +33,7 @@ const EMPTY_FORM = {
   date: getLocalToday(),
   categoryId: '',
   payeeId: '',
-  description: '',
+  notes: '',
   amount: '',
 }
 
@@ -42,7 +42,7 @@ function getFormFromExpense(expense: Expense) {
     date: expense.date,
     categoryId: String(expense.categoryId ?? ''),
     payeeId: String(expense.payeeId ?? ''),
-    description: expense.description ?? '',
+    notes: expense.notes ?? '',
     amount: String(expense.amount ?? ''),
   }
 }
@@ -51,7 +51,7 @@ interface SplitChildDraft {
   rowId: string
   expenseId?: number
   categoryId: string
-  description: string
+  notes: string
   amount: string
 }
 
@@ -200,16 +200,16 @@ export default function ExpenseForm({
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [field]: e.target.value }))
 
-  // Run payee matching when description changes (debounced on blur)
+  // Run payee matching when notes changes (debounced on blur)
   const runPayeeMatch = useCallback(
-    (description: string) => {
+    (notes: string) => {
       // Don't suggest if payee already selected
       if (form.payeeId) return
-      if (!description.trim()) {
+      if (!notes.trim()) {
         setPayeeSuggestion(null)
         return
       }
-      const result = findBestPayeeMatch(description, payees)
+      const result = findBestPayeeMatch(notes, payees)
       if (!result) {
         setPayeeSuggestion(null)
         return
@@ -224,7 +224,7 @@ export default function ExpenseForm({
     [form.payeeId, payees],
   )
 
-  const handleDescriptionBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleNotesBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     runPayeeMatch(e.target.value)
   }
 
@@ -245,7 +245,7 @@ export default function ExpenseForm({
       rowId: seed?.rowId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       expenseId: seed?.expenseId,
       categoryId: seed?.categoryId ?? '',
-      description: seed?.description ?? '',
+      notes: seed?.notes ?? '',
       amount: seed?.amount ?? '0',
     }),
     [],
@@ -304,7 +304,7 @@ export default function ExpenseForm({
             date: split.date,
             categoryId: '',
             payeeId: split.payeeId != null ? String(split.payeeId) : '',
-            description: split.description ?? '',
+            notes: split.notes ?? '',
             amount: split.amount.toFixed(decimalPlaces),
           })
         }
@@ -314,7 +314,7 @@ export default function ExpenseForm({
             rowId: `existing-${child.id}-${Math.random().toString(36).slice(2)}`,
             expenseId: child.id,
             categoryId: child.categoryId != null ? String(child.categoryId) : '',
-            description: child.description ?? '',
+            notes: child.notes ?? '',
             amount: child.amount.toFixed(decimalPlaces),
           })),
         )
@@ -417,9 +417,8 @@ export default function ExpenseForm({
       date: form.date,
       payeeId: resolvedPayeeId,
       payeeNameSnapshot: matchedPayee?.name ?? null,
-      description: form.description,
+      notes: form.notes,
       amount: splitContainerAmount,
-      note: '',
     }
   }
 
@@ -433,7 +432,7 @@ export default function ExpenseForm({
         expenseId: child.expenseId,
         categoryId: child.categoryId ? Number(child.categoryId) : undefined,
         payeeId: inheritedPayeeId,
-        description: child.description,
+        notes: child.notes,
         amount: Number.parseFloat(child.amount || '0'),
       })),
     })
@@ -551,7 +550,7 @@ export default function ExpenseForm({
       date: form.date,
       categoryId: Number(form.categoryId),
       payeeId: form.payeeId ? Number(form.payeeId) : undefined,
-      description: form.description,
+      notes: form.notes,
       amount: parseFloat(form.amount),
     }
 
@@ -797,12 +796,12 @@ export default function ExpenseForm({
             />
           </div>
           <div className="flex flex-col gap-1 text-sm text-theme-muted">
-            <span>Description</span>
+            <span>Notes</span>
             <input
               type="text"
-              value={form.description}
-              onChange={set('description')}
-              onBlur={handleDescriptionBlur}
+              value={form.notes}
+              onChange={set('notes')}
+              onBlur={handleNotesBlur}
               placeholder="Optional"
               className={inputCls}
             />
@@ -993,16 +992,16 @@ export default function ExpenseForm({
                         />
                       </div>
                       <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                        Description
+                        Notes
                         <input
                           type="text"
-                          value={child.description}
+                          value={child.notes}
                           onChange={(event) =>
-                            setSplitChildField(child.rowId, 'description', event.target.value)
+                            setSplitChildField(child.rowId, 'notes', event.target.value)
                           }
                           className={inputCls}
                           placeholder="Optional"
-                          aria-label={`Split description ${index + 1}`}
+                          aria-label={`Split notes ${index + 1}`}
                         />
                       </label>
                       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">

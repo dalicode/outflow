@@ -4,9 +4,9 @@ import type { Expense } from '../types'
 import { useExpenseCellEditing } from '../features/dashboard/useExpenseCellEditing'
 
 const expenses: Expense[] = [
-  { id: 1, date: '2024-06-01', amount: 10, description: 'Coffee' },
-  { id: 2, date: '2024-06-02', amount: 20, description: 'Groceries' },
-  { id: 3, date: '2024-06-03', amount: 30, description: 'Gas' },
+  { id: 1, date: '2024-06-01', amount: 10, notes: 'Coffee' },
+  { id: 2, date: '2024-06-02', amount: 20, notes: 'Groceries' },
+  { id: 3, date: '2024-06-03', amount: 30, notes: 'Gas' },
 ]
 
 describe('useExpenseCellEditing', () => {
@@ -51,16 +51,16 @@ describe('useExpenseCellEditing', () => {
     )
 
     act(() => {
-      result.current.startCellEdit(expenses[1], 'description')
+      result.current.startCellEdit(expenses[1], 'notes')
     })
 
     act(() => {
-      result.current.handleEnterNavigation(expenses[1], 'description', true)
+      result.current.handleEnterNavigation(expenses[1], 'notes', true)
     })
 
     expect(result.current.editingCell).toEqual({
       expenseId: 1,
-      field: 'description',
+      field: 'notes',
     })
   })
 
@@ -94,7 +94,7 @@ describe('useExpenseCellEditing', () => {
       splitId: 12,
       date: '2024-06-04',
       amount: 12,
-      description: 'Split child',
+      notes: 'Split child',
     }
 
     const { result } = renderHook(() =>
@@ -123,7 +123,7 @@ describe('useExpenseCellEditing', () => {
       splitId: 12,
       date: '2024-06-04',
       amount: 12,
-      description: 'Split child',
+      notes: 'Split child',
     }
     const setMobileEditExpense = vi.fn()
     const setShowMobileEditModal = vi.fn()

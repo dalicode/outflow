@@ -10,7 +10,7 @@ interface ExpenseTableFiltersProps {
     dateFrom: string
     dateTo: string
     category: string
-    description: string
+    notes: string
     amount: string
   }
   onColumnFilterChange: (field: string, val: string) => void
@@ -43,7 +43,7 @@ export default function ExpenseTableFilters({
     columnFilters.dateFrom ||
     columnFilters.dateTo ||
     columnFilters.category ||
-    columnFilters.description ||
+    columnFilters.notes ||
     columnFilters.amount
 
   return (
@@ -83,7 +83,7 @@ export default function ExpenseTableFilters({
               onColumnFilterChange('dateFrom', '')
               onColumnFilterChange('dateTo', '')
               onColumnFilterChange('category', '')
-              onColumnFilterChange('description', '')
+              onColumnFilterChange('notes', '')
               onColumnFilterChange('amount', '')
             }}
             className="text-xs font-medium px-2.5 py-1.5 rounded-theme-medium bg-theme-background text-theme-muted hover:text-theme-text border border-theme-border transition-colors shrink-0"
@@ -121,9 +121,9 @@ export default function ExpenseTableFilters({
         </select>
         <input
           type="text"
-          value={columnFilters.description}
-          onChange={(e) => onColumnFilterChange('description', e.target.value)}
-          placeholder="Description"
+          value={columnFilters.notes}
+          onChange={(e) => onColumnFilterChange('notes', e.target.value)}
+          placeholder="Notes"
           className="input-theme px-2 py-1 text-xs"
         />
         <input

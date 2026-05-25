@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
-import { migrateV10CategoryPayeeIds } from '../services/db/migrations'
+import { migrateV10CategoryPayeeIds, migrateV22NotesFields } from '../services/db/migrations'
 import { migrateV18SyncMetadata, migrateV19StripArchivedAt } from '../services/db/schema'
 
 type Row = Record<string, unknown>
@@ -34,6 +34,7 @@ class FakeTx {
       expenses: new FakeTable(seed.expenses ?? []),
       categories: new FakeTable(seed.categories ?? []),
       payees: new FakeTable(seed.payees ?? []),
+      expenseSplits: new FakeTable(seed.expenseSplits ?? []),
       fixedExpenses: new FakeTable(seed.fixedExpenses ?? []),
       fixedExpenseSnapshots: new FakeTable(seed.fixedExpenseSnapshots ?? []),
       incomeSnapshots: new FakeTable(seed.incomeSnapshots ?? []),
@@ -258,6 +259,49 @@ describe('migrateV19StripArchivedAt', () => {
   })
 })
 
+describe('migrateV22NotesFields', () => {
+  it('migrates legacy expense/split/schedule note fields to notes', async () => {
+    const tx = new FakeTx({
+      expenses: [{ id: 1, description: 'Coffee' }],
+      expenseSplits: [{ id: 10, description: 'Lunch split' }],
+      schedules: [{ id: 20, note: 'Annual raise' }],
+    })
+
+    await migrateV22NotesFields(tx)
+
+    const [expense] = await tx.table('expenses').toArray()
+    const [split] = await tx.table('expenseSplits').toArray()
+    const [schedule] = await tx.table('schedules').toArray()
+
+    expect(expense.notes).toBe('Coffee')
+    expect('description' in expense).toBe(false)
+    expect(split.notes).toBe('Lunch split')
+    expect('description' in split).toBe(false)
+    expect('note' in split).toBe(false)
+    expect(schedule.notes).toBe('Annual raise')
+    expect('note' in schedule).toBe(false)
+  })
+
+  it('prefers split legacy description when both description and note are populated', async () => {
+    const tx = new FakeTx({
+      expenses: [],
+      expenseSplits: [
+        {
+          id: 11,
+          description: 'Use this',
+          note: 'Do not use this',
+        },
+      ],
+      schedules: [],
+    })
+
+    await migrateV22NotesFields(tx)
+
+    const [split] = await tx.table('expenseSplits').toArray()
+    expect(split.notes).toBe('Use this')
+  })
+})
+
 describe('Dexie v20 split schema definitions', () => {
   it('declares split-aware version 20 stores for expenses and expenseSplits', () => {
     const schemaSource = readFileSync('src/services/db/schema.ts', 'utf8')
@@ -269,5 +313,6 @@ describe('Dexie v20 split schema definitions', () => {
     expect(schemaSource).toContain(
       "expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt'",
     )
+    expect(schemaSource).toContain('this.version(22)')
   })
 })

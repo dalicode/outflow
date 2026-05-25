@@ -260,7 +260,7 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
             payeeId: schedule.payeeId,
             categoryNameSnapshot,
             payeeNameSnapshot,
-            description: schedule.note,
+            notes: schedule.notes,
             createdAt: nowIso,
             updatedAt: nowIso,
           },
@@ -270,7 +270,7 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
       newNotices.push(
         buildScheduleMaterializationNotice(schedule, {
           appliedAt: nowIso,
-          label: schedule.note?.trim() || 'Planned expense',
+          label: schedule.notes?.trim() || 'Planned expense',
         }),
       )
       await updateSchedulePending(schedule.id, { isActive: 0 }, nowIso)

@@ -108,7 +108,7 @@ function ScheduleItem({
             ({categories.find((c) => c.id === schedule.categoryId)?.name ?? 'Unknown'})
           </span>
         )}
-        {schedule.note && <span className="text-theme-muted ml-1">({schedule.note})</span>}
+        {schedule.notes && <span className="text-theme-muted ml-1">({schedule.notes})</span>}
         {isArchived && <span className="text-theme-success ml-1.5 text-[10px]">&#10003;</span>}
       </div>
       {!isArchived && (

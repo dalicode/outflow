@@ -11,7 +11,7 @@ describe('editableCellActivate', () => {
     const handlers = editableCellActivate(
       editing,
       { id: 1 } as Parameters<typeof editableCellActivate>[1],
-      'description',
+      'notes',
     )
 
     // The returned handler set should include onPointerDown but NOT onClick
@@ -27,7 +27,7 @@ describe('editableCellActivate', () => {
     } as unknown as React.PointerEvent<HTMLElement>)
 
     expect(switchCellEdit).toHaveBeenCalledTimes(1)
-    expect(switchCellEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), 'description')
+    expect(switchCellEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), 'notes')
   })
 
   it('ignores right-clicks and cells inside no-cell-switch containers', () => {

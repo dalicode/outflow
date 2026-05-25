@@ -18,7 +18,7 @@ export interface ImportPayeeCandidate {
 
 export interface ImportPayeeMatchResult {
   rowId: string
-  description: string
+  notes: string
   date?: string
   amount?: number
   suggestedPayeeId?: number
@@ -46,7 +46,7 @@ export interface ImportPayeeMatchSummary {
 
 export interface ImportRowInput {
   rowId: string
-  description: string
+  notes: string
 }
 
 const DEFAULT_PAYEE_TERMS = DEFAULT_PAYEES.map((payee) => ({
@@ -85,8 +85,8 @@ function getImportSearchTerms(payee: Payee): string[] {
   return [...new Set([normalizedCanonical, ...(defaultTerms ?? [])].filter(Boolean))]
 }
 
-export function findCanonicalDefaultPayeeName(description: string): string | null {
-  const normalizedDesc = normalizePayeeText(description)
+export function findCanonicalDefaultPayeeName(notes: string): string | null {
+  const normalizedDesc = normalizePayeeText(notes)
   if (!normalizedDesc) return null
 
   let bestName: string | null = null
@@ -116,13 +116,13 @@ export function findCanonicalDefaultPayeeNames(descriptions: string[]): string[]
 }
 
 export function findBestImportPayeeMatch(
-  description: string,
+  notes: string,
   payees: Payee[],
   rowId: string,
 ): ImportPayeeMatchResult | null {
-  if (!description.trim() || payees.length === 0) return null
+  if (!notes.trim() || payees.length === 0) return null
 
-  const normalizedDesc = normalizePayeeText(description)
+  const normalizedDesc = normalizePayeeText(notes)
   if (!normalizedDesc) return null
 
   const scored = payees
@@ -151,7 +151,7 @@ export function findBestImportPayeeMatch(
   if (scored.length === 0) {
     return {
       rowId,
-      description,
+      notes,
       confidence: 'no_match',
       candidatePayees: [],
     }
@@ -164,7 +164,7 @@ export function findBestImportPayeeMatch(
   if (top.score < CONFIDENCE.CONFIRM) {
     return {
       rowId,
-      description,
+      notes,
       confidence: 'no_match',
       candidatePayees: scored.slice(0, 3).map((entry) => ({
         payeeId: entry.payee.id as number,
@@ -180,7 +180,7 @@ export function findBestImportPayeeMatch(
 
   return {
     rowId,
-    description,
+    notes,
     suggestedPayeeId: top.payee.id as number,
     suggestedPayeeName: top.payee.name,
     confidence,
@@ -203,7 +203,7 @@ export function getImportPayeeMatchSummary(
   let unmatchedExpenses = 0
 
   for (const row of rows) {
-    const match = findBestImportPayeeMatch(row.description, payees, row.rowId)
+    const match = findBestImportPayeeMatch(row.notes, payees, row.rowId)
     if (!match || match.confidence === 'no_match') {
       unmatchedExpenses++
       continue

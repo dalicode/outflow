@@ -246,7 +246,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       amount: 18.5,
       categoryId: 1,
       payeeId: 1,
-      description: 'Local lunch',
+      notes: 'Local lunch',
       updatedAt: '2026-05-02T00:00:00.000Z',
       deletedAt: null,
     })
@@ -258,7 +258,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       amount: 18.5,
       category_id: 'cloud-cat-1',
       payee_id: 'cloud-payee-1',
-      description: 'Local lunch',
+      notes: 'Local lunch',
       deleted_at: '2026-05-10T00:00:00.000Z',
       updated_at: '2026-05-10T00:00:00.000Z',
     })
@@ -297,7 +297,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       amount: 18.5,
       categoryId: 1,
       payeeId: 1,
-      description: 'Locally deleted',
+      notes: 'Locally deleted',
       updatedAt: '2026-05-12T00:00:00.000Z',
       deletedAt: '2026-05-12T00:00:00.000Z',
     })
@@ -309,7 +309,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       amount: 99,
       category_id: 'cloud-cat-1',
       payee_id: 'cloud-payee-1',
-      description: 'Older cloud copy',
+      notes: 'Older cloud copy',
       updated_at: '2026-05-03T00:00:00.000Z',
       deleted_at: null,
     })
@@ -318,7 +318,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
 
     expect(localState.expenses[0].deletedAt).toBe('2026-05-12T00:00:00.000Z')
     expect(localState.expenses[0].amount).toBe(18.5)
-    expect(localState.expenses[0].description).toBe('Locally deleted')
+    expect(localState.expenses[0].notes).toBe('Locally deleted')
   })
 
   it('applies a newer remote restore over an older local tombstone', async () => {
@@ -348,7 +348,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       amount: 18.5,
       categoryId: 1,
       payeeId: 1,
-      description: 'Old local tombstone',
+      notes: 'Old local tombstone',
       updatedAt: '2026-05-01T00:00:00.000Z',
       deletedAt: '2026-05-01T00:00:00.000Z',
     })
@@ -360,7 +360,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       amount: 24.75,
       category_id: 'cloud-cat-1',
       payee_id: 'cloud-payee-1',
-      description: 'Restored remotely',
+      notes: 'Restored remotely',
       updated_at: '2026-05-11T00:00:00.000Z',
       deleted_at: null,
     })
@@ -369,7 +369,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
 
     expect(localState.expenses[0].deletedAt).toBeNull()
     expect(localState.expenses[0].amount).toBe(24.75)
-    expect(localState.expenses[0].description).toBe('Restored remotely')
+    expect(localState.expenses[0].notes).toBe('Restored remotely')
   })
 
   it('adopts seeded identity rows by normalized name without creating duplicates on restore', async () => {
@@ -415,7 +415,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       amount: 21,
       category_id: 'cloud-cat-1',
       payee_id: 'cloud-payee-1',
-      description: 'Restored with adopted defaults',
+      notes: 'Restored with adopted defaults',
       updated_at: '2026-05-12T00:00:00.000Z',
       deleted_at: null,
     })
@@ -515,7 +515,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
         amount: index + 1,
         category_id: 'cloud-cat-1',
         payee_id: 'cloud-payee-1',
-        description: `expense-${index}`,
+        notes: `expense-${index}`,
         updated_at: '2026-05-12T00:00:00.000Z',
         deleted_at: null,
       })
@@ -569,7 +569,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       category_id: 'cloud-cat-1',
       payee_id: 'cloud-payee-1',
       split_id: 'cloud-split-1',
-      description: 'Split child',
+      notes: 'Split child',
       updated_at: '2026-05-12T00:00:00.000Z',
       deleted_at: null,
     })
@@ -633,7 +633,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       payeeId: 1,
       payeeNameSnapshot: 'Cafe',
       splitId: 10,
-      description: 'Split child',
+      notes: 'Split child',
       updatedAt: '2026-05-01T00:00:00.000Z',
       deletedAt: null,
       syncStatus: 'synced',
@@ -658,7 +658,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
       payee_id: 'cloud-payee-1',
       payee_name_snapshot: 'Cafe',
       split_id: 'cloud-split-1',
-      description: 'Split child',
+      notes: 'Split child',
       updated_at: '2026-05-11T00:00:00.000Z',
       deleted_at: null,
     })
@@ -670,7 +670,7 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
     expect(localState.expenses[0].payeeId).toBe(1)
     expect(localState.expenses[0].payeeNameSnapshot).toBe('Cafe')
     expect(localState.expenses[0].syncStatus).toBe('pending')
-    expect(localState.expenses[0].description).toBe('Split child')
+    expect(localState.expenses[0].notes).toBe('Split child')
   })
 })
 

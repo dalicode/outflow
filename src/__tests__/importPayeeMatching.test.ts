@@ -24,7 +24,7 @@ describe('importPayeeMatching', () => {
     expect(match?.confidence).toBe('needs_review')
   })
 
-  it('returns no match for an unrelated description', () => {
+  it('returns no match for unrelated notes', () => {
     const match = findBestImportPayeeMatch('Random Merchant', payees, 'r3')
     expect(match?.confidence).toBe('no_match')
   })
@@ -43,9 +43,9 @@ describe('importPayeeMatching', () => {
   it('summarizes rows correctly', () => {
     const summary = getImportPayeeMatchSummary(
       [
-        { rowId: 'r1', description: 'Costco Wholesale' },
-        { rowId: 'r2', description: 'Amazon Fresh' },
-        { rowId: 'r3', description: 'Random Merchant' },
+        { rowId: 'r1', notes: 'Costco Wholesale' },
+        { rowId: 'r2', notes: 'Amazon Fresh' },
+        { rowId: 'r3', notes: 'Random Merchant' },
       ],
       payees,
     )

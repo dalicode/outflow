@@ -23,7 +23,7 @@ describe('partitionSchedulesForList', () => {
       [
         makeSchedule({ id: 1, materializedAt: '2026-05' }),
         makeSchedule({ id: 2, effectiveMonth: 6 }),
-        makeSchedule({ id: 3, type: 'expense', isActive: 0, day: 23, note: 'Planned lunch' }),
+        makeSchedule({ id: 3, type: 'expense', isActive: 0, day: 23, notes: 'Planned lunch' }),
       ],
       now,
     )

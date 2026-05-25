@@ -32,7 +32,7 @@ export interface Expense extends SyncedRecord {
   payeeId?: number
   categoryNameSnapshot?: string | null
   payeeNameSnapshot?: string | null
-  description?: string
+  notes?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -43,9 +43,8 @@ export interface ExpenseSplit extends SyncedRecord {
   date: string
   payeeId?: number
   payeeNameSnapshot?: string | null
-  description?: string
+  notes?: string
   amount: number
-  note?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -178,7 +177,7 @@ export interface Schedule extends SyncedRecord {
   previousValue?: number | null
   materializedAt?: string | null
   isActive: number // IndexedDB cannot index booleans; stored as 1/0
-  note?: string
+  notes?: string
   createdAt?: string
   updatedAt?: string
   day?: number // 1–31, used by expense schedules

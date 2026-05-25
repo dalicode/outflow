@@ -157,7 +157,7 @@ describe('expenseSplitRepository', () => {
     const splitId = await addExpenseSplit({
       date: '2026-05-01',
       amount: 100,
-      description: 'Groceries run',
+      notes: 'Groceries run',
     })
 
     await removeExpenseSplit(splitId)
@@ -228,7 +228,7 @@ describe('expenseSplitRepository', () => {
       date: '2026-05-09',
       payeeId: 33,
       payeeNameSnapshot: 'Grocer',
-      description: 'Container only',
+      notes: 'Container only',
     })
 
     const children = await getAllSplitChildExpenses(splitId)
@@ -271,7 +271,7 @@ describe('expenseSplitRepository', () => {
     const splitId = await addExpenseSplit({
       date: '2026-05-10',
       amount: 120,
-      description: 'Split dinner',
+      notes: 'Split dinner',
     })
 
     expenseTable.seed([
@@ -294,7 +294,7 @@ describe('expenseSplitRepository', () => {
     const splitId = await addExpenseSplit({
       date: '2026-05-10',
       amount: 120,
-      description: 'Split dinner',
+      notes: 'Split dinner',
     })
 
     expenseTable.seed([
@@ -336,7 +336,7 @@ describe('expenseSplitRepository', () => {
     const splitId = await addExpenseSplit({
       date: '2026-05-10',
       amount: 40,
-      description: 'Single split line',
+      notes: 'Single split line',
     })
 
     expenseTable.seed([{ id: 1, date: '2026-05-10', amount: 40, splitId, categoryId: 8, deletedAt: null }])
@@ -363,12 +363,12 @@ describe('expenseSplitRepository', () => {
     const activeSplitId = await addExpenseSplit({
       date: '2026-05-10',
       amount: 120,
-      description: 'Valid split',
+      notes: 'Valid split',
     })
     const tombstonedSplitId = await addExpenseSplit({
       date: '2026-05-11',
       amount: 90,
-      description: 'Deleted split',
+      notes: 'Deleted split',
     })
     await removeExpenseSplit(tombstonedSplitId)
 
@@ -379,7 +379,7 @@ describe('expenseSplitRepository', () => {
         amount: 70,
         splitId: 999,
         categoryId: 8,
-        description: 'Missing parent',
+        notes: 'Missing parent',
         deletedAt: null,
       },
       {
@@ -388,7 +388,7 @@ describe('expenseSplitRepository', () => {
         amount: 50,
         splitId: tombstonedSplitId,
         categoryId: 9,
-        description: 'Deleted parent',
+        notes: 'Deleted parent',
         deletedAt: null,
       },
       {
@@ -397,7 +397,7 @@ describe('expenseSplitRepository', () => {
         amount: 30,
         splitId: activeSplitId,
         categoryId: 10,
-        description: 'Valid child',
+        notes: 'Valid child',
         deletedAt: null,
       },
     ])
@@ -409,8 +409,8 @@ describe('expenseSplitRepository', () => {
     expect(rows[0].splitId).toBeUndefined()
     expect(rows[1].splitId).toBeUndefined()
     expect(rows[2].splitId).toBe(activeSplitId)
-    expect(rows[0].description).toBe('Missing parent')
-    expect(rows[1].description).toBe('Deleted parent')
+    expect(rows[0].notes).toBe('Missing parent')
+    expect(rows[1].notes).toBe('Deleted parent')
     expect(rows[0].syncStatus).toBe('pending')
     expect(rows[1].syncStatus).toBe('pending')
   })
@@ -428,7 +428,7 @@ describe('expenseSplitRepository', () => {
       amount: 12,
       payeeId: 9,
       payeeNameSnapshot: 'Cafe Nova',
-      description: 'Original split',
+      notes: 'Original split',
     })
 
     expenseTable.seed([
@@ -443,11 +443,11 @@ describe('expenseSplitRepository', () => {
         amount: 15,
         payeeId: 9,
         payeeNameSnapshot: 'Cafe Nova',
-        description: 'Updated split',
+        notes: 'Updated split',
       },
       children: [
-        { expenseId: 1, categoryId: 1, payeeId: 9, description: 'Updated child', amount: 6 },
-        { categoryId: 3, payeeId: 9, description: 'New child', amount: 9 },
+        { expenseId: 1, categoryId: 1, payeeId: 9, notes: 'Updated child', amount: 6 },
+        { categoryId: 3, payeeId: 9, notes: 'New child', amount: 9 },
       ],
     })
 
@@ -482,7 +482,7 @@ describe('expenseSplitRepository', () => {
     const splitId = await addExpenseSplit({
       date: '2026-05-10',
       amount: 12,
-      description: 'Original split',
+      notes: 'Original split',
     })
 
     expenseTable.seed([{ id: 1, date: '2026-05-10', amount: 12, splitId, categoryId: 1, deletedAt: null }])
@@ -498,7 +498,7 @@ describe('expenseSplitRepository', () => {
         split: {
           date: '2026-05-11',
           amount: 12,
-          description: 'Updated split',
+          notes: 'Updated split',
         },
         children: [
           { expenseId: 1, categoryId: 1, amount: 6 },

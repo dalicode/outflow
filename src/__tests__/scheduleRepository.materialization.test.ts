@@ -110,7 +110,7 @@ describe('materializePendingSnapshots', () => {
       day: 14,
       categoryId: 7,
       payeeId: 8,
-      note: 'Planned lunch',
+      notes: 'Planned lunch',
       localId: 'sched-1',
       createdAt: '2026-05-01T00:00:00.000Z',
       updatedAt: '2026-05-01T00:00:00.000Z',

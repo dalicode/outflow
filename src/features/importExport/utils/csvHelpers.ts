@@ -1,6 +1,6 @@
 import type { Expense } from '../../../types'
 
-export const CSV_HEADERS = ['Date', 'Category', 'Payee', 'Description', 'Amount', 'Month', 'Year']
+export const CSV_HEADERS = ['Date', 'Category', 'Payee', 'Notes', 'Amount', 'Month', 'Year']
 
 export function expenseToRow(
   exp: Expense,
@@ -14,7 +14,7 @@ export function expenseToRow(
     formatDate(d),
     catMap[exp.categoryId as number] ?? 'Uncategorized',
     payeeMap[exp.payeeId as number] ?? '',
-    exp.description ?? '',
+    exp.notes ?? '',
     exp.amount ?? 0,
     m ? parseInt(m, 10) : '',
     y ?? '',
@@ -139,15 +139,15 @@ function normalizeForMatching(text: string): string {
 }
 
 /**
- * Try to match a payee name from an expense description.
+ * Try to match a payee name from an expense notes.
  * Returns the matched payee name (original casing) or null.
  *
  * Strategy: substring match (longest candidates first to avoid shadowing)
  */
-export function matchPayeeByDescription(description: string, candidates: string[]): string | null {
-  if (!description || candidates.length === 0) return null
+export function matchPayeeByDescription(notes: string, candidates: string[]): string | null {
+  if (!notes || candidates.length === 0) return null
 
-  const normalizedDesc = normalizeForMatching(description)
+  const normalizedDesc = normalizeForMatching(notes)
   const sorted = [...candidates].sort((a, b) => b.length - a.length)
 
   for (const candidate of sorted) {
@@ -167,16 +167,16 @@ interface CategoryDefinition {
 }
 
 /**
- * Try to match a category from an expense description using aliases.
+ * Try to match a category from an expense notes using aliases.
  * Returns the matched category name (original casing) or null.
  */
 export function matchCategoryByDescription(
-  description: string,
+  notes: string,
   categories: CategoryDefinition[],
 ): string | null {
-  if (!description || categories.length === 0) return null
+  if (!notes || categories.length === 0) return null
 
-  const normalizedDesc = normalizeForMatching(description)
+  const normalizedDesc = normalizeForMatching(notes)
 
   // Flatten all aliases, sort longest first to avoid shadowing
   const allAliases = categories

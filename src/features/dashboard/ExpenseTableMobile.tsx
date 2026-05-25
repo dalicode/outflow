@@ -164,8 +164,8 @@ export default function ExpenseTableMobile({
                       <span className="text-xs text-theme-muted">{expanded ? '▾' : '▸'}</span>
                       <span className="font-medium text-theme-muted">Split</span>
                     </button>
-                    {item.descriptionDisplay ? (
-                      <span className="min-w-0 truncate">{item.descriptionDisplay}</span>
+                    {item.notesDisplay ? (
+                      <span className="min-w-0 truncate">{item.notesDisplay}</span>
                     ) : null}
                     <span className="ml-auto" />
                   </div>
@@ -179,9 +179,9 @@ export default function ExpenseTableMobile({
             const payeeLabel = isSplitChildRow ? '' : resolvePayeeName?.(exp) || '—'
             const categoryLabel = hideCategory ? '' : resolveName(exp)
             const detailLabel =
-              categoryLabel && exp.description
-                ? `${categoryLabel} · ${exp.description}`
-                : categoryLabel || exp.description || ''
+              categoryLabel && exp.notes
+                ? `${categoryLabel} · ${exp.notes}`
+                : categoryLabel || exp.notes || ''
             const tags = expenseTagsMap[exp.id as number] ?? []
             const primaryTag = tags[0]
             const additionalTagCount = Math.max(tags.length - 1, 0)

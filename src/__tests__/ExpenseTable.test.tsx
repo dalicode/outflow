@@ -77,9 +77,9 @@ describe('ExpenseTable', () => {
 
   it('renders split container rows with grouped children and unsplit action', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
-      { id: 3, date: '2026-05-09', amount: 5, categoryId: 1, description: 'C' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
+      { id: 3, date: '2026-05-09', amount: 5, categoryId: 1, notes: 'C' },
     ]
     const categories: Category[] = [
       { id: 1, name: 'Food' },
@@ -132,9 +132,9 @@ describe('ExpenseTable', () => {
     expect(triggerSync).toHaveBeenCalled()
   })
 
-  it('shows tags under the description in mobile rows', async () => {
+  it('shows tags under the notes in mobile rows', async () => {
     const expenses: Expense[] = [
-      { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, payeeId: 1, description: 'Lunch' },
+      { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, payeeId: 1, notes: 'Lunch' },
     ]
 
     render(
@@ -160,15 +160,14 @@ describe('ExpenseTable', () => {
     const mobileRow = await screen.findByTestId('expense-row-mobile-1')
     expect(within(mobileRow).getByText('Cafe')).toBeInTheDocument()
     expect(within(mobileRow).getByText('Food · Lunch')).toBeInTheDocument()
-    expect(within(mobileRow).getByText('Travel')).toBeInTheDocument()
-    expect(within(mobileRow).getByText('Work')).toBeInTheDocument()
+    expect(within(mobileRow).getByText('Travel +1')).toBeInTheDocument()
   })
 
   it('blocks bulk edit when multi-select includes split allocations', async () => {
     const ref = createRef<ExpenseTableHandle>()
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, date: '2026-05-09', amount: 5, categoryId: 1, description: 'C' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, date: '2026-05-09', amount: 5, categoryId: 1, notes: 'C' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 12 }])
 
@@ -199,11 +198,11 @@ describe('ExpenseTable', () => {
 
   it('opens the split editor when a split child amount is edited', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     const splits: ExpenseSplit[] = [
-      { id: 10, date: '2026-05-10', amount: 20, description: 'Lunch' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: 'Lunch' },
     ]
 
     storageMocks.getExpenseSplits.mockResolvedValue(splits)
@@ -236,8 +235,8 @@ describe('ExpenseTable', () => {
 
   it('allows unsplitting a single split child from the row context menu', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-10', amount: 20 }]
     const refreshExpenses = vi.fn<() => Promise<void>>().mockResolvedValue()
@@ -279,7 +278,7 @@ describe('ExpenseTable', () => {
       { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1 },
       { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2 },
     ]
-    const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-10', amount: 20, description: '' }]
+    const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-10', amount: 20, notes: '' }]
     const refreshExpenses = vi.fn<() => Promise<void>>().mockResolvedValue()
 
     storageMocks.getExpenseSplits.mockResolvedValue(splits)
@@ -304,7 +303,7 @@ describe('ExpenseTable', () => {
 
     await waitFor(() => expect(screen.getByTestId('split-container-10')).toBeInTheDocument())
     const dash = within(screen.getByTestId('split-container-10')).getByTestId(
-      'editable-cell-display-description',
+      'editable-cell-display-notes',
     )
 
     fireEvent.pointerDown(dash)
@@ -314,7 +313,7 @@ describe('ExpenseTable', () => {
 
     await waitFor(() => {
       expect(storageMocks.updateExpenseSplit).toHaveBeenCalledWith(10, {
-        description: 'Shared receipt',
+        notes: 'Shared receipt',
       })
     })
     expect(storageMocks.updateExpenseSplit).toHaveBeenCalledTimes(1)
@@ -331,7 +330,7 @@ describe('ExpenseTable', () => {
         amount: 12,
         categoryId: 1,
         payeeId: 1,
-        description: 'A',
+        notes: 'A',
       },
       {
         id: 2,
@@ -340,7 +339,7 @@ describe('ExpenseTable', () => {
         amount: 8,
         categoryId: 2,
         payeeId: 1,
-        description: 'B',
+        notes: 'B',
       },
     ]
     const splits: ExpenseSplit[] = [
@@ -398,7 +397,7 @@ describe('ExpenseTable', () => {
         amount: 12,
         categoryId: 1,
         payeeId: 1,
-        description: 'A',
+        notes: 'A',
       },
       {
         id: 2,
@@ -407,7 +406,7 @@ describe('ExpenseTable', () => {
         amount: 8,
         categoryId: 2,
         payeeId: 1,
-        description: 'B',
+        notes: 'B',
       },
     ]
     const splits: ExpenseSplit[] = [
@@ -471,7 +470,7 @@ describe('ExpenseTable', () => {
         amount: 12,
         categoryId: 1,
         payeeId: 1,
-        description: 'A',
+        notes: 'A',
       },
       {
         id: 2,
@@ -480,7 +479,7 @@ describe('ExpenseTable', () => {
         amount: 8,
         categoryId: 2,
         payeeId: 1,
-        description: 'B',
+        notes: 'B',
       },
     ]
     const splits: ExpenseSplit[] = [
@@ -509,10 +508,10 @@ describe('ExpenseTable', () => {
     expect(within(splitChildRow).queryByText('Cafe')).not.toBeInTheDocument()
   })
 
-  it('persists description edits when switching directly to another row editor', async () => {
+  it('persists notes edits when switching directly to another row editor', async () => {
     const initialExpenses: Expense[] = [
-      { id: 1, date: '2026-05-10', amount: 12, categoryId: 1, description: '' },
-      { id: 2, date: '2026-05-09', amount: 8, categoryId: 1, description: 'Groceries' },
+      { id: 1, date: '2026-05-10', amount: 12, categoryId: 1, notes: '' },
+      { id: 2, date: '2026-05-09', amount: 8, categoryId: 1, notes: 'Groceries' },
     ]
 
     storageMocks.getExpenseSplits.mockResolvedValue([])
@@ -543,7 +542,7 @@ describe('ExpenseTable', () => {
     const firstRow = await screen.findByTestId('expense-row-1')
     const secondRow = await screen.findByTestId('expense-row-2')
 
-    fireEvent.pointerDown(within(firstRow).getByTestId('editable-cell-display-description'))
+    fireEvent.pointerDown(within(firstRow).getByTestId('editable-cell-display-notes'))
     const input = await screen.findByDisplayValue('')
     fireEvent.change(input, { target: { value: 'Coffee' } })
     fireEvent.pointerDown(within(secondRow).getByText('Groceries'))
@@ -554,16 +553,16 @@ describe('ExpenseTable', () => {
     expect(await screen.findByDisplayValue('Groceries')).toBeInTheDocument()
   })
 
-  it('persists split description edits when switching directly to another split editor', async () => {
+  it('persists split notes edits when switching directly to another split editor', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
-      { id: 3, splitId: 20, date: '2026-05-09', amount: 7, categoryId: 1, description: 'C' },
-      { id: 4, splitId: 20, date: '2026-05-09', amount: 3, categoryId: 2, description: 'D' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
+      { id: 3, splitId: 20, date: '2026-05-09', amount: 7, categoryId: 1, notes: 'C' },
+      { id: 4, splitId: 20, date: '2026-05-09', amount: 3, categoryId: 2, notes: 'D' },
     ]
     const splits: ExpenseSplit[] = [
-      { id: 10, date: '2026-05-10', amount: 20, description: '' },
-      { id: 20, date: '2026-05-09', amount: 10, description: 'Second split' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: '' },
+      { id: 20, date: '2026-05-09', amount: 10, notes: 'Second split' },
     ]
 
     storageMocks.getExpenseSplits.mockResolvedValue(splits)
@@ -588,14 +587,14 @@ describe('ExpenseTable', () => {
     const firstSplitRow = await screen.findByTestId('split-container-10')
     const secondSplitRow = await screen.findByTestId('split-container-20')
 
-    fireEvent.pointerDown(within(firstSplitRow).getByTestId('editable-cell-display-description'))
+    fireEvent.pointerDown(within(firstSplitRow).getByTestId('editable-cell-display-notes'))
     const input = await screen.findByDisplayValue('')
     fireEvent.change(input, { target: { value: 'Shared receipt' } })
     fireEvent.pointerDown(within(secondSplitRow).getByText('Second split'))
 
     await waitFor(() => {
       expect(storageMocks.updateExpenseSplit).toHaveBeenCalledWith(10, {
-        description: 'Shared receipt',
+        notes: 'Shared receipt',
       })
     })
     expect(screen.getByText('Second split')).toBeInTheDocument()
@@ -603,8 +602,8 @@ describe('ExpenseTable', () => {
 
   it('provides parent split mobile unsplit action when one full split is selected', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 20 }])
     storageMocks.unsplitExpenseSplit.mockResolvedValue()
@@ -658,8 +657,8 @@ describe('ExpenseTable', () => {
 
   it('reports full split-parent mobile selection while the split is collapsed', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 20 }])
     const onMobileSplitParentSelectionChange = vi.fn()
@@ -694,8 +693,8 @@ describe('ExpenseTable', () => {
 
   it('provides single child unsplit mobile action when one split child is selected', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 20 }])
     storageMocks.unsplitSplitChildExpense.mockResolvedValue()
@@ -743,11 +742,11 @@ describe('ExpenseTable', () => {
 
   it('collapses and expands split children from the compact mobile Split toggle', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([
-      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: 'Trip food' },
     ])
 
     render(
@@ -785,13 +784,13 @@ describe('ExpenseTable', () => {
     expect(within(splitRow).getByRole('button', { expanded: true })).toBeInTheDocument()
   })
 
-  it('does not collapse split children when tapping split description text on mobile', async () => {
+  it('does not collapse split children when tapping split notes text on mobile', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([
-      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: 'Trip food' },
     ])
 
     render(
@@ -823,14 +822,14 @@ describe('ExpenseTable', () => {
 
   it('opens split editor flow when tapping a split parent row on mobile', async () => {
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([
-      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: 'Trip food' },
     ])
     storageMocks.getAllExpenseSplits.mockResolvedValue([
-      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: 'Trip food' },
     ])
     storageMocks.getAllSplitChildExpenses.mockResolvedValue(expenses)
 
@@ -861,11 +860,11 @@ describe('ExpenseTable', () => {
   it('toggles split parent selection from parent card taps outside the Split toggle in mobile selection mode', async () => {
     const onToggleSelect = vi.fn()
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([
-      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: 'Trip food' },
     ])
 
     render(
@@ -896,12 +895,12 @@ describe('ExpenseTable', () => {
   it('toggles only the tapped split child from mobile selection mode', async () => {
     const onToggleSelect = vi.fn()
     const expenses: Expense[] = [
-      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, description: 'A' },
-      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, description: 'B' },
-      { id: 3, date: '2026-05-09', amount: 5, categoryId: 1, description: 'Solo' },
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
+      { id: 3, date: '2026-05-09', amount: 5, categoryId: 1, notes: 'Solo' },
     ]
     storageMocks.getExpenseSplits.mockResolvedValue([
-      { id: 10, date: '2026-05-10', amount: 20, description: 'Trip food' },
+      { id: 10, date: '2026-05-10', amount: 20, notes: 'Trip food' },
     ])
 
     render(

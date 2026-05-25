@@ -41,11 +41,11 @@ export default function IncomeTrendExpensePreview({
           return (
             <li key={exp.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0 flex-1">
-                <div className="text-sm text-theme-text truncate">{exp.description || catName}</div>
+                <div className="text-sm text-theme-text truncate">{exp.notes || catName}</div>
                 <div className="text-xs text-theme-muted truncate">
                   {formatDate(exp.date)}
                   {payeeName && ` · ${payeeName}`}
-                  {!exp.description && !payeeName && ` · ${catName}`}
+                  {!exp.notes && !payeeName && ` · ${catName}`}
                 </div>
               </div>
               <span

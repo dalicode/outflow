@@ -6,7 +6,7 @@ export interface DashboardFiltersState {
   filterGlobal: string
   filterDateFrom: string
   filterDateTo: string
-  filterDescription: string
+  filterNotes: string
   filterAmount: string
   selectedCategories: string[]
   selectedPayees: string[]
@@ -26,8 +26,8 @@ export function useDashboardFilters(
   const [filterGlobal, setFilterGlobalState] = useState(initialFilters?.filterGlobal ?? '')
   const [filterDateFrom, setFilterDateFromState] = useState(initialFilters?.filterDateFrom ?? '')
   const [filterDateTo, setFilterDateToState] = useState(initialFilters?.filterDateTo ?? '')
-  const [filterDescription, setFilterDescriptionState] = useState(
-    initialFilters?.filterDescription ?? '',
+  const [filterNotes, setFilterNotesState] = useState(
+    initialFilters?.filterNotes ?? '',
   )
   const [filterAmount, setFilterAmountState] = useState(initialFilters?.filterAmount ?? '')
   const [selectedCategories, setSelectedCategoriesState] = useState<Set<string>>(
@@ -65,10 +65,10 @@ export function useDashboardFilters(
     [onFiltersChange],
   )
 
-  const setFilterDescription = useCallback(
+  const setFilterNotes = useCallback(
     (v: string) => {
-      setFilterDescriptionState(v)
-      onFiltersChange?.({ filterDescription: v })
+      setFilterNotesState(v)
+      onFiltersChange?.({ filterNotes: v })
     },
     [onFiltersChange],
   )
@@ -124,7 +124,7 @@ export function useDashboardFilters(
       setFilterGlobalState(nextFilters.filterGlobal)
       setFilterDateFromState(nextFilters.filterDateFrom)
       setFilterDateToState(nextFilters.filterDateTo)
-      setFilterDescriptionState(nextFilters.filterDescription)
+      setFilterNotesState(nextFilters.filterNotes)
       setFilterAmountState(nextFilters.filterAmount)
       setSelectedCategoriesState(new Set(nextFilters.selectedCategories))
       setSelectedPayeesState(new Set(nextFilters.selectedPayees))
@@ -181,7 +181,7 @@ export function useDashboardFilters(
       const q = filterGlobal.toLowerCase()
       result = result.filter(
         (e) =>
-          e.description?.toLowerCase().includes(q) ||
+          e.notes?.toLowerCase().includes(q) ||
           getExpenseCategoryName(e).toLowerCase().includes(q) ||
           getExpensePayeeName(e).toLowerCase().includes(q) ||
           getExpenseTagNames(e).some((name) => name.toLowerCase().includes(q)) ||
@@ -196,9 +196,9 @@ export function useDashboardFilters(
       result = result.filter((e) => e.date <= filterDateTo)
     }
 
-    if (filterDescription) {
-      const q = filterDescription.toLowerCase()
-      result = result.filter((e) => e.description?.toLowerCase().includes(q))
+    if (filterNotes) {
+      const q = filterNotes.toLowerCase()
+      result = result.filter((e) => e.notes?.toLowerCase().includes(q))
     }
 
     if (filterAmount) {
@@ -217,7 +217,7 @@ export function useDashboardFilters(
     filterGlobal,
     filterDateFrom,
     filterDateTo,
-    filterDescription,
+    filterNotes,
     filterAmount,
   ])
 
@@ -228,7 +228,7 @@ export function useDashboardFilters(
     selectedCategories.size > 0 ? 'categories' : '',
     selectedPayees.size > 0 ? 'payees' : '',
     selectedTags.size > 0 ? 'tags' : '',
-    filterDescription,
+    filterNotes,
     filterAmount,
   ].filter(Boolean).length
 
@@ -239,7 +239,7 @@ export function useDashboardFilters(
     setSelectedCategories(new Set())
     setSelectedPayees(new Set())
     setSelectedTags(new Set())
-    setFilterDescription('')
+    setFilterNotes('')
     setFilterAmount('')
   }, [
     setFilterGlobal,
@@ -248,7 +248,7 @@ export function useDashboardFilters(
     setSelectedCategories,
     setSelectedPayees,
     setSelectedTags,
-    setFilterDescription,
+    setFilterNotes,
     setFilterAmount,
   ])
 
@@ -261,8 +261,8 @@ export function useDashboardFilters(
     setFilterDateFrom,
     filterDateTo,
     setFilterDateTo,
-    filterDescription,
-    setFilterDescription,
+    filterNotes,
+    setFilterNotes,
     filterAmount,
     setFilterAmount,
     selectedCategories,

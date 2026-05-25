@@ -11,7 +11,7 @@ const expenses: Expense[] = [
     categoryId: 10,
     payeeId: 100,
     date: '2026-05-13',
-    description: 'Lunch',
+    notes: 'Lunch',
   },
   {
     id: 2,
@@ -19,7 +19,7 @@ const expenses: Expense[] = [
     categoryId: 11,
     payeeId: undefined,
     date: '2026-05-13',
-    description: 'Refund note',
+    notes: 'Refund notes',
   },
 ]
 
@@ -32,7 +32,7 @@ describe('ExpenseTableMobile', () => {
     vi.useRealTimers()
   })
 
-  it('renders payee/amount primary line and category-description secondary line', () => {
+  it('renders payee/amount primary line and category-notes secondary line', () => {
     render(
       <ExpenseTableMobile
         expenses={expenses}
@@ -48,7 +48,7 @@ describe('ExpenseTableMobile', () => {
     expect(screen.getByText('Food · Lunch')).toBeInTheDocument()
   })
 
-  it('shows no payee for missing payee and does not use description as payee fallback', () => {
+  it('shows no payee for missing payee and does not use notes as payee fallback', () => {
     render(
       <ExpenseTableMobile
         expenses={[expenses[1]]}
@@ -60,7 +60,7 @@ describe('ExpenseTableMobile', () => {
     )
 
     expect(screen.getByText('No payee')).toBeInTheDocument()
-    expect(screen.getByText('No category · Refund note')).toBeInTheDocument()
+    expect(screen.getByText('No category · Refund notes')).toBeInTheDocument()
   })
 
   it('opens cell edit on tap when no rows are selected', () => {
@@ -127,7 +127,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0], expenses[1]],
         payeeDisplay: 'Cafe (+1 more)',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
       {
@@ -163,16 +163,16 @@ describe('ExpenseTableMobile', () => {
     expect(onToggleSplitExpanded).toHaveBeenCalledWith(90)
   })
 
-  it('shows only Split for a parent split row when no split description exists', () => {
+  it('shows only Split for a parent split row when no split notes exist', () => {
     const displayRows: ExpenseDisplayRow[] = [
       {
         rowType: 'splitContainer',
         rowId: 'split-container-90',
         splitId: 90,
-        split: { id: 90, date: '2026-05-13', amount: 50, description: '' },
+        split: { id: 90, date: '2026-05-13', amount: 50, notes: '' },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: '',
+        notesDisplay: '',
         amountDisplay: 50,
       },
     ]
@@ -201,7 +201,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50, payeeId: 100 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
       {
@@ -237,7 +237,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
       {
@@ -278,7 +278,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
     ]
@@ -315,7 +315,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
       {
@@ -354,7 +354,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
     ]
@@ -386,7 +386,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
     ]
@@ -419,7 +419,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
     ]
@@ -452,7 +452,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
       {
@@ -493,7 +493,7 @@ describe('ExpenseTableMobile', () => {
         split: { id: 90, date: '2026-05-13', amount: 50 },
         childExpenses: [expenses[0]],
         payeeDisplay: 'Cafe',
-        descriptionDisplay: 'Trip food',
+        notesDisplay: 'Trip food',
         amountDisplay: 50,
       },
       {

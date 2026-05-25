@@ -19,14 +19,14 @@ export function formatExpensesAsTsv(
   formatDate: (date: string) => string,
   formatAmount: (amount: number) => string,
 ): string {
-  const header = 'Date\tPayee\tCategory\tDescription\tAmount'
+  const header = 'Date\tPayee\tCategory\tNotes\tAmount'
   const rows = expenses.map((exp) => {
     const date = formatDate(exp.date)
     const payee = resolvePayeeName(exp, payees)
     const category = resolveCategoryName(exp, categories)
-    const description = exp.description || ''
+    const notes = exp.notes || ''
     const amount = formatAmount(exp.amount)
-    return `${date}\t${payee}\t${category}\t${description}\t${amount}`
+    return `${date}\t${payee}\t${category}\t${notes}\t${amount}`
   })
   return [header, ...rows].join('\n')
 }

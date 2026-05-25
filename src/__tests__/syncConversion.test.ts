@@ -81,6 +81,82 @@ describe('sync conversion archivedAt removal', () => {
     expect(localExpense.splitId).toBe(77)
   })
 
+  it('uses notes for expense/split/schedule cloud conversion and accepts legacy cloud fields', () => {
+    const cloudExpense = toCloud(
+      'expenses',
+      {
+        date: '2026-05-01',
+        amount: 20,
+        notes: 'Lunch',
+      },
+      'user-1',
+    )
+    const cloudSplit = toCloud(
+      'expenseSplits',
+      {
+        date: '2026-05-01',
+        amount: 20,
+        notes: 'Split lunch',
+      },
+      'user-1',
+    )
+    const cloudSchedule = toCloud(
+      'schedules',
+      {
+        type: 'expense',
+        targetId: null,
+        effectiveYear: 2026,
+        effectiveMonth: 6,
+        newValue: 50,
+        isActive: 1,
+        notes: 'Planned lunch',
+      },
+      'user-1',
+    )
+
+    expect(cloudExpense.notes).toBe('Lunch')
+    expect(cloudSplit.notes).toBe('Split lunch')
+    expect(cloudSchedule.notes).toBe('Planned lunch')
+    expect('description' in cloudExpense).toBe(false)
+    expect('description' in cloudSplit).toBe(false)
+    expect('note' in cloudSplit).toBe(false)
+    expect('note' in cloudSchedule).toBe(false)
+
+    const localExpense = fromCloud('expenses', {
+      id: 'exp-1',
+      local_id: 'local-exp-1',
+      date: '2026-05-01',
+      amount: 20,
+      description: 'Legacy expense notes',
+      updated_at: '2026-05-01T00:00:00.000Z',
+    })
+    const localSplit = fromCloud('expense_splits', {
+      id: 'split-1',
+      local_id: 'local-split-1',
+      date: '2026-05-01',
+      amount: 20,
+      description: 'Legacy split notes',
+      note: 'Legacy note field',
+      updated_at: '2026-05-01T00:00:00.000Z',
+    })
+    const localSchedule = fromCloud('schedules', {
+      id: 'sch-1',
+      local_id: 'local-sch-1',
+      type: 'income',
+      target_id: null,
+      effective_year: 2026,
+      effective_month: 6,
+      new_value: 4000,
+      is_active: 1,
+      note: 'Legacy schedule note',
+      updated_at: '2026-05-01T00:00:00.000Z',
+    })
+
+    expect(localExpense.notes).toBe('Legacy expense notes')
+    expect(localSplit.notes).toBe('Legacy split notes')
+    expect(localSchedule.notes).toBe('Legacy schedule note')
+  })
+
   it('converts tags and expense tag joins between local and cloud shapes', () => {
     const cloudTag = toCloud(
       'tags',

@@ -55,7 +55,7 @@ describe('FilterModal', () => {
           selectedCategories: new Set(),
           selectedPayees: new Set(),
           selectedTags: new Set(),
-          filterDescription: '',
+          filterNotes: '',
           filterAmount: '',
         }}
         categories={[

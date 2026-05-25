@@ -50,6 +50,18 @@ function hasValue(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
+function resolveRowNotes(
+  row: Record<string, unknown>,
+  ...legacyKeys: string[]
+): string | undefined {
+  if (typeof row.notes === 'string') return row.notes
+  for (const key of legacyKeys) {
+    const value = row[key]
+    if (typeof value === 'string') return value
+  }
+  return undefined
+}
+
 function resolveMetadataTimestamp(
   value: unknown,
   fallback: string = new Date().toISOString(),
@@ -143,7 +155,7 @@ export function toCloud(
       split_id: resolveCloudRelationshipId(p.splitId, maps?.expenseSplitIdToCloudId),
       category_name_snapshot: p.categoryNameSnapshot ?? null,
       payee_name_snapshot: p.payeeNameSnapshot ?? null,
-      description: p.description ?? '',
+      notes: p.notes ?? '',
       amount: p.amount,
     }
   }
@@ -154,9 +166,8 @@ export function toCloud(
       date: p.date,
       payee_id: resolveCloudRelationshipId(p.payeeId, maps?.payeeIdToCloudId),
       payee_name_snapshot: p.payeeNameSnapshot ?? null,
-      description: p.description ?? '',
+      notes: p.notes ?? '',
       amount: p.amount,
-      note: p.note ?? null,
     }
   }
   if (table === 'categories') {
@@ -252,7 +263,7 @@ export function toCloud(
       previous_value: p.previousValue ?? null,
       materialized_at: p.materializedAt ?? null,
       is_active: p.isActive,
-      note: p.note ?? null,
+      notes: p.notes ?? null,
       day: p.day ?? null,
       category_id: resolveCloudRelationshipId(p.categoryId, maps?.categoryIdToCloudId),
       payee_id: resolveCloudRelationshipId(p.payeeId, maps?.payeeIdToCloudId),
@@ -329,6 +340,7 @@ export function fromCloud(
   }
 
   if (table === 'expenses') {
+    const notes = resolveRowNotes(row, 'description') ?? ''
     return {
       ...syncMetadata,
       date: row.date,
@@ -340,20 +352,20 @@ export function fromCloud(
       splitId: resolveSplit(row.split_id) ?? toNumberOrUndefined(row.split_id),
       categoryNameSnapshot: row.category_name_snapshot ?? null,
       payeeNameSnapshot: row.payee_name_snapshot ?? null,
-      description: row.description ?? '',
+      notes,
       amount: row.amount,
     }
   }
   if (table === 'expense_splits') {
+    const notes = resolveRowNotes(row, 'description', 'note') ?? ''
     return {
       ...syncMetadata,
       date: row.date,
       cloudPayeeId: row.payee_id != null ? String(row.payee_id) : undefined,
       payeeId: resolvePay(row.payee_id),
       payeeNameSnapshot: row.payee_name_snapshot ?? null,
-      description: row.description ?? '',
+      notes,
       amount: row.amount,
-      note: row.note ?? undefined,
     }
   }
   if (table === 'categories') {
@@ -432,6 +444,7 @@ export function fromCloud(
   }
   if (table === 'schedules') {
     const isActiveValue = row.is_active
+    const notes = resolveRowNotes(row, 'note')
     return {
       ...syncMetadata,
       type: row.type,
@@ -442,7 +455,7 @@ export function fromCloud(
       previousValue: row.previous_value ?? null,
       materializedAt: row.materialized_at ?? undefined,
       isActive: isActiveValue === true || Number(isActiveValue) === 1 ? 1 : 0,
-      note: row.note ?? undefined,
+      notes,
       day: row.day ?? undefined,
       categoryId: resolveCat(row.category_id),
       payeeId: resolvePay(row.payee_id),

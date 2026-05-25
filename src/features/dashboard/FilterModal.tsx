@@ -17,7 +17,7 @@ interface FilterDraft {
   selectedCategories: Set<string>
   selectedPayees: Set<string>
   selectedTags: Set<string>
-  filterDescription: string
+  filterNotes: string
   filterAmount: string
 }
 
@@ -38,7 +38,7 @@ const EMPTY_DRAFT: FilterDraft = {
   selectedCategories: new Set(),
   selectedPayees: new Set(),
   selectedTags: new Set(),
-  filterDescription: '',
+  filterNotes: '',
   filterAmount: '',
 }
 
@@ -345,7 +345,7 @@ export default function FilterModal({
         selectedCategories: new Set(appliedFilters.selectedCategories),
         selectedPayees: new Set(appliedFilters.selectedPayees),
         selectedTags: new Set(appliedFilters.selectedTags),
-        filterDescription: appliedFilters.filterDescription,
+        filterNotes: appliedFilters.filterNotes,
         filterAmount: appliedFilters.filterAmount,
       }
       draftRef.current = nextDraft
@@ -359,7 +359,7 @@ export default function FilterModal({
     appliedFilters.selectedCategories,
     appliedFilters.selectedPayees,
     appliedFilters.selectedTags,
-    appliedFilters.filterDescription,
+    appliedFilters.filterNotes,
     appliedFilters.filterAmount,
   ])
 
@@ -451,7 +451,7 @@ export default function FilterModal({
             type="text"
             value={draft.filterGlobal}
             onChange={(e) => set('filterGlobal')(e.target.value)}
-            placeholder="Description, category, payee, tag, or amount..."
+            placeholder="Notes, category, payee, tag, or amount..."
             className="input-md w-full"
           />
         </div>
@@ -517,11 +517,11 @@ export default function FilterModal({
         />
 
         <div>
-          <label className="block text-sm text-theme-muted mb-1">Description</label>
+          <label className="block text-sm text-theme-muted mb-1">Notes</label>
           <input
             type="text"
-            value={draft.filterDescription}
-            onChange={(e) => set('filterDescription')(e.target.value)}
+            value={draft.filterNotes}
+            onChange={(e) => set('filterNotes')(e.target.value)}
             placeholder="Contains..."
             className="input-md w-full"
           />

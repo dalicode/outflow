@@ -13,7 +13,7 @@ export interface SplitContainerRowModel {
   split: ExpenseSplit | null
   childExpenses: Expense[]
   payeeDisplay: string
-  descriptionDisplay: string
+  notesDisplay: string
   amountDisplay: number
 }
 
@@ -128,7 +128,7 @@ export function buildExpenseDisplayRows(params: {
       split,
       childExpenses: children,
       payeeDisplay: getSplitContainerPayeeDisplay(children, payeeMap),
-      descriptionDisplay: split?.description ?? '',
+      notesDisplay: split?.notes ?? '',
       amountDisplay: children.reduce((sum, child) => sum + (child.amount ?? 0), 0),
     })
 

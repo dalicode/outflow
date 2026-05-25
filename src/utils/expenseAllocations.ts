@@ -7,7 +7,7 @@ export interface ExpenseAllocation {
   amount: number
   categoryId?: number
   payeeId?: number
-  description?: string
+  notes?: string
 }
 
 export function getExpenseAllocations(expenses: Expense[]): ExpenseAllocation[] {
@@ -18,6 +18,6 @@ export function getExpenseAllocations(expenses: Expense[]): ExpenseAllocation[] 
     amount: expense.amount || 0,
     categoryId: expense.categoryId,
     payeeId: expense.payeeId,
-    description: expense.description,
+    notes: expense.notes,
   }))
 }

@@ -7,7 +7,7 @@ export interface SplitChildExpenseInput {
   expenseId?: number
   categoryId?: number
   payeeId?: number
-  description?: string
+  notes?: string
   amount: number
 }
 
@@ -69,7 +69,7 @@ async function buildSplitChildPayload(
     categoryId: child.categoryId,
     payeeId: split.payeeId,
     payeeNameSnapshot: split.payeeNameSnapshot ?? null,
-    description: child.description,
+    notes: child.notes,
     amount: child.amount,
   })
 }

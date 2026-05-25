@@ -375,7 +375,7 @@ describe('ExpenseForm', () => {
         id: 77,
         date: '2026-02-01',
         payeeId: 1,
-        description: 'Split container',
+        notes: 'Split container',
         amount: 10,
       },
     ])

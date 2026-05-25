@@ -32,7 +32,7 @@ import { StorageService } from '../../services/storageService'
 
 const BulkEditExpensesModal = lazy(() => import('./BulkEditExpensesModal'))
 
-type EditableSplitField = 'date' | 'payeeId' | 'description'
+type EditableSplitField = 'date' | 'payeeId' | 'notes'
 
 interface EditingSplitField {
   splitId: number
@@ -481,18 +481,18 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     splitFieldCommitInFlightRef.current.delete(`${splitId}:${field}`)
   }, [])
 
-  const handleCommitSplitDescriptionEdit = useCallback(
+  const handleCommitSplitNotesEdit = useCallback(
     async (splitId: number, value: string) => {
-      if (!beginSplitFieldCommit(splitId, 'description')) return
-      const description = value.trim()
+      if (!beginSplitFieldCommit(splitId, 'notes')) return
+      const notes = value.trim()
       try {
-        await StorageService.updateExpenseSplit(splitId, { description })
-        updateLocalSplit(splitId, { description })
+        await StorageService.updateExpenseSplit(splitId, { notes })
+        updateLocalSplit(splitId, { notes })
       } catch (error) {
-        console.error('Failed to update split description:', error)
-        showToast({ message: 'Could not update split description.', tone: 'danger' })
+        console.error('Failed to update split notes:', error)
+        showToast({ message: 'Could not update split notes.', tone: 'danger' })
       } finally {
-        endSplitFieldCommit(splitId, 'description')
+        endSplitFieldCommit(splitId, 'notes')
       }
     },
     [beginSplitFieldCommit, endSplitFieldCommit, showToast, updateLocalSplit],
@@ -653,7 +653,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         onStartSplitFieldEdit: handleStartSplitFieldEdit,
         onCommitSplitDateEdit: handleCommitSplitDateEdit,
         onCommitSplitPayeeEdit: handleCommitSplitPayeeEdit,
-        onCommitSplitDescriptionEdit: handleCommitSplitDescriptionEdit,
+        onCommitSplitNotesEdit: handleCommitSplitNotesEdit,
         onCancelSplitFieldEdit: handleCancelSplitFieldEdit,
         refreshCategories,
         refreshPayees,
@@ -676,7 +676,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       handleStartSplitFieldEdit,
       handleCommitSplitDateEdit,
       handleCommitSplitPayeeEdit,
-      handleCommitSplitDescriptionEdit,
+      handleCommitSplitNotesEdit,
       handleCancelSplitFieldEdit,
       refreshCategories,
       refreshPayees,
@@ -784,7 +784,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           expenseTagsMap={expenseTagsMap}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
-          onCellEdit={(exp) => editing.startCellEdit(exp, 'description')}
+          onCellEdit={(exp) => editing.startCellEdit(exp, 'notes')}
           onSplitParentEdit={openSplitEditor}
           onToggleSplitParentSelect={toggleSplitParentSelection}
           isSplitParentSelected={(splitId) => {

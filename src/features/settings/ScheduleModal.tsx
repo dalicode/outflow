@@ -42,12 +42,11 @@ export default function ScheduleModal({
   const [targetId, setTargetId] = useState('')
   const [effectiveDate, setEffectiveDate] = useState('')
   const [newValue, setNewValue] = useState('')
-  const [note, setNote] = useState('')
+  const [notes, setNotes] = useState('')
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [categoryId, setCategoryId] = useState('')
   const [payeeId, setPayeeId] = useState('')
-  const [description, setDescription] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
@@ -96,10 +95,9 @@ export default function ScheduleModal({
     setTargetId('')
     setEffectiveDate(currentMonthStr)
     setNewValue('')
-    setNote('')
+    setNotes('')
     setCategoryId('')
     setPayeeId('')
-    setDescription('')
     setErrors([])
   }, [currentMonthStr])
 
@@ -122,10 +120,9 @@ export default function ScheduleModal({
         toISODate(editSchedule.effectiveYear, editSchedule.effectiveMonth, editSchedule.day ?? 1),
       )
       setNewValue(String(editSchedule.newValue))
-      setNote(editSchedule.note || '')
+      setNotes(editSchedule.notes || '')
       setCategoryId(editSchedule.categoryId ? String(editSchedule.categoryId) : '')
       setPayeeId(editSchedule.payeeId ? String(editSchedule.payeeId) : '')
-      setDescription('')
     } else {
       reset()
     }
@@ -193,7 +190,7 @@ export default function ScheduleModal({
               effectiveMonth: parsed.month,
               day: parsed.day,
               newValue: parseFloat(newValue),
-              note: note.trim() || undefined,
+              notes: notes.trim() || undefined,
               categoryId: parseInt(categoryId, 10),
               payeeId: payeeId ? parseInt(payeeId, 10) : undefined,
             }
@@ -203,7 +200,7 @@ export default function ScheduleModal({
               effectiveYear: parsed.year,
               effectiveMonth: parsed.month,
               newValue: parseFloat(newValue),
-              note: note.trim() || undefined,
+              notes: notes.trim() || undefined,
             }
 
       if (editSchedule && editSchedule.id != null) {
@@ -413,16 +410,17 @@ export default function ScheduleModal({
               </div>
             </div>
 
-            {/* Description */}
+            {/* Notes */}
             <div className="space-y-1.5">
-              <label className="text-sm text-theme-muted">Description</label>
+              <label className="text-sm text-theme-muted">Notes</label>
               <input
                 type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 placeholder="Optional"
                 disabled={isReadOnly}
                 className={cn(inputCls, isReadOnly && disabledCls)}
+                data-testid="schedule-notes-input"
               />
             </div>
 
@@ -490,18 +488,18 @@ export default function ScheduleModal({
               )}
             </div>
 
-            {/* Note */}
+            {/* Notes */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-theme-text">
-                Note <span className="text-theme-muted font-normal">(optional)</span>
+                Notes <span className="text-theme-muted font-normal">(optional)</span>
               </label>
               <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 placeholder="e.g. Annual salary review"
                 className={cn(inputCls, isReadOnly && disabledCls)}
                 disabled={isReadOnly}
-                data-testid="schedule-note-input"
+                data-testid="schedule-notes-input"
               />
             </div>
           </>

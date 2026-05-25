@@ -166,7 +166,7 @@ export default function ImportReviewModal({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 space-y-1">
                           <p className="text-sm font-semibold text-theme-text truncate">
-                            {row.description || 'Imported expense'}
+                            {row.notes || 'Imported expense'}
                           </p>
                           <p className="text-xs text-theme-muted">
                             {row.date} · {row.amount.toFixed(2)}
@@ -315,7 +315,7 @@ export default function ImportReviewModal({
                             />
                           </div>
                           <p className="text-[11px] text-theme-muted">
-                            Choosing a payee here does not change the original imported description.
+                            Choosing a payee here does not change the original imported notes.
                           </p>
                         </div>
                       )}

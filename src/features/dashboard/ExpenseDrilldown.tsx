@@ -68,7 +68,7 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
                     <th className="table-header-cell text-left">
                       {secondColumn === 'payee' ? 'Payee' : 'Category'}
                     </th>
-                    <th className="table-header-cell text-left">Description</th>
+                    <th className="table-header-cell text-left">Notes</th>
                     <th className="table-header-cell text-right tabular-nums">Amount</th>
                   </tr>
                 </thead>
@@ -84,7 +84,7 @@ const ExpenseDrilldown = forwardRef<HTMLDivElement, ExpenseDrilldownProps>(
                           : resolveName(exp)}
                       </td>
                       <td className="px-3 py-1 text-theme-text max-w-[200px] truncate">
-                        {exp.description || '—'}
+                        {exp.notes || '—'}
                       </td>
                       <td className="px-3 py-1 text-right tabular-nums font-semibold text-theme-text">
                         {formatAmount(exp.amount)}

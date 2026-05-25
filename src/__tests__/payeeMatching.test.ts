@@ -68,7 +68,7 @@ describe('getPayeeSearchTerms', () => {
 // ── tokenOverlapScore ────────────────────────────────────────────────────────
 
 describe('tokenOverlapScore', () => {
-  it('returns 1 when all term tokens are in description', () => {
+  it('returns 1 when all term tokens are in notes', () => {
     expect(tokenOverlapScore('amzn mktp 1a2b3c', 'amzn mktp')).toBe(1)
   })
 
@@ -153,11 +153,11 @@ describe('findBestPayeeMatch', () => {
     }
   })
 
-  it('returns null for empty description', () => {
+  it('returns null for empty notes', () => {
     expect(findBestPayeeMatch('', payees)).toBeNull()
   })
 
-  it('returns null for all-noise description', () => {
+  it('returns null for all-noise notes', () => {
     expect(findBestPayeeMatch('POS DEBIT VISA TORONTO ON', payees)).toBeNull()
   })
 

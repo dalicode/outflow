@@ -117,7 +117,7 @@ describe('pullFromSupabase', () => {
             date: '2026-05-05',
             category_id: '12',
             payee_id: '42',
-            description: 'Lunch',
+            notes: 'Lunch',
             amount: 18.5,
             updated_at: '2026-05-05T00:00:00.000Z',
           },
@@ -194,7 +194,7 @@ describe('pullFromSupabase', () => {
             previous_value: 5000,
             materialized_at: '2026-06-01T00:00:00.000Z',
             is_active: false,
-            note: null,
+            notes: null,
             category_id: null,
             payee_id: null,
             updated_at: '2026-05-10T00:00:00.000Z',
@@ -252,7 +252,7 @@ describe('pullFromSupabase', () => {
       date: '2026-05-05',
       category_id: '12',
       payee_id: '42',
-      description: `Expense ${index + 1}`,
+      notes: `Expense ${index + 1}`,
       amount: index + 1,
       updated_at: '2026-05-05T00:00:00.000Z',
     }))
@@ -274,7 +274,7 @@ describe('pullFromSupabase', () => {
 
     await pullFromSupabase('user-1')
 
-    const expenseAdds = addCalls.filter(({ row }) => row.description != null)
+    const expenseAdds = addCalls.filter(({ row }) => row.notes != null)
     expect(expenseAdds).toHaveLength(1001)
   })
 

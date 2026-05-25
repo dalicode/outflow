@@ -16,7 +16,7 @@ interface ValidImportRow {
   rowId: string
   date: string
   category: string
-  description: string
+  notes: string
   amount: number
   explicitPayee?: string
   payeeId?: number
@@ -81,14 +81,14 @@ export function useCsvImport({
           existing as Array<{
             date: string
             amount: number
-            description?: string
+            notes?: string
           }>
-        ).map((e) => `${e.date}|${e.amount}|${e.description}`),
+        ).map((e) => `${e.date}|${e.amount}|${e.notes}`),
       )
 
       const toAdd = mode
         ? rows
-        : rows.filter((row) => !existingKeys.has(`${row.date}|${row.amount}|${row.description}`))
+        : rows.filter((row) => !existingKeys.has(`${row.date}|${row.amount}|${row.notes}`))
 
       let matchedPayees = 0
       let blankPayees = 0
@@ -103,7 +103,7 @@ export function useCsvImport({
         expenseRows.push({
           date: row.date,
           amount: row.amount,
-          description: row.description,
+          notes: row.notes,
           categoryId: undefined,
           payeeId,
         })
@@ -241,7 +241,7 @@ export function useCsvImport({
             rowId: `row-${i + 2}`,
             date: iso,
             category: getCsvField(row, ['category']) || 'Uncategorized',
-            description: getCsvField(row, ['description', 'item']) || '',
+            notes: getCsvField(row, ['notes', 'description', 'note', 'item']) || '',
             explicitPayee: getCsvField(row, ['payee']) || undefined,
             amount,
           })
@@ -269,15 +269,15 @@ export function useCsvImport({
               existing as Array<{
                 date: string
                 amount: number
-                description?: string
+                notes?: string
               }>
-            ).map((entry) => `${entry.date}|${entry.amount}|${entry.description}`),
+            ).map((entry) => `${entry.date}|${entry.amount}|${entry.notes}`),
           )
 
           const toAdd = nextReplaceMode
             ? rows
             : rows.filter(
-                (row) => !existingKeys.has(`${row.date}|${row.amount}|${row.description}`),
+                (row) => !existingKeys.has(`${row.date}|${row.amount}|${row.notes}`),
               )
 
           const importedYears = [
@@ -334,7 +334,7 @@ export function useCsvImport({
               const expenseRows = toAdd.map((row) => ({
                 date: row.date,
                 amount: row.amount,
-                description: row.description,
+                notes: row.notes,
                 categoryId: categoryMap[row.category],
                 payeeId: row.explicitPayee ? payeeMap[row.explicitPayee] : undefined,
               }))
@@ -356,21 +356,21 @@ export function useCsvImport({
           return
         }
 
-        const seededPayeeNames = findCanonicalDefaultPayeeNames(valid.map((row) => row.description))
+        const seededPayeeNames = findCanonicalDefaultPayeeNames(valid.map((row) => row.notes))
         if (seededPayeeNames.length > 0) {
           await StorageService.ensurePayeesForImport(seededPayeeNames)
         }
 
         const activePayees = await StorageService.getActivePayees()
         const payeeMatches: Array<ImportPayeeReviewRow | null> = valid.map((row) => {
-          const match = findBestImportPayeeMatch(row.description, activePayees, row.rowId)
+          const match = findBestImportPayeeMatch(row.notes, activePayees, row.rowId)
           return match ? { ...match, date: row.date, amount: row.amount } : null
         })
         const summary = {
           ...getImportPayeeMatchSummary(
             valid.map((row) => ({
               rowId: row.rowId,
-              description: row.description,
+              notes: row.notes,
             })),
             activePayees,
           ),
