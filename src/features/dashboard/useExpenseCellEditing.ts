@@ -1,14 +1,14 @@
 import { useCallback, useRef, useState } from 'react'
 import type { Expense } from '../../types'
 
-type EditableField = 'date' | 'amount' | 'categoryId' | 'payeeId' | 'notes'
+type EditableField = 'date' | 'amount' | 'categoryId' | 'payeeId' | 'notes' | 'tags'
 
 interface EditingCell {
   expenseId: number
   field: EditableField
 }
 
-const FIELD_ORDER: EditableField[] = ['date', 'payeeId', 'categoryId', 'notes', 'amount']
+const FIELD_ORDER: EditableField[] = ['date', 'payeeId', 'categoryId', 'notes', 'tags', 'amount']
 
 function validateField(field: EditableField, value: unknown): string | null {
   if (field === 'amount') {

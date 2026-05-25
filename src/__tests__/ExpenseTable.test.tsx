@@ -13,6 +13,9 @@ const storageMocks = vi.hoisted(() => ({
   updateExpenseSplit: vi.fn<(id: number, changes: Partial<ExpenseSplit>) => Promise<void>>(),
   unsplitExpenseSplit: vi.fn<(id: number) => Promise<void>>(),
   unsplitSplitChildExpense: vi.fn<(expenseId: number) => Promise<void>>(),
+  getActiveTags: vi.fn(),
+  setExpenseTags: vi.fn<(expenseId: number, tagIds: number[]) => Promise<void>>(),
+  addTag: vi.fn<(name: string) => Promise<number>>(),
 }))
 const toastMocks = vi.hoisted(() => ({
   showToast: vi.fn(),
@@ -45,6 +48,9 @@ vi.mock('../services/storageService', () => ({
     updateExpenseSplit: storageMocks.updateExpenseSplit,
     unsplitExpenseSplit: storageMocks.unsplitExpenseSplit,
     unsplitSplitChildExpense: storageMocks.unsplitSplitChildExpense,
+    getActiveTags: storageMocks.getActiveTags,
+    setExpenseTags: storageMocks.setExpenseTags,
+    addTag: storageMocks.addTag,
     addCategory: vi.fn(),
     addPayee: vi.fn(),
   },
@@ -69,10 +75,16 @@ describe('ExpenseTable', () => {
     storageMocks.updateExpenseSplit.mockReset()
     storageMocks.unsplitExpenseSplit.mockReset()
     storageMocks.unsplitSplitChildExpense.mockReset()
+    storageMocks.getActiveTags.mockReset()
+    storageMocks.setExpenseTags.mockReset()
+    storageMocks.addTag.mockReset()
     toastMocks.showToast.mockReset()
     storageMocks.getExpenseSplits.mockResolvedValue([])
     storageMocks.getAllExpenseSplits.mockResolvedValue([])
     storageMocks.getAllSplitChildExpenses.mockResolvedValue([])
+    storageMocks.getActiveTags.mockResolvedValue([])
+    storageMocks.setExpenseTags.mockResolvedValue()
+    storageMocks.addTag.mockResolvedValue(999)
   })
 
   it('renders split container rows with grouped children and unsplit action', async () => {
@@ -161,6 +173,170 @@ describe('ExpenseTable', () => {
     expect(within(mobileRow).getByText('Cafe')).toBeInTheDocument()
     expect(within(mobileRow).getByText('Food · Lunch')).toBeInTheDocument()
     expect(within(mobileRow).getByText('Travel +1')).toBeInTheDocument()
+  })
+
+  it('renders desktop tags column summaries in read mode', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([
+      { id: 101, name: 'Travel', isArchived: false },
+      { id: 102, name: 'Work', isArchived: false },
+      { id: 103, name: 'Home', isArchived: false },
+    ])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, notes: 'No tag row' },
+      { id: 2, date: '2026-05-09', amount: 12, categoryId: 1, notes: 'One tag row' },
+      { id: 3, date: '2026-05-08', amount: 9, categoryId: 1, notes: 'Multi tag row' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          2: [{ id: 101, name: 'Travel', isArchived: false }],
+          3: [
+            { id: 102, name: 'Work', isArchived: false },
+            { id: 103, name: 'Home', isArchived: false },
+            { id: 101, name: 'Travel', isArchived: false },
+          ],
+        }}
+      />,
+    )
+
+    const noTagRow = await screen.findByTestId('expense-row-1')
+    const oneTagRow = screen.getByTestId('expense-row-2')
+    const multiTagRow = screen.getByTestId('expense-row-3')
+
+    expect(within(noTagRow).getByTestId('editable-cell-display-tags')).toBeEmptyDOMElement()
+    expect(within(oneTagRow).getByTestId('editable-cell-display-tags')).toHaveTextContent('Travel')
+    expect(within(multiTagRow).getByTestId('editable-cell-display-tags')).toHaveTextContent('Work +2')
+    expect(screen.queryByRole('columnheader', { name: 'Tags' })).not.toBeInTheDocument()
+  })
+
+  it('shows split parent tags as a deduped read-only aggregate summary', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([
+      { id: 101, name: 'Travel', isArchived: false },
+      { id: 102, name: 'Work', isArchived: false },
+      { id: 103, name: 'Home', isArchived: false },
+    ])
+    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 20 }])
+
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [
+            { id: 102, name: 'Work', isArchived: false },
+            { id: 103, name: 'Home', isArchived: false },
+          ],
+          2: [
+            { id: 103, name: 'Home', isArchived: false },
+            { id: 101, name: 'Travel', isArchived: false },
+          ],
+        }}
+      />,
+    )
+
+    const splitRow = await screen.findByTestId('split-container-10')
+    const tagSummary = within(splitRow).getByText('Work +2')
+    expect(tagSummary).toBeInTheDocument()
+
+    fireEvent.pointerDown(tagSummary)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('persists inline tags edits for regular and split-child rows, including create', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([
+      { id: 101, name: 'Work', isArchived: false },
+      { id: 102, name: 'Home', isArchived: false },
+    ])
+    storageMocks.addTag.mockResolvedValue(777)
+    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 25 }])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 10, categoryId: 1, notes: 'Split A' },
+      { id: 3, splitId: 10, date: '2026-05-10', amount: 15, categoryId: 2, notes: 'Split B' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+          2: [{ id: 101, name: 'Work', isArchived: false }],
+          3: [],
+        }}
+      />,
+    )
+
+    const regularRow = await screen.findByTestId('expense-row-1')
+    fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
+
+    const firstEditorInput = await screen.findByRole('textbox')
+    fireEvent.change(firstEditorInput, { target: { value: 'Home' } })
+    fireEvent.keyDown(firstEditorInput, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(1, [101, 102])
+    })
+
+    fireEvent.change(firstEditorInput, { target: { value: 'FreshTag' } })
+    fireEvent.keyDown(firstEditorInput, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(storageMocks.addTag).toHaveBeenCalledWith('FreshTag')
+    })
+    await waitFor(() => {
+      expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(1, [101, 777])
+    })
+
+    fireEvent.keyDown(firstEditorInput, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    })
+
+    const splitChildRow = await screen.findByTestId('split-child-2')
+    fireEvent.pointerDown(within(splitChildRow).getByTestId('editable-cell-display-tags'))
+
+    const splitEditorInput = await screen.findByRole('textbox')
+    fireEvent.change(splitEditorInput, { target: { value: 'Home' } })
+    fireEvent.keyDown(splitEditorInput, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(2, [101, 102])
+    })
   })
 
   it('blocks bulk edit when multi-select includes split allocations', async () => {

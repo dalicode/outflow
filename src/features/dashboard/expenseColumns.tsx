@@ -706,7 +706,7 @@ export function getExpenseColumns({
           editing.isCellEditing(rowData.expense.id as number, 'amount')
             ? 'cell-editing'
             : '',
-        width: '7rem',
+        width: '12ch',
       },
     },
   ]

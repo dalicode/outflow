@@ -9,6 +9,18 @@ interface TagMultiSelectProps {
   selectedTagIds: number[]
   onChange: (tagIds: number[]) => void
   onCreate: (name: string) => Promise<number>
+  label?: string
+  placeholder?: string
+  variant?: 'default' | 'inline'
+  autoFocus?: boolean
+  onBlurOutside?: () => void
+  onCancel?: () => void
+  onEnter?: (shiftKey: boolean) => void
+  onTab?: (shiftKey: boolean) => void
+  rootClassName?: string
+  controlClassName?: string
+  chipClassName?: string
+  inputClassName?: string
 }
 
 export default function TagMultiSelect({
@@ -16,6 +28,18 @@ export default function TagMultiSelect({
   selectedTagIds,
   onChange,
   onCreate,
+  label = 'Tags',
+  placeholder = 'Select tags',
+  variant = 'default',
+  autoFocus = false,
+  onBlurOutside,
+  onCancel,
+  onEnter,
+  onTab,
+  rootClassName,
+  controlClassName,
+  chipClassName,
+  inputClassName,
 }: TagMultiSelectProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -50,6 +74,7 @@ export default function TagMultiSelect({
   const hasExact = options.some((option) => option.label.trim().toLowerCase() === normalizedQuery)
   const canCreate = hasQuery && !hasExact
   const exactMatchOption = options.find((option) => option.label.trim().toLowerCase() === normalizedQuery)
+  const isInline = variant === 'inline'
   const dropdownItems = [
     ...filteredOptions.map((option) => ({ type: 'option' as const, option })),
     ...(canCreate ? [{ type: 'create' as const }] : []),
@@ -137,13 +162,27 @@ export default function TagMultiSelect({
   }
 
   return (
-    <div className="flex flex-col gap-1" ref={rootRef}>
-      <label className="text-sm text-theme-muted">Tags</label>
+    <div
+      className={cn('relative flex flex-col gap-1', isInline && 'w-full', rootClassName)}
+      ref={rootRef}
+      data-no-cell-switch={isInline ? true : undefined}
+      onPointerDown={isInline ? (event) => event.stopPropagation() : undefined}
+      onBlurCapture={(event) => {
+        const nextTarget = event.relatedTarget as Node | null
+        if (nextTarget && rootRef.current?.contains(nextTarget)) return
+        setIsOpen(false)
+        onBlurOutside?.()
+      }}
+    >
+      {!isInline ? <label className="text-sm text-theme-muted">{label}</label> : null}
       <div
         className={cn(
-          'input-md flex min-h-10 w-full flex-wrap items-center gap-1.5',
+          isInline
+            ? 'input-inline flex min-h-8 w-full flex-wrap items-center gap-1 px-1.5 py-1'
+            : 'input-md flex min-h-10 w-full flex-wrap items-center gap-1.5',
           isOpen &&
             'border-theme-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--theme-primary)_15%,transparent)]',
+          controlClassName,
         )}
         role="combobox"
         aria-expanded={isOpen}
@@ -155,7 +194,10 @@ export default function TagMultiSelect({
         {selected.map((tag) => (
           <span
             key={tag.id}
-            className="inline-flex items-center gap-1 rounded-full border border-theme-border bg-theme-surface px-2 py-0.5 text-xs text-theme-text"
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full border border-theme-border bg-theme-surface px-2 py-0.5 text-xs text-theme-text',
+              chipClassName,
+            )}
           >
             <span>{tag.label}</span>
             <button
@@ -195,6 +237,12 @@ export default function TagMultiSelect({
               return
             }
             if (event.key === 'Enter') {
+              if (!isOpen && !hasQuery && onEnter) {
+                event.preventDefault()
+                setIsOpen(false)
+                onEnter(event.shiftKey)
+                return
+              }
               event.preventDefault()
               await handleEnter()
               return
@@ -202,6 +250,13 @@ export default function TagMultiSelect({
             if (event.key === 'Escape') {
               event.preventDefault()
               setIsOpen(false)
+              onCancel?.()
+              return
+            }
+            if (event.key === 'Tab' && onTab) {
+              event.preventDefault()
+              setIsOpen(false)
+              onTab(event.shiftKey)
               return
             }
             if (event.key === 'Backspace' && query.length === 0 && selectedTagIds.length > 0) {
@@ -209,12 +264,18 @@ export default function TagMultiSelect({
               onChange(selectedTagIds.slice(0, -1))
             }
           }}
-          placeholder={selected.length === 0 ? 'Select tags' : ''}
-          className="min-w-[7rem] flex-1 bg-transparent text-sm text-theme-text outline-none"
+          placeholder={selected.length === 0 ? placeholder : ''}
+          className={cn('min-w-[7rem] flex-1 bg-transparent text-sm text-theme-text outline-none', inputClassName)}
+          autoFocus={autoFocus}
         />
       </div>
       {isOpen && hasQuery ? (
-        <div className="max-h-56 overflow-y-auto rounded-theme-medium border border-theme-border bg-theme-surface">
+        <div
+          className={cn(
+            'absolute left-0 right-0 z-50 max-h-56 overflow-y-auto rounded-theme-medium border border-theme-border bg-theme-surface shadow-lg',
+            isInline ? 'top-full mt-1' : 'top-full mt-1.5',
+          )}
+        >
           {filteredOptions.map((option, index) => (
             <button
               key={String(option.id)}

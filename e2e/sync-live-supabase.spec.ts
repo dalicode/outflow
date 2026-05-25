@@ -54,7 +54,7 @@ async function waitForZeroPendingSync(page: import('@playwright/test').Page): Pr
 
 async function addSeedExpense(
   page: import('@playwright/test').Page,
-  description: string,
+  notes: string,
   amount = 11.11,
 ): Promise<void> {
   const categoryId = await getFirstCategoryId(page)
@@ -63,7 +63,7 @@ async function addSeedExpense(
       categoryId,
       amount,
       date: new Date().toISOString().slice(0, 10),
-      description,
+      notes,
     },
   ])
 }
@@ -87,7 +87,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await triggerManualSyncRounds([pageA, pageB], 2)
       await expect
         .poll(async () =>
-          (await getAllExpenses(pageB)).some((x) => x.description === 'uat-offline-create'),
+          (await getAllExpenses(pageB)).some((x) => x.notes === 'uat-offline-create'),
         )
         .toBe(true)
       await waitForZeroPendingSync(pageA)
@@ -110,15 +110,13 @@ test.describe('Live Supabase sync (UAT)', () => {
       await triggerManualSync(pageB)
       await waitForSyncSettled(pageB)
 
-      const expenseOnA = (await getAllExpenses(pageA)).find(
-        (x) => x.description === 'uat-edit-base',
-      )
+      const expenseOnA = (await getAllExpenses(pageA)).find((x) => x.notes === 'uat-edit-base')
       expect(expenseOnA?.id).toBeTruthy()
 
       await setContextOffline(pageA, true)
       await updateExpenseForSyncTest(pageA, expenseOnA?.id as number, {
         amount: 88.45,
-        description: 'uat-edit-offline',
+        notes: 'uat-edit-offline',
       })
       await setContextOffline(pageA, false)
       await triggerManualSyncRounds([pageA, pageB], 2)
@@ -134,8 +132,8 @@ test.describe('Live Supabase sync (UAT)', () => {
       await expect
         .poll(
           async () =>
-            (await getAllExpenses(pageA)).find((x) => x.localId === expenseOnA?.localId)
-              ?.description ?? '',
+            (await getAllExpenses(pageA)).find((x) => x.localId === expenseOnA?.localId)?.notes ??
+            '',
         )
         .toBe('uat-edit-offline')
     } finally {
@@ -160,9 +158,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await waitForSyncSettled(pageA)
       await triggerManualSync(pageB)
       await waitForSyncSettled(pageB)
-      const shared = (await getAllExpenses(pageA)).find(
-        (x) => x.description === 'uat-conflict-edit',
-      )
+      const shared = (await getAllExpenses(pageA)).find((x) => x.notes === 'uat-conflict-edit')
       const sharedOnB = (await getAllExpenses(pageB)).find((x) => x.localId === shared?.localId)
       expect(shared?.id).toBeTruthy()
       expect(sharedOnB?.id).toBeTruthy()
@@ -227,9 +223,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await waitForSyncSettled(pageA)
       await triggerManualSync(pageB)
       await waitForSyncSettled(pageB)
-      const shared = (await getAllExpenses(pageA)).find(
-        (x) => x.description === 'uat-delete-conflict',
-      )
+      const shared = (await getAllExpenses(pageA)).find((x) => x.notes === 'uat-delete-conflict')
       const sharedOnB = (await getAllExpenses(pageB)).find((x) => x.localId === shared?.localId)
       expect(shared?.id).toBeTruthy()
       expect(sharedOnB?.id).toBeTruthy()
@@ -239,7 +233,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await setContextOffline(pageB, true)
       await updateExpenseForSyncTest(pageB, sharedOnB?.id as number, {
         amount: 56.78,
-        description: 'uat-delete-vs-edit',
+        notes: 'uat-delete-vs-edit',
       })
 
       await setContextOffline(pageA, false)
@@ -252,7 +246,7 @@ test.describe('Live Supabase sync (UAT)', () => {
           const rows = allA.filter((x) => x.localId === shared?.localId)
           if (rows.length !== 1) return ''
           const row = rows[0]
-          return row.deletedAt != null || row.description === 'uat-delete-vs-edit' ? 'resolved' : ''
+          return row.deletedAt != null || row.notes === 'uat-delete-vs-edit' ? 'resolved' : ''
         })
         .not.toBe('')
 
@@ -260,7 +254,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       const rows = allA.filter((x) => x.localId === shared?.localId)
       expect(rows).toHaveLength(1)
       const row = rows[0]
-      expect(row.deletedAt != null || row.description === 'uat-delete-vs-edit').toBeTruthy()
+      expect(row.deletedAt != null || row.notes === 'uat-delete-vs-edit').toBeTruthy()
     } finally {
       await contextA.close()
       await contextB.close()
@@ -279,7 +273,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await triggerManualSyncRounds([pageA, pageB], 2)
 
       const createdOnA = (await getAllExpenses(pageA)).find(
-        (x) => x.description === 'uat-delete-undo-roundtrip',
+        (x) => x.notes === 'uat-delete-undo-roundtrip',
       )
       expect(createdOnA?.id).toBeTruthy()
       expect(createdOnA?.localId).toBeTruthy()
@@ -332,7 +326,7 @@ test.describe('Live Supabase sync (UAT)', () => {
 
       const finalA = (await getAllExpenses(pageA)).filter((x) => x.localId === createdOnA?.localId)
       expect(finalA).toHaveLength(1)
-      expect(finalA[0]?.description).toBe('uat-delete-undo-roundtrip')
+      expect(finalA[0]?.notes).toBe('uat-delete-undo-roundtrip')
 
       await waitForZeroPendingSync(pageA)
       await waitForZeroPendingSync(pageB)
@@ -367,7 +361,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await expect
         .poll(async () => {
           const row = (await getAllExpensesIncludingDeleted(pageA)).find(
-            (x) => x.description === 'uat-interrupted-sync',
+            (x) => x.notes === 'uat-interrupted-sync',
           )
           return {
             exists: Boolean(row),
@@ -385,8 +379,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await expect
         .poll(
           async () =>
-            (await getAllExpenses(pageB)).filter((x) => x.description === 'uat-interrupted-sync')
-              .length,
+            (await getAllExpenses(pageB)).filter((x) => x.notes === 'uat-interrupted-sync').length,
         )
         .toBe(1)
       await expectSyncLabel(pageA, 'Cloud synced')
@@ -412,7 +405,7 @@ test.describe('Live Supabase sync (UAT)', () => {
           categoryId,
           amount: 100 + index,
           date: new Date().toISOString().slice(0, 10),
-          description: `uat-catch-up-${index.toString().padStart(2, '0')}`,
+          notes: `uat-catch-up-${index.toString().padStart(2, '0')}`,
         })),
       )
       await triggerManualSync(pageB)
@@ -424,13 +417,13 @@ test.describe('Live Supabase sync (UAT)', () => {
       await expect
         .poll(
           async () =>
-            (await getAllExpenses(pageA)).filter((x) => x.description?.startsWith('uat-catch-up-'))
+            (await getAllExpenses(pageA)).filter((x) => x.notes?.startsWith('uat-catch-up-'))
               .length,
         )
         .toBe(15)
-      expect(
-        (await getAllExpenses(pageA)).find((x) => x.description === 'uat-catch-up-14')?.amount,
-      ).toBe(114)
+      expect((await getAllExpenses(pageA)).find((x) => x.notes === 'uat-catch-up-14')?.amount).toBe(
+        114,
+      )
     } finally {
       await contextA.close()
       await contextB.close()
@@ -455,7 +448,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await waitForZeroPendingSync(page)
       await expect
         .poll(async () =>
-          (await getAllExpenses(page)).some((x) => x.description === 'uat-pending-restart'),
+          (await getAllExpenses(page)).some((x) => x.notes === 'uat-pending-restart'),
         )
         .toBe(true)
     } finally {
@@ -479,9 +472,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await triggerManualSync(page)
       await waitForSyncSettled(page)
       await expect
-        .poll(async () =>
-          (await getAllExpenses(page)).some((x) => x.description === 'uat-auth-offline'),
-        )
+        .poll(async () => (await getAllExpenses(page)).some((x) => x.notes === 'uat-auth-offline'))
         .toBe(true)
     } finally {
       await context.close()
@@ -505,9 +496,7 @@ test.describe('Live Supabase sync (UAT)', () => {
       await waitForSyncSettled(pageB)
 
       await expect
-        .poll(async () =>
-          (await getAllExpenses(pageB)).some((x) => x.description === 'uat-delete-all'),
-        )
+        .poll(async () => (await getAllExpenses(pageB)).some((x) => x.notes === 'uat-delete-all'))
         .toBe(true)
 
       await clearAllData(pageA)

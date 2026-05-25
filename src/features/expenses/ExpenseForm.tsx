@@ -810,6 +810,8 @@ export default function ExpenseForm({
             tags={tags}
             selectedTagIds={selectedTagIds}
             onChange={setSelectedTagIds}
+            rootClassName="gap-0"
+            inputClassName="min-w-0"
             onCreate={async (name) => {
               const id = await StorageService.addTag(name)
               await refreshTags()

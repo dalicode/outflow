@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Expense } from '../types'
 import { useExpenseCellEditing } from '../features/dashboard/useExpenseCellEditing'
@@ -148,5 +148,42 @@ describe('useExpenseCellEditing', () => {
     expect(result.current.isFieldEditable(splitChild, 'amount')).toBe(false)
     expect(setMobileEditExpense).toHaveBeenCalledWith(splitChild)
     expect(setShowMobileEditModal).toHaveBeenCalledWith(true)
+  })
+
+  it('includes tags in desktop Tab navigation order', async () => {
+    const { result } = renderHook(() =>
+      useExpenseCellEditing({
+        expenses,
+        onUpdate: vi.fn(),
+        isMobile: false,
+        selectedIds: new Set<number>(),
+        onToggleSelect: vi.fn(),
+        setMobileEditExpense: vi.fn(),
+        setShowMobileEditModal: vi.fn(),
+      }),
+    )
+
+    act(() => {
+      result.current.startCellEdit(expenses[0], 'notes')
+    })
+    act(() => {
+      result.current.handleTabNavigation(expenses[0], 'notes', false)
+    })
+    await waitFor(() => {
+      expect(result.current.editingCell).toEqual({
+        expenseId: 1,
+        field: 'tags',
+      })
+    })
+
+    act(() => {
+      result.current.handleTabNavigation(expenses[0], 'tags', false)
+    })
+    await waitFor(() => {
+      expect(result.current.editingCell).toEqual({
+        expenseId: 1,
+        field: 'amount',
+      })
+    })
   })
 })
