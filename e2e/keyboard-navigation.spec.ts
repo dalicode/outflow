@@ -5,9 +5,9 @@ test.describe('Keyboard navigation (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-03', amount: 12.5, description: 'Coffee row' },
-        { date: '2026-05-02', amount: 24.75, description: 'Lunch row' },
-        { date: '2026-05-01', amount: 8.25, description: 'Snack row' },
+        { date: '2026-05-03', amount: 12.5, notes: 'Coffee row' },
+        { date: '2026-05-02', amount: 24.75, notes: 'Lunch row' },
+        { date: '2026-05-01', amount: 8.25, notes: 'Snack row' },
       ],
     })
 
@@ -25,8 +25,8 @@ test.describe('Keyboard navigation (desktop)', () => {
     const firstRow = rows.nth(0)
     const secondRow = rows.nth(1)
 
-    await expect(firstRow.locator("[data-field='description']")).toHaveText('Coffee row')
-    await expect(secondRow.locator("[data-field='description']")).toHaveText('Lunch row')
+    await expect(firstRow.locator("[data-field='notes']")).toHaveText('Coffee row')
+    await expect(secondRow.locator("[data-field='notes']")).toHaveText('Lunch row')
 
     await firstRow.locator("[data-field='amount']").click()
     const firstAmountInput = firstRow.locator('input[aria-label="Amount"]')

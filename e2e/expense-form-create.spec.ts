@@ -11,7 +11,7 @@ test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
     await page.getByTestId('btn-add-expense').first().click()
     await expect(page.getByTestId('expense-form')).toBeVisible()
 
-    // Fill description
+    // Fill notes
     await page.getByPlaceholder('Optional').fill('Test grocery run')
 
     // Select a category via the desktop dropdown
@@ -32,14 +32,14 @@ test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
     // Verify expense exists via test API
     const expenses = await getAllExpenses(page)
     expect(expenses.length).toBeGreaterThanOrEqual(1)
-    const saved = expenses.find((e) => e.description === 'Test grocery run')
+    const saved = expenses.find((e) => e.notes === 'Test grocery run')
     expect(saved).toBeTruthy()
     expect(Number(saved?.amount)).toBeCloseTo(12.34, 1)
   })
 
   test('right-click edit modifies expense and persists', async ({ page }) => {
     await resetAppState(page, {
-      expenses: [{ date: '2026-05-01', amount: 15.5, description: 'Original lunch' }],
+      expenses: [{ date: '2026-05-01', amount: 15.5, notes: 'Original lunch' }],
     })
 
     // Switch to expenses view
@@ -57,10 +57,10 @@ test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
     const editDialog = page.getByRole('dialog', { name: 'Edit Expense' })
     await expect(editDialog).toBeVisible({ timeout: 3000 })
 
-    // Change the description in the edit form
-    const descInput = editDialog.getByPlaceholder('Optional')
-    await descInput.clear()
-    await descInput.fill('Updated lunch')
+    // Change the notes in the edit form
+    const notesInput = editDialog.getByPlaceholder('Optional')
+    await notesInput.clear()
+    await notesInput.fill('Updated lunch')
 
     // Click Save Changes
     await editDialog.getByTestId('btn-save-expense').click()
@@ -68,13 +68,13 @@ test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
 
     // Verify the update via test API
     const expenses = await getAllExpenses(page)
-    const updated = expenses.find((e) => e.description === 'Updated lunch')
+    const updated = expenses.find((e) => e.notes === 'Updated lunch')
     expect(updated).toBeTruthy()
   })
 
   test('delete via context menu removes the expense permanently', async ({ page }) => {
     await resetAppState(page, {
-      expenses: [{ date: '2026-05-01', amount: 25.0, description: 'To be deleted' }],
+      expenses: [{ date: '2026-05-01', amount: 25.0, notes: 'To be deleted' }],
     })
 
     await page.getByTestId('view-tab-expenses').first().click()
@@ -99,7 +99,7 @@ test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
     await page.waitForTimeout(5000)
 
     const expenses = await getAllExpenses(page)
-    const deleted = expenses.find((e) => e.description === 'To be deleted')
+    const deleted = expenses.find((e) => e.notes === 'To be deleted')
     expect(deleted).toBeFalsy()
   })
 })

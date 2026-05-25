@@ -44,9 +44,9 @@ async function createSplitExpenseThroughUi(
   page: Page,
   params: {
     payee: string
-    parentDescription: string
+    parentNotes: string
     totalAmount: string
-    allocations: Array<{ category: string; amount?: string; description: string }>
+    allocations: Array<{ category: string; amount?: string; notes: string }>
   },
 ): Promise<void> {
   await page.getByTestId('btn-add-expense').first().click()
@@ -54,8 +54,10 @@ async function createSplitExpenseThroughUi(
 
   await page.locator('[aria-label="Amount"]').fill(params.totalAmount)
   await selectDesktopDropdownOption(page, 'desktop-payee-dropdown', params.payee)
-  await page.getByPlaceholder('Optional').first().fill(params.parentDescription)
-  await page.getByRole('checkbox', { name: 'Enable split transaction' }).check({ force: true })
+  await page.getByPlaceholder('Optional').first().fill(params.parentNotes)
+  const splitToggle = page.getByRole('checkbox', { name: 'Enable split transaction' })
+  await page.locator('label').filter({ has: splitToggle }).click()
+  await expect(splitToggle).toBeChecked()
 
   for (let index = 1; index < params.allocations.length; index += 1) {
     await page.getByTestId('btn-add-split-row').click()
@@ -70,7 +72,7 @@ async function createSplitExpenseThroughUi(
     if (allocation.amount != null) {
       await page.getByLabel(`Split amount ${index + 1}`).fill(allocation.amount)
     }
-    await page.getByLabel(`Split description ${index + 1}`).fill(allocation.description)
+    await page.getByLabel(`Split notes ${index + 1}`).fill(allocation.notes)
   }
 }
 
@@ -92,11 +94,11 @@ test.describe('Split expenses (desktop)', () => {
 
     await createSplitExpenseThroughUi(page, {
       payee: payeeName,
-      parentDescription: 'Conference day split',
+      parentNotes: 'Conference day split',
       totalAmount: '120.47',
       allocations: [
-        { category: diningCategory, amount: '80.22', description: 'Meals' },
-        { category: travelCategory, amount: '40.25', description: 'Taxi' },
+        { category: diningCategory, amount: '80.22', notes: 'Meals' },
+        { category: travelCategory, amount: '40.25', notes: 'Taxi' },
       ],
     })
 
@@ -157,11 +159,11 @@ test.describe('Split expenses (desktop)', () => {
 
     await createSplitExpenseThroughUi(page, {
       payee: payeeName,
-      parentDescription: 'Utility bill split',
+      parentNotes: 'Utility bill split',
       totalAmount: '10.01',
       allocations: [
-        { category: firstCategory, description: 'Base service' },
-        { category: secondCategory, description: 'Processing fee' },
+        { category: firstCategory, notes: 'Base service' },
+        { category: secondCategory, notes: 'Processing fee' },
       ],
     })
 
@@ -206,12 +208,11 @@ test.describe('Split expenses (desktop)', () => {
         amount: 120,
         payeeId: oldPayeeId,
         payeeNameSnapshot: 'Original Split Payee',
-        description: 'Original split description',
-        note: '',
+        notes: 'Original split description',
       },
       children: [
-        { categoryId: foodCategory, amount: 70, description: 'Meals' },
-        { categoryId: travelCategory, amount: 50, description: 'Ride' },
+        { categoryId: foodCategory, amount: 70, notes: 'Meals' },
+        { categoryId: travelCategory, amount: 50, notes: 'Ride' },
       ],
     })
 
@@ -267,12 +268,11 @@ test.describe('Split expenses (desktop)', () => {
         amount: 48,
         payeeId,
         payeeNameSnapshot: 'Split Unsplit Payee',
-        description: 'Trip day split',
-        note: '',
+        notes: 'Trip day split',
       },
       children: [
-        { categoryId: groceryCategory, amount: 18, description: 'Breakfast' },
-        { categoryId: taxiCategory, amount: 30, description: 'Taxi' },
+        { categoryId: groceryCategory, amount: 18, notes: 'Breakfast' },
+        { categoryId: taxiCategory, amount: 30, notes: 'Taxi' },
       ],
     })
 

@@ -5,12 +5,12 @@ test.describe('Analytics page (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2025-01-15', amount: 100.0, description: 'Jan 2025 expense' },
-        { date: '2025-06-10', amount: 200.0, description: 'Jun 2025 expense' },
-        { date: '2026-01-05', amount: 50.0, description: 'Jan 2026 expense' },
-        { date: '2026-02-10', amount: 75.0, description: 'Feb 2026 expense' },
-        { date: '2026-03-15', amount: 120.0, description: 'Mar 2026 expense' },
-        { date: '2026-04-01', amount: 30.0, description: 'Apr 2026 expense' },
+        { date: '2025-01-15', amount: 100.0, notes: 'Jan 2025 expense' },
+        { date: '2025-06-10', amount: 200.0, notes: 'Jun 2025 expense' },
+        { date: '2026-01-05', amount: 50.0, notes: 'Jan 2026 expense' },
+        { date: '2026-02-10', amount: 75.0, notes: 'Feb 2026 expense' },
+        { date: '2026-03-15', amount: 120.0, notes: 'Mar 2026 expense' },
+        { date: '2026-04-01', amount: 30.0, notes: 'Apr 2026 expense' },
       ],
       settings: {
         monthlyIncome: 5000,

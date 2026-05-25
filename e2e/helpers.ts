@@ -9,6 +9,7 @@ export interface SeedExpenseEntry {
   categoryId?: number
   payeeId?: number
   description?: string
+  notes?: string
 }
 
 export interface SeedExpenseSplitInput {
@@ -19,11 +20,13 @@ export interface SeedExpenseSplitInput {
     payeeNameSnapshot?: string | null
     description?: string
     note?: string
+    notes?: string
   }
   children: Array<{
     categoryId: number
     amount: number
     description?: string
+    notes?: string
     payeeId?: number
   }>
 }
@@ -76,7 +79,10 @@ export async function seedExpenses(page: Page, entries: SeedExpenseEntry[]): Pro
     ).outflowTestApi
     if (!api) throw new Error('outflowTestApi not found')
     await api.seedExpenses(data)
-  }, entries)
+  }, entries.map((entry) => ({
+    ...entry,
+    notes: entry.notes ?? entry.description ?? '',
+  })))
 }
 
 export async function seedSettings(page: Page, settings: Record<string, unknown>): Promise<void> {
@@ -103,7 +109,16 @@ export async function seedExpenseSplit(
     ).outflowTestApi
     if (!api) throw new Error('outflowTestApi not found')
     await api.seedExpenseSplit(data)
-  }, params)
+  }, {
+    split: {
+      ...params.split,
+      notes: params.split.notes ?? params.split.note ?? params.split.description ?? '',
+    },
+    children: params.children.map((child) => ({
+      ...child,
+      notes: child.notes ?? child.description ?? '',
+    })),
+  })
 }
 
 export async function addCategory(page: Page, name: string): Promise<number> {
@@ -195,6 +210,7 @@ export async function getAllExpenses(page: Page): Promise<
     date: string
     amount: number
     description?: string
+    notes?: string
     categoryId?: number
     payeeId?: number
   }>
@@ -207,7 +223,12 @@ export async function getAllExpenses(page: Page): Promise<
       }
     ).outflowTestApi
     if (!api) throw new Error('outflowTestApi not found')
-    return api.getAllExpenses()
+    const expenses = await api.getAllExpenses()
+    return expenses.map((expense) => ({
+      ...expense,
+      description: expense.description ?? expense.notes ?? '',
+      notes: expense.notes ?? expense.description ?? '',
+    }))
   })
 }
 
@@ -218,6 +239,7 @@ export async function getAllExpensesIncludingDeleted(page: Page): Promise<
     date: string
     amount: number
     description?: string
+    notes?: string
     syncStatus?: string
     deletedAt?: string | null
   }>
@@ -230,7 +252,12 @@ export async function getAllExpensesIncludingDeleted(page: Page): Promise<
       }
     ).outflowTestApi
     if (!api) throw new Error('outflowTestApi not found')
-    return api.getAllExpensesIncludingDeleted()
+    const expenses = await api.getAllExpensesIncludingDeleted()
+    return expenses.map((expense) => ({
+      ...expense,
+      description: expense.description ?? expense.notes ?? '',
+      notes: expense.notes ?? expense.description ?? '',
+    }))
   })
 }
 
@@ -478,7 +505,15 @@ export async function addSchedule(
     ).outflowTestApi
     if (!api) throw new Error('outflowTestApi not found')
     await api.addSchedule(data)
-  }, schedule)
+  }, {
+    ...schedule,
+    notes:
+      'notes' in schedule && typeof schedule.notes === 'string'
+        ? schedule.notes
+        : 'note' in schedule && typeof schedule.note === 'string'
+          ? schedule.note
+          : '',
+  })
 }
 
 export async function deleteSchedule(page: Page, id: number): Promise<void> {
@@ -597,7 +632,23 @@ export async function inspectFakeCloudExpenses(
       }
     ).outflowTestApi
     if (!api) throw new Error('outflowTestApi not found')
-    return api.inspectFakeCloudExpenses(nextUserId)
+    const rows = await api.inspectFakeCloudExpenses(nextUserId)
+    return rows.map((row) => {
+      const notes =
+        typeof row.notes === 'string'
+          ? row.notes
+          : typeof row.description === 'string'
+            ? row.description
+            : ''
+      return {
+        ...row,
+        notes,
+        description:
+          typeof row.description === 'string' && row.description.length > 0
+            ? row.description
+            : notes,
+      }
+    })
   }, userId)
 }
 

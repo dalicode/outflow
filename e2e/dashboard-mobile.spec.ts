@@ -37,9 +37,9 @@ test.describe('Dashboard — mobile', () => {
   test('expenses view shows seeded mobile rows', async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 10.0, description: 'Coffee' },
-        { date: '2026-05-02', amount: 25.0, description: 'Lunch' },
-        { date: '2026-05-03', amount: 5.0, description: 'Snack' },
+        { date: '2026-05-01', amount: 10.0, notes: 'Coffee' },
+        { date: '2026-05-02', amount: 25.0, notes: 'Lunch' },
+        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
       ],
     })
 
@@ -51,9 +51,9 @@ test.describe('Dashboard — mobile', () => {
   test('bulk delete from the mobile selection banner can be undone', async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 10.0, description: 'Coffee' },
-        { date: '2026-05-02', amount: 25.0, description: 'Lunch' },
-        { date: '2026-05-03', amount: 5.0, description: 'Snack' },
+        { date: '2026-05-01', amount: 10.0, notes: 'Coffee' },
+        { date: '2026-05-02', amount: 25.0, notes: 'Lunch' },
+        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
       ],
     })
 

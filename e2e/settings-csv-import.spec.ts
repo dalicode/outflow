@@ -32,7 +32,7 @@ test.describe('Settings CSV import', () => {
 
     const expenses = await getAllExpenses(page)
     expect(expenses).toHaveLength(2)
-    expect(expenses.map((expense) => expense.description)).toEqual(
+    expect(expenses.map((expense) => expense.notes)).toEqual(
       expect.arrayContaining(['Coffee shop', 'Train pass']),
     )
   })

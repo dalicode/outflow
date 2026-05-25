@@ -5,9 +5,9 @@ test.describe('Expense deletion flows (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 15.5, description: 'Lunch' },
-        { date: '2026-05-02', amount: 42.0, description: 'Groceries' },
-        { date: '2026-05-03', amount: 5.0, description: 'Snack' },
+        { date: '2026-05-01', amount: 15.5, notes: 'Lunch' },
+        { date: '2026-05-02', amount: 42.0, notes: 'Groceries' },
+        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
       ],
     })
 

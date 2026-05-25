@@ -52,7 +52,7 @@ test.describe('Cross-device expense sync repro', () => {
       await expect
         .poll(async () =>
           (await inspectFakeCloudExpenses(pageA, userId)).some(
-            (row) => row.description === 'Cross-device sync repro expense',
+            (row) => row.notes === 'Cross-device sync repro expense',
           ),
         )
         .toBe(true)
@@ -60,7 +60,7 @@ test.describe('Cross-device expense sync repro', () => {
       await setFakeSignedInUser(pageB, userId, email)
       const preSyncDeviceBExpenses = await getAllExpenses(pageB)
       expect(
-        preSyncDeviceBExpenses.some((row) => row.description === 'Cross-device sync repro expense'),
+        preSyncDeviceBExpenses.some((row) => row.notes === 'Cross-device sync repro expense'),
       ).toBe(false)
 
       await triggerManualSync(pageB)
@@ -73,7 +73,7 @@ test.describe('Cross-device expense sync repro', () => {
 
       const deviceBExpenses = await getAllExpenses(pageB)
       expect(
-        deviceBExpenses.some((row) => row.description === 'Cross-device sync repro expense'),
+        deviceBExpenses.some((row) => row.notes === 'Cross-device sync repro expense'),
       ).toBe(true)
     } finally {
       await contextA.close()

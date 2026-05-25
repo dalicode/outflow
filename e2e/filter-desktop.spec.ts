@@ -8,8 +8,8 @@ test.describe('Filter modal (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 15.5, description: 'Lunch' },
-        { date: '2026-05-02', amount: 42.0, description: 'Groceries' },
+        { date: '2026-05-01', amount: 15.5, notes: 'Lunch' },
+        { date: '2026-05-02', amount: 42.0, notes: 'Groceries' },
       ],
     })
   })
@@ -18,7 +18,7 @@ test.describe('Filter modal (desktop)', () => {
     await visibleFiltersButton(page).click()
     await expect(page.getByRole('dialog', { name: 'Filter Transactions' })).toBeVisible()
 
-    const searchInput = page.getByPlaceholder('Description, category, or amount...')
+    const searchInput = page.getByPlaceholder('Notes, category, payee, tag, or amount...')
     await searchInput.fill('test query')
     await expect(searchInput).toHaveValue('test query')
 
@@ -38,7 +38,7 @@ test.describe('Filter modal (desktop)', () => {
     await visibleFiltersButton(page).click()
     await expect(page.getByRole('dialog', { name: 'Filter Transactions' })).toBeVisible()
 
-    const searchInput = page.getByPlaceholder('Description, category, or amount...')
+    const searchInput = page.getByPlaceholder('Notes, category, payee, tag, or amount...')
     await searchInput.fill('Lunch')
 
     await page.getByTestId('btn-apply-filters').click()

@@ -17,12 +17,11 @@ test.describe('Split expenses (mobile)', () => {
         amount: 64,
         payeeId,
         payeeNameSnapshot: 'Mobile Split Payee',
-        description: 'Mobile trip split',
-        note: '',
+        notes: 'Mobile trip split',
       },
       children: [
-        { categoryId: foodCategory, amount: 24, description: 'Breakfast' },
-        { categoryId: travelCategory, amount: 40, description: 'Transit' },
+        { categoryId: foodCategory, amount: 24, notes: 'Breakfast' },
+        { categoryId: travelCategory, amount: 40, notes: 'Transit' },
       ],
     })
 

@@ -2,12 +2,12 @@ import { test } from '@playwright/test'
 import { addPayee, expect, getAllExpenses, getPayees, resetAppState, seedExpenses } from './helpers'
 
 test.describe('Advanced budget flows', () => {
-  test('bulk edit applies description updates to selected expenses', async ({ page }) => {
+  test('bulk edit applies notes updates to selected expenses', async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 15.5, description: 'Lunch' },
-        { date: '2026-05-02', amount: 42.0, description: 'Groceries' },
-        { date: '2026-05-03', amount: 5.0, description: 'Snack' },
+        { date: '2026-05-01', amount: 15.5, notes: 'Lunch' },
+        { date: '2026-05-02', amount: 42.0, notes: 'Groceries' },
+        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
       ],
     })
 
@@ -22,14 +22,14 @@ test.describe('Advanced budget flows', () => {
 
     const dialog = page.getByRole('dialog', { name: 'Edit 2 Expenses' })
     await expect(dialog).toBeVisible()
-    await dialog.locator('label', { hasText: 'Description' }).click()
-    await dialog.getByPlaceholder('Enter description...').fill('Shared description')
+    await dialog.locator('label', { hasText: 'Notes' }).click()
+    await dialog.getByPlaceholder('Enter notes...').fill('Shared notes')
     await dialog.getByRole('button', { name: 'Apply Changes' }).click()
 
     await expect(dialog).not.toBeVisible()
-    await expect(rows.nth(0).locator("[data-field='description']")).toHaveText('Shared description')
-    await expect(rows.nth(1).locator("[data-field='description']")).toHaveText('Shared description')
-    await expect(rows.nth(2).locator("[data-field='description']")).toHaveText('Lunch')
+    await expect(rows.nth(0).locator("[data-field='notes']")).toHaveText('Shared notes')
+    await expect(rows.nth(1).locator("[data-field='notes']")).toHaveText('Shared notes')
+    await expect(rows.nth(2).locator("[data-field='notes']")).toHaveText('Lunch')
   })
 
   test('merging payees reassigns expenses and archives the source payee', async ({ page }) => {
@@ -41,13 +41,13 @@ test.describe('Advanced budget flows', () => {
       {
         date: '2026-05-04',
         amount: 24.75,
-        description: 'Alpha lunch',
+        notes: 'Alpha lunch',
         payeeId: alphaId,
       },
       {
         date: '2026-05-05',
         amount: 18.2,
-        description: 'Alpha coffee',
+        notes: 'Alpha coffee',
         payeeId: alphaId,
       },
     ])
@@ -81,7 +81,7 @@ test.describe('Advanced budget flows', () => {
 
     const expenses = await getAllExpenses(page)
     const alphaExpenses = expenses.filter((expense) =>
-      ['Alpha lunch', 'Alpha coffee'].includes(expense.description ?? ''),
+      ['Alpha lunch', 'Alpha coffee'].includes(expense.notes ?? ''),
     ) as Array<{ payeeId?: number }>
     expect(alphaExpenses.every((expense) => expense.payeeId === betaId)).toBe(true)
   })

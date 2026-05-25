@@ -5,9 +5,9 @@ test.describe('Inline editing (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 15.5, description: 'Lunch' },
-        { date: '2026-05-02', amount: 42.0, description: 'Groceries' },
-        { date: '2026-05-03', amount: 5.0, description: 'Snack' },
+        { date: '2026-05-01', amount: 15.5, notes: 'Lunch' },
+        { date: '2026-05-02', amount: 42.0, notes: 'Groceries' },
+        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
       ],
     })
 
@@ -20,17 +20,17 @@ test.describe('Inline editing (desktop)', () => {
     await expect(rows.first()).toBeVisible({ timeout: 10000 })
     const firstRow = rows.first()
 
-    // Wait for the first row's description text to appear
-    const descCell = firstRow.locator("[data-field='description']")
-    await expect(descCell).toHaveText('Snack', { timeout: 5000 })
+    // Wait for the first row's notes text to appear
+    const notesCell = firstRow.locator("[data-field='notes']")
+    await expect(notesCell).toHaveText('Snack', { timeout: 5000 })
 
-    // Click description cell → inline edit → Escape cancels, original text restored
-    await descCell.click()
+    // Click notes cell -> inline edit -> Escape cancels, original text restored
+    await notesCell.click()
     const input = firstRow.locator("input[type='text']").first()
     await expect(input).toBeVisible({ timeout: 3000 })
     await input.fill('Changed text')
     await input.press('Escape')
-    await expect(descCell).toHaveText('Snack', { timeout: 3000 })
+    await expect(notesCell).toHaveText('Snack', { timeout: 3000 })
 
     // Date cell activates date picker
     await firstRow.locator("[data-field='date']").click()

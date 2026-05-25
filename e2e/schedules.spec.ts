@@ -74,14 +74,14 @@ test.describe('Schedules — desktop', () => {
 
     let dialog = await openScheduleModal(page)
     await dialog.getByTestId('schedule-value-input').fill('6000')
-    await dialog.getByTestId('schedule-note-input').fill('Salary increase')
+    await dialog.getByTestId('schedule-notes-input').fill('Salary increase')
     await dialog.getByTestId('btn-save-schedule').click()
     await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
     dialog = await openScheduleModal(page)
     await dialog.getByTestId('schedule-type-select').selectOption('savingsRate')
     await dialog.getByTestId('schedule-value-input').fill('20')
-    await dialog.getByTestId('schedule-note-input').fill('Boost savings')
+    await dialog.getByTestId('schedule-notes-input').fill('Boost savings')
     await dialog.getByTestId('btn-save-schedule').click()
     await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
@@ -89,7 +89,7 @@ test.describe('Schedules — desktop', () => {
     await dialog.getByTestId('schedule-type-select').selectOption('fixedExpense')
     await dialog.locator('select').nth(1).selectOption({ label: fixedExpenseName })
     await dialog.getByTestId('schedule-value-input').fill('1350')
-    await dialog.getByTestId('schedule-note-input').fill('Lease renewal')
+    await dialog.getByTestId('schedule-notes-input').fill('Lease renewal')
     await dialog.getByTestId('btn-save-schedule').click()
     await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
@@ -130,19 +130,19 @@ test.describe('Schedules — desktop', () => {
         expect.objectContaining({
           type: 'income',
           newValue: 6000,
-          note: 'Salary increase',
+          notes: 'Salary increase',
           isActive: 1,
         }),
         expect.objectContaining({
           type: 'savingsRate',
           newValue: 20,
-          note: 'Boost savings',
+          notes: 'Boost savings',
           isActive: 1,
         }),
         expect.objectContaining({
           type: 'fixedExpense',
           newValue: 1350,
-          note: 'Lease renewal',
+          notes: 'Lease renewal',
           isActive: 1,
         }),
         expect.objectContaining({
@@ -176,7 +176,7 @@ test.describe('Schedules — desktop', () => {
       effectiveYear: currentYear,
       effectiveMonth: currentMonth,
       newValue: 6200,
-      note: 'Salary increase',
+      notes: 'Salary increase',
     })
     await addSchedule(page, {
       type: 'savingsRate',
@@ -184,7 +184,7 @@ test.describe('Schedules — desktop', () => {
       effectiveYear: currentYear,
       effectiveMonth: currentMonth,
       newValue: 18,
-      note: 'Savings bump',
+      notes: 'Savings bump',
     })
     await addSchedule(page, {
       type: 'fixedExpense',
@@ -192,7 +192,7 @@ test.describe('Schedules — desktop', () => {
       effectiveYear: currentYear,
       effectiveMonth: currentMonth,
       newValue: 1400,
-      note: 'Lease renewal',
+      notes: 'Lease renewal',
     })
     await addSchedule(page, {
       type: 'expense',
@@ -201,7 +201,7 @@ test.describe('Schedules — desktop', () => {
       effectiveMonth: currentMonth,
       day: currentDay,
       newValue: 42.5,
-      note: 'Planned lunch',
+      notes: 'Planned lunch',
       categoryId: groceriesCategory?.id,
       payeeId,
     })
@@ -252,7 +252,7 @@ test.describe('Schedules — desktop', () => {
           date: `${currentMonthKey}-${String(currentDay).padStart(2, '0')}`,
           categoryId: groceriesCategory?.id,
           payeeId,
-          description: 'Planned lunch',
+          notes: 'Planned lunch',
         }),
       ]),
     )
@@ -281,7 +281,7 @@ test.describe('Schedules — desktop', () => {
         expect.objectContaining({
           type: 'expense',
           isActive: 0,
-          note: 'Planned lunch',
+          notes: 'Planned lunch',
           day: currentDay,
         }),
       ]),
