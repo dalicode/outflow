@@ -561,11 +561,8 @@ export default function ExpenseForm({
         detachedOutsideLeftControls
         signToggleStyle="toggle"
         className="w-full"
-        shellClassOverride="px-1.5"
-        inputClassName={cn(
-          'text-center tracking-tight',
-          isMobileViewport ? 'text-[2.125rem]' : 'text-[1.9rem]',
-        )}
+        shellClassOverride="min-h-[2.85rem]"
+        inputClassName="expense-amount-input text-center"
       />
     </div>
   )
@@ -924,38 +921,38 @@ export default function ExpenseForm({
                           inputClassName="text-right"
                         />
                       </div>
-                    <label className="flex flex-col gap-1 text-xs text-theme-muted">
-                      Description
-                      <input
-                        type="text"
-                        value={child.description}
-                        onChange={(event) =>
-                          setSplitChildField(child.rowId, 'description', event.target.value)
-                        }
-                        className={inputCls}
-                        placeholder="Optional"
-                        aria-label={`Split description ${index + 1}`}
-                      />
-                    </label>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                      <button
-                        type="button"
-                        onClick={() => applyRemainingToChild(child.rowId)}
-                        className="btn-cancel-sm whitespace-nowrap"
-                        data-testid={`btn-apply-remaining-${index}`}
-                      >
-                        Apply remaining
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeSplitChild(child.rowId)}
-                        disabled={splitChildren.length === 1}
-                        className="btn-cancel-sm whitespace-nowrap disabled:opacity-50"
-                        data-testid={`btn-remove-split-row-${index}`}
-                      >
-                        Remove
-                      </button>
-                    </div>
+                      <label className="flex flex-col gap-1 text-xs text-theme-muted">
+                        Description
+                        <input
+                          type="text"
+                          value={child.description}
+                          onChange={(event) =>
+                            setSplitChildField(child.rowId, 'description', event.target.value)
+                          }
+                          className={inputCls}
+                          placeholder="Optional"
+                          aria-label={`Split description ${index + 1}`}
+                        />
+                      </label>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => applyRemainingToChild(child.rowId)}
+                          className="btn-cancel-sm whitespace-nowrap"
+                          data-testid={`btn-apply-remaining-${index}`}
+                        >
+                          Apply remaining
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeSplitChild(child.rowId)}
+                          disabled={splitChildren.length === 1}
+                          className="btn-cancel-sm whitespace-nowrap disabled:opacity-50"
+                          data-testid={`btn-remove-split-row-${index}`}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   )
                 })}

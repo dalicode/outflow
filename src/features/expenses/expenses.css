@@ -7,6 +7,18 @@
   gap: 0.75rem;
 }
 
+.expense-amount-input {
+  font-size: 1.9rem !important;
+  line-height: 1;
+}
+
+@media (max-width: 639px) {
+  .expense-amount-input {
+    font-size: 1.8rem !important;
+    line-height: 1;
+  }
+}
+
 /* Full-width save button (ExpenseForm) */
 .btn-save-expense {
   width: 100%;

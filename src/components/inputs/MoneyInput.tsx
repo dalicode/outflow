@@ -574,10 +574,10 @@ export default function MoneyInput({
                   : 'bg-transparent',
                 variant === 'default' &&
                   cn(
-                    size === 'sm' && 'text-base',
-                    size === 'md' && 'text-lg',
-                    size === 'lg' && 'text-xl',
-                    size === 'hero' && 'text-2xl',
+                    size === 'sm' && 'text-xl sm:text-base',
+                    size === 'md' && 'text-2xl sm:text-lg',
+                    size === 'lg' && 'text-3xl sm:text-xl',
+                    size === 'hero' && 'text-4xl sm:text-2xl',
                   ),
                 hasError && variant === 'inline' && 'text-theme-danger',
                 disabled && 'cursor-not-allowed',

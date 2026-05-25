@@ -158,7 +158,7 @@ export default function IncomeModalForm({
               autoFocus
               variant="inline"
               className="w-full"
-              inputClassName="text-sm"
+              inputClassName="text-2xl sm:text-sm"
             />
           </div>
           <select

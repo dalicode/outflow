@@ -129,7 +129,7 @@ export default function SavingsModalForm({
                 placeholder="e.g. 500"
                 variant="inline"
                 className="w-full"
-                inputClassName="text-sm"
+                inputClassName="text-2xl sm:text-sm"
               />
             </div>
           )}
