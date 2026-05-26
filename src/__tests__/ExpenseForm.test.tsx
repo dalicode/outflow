@@ -114,6 +114,23 @@ vi.mock('../components/inputs/MoneyInput', () => ({
   ),
 }))
 
+vi.mock('../components/inputs/TagMultiSelect', () => ({
+  default: ({
+    onCreate,
+  }: {
+    onCreate?: (name: string) => Promise<number>
+  }) => (
+    <button
+      type="button"
+      onClick={() => {
+        void onCreate?.('FreshTag')
+      }}
+    >
+      Create tag
+    </button>
+  ),
+}))
+
 vi.mock('../features/expenses/CategoryModal', () => ({
   default: () => null,
 }))
@@ -244,6 +261,23 @@ describe('ExpenseForm', () => {
         children: [expect.objectContaining({ categoryId: 1, amount: 10 })],
       }),
     )
+  })
+
+  it('queues sync when creating a tag from the expense form', async () => {
+    const triggerSync = vi.fn()
+
+    render(
+      <ToastProvider>
+        <ExpenseForm onClose={vi.fn()} categories={categories} triggerSync={triggerSync} />
+      </ToastProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create tag' }))
+
+    await waitFor(() => {
+      expect(StorageService.addTag).toHaveBeenCalledWith('FreshTag')
+    })
+    expect(triggerSync).toHaveBeenCalledTimes(1)
   })
 
   it('selects split category through desktop dropdown wrapper', async () => {

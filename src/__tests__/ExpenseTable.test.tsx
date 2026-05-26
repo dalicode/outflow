@@ -340,6 +340,7 @@ describe('ExpenseTable', () => {
       { id: 2, splitId: 10, date: '2026-05-10', amount: 10, categoryId: 1, notes: 'Split A' },
       { id: 3, splitId: 10, date: '2026-05-10', amount: 15, categoryId: 2, notes: 'Split B' },
     ]
+    const triggerSync = vi.fn()
 
     render(
       <ExpenseTable
@@ -354,6 +355,7 @@ describe('ExpenseTable', () => {
         onToggleSelectAll={vi.fn()}
         onUpdate={vi.fn()}
         onDelete={vi.fn()}
+        triggerSync={triggerSync}
         expenseTagsMap={{
           1: [{ id: 101, name: 'Work', isArchived: false }],
           2: [{ id: 101, name: 'Work', isArchived: false }],
@@ -374,6 +376,7 @@ describe('ExpenseTable', () => {
     await waitFor(() => {
       expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(1, [101, 102])
     })
+    expect(triggerSync).toHaveBeenCalledTimes(1)
 
     fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
     const secondEditorInput = await screen.findByRole('textbox')
@@ -384,12 +387,14 @@ describe('ExpenseTable', () => {
       expect(storageMocks.addTag).toHaveBeenCalledWith('FreshTag')
     })
     await screen.findByText('FreshTag')
+    expect(triggerSync).toHaveBeenCalledTimes(2)
     expect(storageMocks.setExpenseTags).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByTestId('tags-editor-cancel'))
 
     await waitFor(() => {
       expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
     })
+    expect(triggerSync).toHaveBeenCalledTimes(2)
 
     fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
     const thirdEditorInput = await screen.findByRole('textbox')
@@ -398,6 +403,7 @@ describe('ExpenseTable', () => {
     await screen.findByText('FreshTag')
     fireEvent.click(screen.getByTestId('tags-editor-save'))
     await waitFor(() => expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(1, [101, 777]))
+    expect(triggerSync).toHaveBeenCalledTimes(4)
 
     const splitChildRow = await screen.findByTestId('split-child-2')
     fireEvent.pointerDown(within(splitChildRow).getByTestId('editable-cell-display-tags'))
@@ -410,6 +416,7 @@ describe('ExpenseTable', () => {
     await waitFor(() => {
       expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(2, [101, 102])
     })
+    expect(triggerSync).toHaveBeenCalledTimes(5)
   })
 
   it.each([

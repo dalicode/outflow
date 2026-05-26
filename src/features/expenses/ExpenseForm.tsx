@@ -814,6 +814,7 @@ export default function ExpenseForm({
             inputClassName="min-w-0"
             onCreate={async (name) => {
               const id = await StorageService.addTag(name)
+              triggerSync?.()
               await refreshTags()
               return id
             }}

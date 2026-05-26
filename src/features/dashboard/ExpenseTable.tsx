@@ -409,6 +409,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     setIsSavingTagsEditor(true)
     try {
       await StorageService.setExpenseTags(activeTagsEditor.expenseId, nextTagIds)
+      triggerSync?.()
       editing.cancelCurrentCellEdit()
       dismissTagsEditor()
     } catch (error) {
@@ -416,7 +417,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       showToast({ message: 'Could not update tags.', tone: 'danger' })
       setIsSavingTagsEditor(false)
     }
-  }, [activeTagsEditor, dismissTagsEditor, editing, isSavingTagsEditor, showToast])
+  }, [activeTagsEditor, dismissTagsEditor, editing, isSavingTagsEditor, showToast, triggerSync])
   const handleTagsEditorChange = useCallback((tagIds: number[]) => {
     setActiveTagsEditor((current) => {
       if (!current) return null
@@ -427,6 +428,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     async (name: string) => {
       const trimmedName = name.trim()
       const tagId = await StorageService.addTag(name)
+      triggerSync?.()
       setActiveTags((current) => {
         if (current.some((tag) => tag.id === tagId)) {
           return current
@@ -443,7 +445,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       })
       return tagId as number
     },
-    [],
+    [triggerSync],
   )
 
   const handleEditRequest = useCallback(
