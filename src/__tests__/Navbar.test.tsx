@@ -173,4 +173,13 @@ describe('Navbar', () => {
 
     expect(mobileBudgetLink).toHaveAttribute('aria-current', 'page')
   })
+
+  it('renders four evenly grouped secondary mobile nav destinations', () => {
+    renderNavbar({ onAddExpense: vi.fn() })
+
+    expect(screen.getByLabelText('Analytics')).toBeInTheDocument()
+    expect(screen.getByLabelText('Payees')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tags')).toBeInTheDocument()
+    expect(screen.getByLabelText('Settings')).toBeInTheDocument()
+  })
 })

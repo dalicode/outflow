@@ -1,4 +1,10 @@
-import type { Expense, ExpenseTag, Tag, TagMergeHistory } from '../../types'
+import type {
+  Expense,
+  ExpenseTag,
+  Tag,
+  TagMergeHistory,
+  TagUnlinkDeleteUndoPayload,
+} from '../../types'
 import { normalizeNameForSync } from '../../utils/syncMetadata'
 import db from '../db/schema'
 import { buildCreatedSyncRecord, filterActiveRows, markPendingActiveRecord } from './common'
@@ -121,6 +127,72 @@ export async function unarchiveTag(id: number): Promise<void> {
     ...markPendingActiveRecord(existing, now),
     id,
     isArchived: false,
+  })
+}
+
+export async function unlinkAllAndArchiveTag(id: number): Promise<TagUnlinkDeleteUndoPayload> {
+  const now = new Date().toISOString()
+
+  return db.transaction(
+    'rw',
+    db.tags,
+    db.expenseTags,
+    async (): Promise<TagUnlinkDeleteUndoPayload> => {
+      const existing = await db.tags.get(id)
+      if (!existing) {
+        return { tagId: id, unlinkedExpenseTagIds: [] }
+      }
+
+      const activeRows = filterActiveRows(await db.expenseTags.where('tagId').equals(id).toArray())
+      const unlinkedExpenseTagIds: number[] = []
+      for (const row of activeRows) {
+        if (row.id == null) continue
+        unlinkedExpenseTagIds.push(row.id)
+        await db.expenseTags.put({
+          ...row,
+          ...markPendingActiveRecord(row, now),
+          id: row.id,
+          deletedAt: now,
+        } as ExpenseTag)
+      }
+
+      await db.tags.put({
+        ...existing,
+        ...markPendingActiveRecord(existing, now),
+        id,
+        isArchived: true,
+      })
+
+      return { tagId: id, unlinkedExpenseTagIds }
+    },
+  )
+}
+
+export async function undoUnlinkAllAndArchiveTag(
+  payload: TagUnlinkDeleteUndoPayload,
+): Promise<void> {
+  const now = new Date().toISOString()
+
+  await db.transaction('rw', db.tags, db.expenseTags, async (): Promise<void> => {
+    const rows = await db.expenseTags.bulkGet(payload.unlinkedExpenseTagIds)
+    for (const row of rows) {
+      if (!row || row.id == null || row.tagId !== payload.tagId || row.deletedAt == null) continue
+      await db.expenseTags.put({
+        ...row,
+        ...markPendingActiveRecord(row, now),
+        id: row.id,
+        deletedAt: null,
+      } as ExpenseTag)
+    }
+
+    const existing = await db.tags.get(payload.tagId)
+    if (!existing) return
+    await db.tags.put({
+      ...existing,
+      ...markPendingActiveRecord(existing, now),
+      id: payload.tagId,
+      isArchived: false,
+    })
   })
 }
 

@@ -132,6 +132,8 @@ export const StorageService = {
   updateTag: tagRepo.updateTag,
   archiveTag: tagRepo.archiveTag,
   unarchiveTag: tagRepo.unarchiveTag,
+  unlinkAllAndArchiveTag: tagRepo.unlinkAllAndArchiveTag,
+  undoUnlinkAllAndArchiveTag: tagRepo.undoUnlinkAllAndArchiveTag,
   getExpenseCountForTag: tagRepo.getExpenseCountForTag,
   getExpenseCountsForTags: tagRepo.getExpenseCountsForTags,
   mergeTag: tagRepo.mergeTag,

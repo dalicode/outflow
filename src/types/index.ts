@@ -131,6 +131,11 @@ export interface TagMergeHistory extends SyncedRecord {
   updatedAt?: string
 }
 
+export interface TagUnlinkDeleteUndoPayload {
+  tagId: number
+  unlinkedExpenseTagIds: number[]
+}
+
 // ── Fixed Expenses ──────────────────────────────────────────────────────────
 
 export interface FixedExpense extends SyncedRecord {

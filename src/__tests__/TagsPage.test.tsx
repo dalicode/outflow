@@ -8,6 +8,8 @@ const {
   updateTag,
   archiveTag,
   unarchiveTag,
+  unlinkAllAndArchiveTag,
+  undoUnlinkAllAndArchiveTag,
   getExpenseCountsForTags,
   getExpenseCountForTag,
   mergeTag,
@@ -20,6 +22,8 @@ const {
   updateTag: vi.fn(),
   archiveTag: vi.fn(),
   unarchiveTag: vi.fn(),
+  unlinkAllAndArchiveTag: vi.fn(),
+  undoUnlinkAllAndArchiveTag: vi.fn(),
   getExpenseCountsForTags: vi.fn(),
   getExpenseCountForTag: vi.fn(),
   mergeTag: vi.fn(),
@@ -41,6 +45,8 @@ vi.mock('../services/storageService', () => ({
     updateTag,
     archiveTag,
     unarchiveTag,
+    unlinkAllAndArchiveTag,
+    undoUnlinkAllAndArchiveTag,
     getExpenseCountsForTags,
     getExpenseCountForTag,
     mergeTag,
@@ -70,11 +76,30 @@ vi.mock('../components/ui/Modal', () => ({
 }))
 
 vi.mock('../components/ui/DeleteEntityDialog', () => ({
-  default: ({ isOpen, onConfirmDelete }: { isOpen: boolean; onConfirmDelete: () => void }) =>
+  default: ({
+    isOpen,
+    onConfirmDelete,
+    secondaryDestructiveAction,
+  }: {
+    isOpen: boolean
+    onConfirmDelete: () => void
+    secondaryDestructiveAction?: { onAction: () => void }
+  }) =>
     isOpen ? (
-      <button type="button" onClick={onConfirmDelete} data-testid="confirm-delete-tag">
-        Confirm delete tag
-      </button>
+      <>
+        <button type="button" onClick={onConfirmDelete} data-testid="confirm-delete-tag">
+          Confirm delete tag
+        </button>
+        {secondaryDestructiveAction && (
+          <button
+            type="button"
+            onClick={secondaryDestructiveAction.onAction}
+            data-testid="confirm-unlink-delete-tag"
+          >
+            Confirm unlink and delete tag
+          </button>
+        )}
+      </>
     ) : null,
 }))
 
@@ -112,6 +137,8 @@ describe('TagsPage', () => {
     updateTag.mockResolvedValue(undefined)
     archiveTag.mockResolvedValue(undefined)
     unarchiveTag.mockResolvedValue(undefined)
+    unlinkAllAndArchiveTag.mockResolvedValue({ tagId: 1, unlinkedExpenseTagIds: [100, 101] })
+    undoUnlinkAllAndArchiveTag.mockResolvedValue(undefined)
     getExpenseCountsForTags.mockResolvedValue({ 1: 3, 2: 1 })
     getExpenseCountForTag.mockImplementation(async (id: number) => (id === 1 ? 3 : 1))
     mergeTag.mockResolvedValue(500)
@@ -211,6 +238,39 @@ describe('TagsPage', () => {
 
     await waitFor(() => {
       expect(revertTagMerge).toHaveBeenCalledWith(500)
+      expect(useTagsState.refresh).toHaveBeenCalledTimes(2)
+      expect(refreshExpenses).toHaveBeenCalledTimes(2)
+      expect(triggerSync).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('unlinks all joins and archives with undo flow and sync callbacks', async () => {
+    const refreshExpenses = vi.fn().mockResolvedValue(undefined)
+    const triggerSync = vi.fn()
+    render(<TagsPage refreshExpenses={refreshExpenses} triggerSync={triggerSync} />)
+
+    fireEvent.click(screen.getByTestId('btn-delete-tag-1'))
+    fireEvent.click(screen.getByTestId('confirm-unlink-delete-tag'))
+
+    await waitFor(() => {
+      expect(unlinkAllAndArchiveTag).toHaveBeenCalledWith(1)
+      expect(useTagsState.refresh).toHaveBeenCalledTimes(1)
+      expect(refreshExpenses).toHaveBeenCalledTimes(1)
+      expect(triggerSync).toHaveBeenCalledTimes(1)
+      expect(showUndoToast).toHaveBeenCalledWith(
+        'Tag unlinked from all expenses and archived.',
+        expect.any(Function),
+      )
+    })
+
+    const undoHandler = showUndoToast.mock.calls[0]?.[1] as () => Promise<void>
+    await undoHandler()
+
+    await waitFor(() => {
+      expect(undoUnlinkAllAndArchiveTag).toHaveBeenCalledWith({
+        tagId: 1,
+        unlinkedExpenseTagIds: [100, 101],
+      })
       expect(useTagsState.refresh).toHaveBeenCalledTimes(2)
       expect(refreshExpenses).toHaveBeenCalledTimes(2)
       expect(triggerSync).toHaveBeenCalledTimes(2)

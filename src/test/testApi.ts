@@ -80,8 +80,12 @@ export const testApi = {
 
   getCategories: () => StorageService.getCategories(),
   getPayees: () => StorageService.getPayees(),
+  getTags: () => StorageService.getTags(),
   getFixedExpenses: () => StorageService.getFixedExpenses(),
   getAllExpenses: () => StorageService.getAll(),
+  getTagIdsForExpense: (expenseId: number) => StorageService.getTagIdsForExpense(expenseId),
+  setExpenseTags: (expenseId: number, tagIds: number[]) =>
+    StorageService.setExpenseTags(expenseId, tagIds),
   getAllExpensesIncludingDeleted: () => StorageService.getAllExpenses(),
   getSyncMetadataCounts: () => StorageService.getSyncMetadataCounts(),
   getAllIncomeSnapshots: () => StorageService.getAllIncomeSnapshots(),
@@ -89,6 +93,8 @@ export const testApi = {
   getAllFixedExpenseSnapshots: () => StorageService.getAllFixedExpenseSnapshots(),
   addCategory: (name: string) => StorageService.addCategory(name),
   addPayee: (name: string) => StorageService.addPayee(name),
+  addTag: (name: string) => StorageService.addTag(name),
+  updateTag: (id: number, changes: { name?: string }) => StorageService.updateTag(id, changes),
   addFixedExpense: (item: { name: string; amount: number }) => StorageService.addFixedExpense(item),
   setSetting: (key: string, value: unknown) => StorageService.setSetting(key, value),
   getSetting: (key: string) => StorageService.getSetting(key),

@@ -277,6 +277,22 @@ export async function getPayees(
   })
 }
 
+export async function getTags(
+  page: Page,
+): Promise<
+  Array<{ id?: number; name: string; isArchived?: boolean; mergedIntoTagId?: number | null }>
+> {
+  return page.evaluate(async () => {
+    const api = (
+      window as Window & {
+        outflowTestApi?: typeof import('../src/test/testApi').testApi
+      }
+    ).outflowTestApi
+    if (!api) throw new Error('outflowTestApi not found')
+    return api.getTags()
+  })
+}
+
 export async function getFixedExpenses(
   page: Page,
 ): Promise<Array<{ id?: number; name: string; amount: number; isArchived?: boolean }>> {
@@ -555,6 +571,64 @@ export async function getSetting(page: Page, key: string): Promise<unknown> {
 export async function getFirstExpenseId(page: Page): Promise<number> {
   const expenses = await getAllExpenses(page)
   return expenses[0]?.id ?? 0
+}
+
+export async function getTagIdsForExpense(page: Page, expenseId: number): Promise<number[]> {
+  return page.evaluate(async (id) => {
+    const api = (
+      window as Window & {
+        outflowTestApi?: typeof import('../src/test/testApi').testApi
+      }
+    ).outflowTestApi
+    if (!api) throw new Error('outflowTestApi not found')
+    return api.getTagIdsForExpense(id)
+  }, expenseId)
+}
+
+export async function addTag(page: Page, name: string): Promise<number> {
+  return page.evaluate(async (tagName) => {
+    const api = (
+      window as Window & {
+        outflowTestApi?: typeof import('../src/test/testApi').testApi
+      }
+    ).outflowTestApi
+    if (!api) throw new Error('outflowTestApi not found')
+    return api.addTag(tagName)
+  }, name)
+}
+
+export async function updateTag(
+  page: Page,
+  tagId: number,
+  changes: { name?: string },
+): Promise<void> {
+  await page.evaluate(
+    async ({ id, nextChanges }) => {
+      const api = (
+        window as Window & {
+          outflowTestApi?: typeof import('../src/test/testApi').testApi
+        }
+      ).outflowTestApi
+      if (!api) throw new Error('outflowTestApi not found')
+      await api.updateTag(id, nextChanges)
+    },
+    { id: tagId, nextChanges: changes },
+  )
+}
+
+export async function setExpenseTags(page: Page, expenseId: number, tagIds: number[]): Promise<void> {
+  await page.evaluate(
+    async ({ id, ids }) => {
+      const api = (
+        window as Window & {
+          outflowTestApi?: typeof import('../src/test/testApi').testApi
+        }
+      ).outflowTestApi
+      if (!api) throw new Error('outflowTestApi not found')
+      await api.setExpenseTags(id, ids)
+    },
+    { id: expenseId, ids: tagIds },
+  )
 }
 
 export async function setFakeSignedInUser(

@@ -650,15 +650,15 @@
   margin-top: 0.625rem;
 }
 .mobile-nav-row-secondary {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   justify-content: stretch;
   align-items: center;
-  column-gap: 0.25rem;
+  column-gap: 0;
   min-height: 4.25rem;
   position: relative;
   z-index: 1;
   border-top: 1px solid var(--theme-border);
-  padding-inline: 0.125rem;
+  padding-inline: 0;
 }
 .mobile-nav-link {
   display: flex;

@@ -125,6 +125,8 @@ import {
   mergeTag,
   revertTagMerge,
   setExpenseTags,
+  undoUnlinkAllAndArchiveTag,
+  unlinkAllAndArchiveTag,
   unarchiveTag,
 } from '../services/repositories/tagRepository'
 
@@ -233,6 +235,52 @@ describe('tagRepository', () => {
 
     await unarchiveTag(9)
     expect(await mocks.tags.get(9)).toEqual(expect.objectContaining({ isArchived: false }))
+  })
+
+  it('unlinks all active joins and archives tag with undo payload', async () => {
+    mocks.tags.reset([{ id: 9, name: 'Work', normalizedName: 'work', isArchived: false, deletedAt: null }])
+    mocks.expenseTags.reset([
+      { id: 1, expenseId: 101, tagId: 9, deletedAt: null },
+      { id: 2, expenseId: 102, tagId: 9, deletedAt: null },
+      { id: 3, expenseId: 103, tagId: 9, deletedAt: '2026-05-01T00:00:00.000Z' },
+      { id: 4, expenseId: 104, tagId: 10, deletedAt: null },
+    ])
+
+    await expect(unlinkAllAndArchiveTag(9)).resolves.toEqual({
+      tagId: 9,
+      unlinkedExpenseTagIds: [1, 2],
+    })
+    expect(await mocks.tags.get(9)).toEqual(expect.objectContaining({ isArchived: true }))
+    expect(await mocks.expenseTags.get(1)).toEqual(expect.objectContaining({ deletedAt: expect.any(String) }))
+    expect(await mocks.expenseTags.get(2)).toEqual(expect.objectContaining({ deletedAt: expect.any(String) }))
+    expect(await mocks.expenseTags.get(3)).toEqual(
+      expect.objectContaining({ deletedAt: '2026-05-01T00:00:00.000Z' }),
+    )
+    expect(await mocks.expenseTags.get(4)).toEqual(expect.objectContaining({ deletedAt: null }))
+  })
+
+  it('undoes unlink-and-archive by reviving only affected joins and unarchiving tag', async () => {
+    mocks.tags.reset([{ id: 9, name: 'Work', normalizedName: 'work', isArchived: true, deletedAt: null }])
+    mocks.expenseTags.reset([
+      { id: 1, expenseId: 101, tagId: 9, deletedAt: '2026-05-10T00:00:00.000Z' },
+      { id: 2, expenseId: 102, tagId: 9, deletedAt: '2026-05-10T00:00:00.000Z' },
+      { id: 3, expenseId: 103, tagId: 9, deletedAt: null },
+      { id: 4, expenseId: 104, tagId: 10, deletedAt: '2026-05-10T00:00:00.000Z' },
+    ])
+
+    await undoUnlinkAllAndArchiveTag({
+      tagId: 9,
+      unlinkedExpenseTagIds: [1, 4],
+    })
+
+    expect(await mocks.tags.get(9)).toEqual(expect.objectContaining({ isArchived: false }))
+    expect(await mocks.expenseTags.get(1)).toEqual(expect.objectContaining({ deletedAt: null }))
+    expect(await mocks.expenseTags.get(2)).toEqual(
+      expect.objectContaining({ deletedAt: '2026-05-10T00:00:00.000Z' }),
+    )
+    expect(await mocks.expenseTags.get(4)).toEqual(
+      expect.objectContaining({ deletedAt: '2026-05-10T00:00:00.000Z' }),
+    )
   })
 
   it('counts only active expenses for a tag', async () => {

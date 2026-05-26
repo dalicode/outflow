@@ -1,16 +1,21 @@
 import { test, expect } from './live-sync.fixture'
 import { clearLiveSupabaseUserDataByAdmin } from './liveSupabaseAdmin'
 import {
+  addTag,
   clearAllData,
   getAllExpenses,
   getAllExpensesIncludingDeleted,
   getFirstCategoryId,
   getSyncMetadataCounts,
+  getTagIdsForExpense,
+  getTags,
   resetLiveSyncState,
   seedExpenses,
+  setExpenseTags,
   signInLiveSupabaseUser,
   signOutLiveSupabaseUser,
   triggerManualSync,
+  updateTag,
   updateExpenseForSyncTest,
   updateExpenseForSyncTestWithTimestamp,
   waitForSyncStatus,
@@ -91,6 +96,112 @@ test.describe('Live Supabase sync (UAT)', () => {
         )
         .toBe(true)
       await waitForZeroPendingSync(pageA)
+    } finally {
+      await contextA.close()
+      await contextB.close()
+    }
+  })
+
+  test('tag create syncs across two contexts', async ({ browser, liveUser }) => {
+    const contextA = await browser.newContext()
+    const contextB = await browser.newContext()
+    const pageA = await contextA.newPage()
+    const pageB = await contextB.newPage()
+    try {
+      await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password)
+
+      await addTag(pageA, 'uat-sync-tag-create')
+      await triggerManualSyncRounds([pageA, pageB], 2)
+
+      await expect
+        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-create'))
+        .toBe(true)
+
+      await waitForZeroPendingSync(pageA)
+      await waitForZeroPendingSync(pageB)
+    } finally {
+      await contextA.close()
+      await contextB.close()
+    }
+  })
+
+  test('expense tag assignment syncs across two contexts', async ({ browser, liveUser }) => {
+    const contextA = await browser.newContext()
+    const contextB = await browser.newContext()
+    const pageA = await contextA.newPage()
+    const pageB = await contextB.newPage()
+    try {
+      await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password)
+
+      const tagIdOnA = await addTag(pageA, 'uat-sync-tag-link')
+      await addSeedExpense(pageA, 'uat-tagged-expense', 19.25)
+      const expenseOnA = (await getAllExpenses(pageA)).find((x) => x.notes === 'uat-tagged-expense')
+      expect(expenseOnA?.id).toBeTruthy()
+
+      await setExpenseTags(pageA, expenseOnA?.id as number, [tagIdOnA])
+      expect(await getTagIdsForExpense(pageA, expenseOnA?.id as number)).toContain(tagIdOnA)
+
+      await triggerManualSyncRounds([pageA, pageB], 2)
+
+      await expect
+        .poll(async () => {
+          const expenseOnB = (await getAllExpenses(pageB)).find(
+            (x) => x.localId === expenseOnA?.localId,
+          )
+          if (!expenseOnB?.id) return 0
+          const tagIds = await getTagIdsForExpense(pageB, expenseOnB.id)
+          return tagIds.length
+        })
+        .toBe(1)
+
+      await expect
+        .poll(async () => {
+          const expenseOnB = (await getAllExpenses(pageB)).find(
+            (x) => x.localId === expenseOnA?.localId,
+          )
+          if (!expenseOnB?.id) return false
+          const tagIds = await getTagIdsForExpense(pageB, expenseOnB.id)
+          return tagIds.length === 1
+        })
+        .toBe(true)
+      await expect
+        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-link'))
+        .toBe(true)
+
+      await waitForZeroPendingSync(pageA)
+      await waitForZeroPendingSync(pageB)
+    } finally {
+      await contextA.close()
+      await contextB.close()
+    }
+  })
+
+  test('tag rename syncs across two contexts', async ({ browser, liveUser }) => {
+    const contextA = await browser.newContext()
+    const contextB = await browser.newContext()
+    const pageA = await contextA.newPage()
+    const pageB = await contextB.newPage()
+    try {
+      await resetLiveSyncState([pageA, pageB], liveUser.email, liveUser.password)
+
+      const tagIdOnA = await addTag(pageA, 'uat-sync-tag-rename-old')
+      await triggerManualSyncRounds([pageA, pageB], 2)
+      await expect
+        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-old'))
+        .toBe(true)
+
+      await updateTag(pageA, tagIdOnA, { name: 'uat-sync-tag-rename-new' })
+      await triggerManualSyncRounds([pageA, pageB], 2)
+
+      await expect
+        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-new'))
+        .toBe(true)
+      await expect
+        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-old'))
+        .toBe(false)
+
+      await waitForZeroPendingSync(pageA)
+      await waitForZeroPendingSync(pageB)
     } finally {
       await contextA.close()
       await contextB.close()

@@ -107,6 +107,19 @@ export default function TagsPage({ refreshExpenses, triggerSync }: TagsPageProps
     })
   }
 
+  const handleUnlinkAllAndArchive = async (id: number) => {
+    const undoPayload = await StorageService.unlinkAllAndArchiveTag(id)
+    await refresh()
+    await refreshExpenses?.()
+    triggerSync?.()
+    showUndoToast('Tag unlinked from all expenses and archived.', async () => {
+      await StorageService.undoUnlinkAllAndArchiveTag(undoPayload)
+      await refresh()
+      await refreshExpenses?.()
+      triggerSync?.()
+    })
+  }
+
   const openMerge = async (tag: Tag) => {
     if (tag.id == null) return
     const count = await StorageService.getExpenseCountForTag(tag.id)
@@ -273,6 +286,15 @@ export default function TagsPage({ refreshExpenses, triggerSync }: TagsPageProps
           entityType="tag"
           entityName={deleteTarget.name}
           canMerge={activeTags.length > 1}
+          primaryDeleteDescription={`Delete: archive "${deleteTarget.name}" and keep existing expense-tag links.`}
+          secondaryDeleteDescription={`Unlink all and delete: remove "${deleteTarget.name}" from all linked expenses and archive it.`}
+          secondaryDestructiveAction={{
+            label: 'Unlink all and delete',
+            onAction: async () => {
+              await handleUnlinkAllAndArchive(deleteTarget.id as number)
+              setDeleteTarget(null)
+            },
+          }}
           onConfirmDelete={async () => {
             await handleArchive(deleteTarget.id as number)
             setDeleteTarget(null)
