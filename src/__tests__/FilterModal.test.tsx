@@ -28,19 +28,6 @@ vi.mock('../hooks/useViewportWidth', () => ({
 
 describe('FilterModal', () => {
   it('positions the desktop multiselect inside the viewport when opened above', () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => {
-      return {
-        x: 40,
-        y: 520,
-        top: 520,
-        bottom: 560,
-        left: 40,
-        right: 360,
-        width: 320,
-        height: 40,
-        toJSON: () => ({}),
-      } as DOMRect
-    })
     vi.stubGlobal('innerHeight', 620)
 
     render(
@@ -73,7 +60,20 @@ describe('FilterModal', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /select payees/i }))
+    const trigger = screen.getByRole('button', { name: /select payees/i })
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      x: 40,
+      y: 520,
+      top: 520,
+      bottom: 560,
+      left: 40,
+      right: 360,
+      width: 320,
+      height: 40,
+      toJSON: () => ({}),
+    } as DOMRect)
+
+    fireEvent.click(trigger)
 
     const search = screen.getByPlaceholderText('Search payees...') as HTMLInputElement
     const panel = search.closest('.fixed') as HTMLDivElement | null

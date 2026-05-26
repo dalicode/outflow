@@ -60,12 +60,13 @@ function MultiSelectDropdown({
   const [query, setQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const isMobile = useViewportWidth() < 640
   const [panelStyle, setPanelStyle] = useState<FloatingPosition | null>(null)
 
   const updatePanelPosition = useCallback(() => {
-    const rect = containerRef.current?.getBoundingClientRect()
+    const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
 
     setPanelStyle(
@@ -236,6 +237,7 @@ function MultiSelectDropdown({
       <label className="mb-1 block text-sm text-theme-muted">{label}</label>
       <div className="rounded-theme-medium border border-theme-border bg-theme-background">
         <button
+          ref={triggerRef}
           type="button"
           onClick={handleTriggerClick}
           className={cn(

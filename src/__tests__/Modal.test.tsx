@@ -213,6 +213,19 @@ describe('Modal', () => {
     expect(onAction).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the mobile full-screen footer anchored when the keyboard shrinks the visual viewport', () => {
+    setVisualViewport(390, 520, 0, 844)
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={vi.fn()}>
+        <input type="text" aria-label="Amount" />
+      </Modal>,
+    )
+
+    const action = screen.getByRole('button', { name: 'Save' })
+    expect(action.parentElement).not.toHaveStyle({ transform: 'translateY(-390px)' })
+    expect(action.parentElement?.style.transform).toBe('')
+  })
+
   describe('focus trap', () => {
     it('moves focus to first focusable element when opening', async () => {
       render(

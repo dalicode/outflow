@@ -118,7 +118,7 @@ function renderTagSummaryChip(summaryData: TagSummaryData): React.ReactNode {
   return (
     <span
       className={cn(
-        'inline-flex min-w-0 max-w-full items-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-none',
+        'inline-flex min-w-0 max-w-full items-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-tight',
         primaryTag.isArchived && 'italic',
       )}
       style={getTagSummaryChipStyle(primaryTag)}
@@ -749,7 +749,7 @@ export function getExpenseColumns({
           const splitSummary = getTagSummaryData(splitTags)
           return renderEditableDisplayCell(
             {
-              className: 'block min-h-[1.25rem] w-full overflow-hidden text-xs',
+              className: 'flex min-h-[1.25rem] w-full items-center overflow-hidden text-xs',
               field: 'tags',
               title: splitSummary.summary || undefined,
               content: renderTagSummaryChip(splitSummary),
@@ -763,7 +763,7 @@ export function getExpenseColumns({
         const expenseSummary = getTagSummaryData(expenseTags)
         return renderEditableDisplayCell(
           {
-            className: 'block min-h-[1.25rem] w-full cursor-pointer overflow-hidden text-xs',
+            className: 'flex min-h-[1.25rem] w-full cursor-pointer items-center overflow-hidden text-xs',
             field: 'tags',
             title: expenseSummary.summary || undefined,
             isEditableCell: true,

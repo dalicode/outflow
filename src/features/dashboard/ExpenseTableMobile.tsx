@@ -229,7 +229,7 @@ export default function ExpenseTableMobile({
                   {primaryTag ? (
                     <span
                       className={cn(
-                        'inline-flex min-w-0 max-w-full items-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-none',
+                        'inline-flex min-w-0 max-w-full items-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-tight',
                         primaryTag.isArchived && 'italic',
                       )}
                       style={getTagSummaryChipStyle(primaryTag)}

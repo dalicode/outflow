@@ -95,19 +95,15 @@ const desktopPlacementMap: Record<ModalSize, string> = {
   full: 'sm:items-center sm:pt-4',
 }
 
-const IOS_KEYBOARD_ACCESSORY_OFFSET = 56
-const MOBILE_FOOTER_KEYBOARD_GAP = 10
-
 interface ViewportMetrics {
   width: number
   height: number
   offsetTop: number
-  keyboardInset: number
 }
 
 function getViewportMetrics(): ViewportMetrics {
   if (typeof window === 'undefined') {
-    return { width: 0, height: 0, offsetTop: 0, keyboardInset: 0 }
+    return { width: 0, height: 0, offsetTop: 0 }
   }
 
   const viewport = window.visualViewport
@@ -116,28 +112,14 @@ function getViewportMetrics(): ViewportMetrics {
       width: window.innerWidth,
       height: window.innerHeight,
       offsetTop: 0,
-      keyboardInset: 0,
     }
   }
-
-  const keyboardInset = Math.max(0, window.innerHeight - viewport.height)
 
   return {
     width: viewport.width,
     height: viewport.height,
     offsetTop: viewport.offsetTop,
-    keyboardInset,
   }
-}
-
-function isIOSLikeDevice(): boolean {
-  if (typeof navigator === 'undefined') return false
-
-  const platform = navigator.platform.toLowerCase()
-  const userAgent = navigator.userAgent.toLowerCase()
-  const hasTouch = navigator.maxTouchPoints > 1
-
-  return /iphone|ipad|ipod/.test(userAgent) || (platform === 'macintel' && hasTouch)
 }
 
 export default function Modal({
@@ -311,14 +293,6 @@ export default function Modal({
   const mobileCardMaxHeight = Math.max(0, viewportMetrics.height - 24)
   const hasMobileAction = isFullScreenMobile && Boolean(onMobileAction)
   const desktopPlacementClass = desktopPlacementMap[size]
-  const mobileKeyboardAccessoryOffset = isIOSLikeDevice() ? IOS_KEYBOARD_ACCESSORY_OFFSET : 0
-  const mobileFooterKeyboardInset =
-    isMobileViewport && isFullScreenMobile
-      ? Math.max(
-          0,
-          viewportMetrics.keyboardInset - mobileKeyboardAccessoryOffset + MOBILE_FOOTER_KEYBOARD_GAP,
-        )
-      : 0
 
   const overlayStyle =
     isMobileViewport && !isFullScreenMobile
@@ -330,10 +304,6 @@ export default function Modal({
 
   const modalCardStyle =
     isMobileViewport && !isFullScreenMobile ? { maxHeight: `${mobileCardMaxHeight}px` } : undefined
-  const mobileFooterStyle =
-    mobileFooterKeyboardInset > 0
-      ? { transform: `translateY(-${mobileFooterKeyboardInset}px)` }
-      : undefined
 
   if (!isOpen) return null
 
@@ -342,7 +312,7 @@ export default function Modal({
       data-outflow-modal="true"
       className={cn(
         'fixed left-0 top-0 right-0 bottom-0 z-50',
-        'flex justify-center',
+        'flex justify-center overflow-y-auto',
         isFullScreenMobile
           ? cn(
               'items-stretch bg-theme-surface',
@@ -365,7 +335,7 @@ export default function Modal({
         className={cn(
           'm-0 flex flex-col overflow-hidden bg-theme-surface',
           isFullScreenMobile
-            ? 'h-full w-screen rounded-none sm:h-auto sm:max-h-[80vh] sm:w-full sm:rounded-theme-large sm:border border-theme-border sm:shadow-xl'
+            ? 'min-h-[100dvh] w-screen rounded-none sm:h-auto sm:min-h-0 sm:max-h-[80vh] sm:w-full sm:rounded-theme-large sm:border border-theme-border sm:shadow-xl'
             : 'h-auto w-full rounded-theme-large border border-theme-border shadow-lg sm:max-h-[85vh]',
           sizeMap[size],
         )}
@@ -449,11 +419,9 @@ export default function Modal({
           <div
             className={cn(
               'z-10 shrink-0 border-t border-theme-border bg-theme-surface sm:hidden',
-              'transition-transform duration-150 ease-out',
               'px-4 py-3',
               'pb-[max(env(safe-area-inset-bottom),0.75rem)]',
             )}
-            style={mobileFooterStyle}
           >
             <button
               type="button"
@@ -472,12 +440,10 @@ export default function Modal({
           <div
             className={cn(
               'z-10 shrink-0 border-t border-theme-border bg-theme-surface',
-              'transition-transform duration-150 ease-out',
               hasMobileAction && 'hidden sm:block',
               'px-4 py-3 sm:px-5',
               'pb-[max(env(safe-area-inset-bottom),0.75rem)]',
             )}
-            style={mobileFooterStyle}
           >
             {footer}
           </div>

@@ -1060,6 +1060,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           data={displayRows}
           columns={columns}
           fixedLayout
+          headerCellClassName="px-2"
+          bodyCellClassName="px-2"
           getRowClassName={getRowClassName}
           getRowId={(row) => row.rowId}
           onRowContextMenu={handleContextMenu}

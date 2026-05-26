@@ -68,11 +68,13 @@ export default function Dashboard({
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings()
   const expenseIds = useMemo(
-    () => expenses.map((expense) => expense.id).filter((id): id is number => typeof id === 'number'),
+    () =>
+      expenses.map((expense) => expense.id).filter((id): id is number => typeof id === 'number'),
     [expenses],
   )
   const activeTags = useLiveQuery(() => StorageService.getActiveTags(), []) ?? []
-  const expenseTagsMap = useLiveQuery(() => StorageService.getExpenseTagsMap(expenseIds), [expenseIds]) ?? {}
+  const expenseTagsMap =
+    useLiveQuery(() => StorageService.getExpenseTagsMap(expenseIds), [expenseIds]) ?? {}
   const filterTags = useMemo(() => {
     const tagsById = new Map<number, (typeof activeTags)[number]>()
     for (const tag of activeTags) {
@@ -120,7 +122,9 @@ export default function Dashboard({
   const [mobileExtraMenuActions, setMobileExtraMenuActions] = useState<
     Array<{ label: string; onClick: () => void; danger?: boolean }>
   >([])
-  const [mobileSplitParentSelectionId, setMobileSplitParentSelectionId] = useState<number | null>(null)
+  const [mobileSplitParentSelectionId, setMobileSplitParentSelectionId] = useState<number | null>(
+    null,
+  )
 
   useEffect(() => {
     if (dash.viewMode !== DASHBOARD_VIEWS.EXPENSES || dash.selectedIds.size === 0) {
@@ -240,7 +244,7 @@ export default function Dashboard({
               ref={dash.swipeAreaRef}
               onTouchStart={dash.handleTouchStart}
               onTouchEnd={dash.handleTouchEnd}
-              className="relative rounded-theme-large border border-theme-border bg-theme-surface p-4 md:p-5"
+              className="relative rounded-theme-large border border-theme-border bg-theme-surface py-4 px-2"
             >
               {/* Count row */}
               <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
@@ -450,10 +454,10 @@ export default function Dashboard({
               selectedTags: Array.from(draft.selectedTags),
             })
           }}
-        categories={categories}
-        payees={payees}
-        tags={filterTags}
-      />
+          categories={categories}
+          payees={payees}
+          tags={filterTags}
+        />
       </div>
     </PullToRefreshContainer>
   )

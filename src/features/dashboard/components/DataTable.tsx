@@ -16,6 +16,8 @@ interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
   emptyMessage?: string
   fixedLayout?: boolean
+  headerCellClassName?: string
+  bodyCellClassName?: string
   getRowClassName?: (row: T) => string
   getRowId?: (row: T) => string
   onRowContextMenu?: (e: React.MouseEvent, row: T) => void
@@ -29,6 +31,8 @@ export default function DataTable<T>({
   columns,
   emptyMessage = 'No rows to display.',
   fixedLayout = false,
+  headerCellClassName,
+  bodyCellClassName,
   getRowClassName,
   getRowId,
   onRowContextMenu,
@@ -73,7 +77,11 @@ export default function DataTable<T>({
             {headerGroup.headers.map((header) => (
               <th
                 key={header.id}
-                className={cn('table-header-cell', header.column.columnDef.meta?.className)}
+                className={cn(
+                  'table-header-cell',
+                  headerCellClassName,
+                  header.column.columnDef.meta?.className,
+                )}
               >
                 {header.isPlaceholder
                   ? null
@@ -99,6 +107,7 @@ export default function DataTable<T>({
                 key={cell.id}
                 className={cn(
                   'px-3 py-1 border-r border-b border-theme-muted-subtle last:border-r-0',
+                  bodyCellClassName,
                   cell.column.columnDef.meta?.cellClassName,
                   cell.column.columnDef.meta?.getCellClassName?.(row.original),
                 )}
