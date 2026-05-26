@@ -7,8 +7,37 @@ export interface TagSummaryData {
   summary: string
 }
 
+const TAG_CHIP_ACCENTS = [
+  'hsl(124 56% 48%)',
+  'hsl(320 68% 60%)',
+  'hsl(38 84% 54%)',
+  'hsl(212 78% 60%)',
+  'hsl(12 82% 58%)',
+  'hsl(188 68% 52%)',
+  'hsl(86 62% 50%)',
+  'hsl(268 72% 64%)',
+] as const
+
 function normalizeTagName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function getTagColorIdentity(tag: Pick<Tag, 'id' | 'name' | 'normalizedName'>): string {
+  const normalizedName = tag.normalizedName?.trim().toLowerCase()
+  if (normalizedName) {
+    return `name:${normalizedName}`
+  }
+
+  const fallbackName = normalizeTagName(tag.name)
+  if (fallbackName) {
+    return `name:${fallbackName}`
+  }
+
+  if (typeof tag.id === 'number') {
+    return `id:${tag.id}`
+  }
+
+  return 'name:untagged'
 }
 
 export function getStableTagIdentity(tag: Pick<Tag, 'id' | 'name' | 'normalizedName'>): string {
@@ -58,9 +87,8 @@ export function getTagSummaryData(tags: Tag[]): TagSummaryData {
 export function getTagSummaryChipStyle(
   tag: Pick<Tag, 'id' | 'name' | 'normalizedName'>,
 ): CSSProperties {
-  const identityHash = hashIdentity(getStableTagIdentity(tag))
-  const hue = identityHash % 360
-  const accentColor = `hsl(${hue} 72% 46%)`
+  const identityHash = hashIdentity(getTagColorIdentity(tag))
+  const accentColor = TAG_CHIP_ACCENTS[identityHash % TAG_CHIP_ACCENTS.length]
 
   return {
     backgroundColor: `color-mix(in srgb, ${accentColor} 14%, var(--theme-surface))`,

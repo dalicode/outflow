@@ -55,11 +55,36 @@ describe('getStableTagIdentity', () => {
 })
 
 describe('getTagSummaryChipStyle', () => {
-  it('uses deterministic colors from stable identity', () => {
+  it('uses deterministic colors from tag names', () => {
+    const first = getTagSummaryChipStyle({ id: 22, name: 'Alpha' })
+    const second = getTagSummaryChipStyle({ id: 999, name: 'Alpha' })
+
+    expect(first).toEqual(second)
+  })
+
+  it('allows renamed tags to receive a new visual color', () => {
     const first = getTagSummaryChipStyle({ id: 22, name: 'Alpha' })
     const second = getTagSummaryChipStyle({ id: 22, name: 'Renamed Later' })
 
-    expect(first).toEqual(second)
+    expect(first).not.toEqual(second)
+  })
+
+  it('maps different tags across a varied accent palette', () => {
+    const accents = new Set(
+      Array.from({ length: 8 }, (_value, index) =>
+        String(getTagSummaryChipStyle({ id: index + 1, name: `Tag ${index + 1}` }).backgroundColor),
+      ),
+    )
+
+    expect(accents.size).toBeGreaterThanOrEqual(6)
+  })
+
+  it('avoids clustering sequential ids into neighboring cool hues', () => {
+    const sequentialAccents = Array.from({ length: 4 }, (_value, index) =>
+      String(getTagSummaryChipStyle({ id: index + 1, name: `Tag ${index + 1}` }).backgroundColor),
+    )
+
+    expect(new Set(sequentialAccents).size).toBe(4)
   })
 
   it('returns theme-aware color-mix values', () => {
