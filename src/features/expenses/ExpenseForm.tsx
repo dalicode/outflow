@@ -614,7 +614,7 @@ export default function ExpenseForm({
             ? 'Type numbers only - 1234 becomes $12.34'
             : 'Edit the amount directly, including cents.'
         }
-        autoFocus={!isEdit}
+        autoFocus
         size="lg"
         entryMode={isMobileViewport ? 'cents' : 'decimal'}
         signTogglePosition="outside-left"

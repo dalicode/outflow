@@ -31,7 +31,6 @@ interface GetExpenseColumnsParams {
   activePayees: Payee[]
   payeeMap: Record<number, Payee>
   expenseTagsMap: Record<number, Tag[]>
-  onOpenTagsEditor: (expenseId: number, anchorElement: HTMLElement) => void
   onToggleSplitExpanded: (splitId: number) => void
   isSplitExpanded: (splitId: number) => boolean
   isSplitParentSelected: (splitId: number) => boolean
@@ -254,7 +253,6 @@ export function getExpenseColumns({
   activePayees,
   payeeMap,
   expenseTagsMap,
-  onOpenTagsEditor,
   onToggleSplitExpanded,
   isSplitExpanded,
   isSplitParentSelected,
@@ -776,7 +774,6 @@ export function getExpenseColumns({
             e.stopPropagation()
             if (e.target instanceof Element && e.target.closest('[data-no-cell-switch]')) return
             editing.switchCellEdit(exp, 'tags')
-            onOpenTagsEditor(exp.id as number, e.currentTarget as HTMLElement)
           },
         )
       },

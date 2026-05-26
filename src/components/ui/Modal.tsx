@@ -241,6 +241,28 @@ export default function Modal({
     }
   }, [])
 
+  const handleBackdropMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      backdropPointerDownRef.current = true
+    }
+  }, [])
+
+  const handleBackdropMouseUp = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (closeOnBackdropClick && e.target === e.currentTarget && backdropPointerDownRef.current) {
+        closeModal()
+      }
+      backdropPointerDownRef.current = false
+    },
+    [closeModal, closeOnBackdropClick],
+  )
+
+  const trapInteractionPropagation = useCallback((e: React.SyntheticEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) {
+      e.stopPropagation()
+    }
+  }, [])
+
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (closeOnBackdropClick && e.target === e.currentTarget && backdropPointerDownRef.current) {
@@ -322,7 +344,21 @@ export default function Modal({
         desktopPlacementClass,
       )}
       onClick={handleBackdropClick}
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
       onPointerDown={handleBackdropPointerDown}
+      onPointerDownCapture={trapInteractionPropagation}
+      onPointerMoveCapture={trapInteractionPropagation}
+      onPointerUpCapture={trapInteractionPropagation}
+      onPointerCancelCapture={trapInteractionPropagation}
+      onMouseDownCapture={trapInteractionPropagation}
+      onMouseMoveCapture={trapInteractionPropagation}
+      onMouseUpCapture={trapInteractionPropagation}
+      onTouchStartCapture={trapInteractionPropagation}
+      onTouchMoveCapture={trapInteractionPropagation}
+      onTouchEndCapture={trapInteractionPropagation}
+      onTouchCancelCapture={trapInteractionPropagation}
+      onWheelCapture={trapInteractionPropagation}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? labelledById : undefined}

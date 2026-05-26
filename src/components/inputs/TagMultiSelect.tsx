@@ -44,6 +44,7 @@ export default function TagMultiSelect({
 }: TagMultiSelectProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const shouldIgnoreClickRef = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(0)
@@ -57,6 +58,7 @@ export default function TagMultiSelect({
         .map((tag) => ({ id: tag.id, label: tag.name, tag })),
     [tags],
   )
+  const selectableOptions = useMemo(() => options.filter((option) => !option.tag.isArchived), [options])
   const selectedIdSet = useMemo(() => new Set(selectedTagIds), [selectedTagIds])
   const selected = useMemo(
     () => options.filter((option) => selectedIdSet.has(option.id)),
@@ -64,17 +66,17 @@ export default function TagMultiSelect({
   )
   const filteredOptions = useMemo(
     () =>
-      getFilteredOptions(options, query).map((option) => ({
+      getFilteredOptions(selectableOptions, query).map((option) => ({
         ...option,
         isSelected: selectedIdSet.has(option.id),
       })),
-    [options, query, selectedIdSet],
+    [query, selectableOptions, selectedIdSet],
   )
   const normalizedQuery = query.trim().toLowerCase()
   const hasQuery = normalizedQuery.length > 0
-  const hasExact = options.some((option) => option.label.trim().toLowerCase() === normalizedQuery)
+  const hasExact = selectableOptions.some((option) => option.label.trim().toLowerCase() === normalizedQuery)
   const canCreate = hasQuery && !hasExact
-  const exactMatchOption = options.find((option) => option.label.trim().toLowerCase() === normalizedQuery)
+  const exactMatchOption = selectableOptions.find((option) => option.label.trim().toLowerCase() === normalizedQuery)
   const isInline = variant === 'inline'
   const dropdownItems = [
     ...filteredOptions.map((option) => ({ type: 'option' as const, option })),
@@ -162,6 +164,14 @@ export default function TagMultiSelect({
     }
   }
 
+  const handleOptionSelect = (optionId: number, optionLabel: string, isSelected: boolean) => {
+    if (isSelected) {
+      showAlreadySelectedToast(optionLabel)
+      return
+    }
+    addTagId(optionId)
+  }
+
   return (
     <div
       className={cn('relative flex flex-col gap-1', isInline && 'w-full', rootClassName)}
@@ -172,6 +182,7 @@ export default function TagMultiSelect({
         const nextTarget = event.relatedTarget as Node | null
         if (nextTarget && rootRef.current?.contains(nextTarget)) return
         setIsOpen(false)
+        setQuery('')
         onBlurOutside?.()
       }}
     >
@@ -293,11 +304,15 @@ export default function TagMultiSelect({
               )}
               onMouseDown={(event) => {
                 event.preventDefault()
-                if (option.isSelected) {
-                  showAlreadySelectedToast(option.label)
+                shouldIgnoreClickRef.current = true
+                handleOptionSelect(option.id, option.label, option.isSelected)
+              }}
+              onClick={() => {
+                if (shouldIgnoreClickRef.current) {
+                  shouldIgnoreClickRef.current = false
                   return
                 }
-                addTagId(option.id)
+                handleOptionSelect(option.id, option.label, option.isSelected)
               }}
             >
               <span className="flex items-center justify-between gap-3">
@@ -317,9 +332,17 @@ export default function TagMultiSelect({
                   ? 'bg-theme-primary-subtle text-theme-primary'
                   : 'text-theme-primary hover:bg-theme-background',
               )}
-              onMouseDown={async (event) => {
+              onMouseDown={(event) => {
                 event.preventDefault()
-                await handleCreate()
+                shouldIgnoreClickRef.current = true
+                void handleCreate()
+              }}
+              onClick={() => {
+                if (shouldIgnoreClickRef.current) {
+                  shouldIgnoreClickRef.current = false
+                  return
+                }
+                void handleCreate()
               }}
               disabled={isCreating}
             >

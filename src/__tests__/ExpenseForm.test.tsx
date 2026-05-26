@@ -95,15 +95,18 @@ vi.mock('../components/inputs/MoneyInput', () => ({
     label,
     value,
     onChange,
+    autoFocus,
   }: {
     label?: string
     value: number
     onChange: (value: number) => void
+    autoFocus?: boolean
   }) => (
     <input
       aria-label={label ?? 'Amount'}
       type="number"
       value={value}
+      autoFocus={autoFocus}
       onChange={(e) => {
         const parsed = Number(e.target.value)
         const next = Number.isNaN(parsed) ? 0 : parsed
@@ -232,6 +235,29 @@ describe('ExpenseForm', () => {
       expect(onAdd).toHaveBeenCalled()
     })
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ amount: 100000 }))
+  })
+
+  it('focuses the amount input when editing an expense', async () => {
+    render(
+      <ToastProvider>
+        <ExpenseForm
+          onClose={vi.fn()}
+          categories={categories}
+          initialExpense={{
+            id: 42,
+            date: '2026-05-10',
+            categoryId: 1,
+            payeeId: 1,
+            notes: 'Coffee',
+            amount: 12.5,
+          }}
+        />
+      </ToastProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('spinbutton', { name: 'Amount' })).toHaveFocus()
+    })
   })
 
   it('creates split children and persists a split transaction', async () => {

@@ -52,6 +52,24 @@ describe('TagMultiSelect', () => {
     expect(screen.queryByRole('option', { name: 'Home' })).not.toBeInTheDocument()
   })
 
+  it('clears typed text on blur outside but keeps selected chips', () => {
+    render(
+      <div>
+        <TestHarness initialSelectedTagIds={[1]} />
+        <button type="button">Outside</button>
+      </div>,
+    )
+
+    const input = getTagInput()
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'ho' } })
+    fireEvent.blur(input, { relatedTarget: screen.getByRole('button', { name: 'Outside' }) })
+
+    expect(screen.getByRole('textbox')).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Remove tag Work' })).toBeInTheDocument()
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+  })
+
   it('clicking existing tag adds chip and continued typing works', () => {
     render(<TestHarness />)
     const input = screen.getByPlaceholderText('Select tags')
@@ -65,6 +83,19 @@ describe('TagMultiSelect', () => {
     expect(followUpInput).toHaveAttribute('placeholder', '')
     fireEvent.change(followUpInput, { target: { value: 'ho' } })
     expect(screen.getByRole('option', { name: 'Home' })).toBeInTheDocument()
+  })
+
+  it('clicking an existing tag option selects it', async () => {
+    render(<TestHarness />)
+    const input = screen.getByPlaceholderText('Select tags')
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'wo' } })
+
+    fireEvent.click(screen.getByRole('option', { name: 'Work' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Remove tag Work' })).toBeInTheDocument()
+    })
   })
 
   it('Enter with exact existing match selects tag without creating', async () => {
@@ -144,5 +175,35 @@ describe('TagMultiSelect', () => {
       tone: 'warning',
     })
     expect(screen.getByRole('button', { name: 'Remove tag Work' })).toBeInTheDocument()
+  })
+
+  it('keeps archived selected tags visible but excludes them from selection and exact-match reuse', async () => {
+    const onCreate = vi.fn(async () => 55)
+    render(
+      <TagMultiSelect
+        tags={[
+          { id: 1, name: 'Work', isArchived: false },
+          { id: 2, name: 'Old Tag', isArchived: true },
+        ]}
+        selectedTagIds={[2]}
+        onChange={vi.fn()}
+        onCreate={onCreate}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Remove tag Old Tag' })).toBeInTheDocument()
+
+    const input = getTagInput()
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'Old Tag' } })
+
+    expect(screen.queryByRole('option', { name: 'Old Tag' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Create "Old Tag"' })).toBeInTheDocument()
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onCreate).toHaveBeenCalledWith('Old Tag')
+    })
   })
 })

@@ -150,6 +150,48 @@ describe('useExpenseCellEditing', () => {
     expect(setShowMobileEditModal).toHaveBeenCalledWith(true)
   })
 
+  it('clears the active inline editor before opening split child amount modal', () => {
+    const splitChild: Expense = {
+      id: 4,
+      splitId: 12,
+      date: '2024-06-04',
+      amount: 12,
+      notes: 'Split child',
+    }
+    const setMobileEditExpense = vi.fn()
+    const setShowMobileEditModal = vi.fn()
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+
+    const { result } = renderHook(() =>
+      useExpenseCellEditing({
+        expenses: [...expenses, splitChild],
+        onUpdate: vi.fn(),
+        isMobile: false,
+        selectedIds: new Set<number>(),
+        onToggleSelect: vi.fn(),
+        setMobileEditExpense,
+        setShowMobileEditModal,
+      }),
+    )
+
+    act(() => {
+      result.current.startCellEdit(expenses[0], 'notes')
+    })
+    input.focus()
+
+    act(() => {
+      result.current.startCellEdit(splitChild, 'amount')
+    })
+
+    expect(result.current.editingCell).toBeNull()
+    expect(document.activeElement).not.toBe(input)
+    expect(setMobileEditExpense).toHaveBeenCalledWith(splitChild)
+    expect(setShowMobileEditModal).toHaveBeenCalledWith(true)
+
+    input.remove()
+  })
+
   it('includes tags in desktop Tab navigation order', async () => {
     const { result } = renderHook(() =>
       useExpenseCellEditing({

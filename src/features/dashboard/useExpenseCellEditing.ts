@@ -98,6 +98,23 @@ export function useExpenseCellEditing({
     editingCellRef.current = cell
   }, [])
 
+  const resetEditingState = useCallback(() => {
+    setEditingCell(null)
+    setAutoOpenCell(null)
+    editingCellRef.current = null
+    setValidationError(null)
+    clearPendingSwitch()
+    setPendingNames({})
+  }, [clearPendingSwitch])
+
+  const closeInlineEditingForModal = useCallback(() => {
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur()
+    }
+    resetEditingState()
+  }, [resetEditingState])
+
   const isFieldEditable = useCallback((expense: Expense, field: EditableField): boolean => {
     if (field === 'date' && typeof expense.splitId === 'number') {
       return false
@@ -128,6 +145,7 @@ export function useExpenseCellEditing({
   const startCellEdit = useCallback(
     (expense: Expense, field: EditableField) => {
       if (field === 'amount' && typeof expense.splitId === 'number') {
+        closeInlineEditingForModal()
         setMobileEditExpense(expense)
         setShowMobileEditModal(true)
         return
@@ -140,6 +158,7 @@ export function useExpenseCellEditing({
         return
       }
       if (isMobile) {
+        closeInlineEditingForModal()
         setMobileEditExpense(expense)
         setShowMobileEditModal(true)
         return
@@ -161,17 +180,13 @@ export function useExpenseCellEditing({
       onToggleSelect,
       setMobileEditExpense,
       setShowMobileEditModal,
+      closeInlineEditingForModal,
     ],
   )
 
   const cancelCurrentCellEdit = useCallback(() => {
-    setEditingCell(null)
-    setAutoOpenCell(null)
-    editingCellRef.current = null
-    setValidationError(null)
-    clearPendingSwitch()
-    setPendingNames({})
-  }, [clearPendingSwitch])
+    resetEditingState()
+  }, [resetEditingState])
 
   const switchCellEdit = useCallback(
     (nextExpense: Expense, nextField: EditableField) => {
@@ -272,12 +287,9 @@ export function useExpenseCellEditing({
   const createOnCancel = useCallback(() => {
     return () => {
       if (pendingSwitchRef.current) return
-      setEditingCell(null)
-      setAutoOpenCell(null)
-      editingCellRef.current = null
-      setValidationError(null)
+      resetEditingState()
     }
-  }, [])
+  }, [resetEditingState])
 
   const handleEnterNavigation = useCallback(
     (expense: Expense, field: EditableField, shiftKey: boolean) => {

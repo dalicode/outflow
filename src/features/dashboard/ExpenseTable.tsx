@@ -890,7 +890,6 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         activePayees,
         payeeMap,
         expenseTagsMap,
-        onOpenTagsEditor: openTagsEditor,
         onToggleSplitExpanded: resolvedOnToggleSplitParentExpanded,
         isSplitExpanded: resolvedIsSplitParentExpanded,
         isSplitParentSelected: (splitId) => {
@@ -920,7 +919,6 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       activePayees,
       payeeMap,
       expenseTagsMap,
-      openTagsEditor,
       resolvedOnToggleSplitParentExpanded,
       resolvedIsSplitParentExpanded,
       splitChildIdsBySplitId,
@@ -1139,11 +1137,6 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
               data-testid="tags-editor-popover"
               data-placement={tagsEditorPosition.placement}
               className="rounded-theme-large border border-theme-border bg-theme-surface p-3 shadow-lg"
-              onBlurCapture={(event) => {
-                const nextTarget = event.relatedTarget as Node | null
-                if (nextTarget && tagsEditorRef.current?.contains(nextTarget)) return
-                dismissTagsEditor()
-              }}
               style={{
                 position: 'fixed',
                 zIndex: 60,

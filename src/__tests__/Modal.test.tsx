@@ -64,17 +64,33 @@ describe('Modal', () => {
 
   it('calls onClose when clicking the overlay', () => {
     const onClose = vi.fn()
-    const { container } = render(
+    render(
       <Modal isOpen={true} onClose={onClose} title="Test Modal">
         Content
       </Modal>,
     )
 
-    const overlay = container.querySelector('[role="dialog"]')
-    if (overlay) {
-      fireEvent.click(overlay)
-      expect(onClose).toHaveBeenCalledTimes(1)
-    }
+    const overlay = screen.getByRole('dialog')
+    fireEvent.mouseDown(overlay)
+    fireEvent.mouseUp(overlay)
+    fireEvent.click(overlay)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onClose when the press starts inside the modal content', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal isOpen={true} onClose={onClose} title="Test Modal">
+        <div>Content</div>
+      </Modal>,
+    )
+
+    const overlay = screen.getByRole('dialog')
+    const content = screen.getByText('Content')
+    fireEvent.mouseDown(content)
+    fireEvent.mouseUp(overlay)
+
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('does not call onClose when clicking modal content', () => {
@@ -172,6 +188,26 @@ describe('Modal', () => {
     )
     fireEvent.click(screen.getAllByText('Cancel')[0])
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('traps touch gestures within the modal so parent swipe handlers do not fire', () => {
+    const onParentTouchStart = vi.fn()
+    const onParentTouchEnd = vi.fn()
+
+    render(
+      <div onTouchStart={onParentTouchStart} onTouchEnd={onParentTouchEnd}>
+        <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
+          <div>Modal Content</div>
+        </Modal>
+      </div>,
+    )
+
+    const content = screen.getByText('Modal Content')
+    fireEvent.touchStart(content, { touches: [{ clientX: 200, clientY: 120 }] })
+    fireEvent.touchEnd(content, { changedTouches: [{ clientX: 80, clientY: 120 }] })
+
+    expect(onParentTouchStart).not.toHaveBeenCalled()
+    expect(onParentTouchEnd).not.toHaveBeenCalled()
   })
 
   it('renders mobile action button in the footer when onMobileAction is provided', () => {

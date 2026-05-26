@@ -583,7 +583,7 @@ describe('ExpenseTable', () => {
     expect(screen.getByRole('option', { name: /Work/ })).toBeInTheDocument()
   })
 
-  it('dismisses the tags popover when focus leaves the tag editor', async () => {
+  it('keeps the tags popover open when clicking inside the popup container', async () => {
     storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
 
     const expenses: Expense[] = [
@@ -609,8 +609,40 @@ describe('ExpenseTable', () => {
     const row = await screen.findByTestId('expense-row-1')
     fireEvent.pointerDown(within(row).getByTestId('editable-cell-display-tags'))
 
-    const editorInput = await screen.findByRole('textbox')
-    fireEvent.blur(editorInput, { relatedTarget: null })
+    const popover = await screen.findByTestId('tags-editor-popover')
+    fireEvent.pointerDown(popover)
+
+    expect(screen.getByTestId('tags-editor-popover')).toBeInTheDocument()
+  })
+
+  it('dismisses the tags popover when clicking outside the tag editor', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const row = await screen.findByTestId('expense-row-1')
+    fireEvent.pointerDown(within(row).getByTestId('editable-cell-display-tags'))
+    await screen.findByTestId('tags-editor-popover')
+
+    fireEvent.pointerDown(document.body)
 
     await waitFor(() => {
       expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
@@ -1185,6 +1217,58 @@ describe('ExpenseTable', () => {
     const tagsOnlyRow = await screen.findByTestId('expense-row-1')
     fireEvent.pointerDown(within(tagsOnlyRow).getByTestId('editable-cell-display-tags'))
     expect(await screen.findByTestId('tags-editor-popover')).toBeInTheDocument()
+  })
+
+  it('opens the tags popover once when switching from another inline editor', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const initialExpenses: Expense[] = [
+      { id: 1, date: '2026-05-10', amount: 12, categoryId: 1, notes: '' },
+      { id: 2, date: '2026-05-09', amount: 8, categoryId: 1, notes: 'Groceries' },
+    ]
+
+    function TestHarness() {
+      const [expenses, setExpenses] = useState(initialExpenses)
+
+      return (
+        <ExpenseTable
+          expenses={expenses}
+          categories={[{ id: 1, name: 'Food' }]}
+          payees={[]}
+          selectedIds={new Set<number>()}
+          onToggleSelect={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onUpdate={(id, changes) => {
+            setExpenses((current) =>
+              current.map((expense) => (expense.id === id ? { ...expense, ...changes } : expense)),
+            )
+          }}
+          onDelete={vi.fn()}
+        />
+      )
+    }
+
+    render(<TestHarness />)
+
+    const firstRow = await screen.findByTestId('expense-row-1')
+    const secondRow = await screen.findByTestId('expense-row-2')
+
+    await waitFor(() => {
+      expect(storageMocks.getActiveTags).toHaveBeenCalled()
+    })
+    storageMocks.getActiveTags.mockClear()
+
+    fireEvent.pointerDown(within(firstRow).getByTestId('editable-cell-display-notes'))
+    const input = await screen.findByDisplayValue('')
+    fireEvent.change(input, { target: { value: 'Coffee' } })
+
+    fireEvent.pointerDown(within(secondRow).getByTestId('editable-cell-display-tags'))
+
+    await waitFor(() => {
+      expect(within(firstRow).getByText('Coffee')).toBeInTheDocument()
+    })
+    expect(await screen.findByTestId('tags-editor-popover')).toBeInTheDocument()
+    expect(storageMocks.getActiveTags).toHaveBeenCalledTimes(1)
   })
 
   it('prefers opening the tags popover below when there is still usable space', async () => {
