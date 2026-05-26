@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import { StorageService } from '../services/storageService'
 import { supabase } from '../services/supabase'
+import { checkForServiceWorkerUpdate } from '../utils/serviceWorkerUpdates'
 
 interface UseAppRefreshParams {
   pullAppliedCount: number
@@ -58,6 +59,7 @@ export function useAppRefresh({
 
   const handlePullRefresh = useCallback(async () => {
     try {
+      const serviceWorkerUpdateCheck = checkForServiceWorkerUpdate().catch(() => undefined)
       const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(
         console.error,
       )
@@ -70,6 +72,8 @@ export function useAppRefresh({
       if (navigator.onLine && supabase && user) {
         await syncNow()
       }
+
+      await serviceWorkerUpdateCheck
 
       showToast({
         message: 'Updated',

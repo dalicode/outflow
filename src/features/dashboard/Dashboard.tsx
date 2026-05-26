@@ -67,6 +67,7 @@ export default function Dashboard({
   onRefresh,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings()
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const expenseIds = useMemo(
     () =>
       expenses.map((expense) => expense.id).filter((id): id is number => typeof id === 'number'),
@@ -125,6 +126,7 @@ export default function Dashboard({
   const [mobileSplitParentSelectionId, setMobileSplitParentSelectionId] = useState<number | null>(
     null,
   )
+  const [isMobileScrolling, setIsMobileScrolling] = useState(false)
 
   useEffect(() => {
     if (dash.viewMode !== DASHBOARD_VIEWS.EXPENSES || dash.selectedIds.size === 0) {
@@ -154,6 +156,37 @@ export default function Dashboard({
       expenseTableRef.current?.handleCopyRequest(ids)
     }
   }, [dash.selectedIds])
+
+  const handleScrollableContentScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      if (isMobile) {
+        setIsMobileScrolling(true)
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current)
+        }
+        scrollTimeoutRef.current = setTimeout(() => {
+          setIsMobileScrolling(false)
+        }, 800)
+      }
+
+      onScroll?.(event)
+    },
+    [isMobile, onScroll],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile && isMobileScrolling) {
+      setIsMobileScrolling(false)
+    }
+  }, [isMobile, isMobileScrolling])
 
   // ── Income / Savings modal helpers ──
   const modalTargetSummary = dash.monthSummaries[dash.modalTargetMonthIndex]
@@ -216,8 +249,12 @@ export default function Dashboard({
       {/* ── Scrollable content ── */}
       <div
         ref={dash.scrollableRef}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
-        onScroll={onScroll}
+        className={cn(
+          'flex-1 min-h-0 overflow-y-auto overscroll-contain',
+          isMobile && 'scrollbar-auto-hide',
+          isMobileScrolling && 'is-scrolling',
+        )}
+        onScroll={handleScrollableContentScroll}
       >
         <div
           className={cn(

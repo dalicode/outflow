@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { cn } from '../../utils/cn'
+import {
+  checkForServiceWorkerUpdate,
+  SW_UPDATE_READY_EVENT,
+} from '../../utils/serviceWorkerUpdates'
 
 const SW_UPDATE_KEY = 'sw:updateApplied'
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
@@ -73,21 +77,16 @@ export default function PWAUpdatePrompt() {
 
     const checkForUpdate = () => {
       if (document.visibilityState !== 'visible') return
-      if (!navigator.onLine) return
-      navigator.serviceWorker
-        .getRegistration()
-        .then((latestRegistration) => {
-          const activeRegistration = latestRegistration ?? registration
+      checkForServiceWorkerUpdate(registration)
+        .then(({ registration: latestRegistration, updateFound }) => {
           if (latestRegistration && latestRegistration !== registration) {
             setRegistration(latestRegistration)
           }
-          return activeRegistration.update().then(() => {
-            if (activeRegistration.waiting) {
-              setDismissed(false)
-              setNeedRefresh(true)
-            }
-            handleInstallingWorker(activeRegistration.installing)
-          })
+          if (updateFound) {
+            setDismissed(false)
+            setNeedRefresh(true)
+          }
+          handleInstallingWorker(latestRegistration?.installing ?? null)
         })
         .catch(() => undefined)
     }
@@ -146,6 +145,18 @@ export default function PWAUpdatePrompt() {
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
+    }
+  }, [setNeedRefresh])
+
+  useEffect(() => {
+    const handleUpdateReady = () => {
+      setDismissed(false)
+      setNeedRefresh(true)
+    }
+
+    window.addEventListener(SW_UPDATE_READY_EVENT, handleUpdateReady)
+    return () => {
+      window.removeEventListener(SW_UPDATE_READY_EVENT, handleUpdateReady)
     }
   }, [setNeedRefresh])
 
