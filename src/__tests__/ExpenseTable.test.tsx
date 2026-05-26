@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createRef, useState } from 'react'
 import ExpenseTable from '../features/dashboard/ExpenseTable'
@@ -216,7 +217,7 @@ describe('ExpenseTable', () => {
     expect(within(noTagRow).getByTestId('editable-cell-display-tags')).toBeEmptyDOMElement()
     expect(within(oneTagRow).getByTestId('editable-cell-display-tags')).toHaveTextContent('Travel')
     expect(within(multiTagRow).getByTestId('editable-cell-display-tags')).toHaveTextContent('Work +2')
-    expect(screen.queryByRole('columnheader', { name: 'Tags' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Tags' })).toBeInTheDocument()
   })
 
   it('shows split parent tags as a deduped read-only aggregate summary', async () => {
@@ -266,7 +267,7 @@ describe('ExpenseTable', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('persists inline tags edits for regular and split-child rows, including create', async () => {
+  it('stages tags edits with Save/Cancel for regular and split-child rows, including create', async () => {
     storageMocks.getActiveTags.mockResolvedValue([
       { id: 101, name: 'Work', isArchived: false },
       { id: 102, name: 'Home', isArchived: false },
@@ -308,24 +309,35 @@ describe('ExpenseTable', () => {
     fireEvent.change(firstEditorInput, { target: { value: 'Home' } })
     fireEvent.keyDown(firstEditorInput, { key: 'Enter' })
 
+    expect(storageMocks.setExpenseTags).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('tags-editor-save'))
     await waitFor(() => {
       expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(1, [101, 102])
     })
 
-    fireEvent.change(firstEditorInput, { target: { value: 'FreshTag' } })
-    fireEvent.keyDown(firstEditorInput, { key: 'Enter' })
+    fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
+    const secondEditorInput = await screen.findByRole('textbox')
+    fireEvent.change(secondEditorInput, { target: { value: 'FreshTag' } })
+    fireEvent.keyDown(secondEditorInput, { key: 'Enter' })
 
     await waitFor(() => {
       expect(storageMocks.addTag).toHaveBeenCalledWith('FreshTag')
     })
+    await screen.findByText('FreshTag')
+    expect(storageMocks.setExpenseTags).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('tags-editor-cancel'))
+
     await waitFor(() => {
-      expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(1, [101, 777])
+      expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
     })
 
-    fireEvent.keyDown(firstEditorInput, { key: 'Escape' })
-    await waitFor(() => {
-      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    })
+    fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
+    const thirdEditorInput = await screen.findByRole('textbox')
+    fireEvent.change(thirdEditorInput, { target: { value: 'FreshTag' } })
+    fireEvent.keyDown(thirdEditorInput, { key: 'Enter' })
+    await screen.findByText('FreshTag')
+    fireEvent.click(screen.getByTestId('tags-editor-save'))
+    await waitFor(() => expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(1, [101, 777]))
 
     const splitChildRow = await screen.findByTestId('split-child-2')
     fireEvent.pointerDown(within(splitChildRow).getByTestId('editable-cell-display-tags'))
@@ -333,10 +345,343 @@ describe('ExpenseTable', () => {
     const splitEditorInput = await screen.findByRole('textbox')
     fireEvent.change(splitEditorInput, { target: { value: 'Home' } })
     fireEvent.keyDown(splitEditorInput, { key: 'Enter' })
+    fireEvent.click(screen.getByTestId('tags-editor-save'))
 
     await waitFor(() => {
       expect(storageMocks.setExpenseTags).toHaveBeenCalledWith(2, [101, 102])
     })
+  })
+
+  it.each([
+    {
+      label: 'date',
+      getTarget: (row: HTMLElement) => within(row).getByTestId('editable-cell-display-date'),
+      expectEditor: async () => {
+        expect(await screen.findByDisplayValue('2026-05-10')).toBeInTheDocument()
+      },
+    },
+    {
+      label: 'payee',
+      getTarget: (row: HTMLElement) => within(row).getByTestId('editable-cell-display-payeeId'),
+      expectEditor: async () => {
+        expect(await screen.findByRole('combobox')).toBeInTheDocument()
+      },
+    },
+    {
+      label: 'category',
+      getTarget: (row: HTMLElement) => within(row).getByText('Food'),
+      expectEditor: async () => {
+        expect(await screen.findByRole('combobox')).toBeInTheDocument()
+      },
+    },
+    {
+      label: 'notes',
+      getTarget: (row: HTMLElement) => within(row).getByTestId('editable-cell-display-notes'),
+      expectEditor: async () => {
+        expect(await screen.findByDisplayValue('Groceries')).toBeInTheDocument()
+      },
+    },
+    {
+      label: 'amount',
+      getTarget: (row: HTMLElement) => within(row).getByText('$20.00'),
+      expectEditor: async () => {
+        const input = await screen.findByLabelText('Amount')
+        expect(input).toBeInTheDocument()
+        expect(input).toHaveValue('20.00')
+      },
+    },
+  ])('dismisses the tags popover and opens the $label editor from the same click', async ({ getTarget, expectEditor }) => {
+    const user = userEvent.setup()
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+      {
+        id: 2,
+        date: '2026-05-10',
+        amount: 20,
+        categoryId: 1,
+        payeeId: 1,
+        notes: 'Groceries',
+      },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const firstRow = await screen.findByTestId('expense-row-1')
+    const secondRow = await screen.findByTestId('expense-row-2')
+
+    fireEvent.pointerDown(within(firstRow).getByTestId('editable-cell-display-tags'))
+    await screen.findByTestId('tags-editor-popover')
+
+    await user.click(getTarget(secondRow))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
+    })
+    await expectEditor()
+  })
+
+  it('discards unsaved tag drafts when switching to another editor', async () => {
+    const user = userEvent.setup()
+    storageMocks.getActiveTags.mockResolvedValue([
+      { id: 101, name: 'Work', isArchived: false },
+      { id: 102, name: 'Home', isArchived: false },
+    ])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+      { id: 2, date: '2026-05-10', amount: 20, categoryId: 1, notes: 'Groceries' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const firstRow = await screen.findByTestId('expense-row-1')
+    const secondRow = await screen.findByTestId('expense-row-2')
+
+    fireEvent.pointerDown(within(firstRow).getByTestId('editable-cell-display-tags'))
+    const editorInput = await screen.findByRole('textbox')
+    fireEvent.change(editorInput, { target: { value: 'Home' } })
+    fireEvent.keyDown(editorInput, { key: 'Enter' })
+    await screen.findByText('Home')
+
+    await user.click(within(secondRow).getByTestId('editable-cell-display-notes'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
+    })
+    expect(storageMocks.setExpenseTags).not.toHaveBeenCalled()
+    expect(await screen.findByDisplayValue('Groceries')).toBeInTheDocument()
+  })
+
+  it('keeps the tags popover open while interacting inside it', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const row = await screen.findByTestId('expense-row-1')
+    fireEvent.pointerDown(within(row).getByTestId('editable-cell-display-tags'))
+
+    const editorInput = await screen.findByRole('textbox')
+    fireEvent.pointerDown(editorInput)
+    fireEvent.change(editorInput, { target: { value: 'Wo' } })
+
+    expect(screen.getByTestId('tags-editor-popover')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Work/ })).toBeInTheDocument()
+  })
+
+  it('dismisses the tags popover when focus leaves the tag editor', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const row = await screen.findByTestId('expense-row-1')
+    fireEvent.pointerDown(within(row).getByTestId('editable-cell-display-tags'))
+
+    const editorInput = await screen.findByRole('textbox')
+    fireEvent.blur(editorInput, { relatedTarget: null })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
+    })
+  })
+
+  it('dismisses the tags popover and opens a split field editor when clicking a split container cell', async () => {
+    const user = userEvent.setup()
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 25, notes: '' }])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 10, categoryId: 1, notes: 'Split A' },
+      { id: 3, splitId: 10, date: '2026-05-10', amount: 15, categoryId: 2, notes: 'Split B' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const regularRow = await screen.findByTestId('expense-row-1')
+    const splitRow = await screen.findByTestId('split-container-10')
+
+    fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
+    await screen.findByTestId('tags-editor-popover')
+
+    await user.click(within(splitRow).getByTestId('editable-cell-display-notes'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
+    })
+    expect(await screen.findByDisplayValue('')).toBeInTheDocument()
+  })
+
+  it('dismisses the tags popover and opens split parent date editor from the same click', async () => {
+    const user = userEvent.setup()
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 25, notes: '' }])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 10, categoryId: 1, notes: 'Split A' },
+      { id: 3, splitId: 10, date: '2026-05-10', amount: 15, categoryId: 2, notes: 'Split B' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const regularRow = await screen.findByTestId('expense-row-1')
+    const splitRow = await screen.findByTestId('split-container-10')
+
+    fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
+    await screen.findByTestId('tags-editor-popover')
+
+    await user.click(within(splitRow).getByText('2026-05-10'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
+    })
+    expect(await screen.findByRole('textbox')).toBeInTheDocument()
+  })
+
+  it('dismisses the tags popover and opens split parent payee editor from the same click', async () => {
+    const user = userEvent.setup()
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 25, notes: '', payeeId: undefined, payeeNameSnapshot: null },
+    ])
+
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 10, categoryId: 1, notes: 'Split A' },
+      { id: 3, splitId: 10, date: '2026-05-10', amount: 15, categoryId: 2, notes: 'Split B' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[
+          { id: 1, name: 'Food' },
+          { id: 2, name: 'Transport' },
+        ]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        expenseTagsMap={{
+          1: [{ id: 101, name: 'Work', isArchived: false }],
+        }}
+      />,
+    )
+
+    const regularRow = await screen.findByTestId('expense-row-1')
+    const splitRow = await screen.findByTestId('split-container-10')
+
+    fireEvent.pointerDown(within(regularRow).getByTestId('editable-cell-display-tags'))
+    await screen.findByTestId('tags-editor-popover')
+
+    await user.click(within(splitRow).getByText('No payee'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('tags-editor-popover')).not.toBeInTheDocument()
+    })
+    expect(await screen.findByRole('combobox')).toBeInTheDocument()
   })
 
   it('blocks bulk edit when multi-select includes split allocations', async () => {

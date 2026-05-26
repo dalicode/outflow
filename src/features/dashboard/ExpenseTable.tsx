@@ -5,10 +5,13 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
+import { createPortal } from 'react-dom'
+import TagMultiSelect from '../../components/inputs/TagMultiSelect'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import ContextMenu from './components/ContextMenu'
@@ -20,6 +23,7 @@ import ExpenseForm from '../expenses/ExpenseForm'
 import type { Category, Expense, Payee, Tag } from '../../types'
 import { cn } from '../../utils/cn'
 import { copyExpensesToClipboard } from '../../utils/copyExpenses'
+import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
 import ExpenseTableMobile from './ExpenseTableMobile'
 import { getExpenseColumns } from './expenseColumns'
 import {
@@ -37,6 +41,44 @@ type EditableSplitField = 'date' | 'payeeId' | 'notes'
 interface EditingSplitField {
   splitId: number
   field: EditableSplitField
+}
+
+interface ActiveTagsEditorState {
+  expenseId: number
+  originalTagIds: number[]
+  draftTagIds: number[]
+}
+
+const TAGS_POPOVER_MIN_WIDTH = 260
+const TAGS_POPOVER_MAX_WIDTH = 360
+const TAGS_POPOVER_MAX_HEIGHT = 320
+const TAGS_POPOVER_GAP = 6
+
+function getTagsAnchorRect(anchorElement: HTMLElement): DOMRect {
+  const tableCell = anchorElement.closest('td')
+  if (tableCell instanceof HTMLTableCellElement) {
+    return tableCell.getBoundingClientRect()
+  }
+  return anchorElement.getBoundingClientRect()
+}
+
+function findTagsAnchorElement(expenseId: number): HTMLElement | null {
+  const target = document.querySelector(`[data-expense-id="${expenseId}"][data-field="tags"]`)
+  return target instanceof HTMLElement ? target : null
+}
+
+function getTagIds(tags: Tag[]): number[] {
+  return tags
+    .map((tag) => tag.id)
+    .filter((tagId): tagId is number => typeof tagId === 'number')
+}
+
+function haveSameTagIds(left: number[], right: number[]): boolean {
+  if (left.length !== right.length) return false
+  const leftSet = new Set(left)
+  const rightSet = new Set(right)
+  if (leftSet.size !== rightSet.size) return false
+  return left.every((tagId) => rightSet.has(tagId))
 }
 
 interface ExpenseTableProps {
@@ -113,16 +155,61 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const [activeSplitChildTargetId, setActiveSplitChildTargetId] = useState<number | null>(null)
   const [editingSplitField, setEditingSplitField] = useState<EditingSplitField | null>(null)
   const [splits, setSplits] = useState<Awaited<ReturnType<typeof StorageService.getExpenseSplits>>>([])
+  const [activeTags, setActiveTags] = useState<Tag[]>([])
+  const [activeTagsEditor, setActiveTagsEditor] = useState<ActiveTagsEditorState | null>(null)
+  const [tagsEditorPosition, setTagsEditorPosition] = useState<FloatingPosition | null>(null)
+  const [isSavingTagsEditor, setIsSavingTagsEditor] = useState(false)
   const editingSplitFieldRef = useRef<EditingSplitField | null>(null)
   const pendingSplitFieldSwitchRef = useRef<EditingSplitField | null>(null)
   const pendingSplitFieldTimeoutRef = useRef<number | null>(null)
   const splitFieldCommitInFlightRef = useRef<Set<string>>(new Set())
+  const tagsEditorRef = useRef<HTMLDivElement>(null)
+  const lastOpenedTagsEditorKeyRef = useRef<string | null>(null)
 
   const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
 
   const payeeMap = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])
   const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
   const activePayees = useMemo(() => payees.filter((p) => !p.isArchived), [payees])
+  const closeTagsEditor = useCallback(() => {
+    setActiveTagsEditor(null)
+    setTagsEditorPosition(null)
+    setIsSavingTagsEditor(false)
+  }, [])
+  const loadActiveTags = useCallback(async () => {
+    const nextTags = await StorageService.getActiveTags()
+    setActiveTags(nextTags)
+    return nextTags
+  }, [])
+  const updateTagsEditorPosition = useCallback((anchorElement: HTMLElement) => {
+    const rect = getTagsAnchorRect(anchorElement)
+    setTagsEditorPosition(
+      getDropdownFloatingPosition(rect, {
+        idealHeight: TAGS_POPOVER_MAX_HEIGHT,
+        maxHeight: TAGS_POPOVER_MAX_HEIGHT,
+        minUsableHeight: 160,
+        minWidth: TAGS_POPOVER_MIN_WIDTH,
+        maxWidth: TAGS_POPOVER_MAX_WIDTH,
+        desiredWidth: Math.max(TAGS_POPOVER_MIN_WIDTH, rect.width),
+        gap: TAGS_POPOVER_GAP,
+      }),
+    )
+  }, [])
+  const openTagsEditor = useCallback(
+    (expenseId: number, anchorElement: HTMLElement) => {
+      if (isMobile) return
+      const nextTagIds = getTagIds(expenseTagsMap[expenseId] ?? [])
+      setActiveTagsEditor({
+        expenseId,
+        originalTagIds: nextTagIds,
+        draftTagIds: nextTagIds,
+      })
+      setIsSavingTagsEditor(false)
+      updateTagsEditorPosition(anchorElement)
+      void loadActiveTags()
+    },
+    [expenseTagsMap, isMobile, loadActiveTags, updateTagsEditorPosition],
+  )
   const resolvedIsSplitParentExpanded = useCallback(
     (splitId: number) => {
       if (isSplitParentExpanded) {
@@ -162,6 +249,14 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       setShowMobileEditModal(true)
     }
   }, [mobileEditTrigger, expenses])
+
+  useEffect(() => {
+    if (isMobile) {
+      closeTagsEditor()
+      return
+    }
+    void loadActiveTags()
+  }, [closeTagsEditor, isMobile, loadActiveTags])
 
   useEffect(() => {
     const splitIds = new Set(
@@ -224,7 +319,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const splitChildIds = useMemo(() => {
     const ids = new Set<number>()
     splitChildIdsBySplitId.forEach((childIds) => {
-      childIds.forEach((id) => ids.add(id))
+      childIds.forEach((childId) => {
+        ids.add(childId)
+      })
     })
     return ids
   }, [splitChildIdsBySplitId])
@@ -292,6 +389,60 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     setMobileEditExpense: openExpenseEditor,
     setShowMobileEditModal,
   })
+  const dismissTagsEditor = useCallback(() => {
+    closeTagsEditor()
+  }, [closeTagsEditor])
+  const cancelTagsEditor = useCallback(() => {
+    editing.cancelCurrentCellEdit()
+    dismissTagsEditor()
+  }, [dismissTagsEditor, editing])
+  const handleSaveTagsEditor = useCallback(async () => {
+    if (!activeTagsEditor || isSavingTagsEditor) return
+    const nextTagIds = Array.from(new Set(activeTagsEditor.draftTagIds))
+    if (haveSameTagIds(nextTagIds, activeTagsEditor.originalTagIds)) {
+      editing.cancelCurrentCellEdit()
+      dismissTagsEditor()
+      return
+    }
+    setIsSavingTagsEditor(true)
+    try {
+      await StorageService.setExpenseTags(activeTagsEditor.expenseId, nextTagIds)
+      editing.cancelCurrentCellEdit()
+      dismissTagsEditor()
+    } catch (error) {
+      console.error('Failed to update expense tags:', error)
+      showToast({ message: 'Could not update tags.', tone: 'danger' })
+      setIsSavingTagsEditor(false)
+    }
+  }, [activeTagsEditor, dismissTagsEditor, editing, isSavingTagsEditor, showToast])
+  const handleTagsEditorChange = useCallback((tagIds: number[]) => {
+    setActiveTagsEditor((current) => {
+      if (!current) return null
+      return { ...current, draftTagIds: tagIds }
+    })
+  }, [])
+  const handleCreateTagFromEditor = useCallback(
+    async (name: string) => {
+      const trimmedName = name.trim()
+      const tagId = await StorageService.addTag(name)
+      setActiveTags((current) => {
+        if (current.some((tag) => tag.id === tagId)) {
+          return current
+        }
+        return [
+          ...current,
+          {
+            id: tagId as number,
+            name: trimmedName,
+            normalizedName: trimmedName.toLowerCase(),
+            isArchived: false,
+          },
+        ]
+      })
+      return tagId as number
+    },
+    [],
+  )
 
   const handleEditRequest = useCallback(
     (ids: number[]) => {
@@ -538,6 +689,92 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   )
 
   useEffect(() => {
+    if (isMobile) return
+    const editingCell = editing.editingCell
+    if (editingCell?.field !== 'tags') {
+      if (activeTagsEditor) {
+        dismissTagsEditor()
+      }
+      lastOpenedTagsEditorKeyRef.current = null
+      return
+    }
+
+    const editingKey = `${editingCell.expenseId}:tags`
+    if (activeTagsEditor?.expenseId === editingCell.expenseId) {
+      lastOpenedTagsEditorKeyRef.current = editingKey
+      return
+    }
+    if (lastOpenedTagsEditorKeyRef.current === editingKey) return
+
+    const target = document.querySelector(
+      `[data-expense-id="${editingCell.expenseId}"][data-field="tags"]`,
+    )
+    if (target instanceof HTMLElement) {
+      lastOpenedTagsEditorKeyRef.current = editingKey
+      openTagsEditor(editingCell.expenseId, target)
+    }
+  }, [
+    activeTagsEditor?.expenseId,
+    activeTagsEditor,
+    dismissTagsEditor,
+    editing.editingCell?.expenseId,
+    editing.editingCell?.field,
+    isMobile,
+    openTagsEditor,
+  ])
+
+  useEffect(() => {
+    if (!activeTagsEditor) return
+    if (editingSplitField) {
+      cancelTagsEditor()
+    }
+  }, [activeTagsEditor, cancelTagsEditor, editingSplitField])
+
+  useLayoutEffect(() => {
+    if (!activeTagsEditor) return
+    const updatePosition = () => {
+      const anchorElement = findTagsAnchorElement(activeTagsEditor.expenseId)
+      if (!anchorElement || !anchorElement.isConnected) {
+        closeTagsEditor()
+        return
+      }
+      updateTagsEditorPosition(anchorElement)
+    }
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [activeTagsEditor, closeTagsEditor, updateTagsEditorPosition])
+
+  useEffect(() => {
+    if (!activeTagsEditor) return
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      if (tagsEditorRef.current?.contains(event.target as Node)) return
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[data-editable-cell], [data-split-editable-display]')
+      ) {
+        return
+      }
+      cancelTagsEditor()
+    }
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      cancelTagsEditor()
+    }
+    document.addEventListener('pointerdown', handleDocumentPointerDown, true)
+    document.addEventListener('keydown', handleDocumentKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown, true)
+      document.removeEventListener('keydown', handleDocumentKeyDown)
+    }
+  }, [activeTagsEditor, cancelTagsEditor])
+
+  useEffect(() => {
     return () => {
       clearPendingSplitFieldSwitch()
     }
@@ -647,6 +884,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         activeCategories,
         activePayees,
         payeeMap,
+        expenseTagsMap,
+        onOpenTagsEditor: openTagsEditor,
         onToggleSplitExpanded: resolvedOnToggleSplitParentExpanded,
         isSplitExpanded: resolvedIsSplitParentExpanded,
         editingSplitField,
@@ -670,6 +909,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       activeCategories,
       activePayees,
       payeeMap,
+      expenseTagsMap,
+      openTagsEditor,
       resolvedOnToggleSplitParentExpanded,
       resolvedIsSplitParentExpanded,
       editingSplitField,
@@ -872,6 +1113,65 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           menuRef={menuRef}
         />
       )}
+      {!isMobile && activeTagsEditor && tagsEditorPosition
+        ? createPortal(
+            <div
+              ref={tagsEditorRef}
+              role="dialog"
+              aria-label="Edit tags"
+              data-testid="tags-editor-popover"
+              className="rounded-theme-large border border-theme-border bg-theme-surface p-3 shadow-lg"
+              onBlurCapture={(event) => {
+                const nextTarget = event.relatedTarget as Node | null
+                if (nextTarget && tagsEditorRef.current?.contains(nextTarget)) return
+                dismissTagsEditor()
+              }}
+              style={{
+                position: 'fixed',
+                zIndex: 60,
+                left: tagsEditorPosition.left,
+                width: tagsEditorPosition.width,
+                maxHeight: tagsEditorPosition.maxHeight,
+                top: tagsEditorPosition.top,
+                bottom: tagsEditorPosition.bottom,
+              }}
+            >
+              <div className="space-y-2">
+                <TagMultiSelect
+                  tags={activeTags}
+                  selectedTagIds={activeTagsEditor.draftTagIds}
+                  onChange={handleTagsEditorChange}
+                  onCreate={handleCreateTagFromEditor}
+                  variant="inline"
+                  placeholder="Search or create tags"
+                  controlClassName="rounded-theme-medium border border-theme-border bg-theme-background px-2 py-1.5"
+                  autoFocus
+                  onCancel={cancelTagsEditor}
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="btn-cancel-sm px-3 py-1.5 text-xs"
+                    onClick={cancelTagsEditor}
+                    data-testid="tags-editor-cancel"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary-sm px-3 py-1.5 text-xs"
+                    onClick={() => void handleSaveTagsEditor()}
+                    disabled={isSavingTagsEditor}
+                    data-testid="tags-editor-save"
+                  >
+                    {isSavingTagsEditor ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 })

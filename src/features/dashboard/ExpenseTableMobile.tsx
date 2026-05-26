@@ -3,6 +3,7 @@ import { useLongPress } from './hooks/useLongPress'
 import type { Expense, Tag } from '../../types'
 import { cn } from '../../utils/cn'
 import type { ExpenseDisplayRow } from './splitDisplayRows'
+import { getTagSummaryChipStyle, getTagSummaryData } from './tagSummaryChip'
 
 interface ExpenseTableMobileProps {
   expenses: Expense[]
@@ -183,8 +184,7 @@ export default function ExpenseTableMobile({
                 ? `${categoryLabel} · ${exp.notes}`
                 : categoryLabel || exp.notes || ''
             const tags = expenseTagsMap[exp.id as number] ?? []
-            const primaryTag = tags[0]
-            const additionalTagCount = Math.max(tags.length - 1, 0)
+            const { primaryTag, summary } = getTagSummaryData(tags)
             return (
               <div
                 key={exp.id}
@@ -229,19 +229,13 @@ export default function ExpenseTableMobile({
                   {primaryTag ? (
                     <span
                       className={cn(
-                        'inline-flex min-w-0 max-w-full items-center rounded-full border border-theme-border px-1.5 py-0.5 text-[11px] text-theme-muted',
+                        'inline-flex min-w-0 max-w-full items-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-none',
                         primaryTag.isArchived && 'italic',
                       )}
-                      title={
-                        additionalTagCount > 0
-                          ? `${primaryTag.name} +${additionalTagCount}`
-                          : primaryTag.name
-                      }
+                      style={getTagSummaryChipStyle(primaryTag)}
+                      title={summary}
                     >
-                      <span className="truncate">
-                        {primaryTag.name}
-                        {additionalTagCount > 0 ? ` +${additionalTagCount}` : ''}
-                      </span>
+                      <span className="truncate">{summary}</span>
                     </span>
                   ) : isSplitChildRow ? (
                     <span />

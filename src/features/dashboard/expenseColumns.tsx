@@ -2,11 +2,17 @@ import type { ColumnDef } from '@tanstack/react-table'
 import CreatableCombobox from '../../components/inputs/CreatableCombobox'
 import DatePicker from '../../components/inputs/DatePicker'
 import { StorageService } from '../../services/storageService'
-import type { Category, Expense, Payee } from '../../types'
+import type { Category, Expense, Payee, Tag } from '../../types'
 import { cn } from '../../utils/cn'
 import InlineEditCell from './InlineEditCell'
 import InlineMoneyEditCell from './InlineMoneyEditCell'
 import type { ExpenseDisplayRow } from './splitDisplayRows'
+import {
+  getStableTagIdentity,
+  getTagSummaryChipStyle,
+  getTagSummaryData,
+  type TagSummaryData,
+} from './tagSummaryChip'
 import type { CellEditingAPI } from './useExpenseCellEditing'
 
 type EditableSplitField = 'date' | 'payeeId' | 'notes'
@@ -23,6 +29,8 @@ interface GetExpenseColumnsParams {
   activeCategories: Category[]
   activePayees: Payee[]
   payeeMap: Record<number, Payee>
+  expenseTagsMap: Record<number, Tag[]>
+  onOpenTagsEditor: (expenseId: number, anchorElement: HTMLElement) => void
   onToggleSplitExpanded: (splitId: number) => void
   isSplitExpanded: (splitId: number) => boolean
   editingSplitField?: { splitId: number; field: EditableSplitField } | null
@@ -42,6 +50,7 @@ interface EditableCellDisplayConfig {
   expenseId?: number
   field?: string
   isEditableCell?: boolean
+  isSplitEditableDisplay?: boolean
 }
 
 interface PayeeEditorConfig {
@@ -79,6 +88,45 @@ function getSplitPayeeLabel(
   return rowData.payeeDisplay
 }
 
+function getSplitContainerTags(
+  rowData: Extract<ExpenseDisplayRow, { rowType: 'splitContainer' }>,
+  expenseTagsMap: Record<number, Tag[]>,
+): Tag[] {
+  const dedupedTags: Tag[] = []
+  const seenTagKeys = new Set<string>()
+
+  rowData.childExpenses.forEach((expense) => {
+    if (typeof expense.id !== 'number') return
+    const tags = expenseTagsMap[expense.id] ?? []
+    tags.forEach((tag) => {
+      const tagKey = getStableTagIdentity(tag)
+      if (seenTagKeys.has(tagKey)) return
+      seenTagKeys.add(tagKey)
+      dedupedTags.push(tag)
+    })
+  })
+
+  return dedupedTags
+}
+
+function renderTagSummaryChip(summaryData: TagSummaryData): React.ReactNode {
+  const { primaryTag, summary } = summaryData
+  if (!primaryTag || !summary) return null
+
+  return (
+    <span
+      className={cn(
+        'inline-flex min-w-0 max-w-full items-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-none',
+        primaryTag.isArchived && 'italic',
+      )}
+      style={getTagSummaryChipStyle(primaryTag)}
+      title={summary}
+    >
+      <span className="truncate">{summary}</span>
+    </span>
+  )
+}
+
 export function editableCellActivate(
   editing: CellEditingAPI,
   expense: Expense,
@@ -105,6 +153,7 @@ function renderEditableDisplayCell(
   return (
     <span
       data-editable-cell={display.isEditableCell ? true : undefined}
+      data-split-editable-display={display.isSplitEditableDisplay ? true : undefined}
       data-expense-id={display.expenseId}
       data-field={display.field}
       data-testid={display.field ? `editable-cell-display-${display.field}` : undefined}
@@ -201,6 +250,8 @@ export function getExpenseColumns({
   activeCategories,
   activePayees,
   payeeMap,
+  expenseTagsMap,
+  onOpenTagsEditor,
   onToggleSplitExpanded,
   isSplitExpanded,
   editingSplitField,
@@ -318,6 +369,7 @@ export function getExpenseColumns({
           return renderEditableDisplayCell(
             {
               className: dateValue ? 'cursor-pointer' : 'text-theme-muted cursor-pointer',
+              isSplitEditableDisplay: true,
               content: dateValue ? formatDate(dateValue) : '—',
             },
             (e) => {
@@ -397,6 +449,7 @@ export function getExpenseColumns({
           return renderEditableDisplayCell(
             {
               className: 'block w-full cursor-pointer truncate font-medium text-theme-muted',
+              isSplitEditableDisplay: true,
               title: splitPayeeLabel,
               content: splitPayeeLabel,
             },
@@ -599,6 +652,7 @@ export function getExpenseColumns({
             {
               className: 'block w-full cursor-pointer truncate text-theme-muted',
               field: 'notes',
+              isSplitEditableDisplay: true,
               title: notesValue || undefined,
               content: notesValue || <span className="text-theme-muted">—</span>,
             },
@@ -644,6 +698,59 @@ export function getExpenseColumns({
               ? 'cell-editing'
               : '',
         width: '20%',
+      },
+    },
+    {
+      id: 'tags',
+      header: 'Tags',
+      cell: ({ row }) => {
+        const rowData = row.original
+
+        if (rowData.rowType === 'splitContainer') {
+          const splitTags = getSplitContainerTags(rowData, expenseTagsMap)
+          const splitSummary = getTagSummaryData(splitTags)
+          return renderEditableDisplayCell(
+            {
+              className: 'block w-full overflow-hidden text-xs',
+              field: 'tags',
+              title: splitSummary.summary || undefined,
+              content: renderTagSummaryChip(splitSummary),
+            },
+            () => {},
+          )
+        }
+
+        const exp = rowData.expense
+        const expenseTags = typeof exp.id === 'number' ? expenseTagsMap[exp.id] ?? [] : []
+        const expenseSummary = getTagSummaryData(expenseTags)
+        return renderEditableDisplayCell(
+          {
+            className: 'block w-full cursor-pointer overflow-hidden text-xs',
+            field: 'tags',
+            title: expenseSummary.summary || undefined,
+            isEditableCell: true,
+            expenseId: exp.id as number,
+            content: renderTagSummaryChip(expenseSummary),
+          },
+          (e) => {
+            if (typeof e.button === 'number' && e.button !== 0) return
+            e.preventDefault()
+            e.stopPropagation()
+            if (e.target instanceof Element && e.target.closest('[data-no-cell-switch]')) return
+            editing.switchCellEdit(exp, 'tags')
+            onOpenTagsEditor(exp.id as number, e.currentTarget as HTMLElement)
+          },
+        )
+      },
+      meta: {
+        className: 'text-left',
+        cellClassName: 'whitespace-nowrap overflow-hidden max-w-[10rem]',
+        getCellClassName: (rowData: ExpenseDisplayRow) =>
+          rowData.rowType !== 'splitContainer' &&
+          editing.isCellEditing(rowData.expense.id as number, 'tags')
+            ? 'cell-editing'
+            : '',
+        width: '13%',
       },
     },
     {
