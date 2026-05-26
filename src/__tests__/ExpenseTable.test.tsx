@@ -145,6 +145,66 @@ describe('ExpenseTable', () => {
     expect(triggerSync).toHaveBeenCalled()
   })
 
+  it('shows a split parent checkbox that toggles all split children on desktop', async () => {
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
+      { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
+      { id: 3, date: '2026-05-09', amount: 5, categoryId: 1, notes: 'Solo' },
+    ]
+    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 20 }])
+
+    function TestHarness() {
+      const [selectedIds, setSelectedIds] = useState(new Set<number>())
+
+      return (
+        <ExpenseTable
+          expenses={expenses}
+          categories={[
+            { id: 1, name: 'Food' },
+            { id: 2, name: 'Transport' },
+          ]}
+          payees={[]}
+          selectedIds={selectedIds}
+          onToggleSelect={(id) => {
+            setSelectedIds((current) => {
+              const next = new Set(current)
+              if (next.has(id)) {
+                next.delete(id)
+              } else {
+                next.add(id)
+              }
+              return next
+            })
+          }}
+          onToggleSelectAll={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      )
+    }
+
+    render(<TestHarness />)
+
+    const splitRow = await screen.findByTestId('split-container-10')
+    const splitCheckbox = within(splitRow).getByRole('checkbox', {
+      name: 'Select split transaction',
+    }) as HTMLInputElement
+
+    expect(splitCheckbox.checked).toBe(false)
+
+    fireEvent.click(splitCheckbox)
+
+    const firstChildRow = await screen.findByTestId('split-child-1')
+    const secondChildRow = await screen.findByTestId('split-child-2')
+
+    await waitFor(() => {
+      expect(splitCheckbox.checked).toBe(true)
+      expect(within(firstChildRow).getByRole('checkbox')).toBeChecked()
+      expect(within(secondChildRow).getByRole('checkbox')).toBeChecked()
+      expect(splitRow).toHaveClass('selected-row')
+    })
+  })
+
   it('shows tags under the notes in mobile rows', async () => {
     const expenses: Expense[] = [
       { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, payeeId: 1, notes: 'Lunch' },
@@ -1072,6 +1132,158 @@ describe('ExpenseTable', () => {
       expect(within(firstRow).getByText('Coffee')).toBeInTheDocument()
     })
     expect(await screen.findByDisplayValue('Groceries')).toBeInTheDocument()
+  })
+
+  it('keeps empty notes blank and still opens notes and tags editors from the cell', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const expenses: Expense[] = [{ id: 1, date: '2026-05-10', amount: 12, categoryId: 1, notes: '' }]
+
+    const view = render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const row = await screen.findByTestId('expense-row-1')
+    const notesCell = within(row).getByTestId('editable-cell-display-notes')
+
+    expect(notesCell).toBeEmptyDOMElement()
+
+    fireEvent.pointerDown(notesCell)
+    expect(await screen.findByDisplayValue('')).toBeInTheDocument()
+
+    view.unmount()
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const tagsOnlyRow = await screen.findByTestId('expense-row-1')
+    fireEvent.pointerDown(within(tagsOnlyRow).getByTestId('editable-cell-display-tags'))
+    expect(await screen.findByTestId('tags-editor-popover')).toBeInTheDocument()
+  })
+
+  it('prefers opening the tags popover below when there is still usable space', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const originalInnerHeight = window.innerHeight
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 700,
+    })
+
+    render(
+      <ExpenseTable
+        expenses={[{ id: 1, date: '2026-05-10', amount: 12, categoryId: 1, notes: '' }]}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    try {
+      const row = await screen.findByTestId('expense-row-1')
+      const tagsCell = within(row).getByTestId('editable-cell-display-tags')
+      const tableCell = tagsCell.closest('td')
+
+      expect(tableCell).not.toBeNull()
+
+      vi.spyOn(tableCell as HTMLTableCellElement, 'getBoundingClientRect').mockReturnValue({
+        x: 40,
+        y: 400,
+        top: 400,
+        left: 40,
+        right: 220,
+        bottom: 560,
+        width: 180,
+        height: 160,
+        toJSON: () => ({}),
+      } as DOMRect)
+
+      fireEvent.pointerDown(tagsCell)
+
+      expect((await screen.findByTestId('tags-editor-popover')).dataset.placement).toBe('bottom')
+    } finally {
+      Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        value: originalInnerHeight,
+      })
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('opens the tags popover above when there is not enough usable space below', async () => {
+    storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
+
+    const originalInnerHeight = window.innerHeight
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 700,
+    })
+
+    render(
+      <ExpenseTable
+        expenses={[{ id: 1, date: '2026-05-10', amount: 12, categoryId: 1, notes: '' }]}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    try {
+      const row = await screen.findByTestId('expense-row-1')
+      const tagsCell = within(row).getByTestId('editable-cell-display-tags')
+      const tableCell = tagsCell.closest('td')
+
+      expect(tableCell).not.toBeNull()
+
+      vi.spyOn(tableCell as HTMLTableCellElement, 'getBoundingClientRect').mockReturnValue({
+        x: 40,
+        y: 430,
+        top: 430,
+        left: 40,
+        right: 220,
+        bottom: 580,
+        width: 180,
+        height: 150,
+        toJSON: () => ({}),
+      } as DOMRect)
+
+      fireEvent.pointerDown(tagsCell)
+
+      expect((await screen.findByTestId('tags-editor-popover')).dataset.placement).toBe('top')
+    } finally {
+      Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        value: originalInnerHeight,
+      })
+      vi.restoreAllMocks()
+    }
   })
 
   it('persists split notes edits when switching directly to another split editor', async () => {

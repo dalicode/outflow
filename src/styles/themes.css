@@ -818,15 +818,14 @@
   padding-right: 16px;
 }
 
-/* Expense checkbox wrapper — hidden until hover or checked */
+/* Expense checkbox wrapper — always visible */
 .expense-checkbox-wrapper {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   vertical-align: middle;
   margin-top: -3px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  opacity: 1;
 }
 .expense-checkbox-wrapper::before,
 .expense-checkbox-wrapper::after {
@@ -845,14 +844,9 @@
   /* biome-ignore lint/complexity/noImportantStyles: keeps checkbox focus/hover styling controlled by the checkbox element */
   box-shadow: none !important;
 }
-tr:hover .expense-checkbox-wrapper,
-.expense-checkbox-wrapper.checked {
-  opacity: 1;
-}
 /* Header checkbox is always visible */
 th .expense-checkbox-wrapper {
   margin-top: 0;
-  opacity: 1;
 }
 
 /* ── Subtle backgrounds (replaces broken Tailwind opacity modifiers on custom classes) ── */

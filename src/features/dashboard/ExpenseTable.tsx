@@ -51,7 +51,9 @@ interface ActiveTagsEditorState {
 
 const TAGS_POPOVER_MIN_WIDTH = 260
 const TAGS_POPOVER_MAX_WIDTH = 360
+const TAGS_POPOVER_IDEAL_HEIGHT = 120
 const TAGS_POPOVER_MAX_HEIGHT = 320
+const TAGS_POPOVER_MIN_USABLE_HEIGHT = 120
 const TAGS_POPOVER_GAP = 6
 
 function getTagsAnchorRect(anchorElement: HTMLElement): DOMRect {
@@ -185,9 +187,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     const rect = getTagsAnchorRect(anchorElement)
     setTagsEditorPosition(
       getDropdownFloatingPosition(rect, {
-        idealHeight: TAGS_POPOVER_MAX_HEIGHT,
+        idealHeight: TAGS_POPOVER_IDEAL_HEIGHT,
         maxHeight: TAGS_POPOVER_MAX_HEIGHT,
-        minUsableHeight: 160,
+        minUsableHeight: TAGS_POPOVER_MIN_USABLE_HEIGHT,
         minWidth: TAGS_POPOVER_MIN_WIDTH,
         maxWidth: TAGS_POPOVER_MAX_WIDTH,
         desiredWidth: Math.max(TAGS_POPOVER_MIN_WIDTH, rect.width),
@@ -876,6 +878,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         selectedIds,
         onToggleSelect,
         onToggleSelectAll,
+        onToggleSplitParentSelect: toggleSplitParentSelection,
         allSelected,
         editing,
         formatDate,
@@ -888,6 +891,10 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         onOpenTagsEditor: openTagsEditor,
         onToggleSplitExpanded: resolvedOnToggleSplitParentExpanded,
         isSplitExpanded: resolvedIsSplitParentExpanded,
+        isSplitParentSelected: (splitId) => {
+          const childIds = splitChildIdsBySplitId.get(splitId) ?? []
+          return childIds.length > 0 && childIds.every((id) => selectedIds.has(id))
+        },
         editingSplitField,
         onStartSplitFieldEdit: handleStartSplitFieldEdit,
         onCommitSplitDateEdit: handleCommitSplitDateEdit,
@@ -901,6 +908,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       selectedIds,
       onToggleSelect,
       onToggleSelectAll,
+      toggleSplitParentSelection,
       allSelected,
       editing,
       formatDate,
@@ -913,6 +921,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       openTagsEditor,
       resolvedOnToggleSplitParentExpanded,
       resolvedIsSplitParentExpanded,
+      splitChildIdsBySplitId,
       editingSplitField,
       handleStartSplitFieldEdit,
       handleCommitSplitDateEdit,
@@ -926,11 +935,15 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
 
   const getRowClassName = useCallback(
     (row: ExpenseDisplayRow) => {
-      if (row.rowType === 'splitContainer') return 'row-hover'
+      if (row.rowType === 'splitContainer') {
+        const childIds = splitChildIdsBySplitId.get(row.splitId) ?? []
+        const isSelected = childIds.length > 0 && childIds.every((id) => selectedIds.has(id))
+        return cn(isSelected && 'selected-row', 'row-hover')
+      }
       const isSelected = selectedIds.has(row.expense.id as number)
       return cn(isSelected && 'selected-row', 'row-hover', row.rowType === 'splitChild' && 'opacity-90')
     },
-    [selectedIds],
+    [selectedIds, splitChildIdsBySplitId],
   )
 
   const mobileSplitContext = useMemo(() => {
@@ -1120,6 +1133,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
               role="dialog"
               aria-label="Edit tags"
               data-testid="tags-editor-popover"
+              data-placement={tagsEditorPosition.placement}
               className="rounded-theme-large border border-theme-border bg-theme-surface p-3 shadow-lg"
               onBlurCapture={(event) => {
                 const nextTarget = event.relatedTarget as Node | null
@@ -1159,7 +1173,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
                   </button>
                   <button
                     type="button"
-                    className="btn-primary-sm px-3 py-1.5 text-xs"
+                    className="btn-primary-sm flex-1 px-3 py-1.5 text-xs"
                     onClick={() => void handleSaveTagsEditor()}
                     disabled={isSavingTagsEditor}
                     data-testid="tags-editor-save"

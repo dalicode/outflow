@@ -116,6 +116,17 @@ describe('TagMultiSelect', () => {
     expect(screen.getByRole('button', { name: 'Remove tag Home' })).toBeInTheDocument()
   })
 
+  it('renders selected chips with the shared expense-view tag styling', () => {
+    render(<TestHarness initialSelectedTagIds={[1]} />)
+
+    const chip = screen.getByText('Work').closest('span')
+    expect(chip).toHaveStyle({
+      backgroundColor: expect.stringContaining('color-mix'),
+      borderColor: expect.stringContaining('var(--theme-border)'),
+      color: expect.stringContaining('var(--theme-text)'),
+    })
+  })
+
   it('shows selected matches in the dropdown and prevents selecting them again', () => {
     render(<TestHarness initialSelectedTagIds={[1]} />)
     const input = getTagInput()

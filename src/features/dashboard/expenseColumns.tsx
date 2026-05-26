@@ -21,6 +21,7 @@ interface GetExpenseColumnsParams {
   selectedIds: Set<number>
   onToggleSelect: (id: number) => void
   onToggleSelectAll: () => void
+  onToggleSplitParentSelect: (splitId: number) => void
   allSelected: boolean
   editing: CellEditingAPI
   formatDate: (iso: string) => string
@@ -33,6 +34,7 @@ interface GetExpenseColumnsParams {
   onOpenTagsEditor: (expenseId: number, anchorElement: HTMLElement) => void
   onToggleSplitExpanded: (splitId: number) => void
   isSplitExpanded: (splitId: number) => boolean
+  isSplitParentSelected: (splitId: number) => boolean
   editingSplitField?: { splitId: number; field: EditableSplitField } | null
   onStartSplitFieldEdit: (splitId: number, field: EditableSplitField) => void
   onCommitSplitDateEdit: (splitId: number, value: string) => void
@@ -242,6 +244,7 @@ export function getExpenseColumns({
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
+  onToggleSplitParentSelect,
   allSelected,
   editing,
   formatDate,
@@ -254,6 +257,7 @@ export function getExpenseColumns({
   onOpenTagsEditor,
   onToggleSplitExpanded,
   isSplitExpanded,
+  isSplitParentSelected,
   editingSplitField,
   onStartSplitFieldEdit,
   onCommitSplitDateEdit,
@@ -302,7 +306,41 @@ export function getExpenseColumns({
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
-          return null
+          const isSelected = isSplitParentSelected(rowData.splitId)
+          return (
+            <label className={cn('expense-checkbox-wrapper cursor-pointer', isSelected && 'checked')}>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation()
+                  onToggleSplitParentSelect(rowData.splitId)
+                }}
+                className="sr-only"
+                aria-label="Select split transaction"
+              />
+              <div
+                className={cn(
+                  'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
+                  isSelected
+                    ? 'border-theme-text bg-transparent'
+                    : 'border-theme-muted bg-transparent',
+                )}
+              >
+                {isSelected && (
+                  <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
+                    <path
+                      d="M2.5 6.5L5 9l4.5-5.5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </div>
+            </label>
+          )
         }
         const exp = rowData.expense
         const isSelected = selectedIds.has(exp.id as number)
@@ -323,7 +361,7 @@ export function getExpenseColumns({
                 'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
                 isSelected
                   ? 'border-theme-text bg-transparent'
-                  : 'border-theme-text bg-theme-primary-subtle',
+                  : 'border-theme-muted bg-transparent',
               )}
             >
               {isSelected && (
@@ -650,11 +688,11 @@ export function getExpenseColumns({
           }
           return renderEditableDisplayCell(
             {
-              className: 'block w-full cursor-pointer truncate text-theme-muted',
+              className: 'block min-h-[1.25rem] w-full cursor-pointer truncate text-theme-muted',
               field: 'notes',
               isSplitEditableDisplay: true,
               title: notesValue || undefined,
-              content: notesValue || <span className="text-theme-muted">—</span>,
+              content: notesValue,
             },
             (e) => {
               if (e.button !== 0) return
@@ -676,12 +714,12 @@ export function getExpenseColumns({
         }
         return renderEditableDisplayCell(
           {
-            className: 'cursor-pointer block w-full truncate',
+            className: 'block min-h-[1.25rem] w-full cursor-pointer truncate',
             title: exp.notes || undefined,
             isEditableCell: true,
             expenseId: exp.id as number,
             field: 'notes',
-            content: exp.notes || <span className="text-theme-muted">—</span>,
+            content: exp.notes ?? '',
           },
           editableCellActivate(editing, exp, 'notes').onPointerDown,
         )
@@ -711,7 +749,7 @@ export function getExpenseColumns({
           const splitSummary = getTagSummaryData(splitTags)
           return renderEditableDisplayCell(
             {
-              className: 'block w-full overflow-hidden text-xs',
+              className: 'block min-h-[1.25rem] w-full overflow-hidden text-xs',
               field: 'tags',
               title: splitSummary.summary || undefined,
               content: renderTagSummaryChip(splitSummary),
@@ -725,7 +763,7 @@ export function getExpenseColumns({
         const expenseSummary = getTagSummaryData(expenseTags)
         return renderEditableDisplayCell(
           {
-            className: 'block w-full cursor-pointer overflow-hidden text-xs',
+            className: 'block min-h-[1.25rem] w-full cursor-pointer overflow-hidden text-xs',
             field: 'tags',
             title: expenseSummary.summary || undefined,
             isEditableCell: true,

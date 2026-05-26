@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useToasts } from '../../context/toastContext'
 import { cn } from '../../utils/cn'
+import { getTagSummaryChipStyle } from '../../utils/tagChip'
 import { getFilteredOptions } from './comboboxUtils'
 import type { Tag } from '../../types'
 
@@ -53,7 +54,7 @@ export default function TagMultiSelect({
     () =>
       tags
         .filter((tag): tag is Tag & { id: number } => typeof tag.id === 'number')
-        .map((tag) => ({ id: tag.id, label: tag.name })),
+        .map((tag) => ({ id: tag.id, label: tag.name, tag })),
     [tags],
   )
   const selectedIdSet = useMemo(() => new Set(selectedTagIds), [selectedTagIds])
@@ -195,9 +196,11 @@ export default function TagMultiSelect({
           <span
             key={tag.id}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full border border-theme-border bg-theme-surface px-2 py-0.5 text-xs text-theme-text',
+              'inline-flex items-center gap-1 rounded-theme-small border px-2 py-0.5 text-xs',
+              tag.tag.isArchived && 'italic',
               chipClassName,
             )}
+            style={getTagSummaryChipStyle(tag.tag)}
           >
             <span>{tag.label}</span>
             <button

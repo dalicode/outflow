@@ -51,7 +51,7 @@ export default function DataTable<T>({
   return (
     <table
       className={cn(
-        'w-full text-sm border-separate border-spacing-0',
+        'w-full text-sm border-separate border-spacing-0 border-b border-theme-muted-subtle',
         fixedLayout && 'table-fixed',
       )}
     >
@@ -88,7 +88,7 @@ export default function DataTable<T>({
           <tr
             key={row.id}
             data-testid={getRowId?.(row.original)}
-            className={cn('border-b border-theme-muted-subtle', getRowClassName?.(row.original))}
+            className={cn(getRowClassName?.(row.original))}
             onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(e, row.original) : undefined}
             onTouchStart={onRowTouchStart ? (e) => onRowTouchStart(e, row.original) : undefined}
             onTouchMove={onRowTouchMove}
@@ -98,7 +98,7 @@ export default function DataTable<T>({
               <td
                 key={cell.id}
                 className={cn(
-                  'px-3 py-1',
+                  'px-3 py-1 border-r border-b border-theme-muted-subtle last:border-r-0',
                   cell.column.columnDef.meta?.cellClassName,
                   cell.column.columnDef.meta?.getCellClassName?.(row.original),
                 )}

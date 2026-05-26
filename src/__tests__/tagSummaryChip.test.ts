@@ -3,7 +3,7 @@ import {
   getStableTagIdentity,
   getTagSummaryChipStyle,
   getTagSummaryData,
-} from '../features/dashboard/tagSummaryChip'
+} from '../utils/tagChip'
 
 describe('getTagSummaryData', () => {
   it('returns empty summary when no tags are present', () => {
