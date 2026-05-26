@@ -7,6 +7,7 @@ describe('useAppRefresh', () => {
     const refreshExpenses = vi.fn().mockResolvedValue(undefined)
     const refreshCategories = vi.fn().mockResolvedValue(undefined)
     const refreshPayees = vi.fn().mockResolvedValue(undefined)
+    const refreshTags = vi.fn().mockResolvedValue(undefined)
     const loadSettings = vi.fn().mockResolvedValue(undefined)
     const forceFinanceDataRefresh = vi.fn()
 
@@ -17,6 +18,7 @@ describe('useAppRefresh', () => {
           refreshExpenses,
           refreshCategories,
           refreshPayees,
+          refreshTags,
           loadSettings,
           announceAppliedScheduleUpdates: vi.fn(),
           showToast: vi.fn(),
@@ -30,6 +32,7 @@ describe('useAppRefresh', () => {
     expect(refreshExpenses).not.toHaveBeenCalled()
     expect(refreshCategories).not.toHaveBeenCalled()
     expect(refreshPayees).not.toHaveBeenCalled()
+    expect(refreshTags).not.toHaveBeenCalled()
     expect(loadSettings).not.toHaveBeenCalled()
 
     rerender({ pullAppliedCount: 1 })
@@ -38,6 +41,7 @@ describe('useAppRefresh', () => {
       expect(refreshExpenses).toHaveBeenCalledTimes(1)
       expect(refreshCategories).toHaveBeenCalledTimes(1)
       expect(refreshPayees).toHaveBeenCalledTimes(1)
+      expect(refreshTags).toHaveBeenCalledTimes(1)
       expect(loadSettings).toHaveBeenCalledTimes(1)
       expect(forceFinanceDataRefresh).toHaveBeenCalledTimes(1)
     })

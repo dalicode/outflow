@@ -74,6 +74,7 @@ const tables = vi.hoisted(() => {
   const syncQueue = createTable('syncQueue')
   const categoryMergeHistory = createTable('categoryMergeHistory')
   const payeeMergeHistory = createTable('payeeMergeHistory')
+  const tagMergeHistory = createTable('tagMergeHistory')
 
   const allTables = [
     expenses,
@@ -91,6 +92,7 @@ const tables = vi.hoisted(() => {
     syncQueue,
     categoryMergeHistory,
     payeeMergeHistory,
+    tagMergeHistory,
   ]
 
   return {
@@ -110,6 +112,7 @@ const tables = vi.hoisted(() => {
     syncQueue,
     categoryMergeHistory,
     payeeMergeHistory,
+    tagMergeHistory,
   }
 })
 
@@ -139,6 +142,7 @@ vi.mock('../services/db/schema', () => ({
     syncQueue: tables.syncQueue,
     categoryMergeHistory: tables.categoryMergeHistory,
     payeeMergeHistory: tables.payeeMergeHistory,
+    tagMergeHistory: tables.tagMergeHistory,
     table: (name: string) => tables.allTables.find((table) => table.name === name),
     transaction: vi.fn(async (_mode: string, _scope: unknown, callback: () => Promise<void>) => {
       await callback()
@@ -227,6 +231,18 @@ describe('backupRepository', () => {
         syncStatus: 'pending',
       },
     ])
+    tables.tagMergeHistory.seed([
+      {
+        id: 71,
+        localId: 'tag-merge-71',
+        sourceTagId: 8,
+        targetTagId: 9,
+        affectedExpenseTagIds: [9],
+        duplicateExpenseTagIds: [],
+        deletedAt: null,
+        syncStatus: 'pending',
+      },
+    ])
 
     const payload = await exportAllData()
 
@@ -268,6 +284,14 @@ describe('backupRepository', () => {
         tagId: 8,
       }),
     ])
+    expect(payload.tagMergeHistory).toEqual([
+      expect.objectContaining({
+        id: 71,
+        localId: 'tag-merge-71',
+        sourceTagId: 8,
+        targetTagId: 9,
+      }),
+    ])
   })
 
   it('normalizes legacy backup rows, preserves tombstones, and queues one repair sync', async () => {
@@ -300,6 +324,15 @@ describe('backupRepository', () => {
             },
           ],
           expenseTags: [{ id: 41, expenseId: 30, tagId: 40 }],
+          tagMergeHistory: [
+            {
+              id: 51,
+              sourceTagId: 40,
+              targetTagId: 41,
+              affectedExpenseTagIds: [41],
+              duplicateExpenseTagIds: [],
+            },
+          ],
           expenseSplits: [{ id: 91, date: '2026-05-01', amount: 17 }],
           settings: [{ key: 'visualTheme', value: 'mint' }],
           syncQueue: [
@@ -358,6 +391,17 @@ describe('backupRepository', () => {
         id: 41,
         expenseId: 30,
         tagId: 40,
+        syncStatus: 'pending',
+        localId: expect.any(String),
+      }),
+    ])
+    expect(tables.tagMergeHistory.rows()).toEqual([
+      expect.objectContaining({
+        id: 51,
+        sourceTagId: 40,
+        targetTagId: 41,
+        affectedExpenseTagIds: [41],
+        duplicateExpenseTagIds: [],
         syncStatus: 'pending',
         localId: expect.any(String),
       }),

@@ -21,7 +21,7 @@ VITE_SUPABASE_ANON_KEY=your-local-anon-key
 
 ```toml
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173", "http://192.168.0.184:5173"]
+additional_redirect_urls = ["http://localhost:5173/**", "http://192.168.0.*:5173/**"]
 ```
 
 3. Start or reset local Supabase so the migration is applied:
@@ -39,7 +39,7 @@ supabase db reset
 ## Testing on a phone (same Wi-Fi)
 
 - `localhost` and `127.0.0.1` only work on the Mac itself. They do not point to your Mac from a phone.
-- Use your Mac's actual LAN IP in URLs (for example `192.168.0.184`), not a subnet `.0` address.
+- You can allow your whole local subnet with a wildcard like `http://192.168.0.*:5173/**`, or use your Mac's exact LAN IP if you prefer a tighter allow-list.
 - Your phone and Mac must be connected to the same local network/Wi-Fi.
 - Start Vite so it listens on your LAN interface:
 

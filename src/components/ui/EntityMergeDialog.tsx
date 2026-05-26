@@ -11,7 +11,7 @@ interface MergeTarget {
 interface EntityMergeDialogProps {
   isOpen: boolean
   onClose: () => void
-  entityType: 'category' | 'payee'
+  entityType: 'category' | 'payee' | 'tag'
   sourceName: string
   targetOptions: MergeTarget[]
   affectedExpenseCount: number
@@ -31,8 +31,9 @@ export default function EntityMergeDialog({
   const [merging, setMerging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const label = entityType === 'category' ? 'category' : 'payee'
-  const Label = entityType === 'category' ? 'Category' : 'Payee'
+  const label =
+    entityType === 'category' ? 'category' : entityType === 'payee' ? 'payee' : 'tag'
+  const Label = entityType === 'category' ? 'Category' : entityType === 'payee' ? 'Payee' : 'Tag'
 
   const handleClose = () => {
     setSelectedTargetId('')

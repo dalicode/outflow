@@ -291,8 +291,22 @@ const PayeesIcon = ({ active }: NavIconProps) => (
   </svg>
 )
 
+const TagsIcon = ({ active }: NavIconProps) => (
+  <svg viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none">
+    <path
+      d="M3 12V6a2 2 0 0 1 2-2h6l10 10-7 7L3 12Z"
+      fill={active ? 'var(--theme-primary)' : 'var(--theme-muted)'}
+      opacity="0.2"
+      stroke={active ? 'var(--theme-primary)' : 'var(--theme-muted)'}
+      strokeWidth="1.75"
+      strokeLinejoin="round"
+    />
+    <circle cx="8.5" cy="8.5" r="1.25" fill={active ? 'var(--theme-primary)' : 'var(--theme-muted)'} />
+  </svg>
+)
+
 interface NavItemConfig {
-  pageKey: 'dashboard' | 'summary' | 'analytics' | 'payees' | 'settings'
+  pageKey: 'dashboard' | 'summary' | 'analytics' | 'payees' | 'tags' | 'settings'
   basePath: string
   label: string
   icon: React.ComponentType<NavIconProps>
@@ -324,6 +338,12 @@ const NAV_ITEMS: NavItemConfig[] = [
     icon: PayeesIcon,
   },
   {
+    pageKey: 'tags',
+    basePath: ROUTES.TAGS,
+    label: 'Tags',
+    icon: TagsIcon,
+  },
+  {
     pageKey: 'settings',
     basePath: ROUTES.SETTINGS,
     label: 'Settings',
@@ -342,4 +362,5 @@ export {
   SignInIcon,
   SignOutIcon,
   SummaryIcon,
+  TagsIcon,
 }

@@ -11,6 +11,7 @@ type TableName =
   | 'schedules'
   | 'categoryMergeHistory'
   | 'payeeMergeHistory'
+  | 'tagMergeHistory'
   | 'expenses'
   | 'tags'
   | 'expenseTags'
@@ -26,6 +27,7 @@ const localState = vi.hoisted(() => ({
   schedules: [] as Array<Record<string, unknown>>,
   categoryMergeHistory: [] as Array<Record<string, unknown>>,
   payeeMergeHistory: [] as Array<Record<string, unknown>>,
+  tagMergeHistory: [] as Array<Record<string, unknown>>,
   expenses: [] as Array<Record<string, unknown>>,
   tags: [] as Array<Record<string, unknown>>,
   expenseTags: [] as Array<Record<string, unknown>>,
@@ -48,6 +50,7 @@ const remoteState = vi.hoisted(() => ({
   schedules: [] as Array<Record<string, unknown>>,
   category_merge_history: [] as Array<Record<string, unknown>>,
   payee_merge_history: [] as Array<Record<string, unknown>>,
+  tag_merge_history: [] as Array<Record<string, unknown>>,
   expenses: [] as Array<Record<string, unknown>>,
   tags: [] as Array<Record<string, unknown>>,
   expense_tags: [] as Array<Record<string, unknown>>,
@@ -176,6 +179,7 @@ const dbMock = vi.hoisted(() => ({
   schedules: makeNumericTable('schedules'),
   categoryMergeHistory: makeNumericTable('categoryMergeHistory'),
   payeeMergeHistory: makeNumericTable('payeeMergeHistory'),
+  tagMergeHistory: makeNumericTable('tagMergeHistory'),
   expenses: makeNumericTable('expenses'),
   tags: makeNumericTable('tags'),
   expenseTags: makeNumericTable('expenseTags'),

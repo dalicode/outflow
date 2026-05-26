@@ -433,6 +433,7 @@ export async function migrateLocalToSupabase(
     allSchedules,
     allCategoryMergeHistory,
     allPayeeMergeHistory,
+    allTagMergeHistory,
     allExpenseTags,
   ] = await Promise.all([
     StorageService.getAllExpenses() as Promise<Expense[]>,
@@ -450,6 +451,13 @@ export async function migrateLocalToSupabase(
     StorageService.getAllSchedules(),
     StorageService.db.categoryMergeHistory.toArray(),
     StorageService.db.payeeMergeHistory.toArray(),
+    ('tagMergeHistory' in StorageService.db
+      ? (
+          StorageService.db as unknown as {
+            tagMergeHistory: { toArray: () => Promise<SyncableRow[]> }
+          }
+        ).tagMergeHistory.toArray()
+      : Promise.resolve([])) as Promise<SyncableRow[]>,
     ('expenseTags' in StorageService.db
       ? (
           StorageService.db as unknown as {
@@ -574,6 +582,15 @@ export async function migrateLocalToSupabase(
       mapperTable: 'payeeMergeHistory',
       getRows: async () => allPayeeMergeHistory,
       localTableName: 'payeeMergeHistory',
+      getPrimaryKey: (row) => (typeof row.id === 'number' ? row.id : null),
+      conflictTarget: 'user_id,local_id',
+      includeLegacyBridge: true,
+    },
+    {
+      cloudTable: 'tag_merge_history',
+      mapperTable: 'tagMergeHistory',
+      getRows: async () => allTagMergeHistory,
+      localTableName: 'tagMergeHistory',
       getPrimaryKey: (row) => (typeof row.id === 'number' ? row.id : null),
       conflictTarget: 'user_id,local_id',
       includeLegacyBridge: true,

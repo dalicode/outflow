@@ -12,6 +12,7 @@ export const TABLE_MAP: Record<string, string> = {
   schedules: 'schedules',
   categoryMergeHistory: 'category_merge_history',
   payeeMergeHistory: 'payee_merge_history',
+  tagMergeHistory: 'tag_merge_history',
   settings: 'settings',
 }
 
@@ -33,6 +34,7 @@ export const FULL_SYNC_ORDER = [
   'category_merge_history',
   'payee_merge_history',
   'tags',
+  'tag_merge_history',
   'expenses',
   'expense_tags',
 ] as const
@@ -43,6 +45,7 @@ export const FULL_SYNC_DELETE_ORDER = [
   'expense_splits',
   'category_merge_history',
   'payee_merge_history',
+  'tag_merge_history',
   'schedules',
   'fixed_expense_snapshots',
   'income_snapshots',
@@ -67,6 +70,7 @@ export const UPSERT_CONFLICT_MAP: Partial<Record<string, string>> = {
   schedules: 'user_id,local_id',
   category_merge_history: 'user_id,local_id',
   payee_merge_history: 'user_id,local_id',
+  tag_merge_history: 'user_id,local_id',
   expenses: 'user_id,local_id',
   expense_tags: 'user_id,local_id',
 }
@@ -84,5 +88,6 @@ export const CLOUD_ID_TABLES = [
   'schedules',
   'categoryMergeHistory',
   'payeeMergeHistory',
+  'tagMergeHistory',
   'expenseTags',
 ] as const

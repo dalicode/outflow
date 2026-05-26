@@ -4,7 +4,7 @@ import ModalFooter from './ModalFooter'
 interface DeleteEntityDialogProps {
   isOpen: boolean
   onClose: () => void
-  entityType: 'category' | 'payee'
+  entityType: 'category' | 'payee' | 'tag'
   entityName: string
   /** Whether there are other active entities to merge into */
   canMerge: boolean
@@ -21,7 +21,7 @@ export default function DeleteEntityDialog({
   onConfirmDelete,
   onMergeInstead,
 }: DeleteEntityDialogProps) {
-  const label = entityType === 'category' ? 'category' : 'payee'
+  const label = entityType === 'category' ? 'category' : entityType === 'payee' ? 'payee' : 'tag'
 
   return (
     <Modal

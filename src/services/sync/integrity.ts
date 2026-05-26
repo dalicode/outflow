@@ -273,6 +273,7 @@ async function logTombstoneConflicts(): Promise<number> {
     'expenseTags',
     'categoryMergeHistory',
     'payeeMergeHistory',
+    'tagMergeHistory',
   ] as const
 
   let conflicts = 0

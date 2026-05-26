@@ -28,6 +28,7 @@ const SYNC_METADATA_TABLES = [
   'settings',
   'categoryMergeHistory',
   'payeeMergeHistory',
+  'tagMergeHistory',
 ] as const
 
 export interface SyncMetadataCounts {

@@ -15,6 +15,7 @@ import type {
   Schedule,
   SyncedSettingRow,
   Tag,
+  TagMergeHistory,
 } from '../types'
 
 const deduplicateByNameMock = vi.hoisted(() => vi.fn(async () => undefined))
@@ -46,6 +47,9 @@ const categoryMergeHistoryToArrayMock = vi.hoisted(() =>
 )
 const payeeMergeHistoryToArrayMock = vi.hoisted(() =>
   vi.fn(async (): Promise<PayeeMergeHistory[]> => []),
+)
+const tagMergeHistoryToArrayMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<TagMergeHistory[]> => []),
 )
 const expenseTagsToArrayMock = vi.hoisted(() => vi.fn(async (): Promise<ExpenseTag[]> => []))
 const supabaseDeleteEqMock = vi.hoisted(() =>
@@ -115,6 +119,7 @@ vi.mock('../services/storageService', () => ({
     db: {
       categoryMergeHistory: { toArray: categoryMergeHistoryToArrayMock },
       payeeMergeHistory: { toArray: payeeMergeHistoryToArrayMock },
+      tagMergeHistory: { toArray: tagMergeHistoryToArrayMock },
       expenseTags: { toArray: expenseTagsToArrayMock },
     },
   },

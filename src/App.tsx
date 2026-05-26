@@ -19,10 +19,11 @@ import Dashboard from './features/dashboard/Dashboard'
 import ExpenseForm from './features/expenses/ExpenseForm'
 import AnalyticsPage from './features/analytics/AnalyticsPage'
 import PayeesPage from './features/payees/PayeesPage'
+import TagsPage from './features/tags/TagsPage'
 import SummaryPage from './features/summary/SummaryPage'
 import { useAppRefresh } from './hooks/useAppRefresh'
 import { useAppSessionState } from './hooks/useAppSessionState'
-import { useCategories, useExpenses, usePayees } from './hooks/useLocalData'
+import { useCategories, useExpenses, usePayees, useTags } from './hooks/useLocalData'
 import { useOptimisticExpenseDelete } from './hooks/useOptimisticExpenseDelete'
 import { useStartupSnapshots } from './hooks/useStartupSnapshots'
 import { StorageService } from './services/storageService'
@@ -166,6 +167,7 @@ function AppShell() {
   const { expenses, setExpenses, refresh: refreshExpenses } = useExpenses()
   const { categories, refresh: refreshCategories } = useCategories()
   const { payees, refresh: refreshPayees } = usePayees()
+  const { refresh: refreshTags } = useTags()
   const { forceFinanceDataRefresh } = useFinanceActions()
   const { showToast, showUndoToast } = useToasts()
   const [showForm, setShowForm] = useState(false)
@@ -203,6 +205,7 @@ function AppShell() {
     refreshExpenses,
     refreshCategories,
     refreshPayees,
+    refreshTags,
     loadSettings,
     announceAppliedScheduleUpdates,
     showToast,
@@ -408,6 +411,19 @@ function AppShell() {
                   }
                 />
                 <Route
+                  path={ROUTES.TAGS}
+                  element={
+                    <ScrollablePage
+                      onScroll={handlePageScroll}
+                      onRouteChange={resetScrollDirection}
+                      onRefresh={handlePullRefresh}
+                      bottomSpacerClassName="mobile-bottom-spacer-sm"
+                    >
+                      <TagsPage refreshExpenses={refreshExpenses} triggerSync={syncLocalChanges} />
+                    </ScrollablePage>
+                  }
+                />
+                <Route
                   path={ROUTES.SETTINGS}
                   element={
                     <ScrollablePage
@@ -432,6 +448,7 @@ function AppShell() {
                             await refreshExpenses()
                             await refreshCategories()
                             await refreshPayees()
+                            await refreshTags()
                             forceFinanceDataRefresh()
                           }}
                           triggerSync={syncLocalChanges}

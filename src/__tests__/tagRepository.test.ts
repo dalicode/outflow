@@ -15,12 +15,30 @@ type ExpenseTagRow = Record<string, unknown> & {
   deletedAt?: string | null
 }
 
+type ExpenseRow = Record<string, unknown> & {
+  id?: number
+  deletedAt?: string | null
+}
+
+type TagMergeHistoryRow = Record<string, unknown> & {
+  id?: number
+  sourceTagId: number
+  targetTagId: number
+  affectedExpenseTagIds: number[]
+  duplicateExpenseTagIds: number[]
+  revertedAt?: string | null
+}
+
 function createTable<T extends { id?: number }>(initialRows: T[] = []) {
   let rows = [...initialRows]
   let nextId =
     rows.reduce((max, row) => (typeof row.id === 'number' ? Math.max(max, row.id) : max), 0) + 1
+  const anyOfCalls: unknown[] = []
+  const bulkGetCalls: number[][] = []
 
   return {
+    anyOfCalls,
+    bulkGetCalls,
     reset: (nextRows: T[] = []) => {
       rows = [...nextRows]
       nextId =
@@ -28,15 +46,28 @@ function createTable<T extends { id?: number }>(initialRows: T[] = []) {
           (max, row) => (typeof row.id === 'number' ? Math.max(max, row.id) : max),
           0,
         ) + 1
+      anyOfCalls.length = 0
+      bulkGetCalls.length = 0
     },
     toArray: async () => rows.map((row) => ({ ...row })),
     where: (field: string) => ({
       equals: (value: unknown) => ({
         toArray: async () => rows.filter((row) => (row as Record<string, unknown>)[field] === value),
       }),
+      anyOf: (values: unknown[]) => {
+        anyOfCalls.push([...values])
+        return {
+          toArray: async () =>
+            rows.filter((row) => values.includes((row as Record<string, unknown>)[field])),
+        }
+      },
     }),
-    bulkGet: async (ids: number[]) =>
-      ids.map((id) => rows.find((row) => row.id === id)).map((row) => (row ? { ...row } : row)),
+    bulkGet: async (ids: number[]) => {
+      bulkGetCalls.push([...ids])
+      return ids
+        .map((id) => rows.find((row) => row.id === id))
+        .map((row) => (row ? { ...row } : row))
+    },
     get: async (id: number) => {
       const row = rows.find((entry) => entry.id === id)
       return row ? { ...row } : undefined
@@ -64,33 +95,45 @@ function createTable<T extends { id?: number }>(initialRows: T[] = []) {
 const mocks = vi.hoisted(() => {
   const tags = createTable<TagRow>()
   const expenseTags = createTable<ExpenseTagRow>()
+  const expenses = createTable<ExpenseRow>()
+  const tagMergeHistory = createTable<TagMergeHistoryRow>()
   const transaction = vi.fn(async (_mode: string, ...args: unknown[]) => {
-    const scope = args[args.length - 1] as () => Promise<void>
-    await scope()
+    const scope = args[args.length - 1] as () => Promise<unknown>
+    return scope()
   })
 
-  return { tags, expenseTags, transaction }
+  return { tags, expenseTags, expenses, tagMergeHistory, transaction }
 })
 
 vi.mock('../services/db/schema', () => ({
   default: {
     tags: mocks.tags,
     expenseTags: mocks.expenseTags,
+    expenses: mocks.expenses,
+    tagMergeHistory: mocks.tagMergeHistory,
     transaction: mocks.transaction,
   },
 }))
 
 import {
   addTag,
+  archiveTag,
+  getExpenseCountsForTags,
   getExpenseTagsMap,
+  getExpenseCountForTag,
   getTagIdsForExpense,
+  mergeTag,
+  revertTagMerge,
   setExpenseTags,
+  unarchiveTag,
 } from '../services/repositories/tagRepository'
 
 describe('tagRepository', () => {
   beforeEach(() => {
     mocks.tags.reset()
     mocks.expenseTags.reset()
+    mocks.expenses.reset()
+    mocks.tagMergeHistory.reset()
     vi.clearAllMocks()
   })
 
@@ -180,5 +223,134 @@ describe('tagRepository', () => {
       21: [],
       22: [],
     })
+  })
+
+  it('archives and unarchives tags', async () => {
+    mocks.tags.reset([{ id: 9, name: 'Work', normalizedName: 'work', isArchived: false, deletedAt: null }])
+
+    await archiveTag(9)
+    expect(await mocks.tags.get(9)).toEqual(expect.objectContaining({ isArchived: true }))
+
+    await unarchiveTag(9)
+    expect(await mocks.tags.get(9)).toEqual(expect.objectContaining({ isArchived: false }))
+  })
+
+  it('counts only active expenses for a tag', async () => {
+    mocks.expenseTags.reset([
+      { id: 1, expenseId: 101, tagId: 5, deletedAt: null },
+      { id: 2, expenseId: 102, tagId: 5, deletedAt: null },
+      { id: 3, expenseId: 102, tagId: 5, deletedAt: null },
+      { id: 4, expenseId: 103, tagId: 5, deletedAt: '2026-05-01T00:00:00.000Z' },
+    ])
+    mocks.expenses.reset([
+      { id: 101, deletedAt: null },
+      { id: 102, deletedAt: '2026-05-02T00:00:00.000Z' },
+      { id: 103, deletedAt: null },
+    ])
+
+    await expect(getExpenseCountForTag(5)).resolves.toBe(1)
+  })
+
+  it('counts active expenses for multiple tags in one pass', async () => {
+    mocks.expenseTags.reset([
+      { id: 1, expenseId: 101, tagId: 5, deletedAt: null },
+      { id: 2, expenseId: 102, tagId: 5, deletedAt: null },
+      { id: 3, expenseId: 101, tagId: 6, deletedAt: null },
+      { id: 4, expenseId: 103, tagId: 6, deletedAt: null },
+      { id: 5, expenseId: 103, tagId: 7, deletedAt: '2026-05-01T00:00:00.000Z' },
+    ])
+    mocks.expenses.reset([
+      { id: 101, deletedAt: null },
+      { id: 102, deletedAt: '2026-05-02T00:00:00.000Z' },
+      { id: 103, deletedAt: null },
+    ])
+
+    await expect(getExpenseCountsForTags([5, 6, 7])).resolves.toEqual({
+      5: 1,
+      6: 2,
+      7: 0,
+    })
+  })
+
+  it('caps tag and expense count lookups at 500 ids per batch', async () => {
+    const tagIds = Array.from({ length: 1001 }, (_, index) => index + 1)
+    mocks.expenseTags.reset(
+      tagIds.map((tagId) => ({
+        id: tagId,
+        expenseId: tagId,
+        tagId,
+        deletedAt: null,
+      })),
+    )
+    mocks.expenses.reset(
+      tagIds.map((expenseId) => ({
+        id: expenseId,
+        deletedAt: null,
+      })),
+    )
+
+    const counts = await getExpenseCountsForTags(tagIds)
+
+    expect(counts[1]).toBe(1)
+    expect(counts[500]).toBe(1)
+    expect(counts[501]).toBe(1)
+    expect(counts[1001]).toBe(1)
+    expect(mocks.expenseTags.anyOfCalls).toHaveLength(3)
+    expect((mocks.expenseTags.anyOfCalls[0] as unknown[])).toHaveLength(500)
+    expect((mocks.expenseTags.anyOfCalls[1] as unknown[])).toHaveLength(500)
+    expect((mocks.expenseTags.anyOfCalls[2] as unknown[])).toHaveLength(1)
+    expect(mocks.expenses.bulkGetCalls).toHaveLength(3)
+    expect(mocks.expenses.bulkGetCalls[0]).toHaveLength(500)
+    expect(mocks.expenses.bulkGetCalls[1]).toHaveLength(500)
+    expect(mocks.expenses.bulkGetCalls[2]).toHaveLength(1)
+  })
+
+  it('merges tags with duplicate-tombstone tracking and can revert safely', async () => {
+    mocks.tags.reset([
+      { id: 1, name: 'Alpha', normalizedName: 'alpha', isArchived: false, deletedAt: null },
+      { id: 2, name: 'Beta', normalizedName: 'beta', isArchived: false, deletedAt: null },
+    ])
+    mocks.expenseTags.reset([
+      { id: 11, expenseId: 1001, tagId: 1, deletedAt: null, localId: 'join-11', syncStatus: 'synced' },
+      { id: 12, expenseId: 1002, tagId: 1, deletedAt: null, localId: 'join-12', syncStatus: 'synced' },
+      { id: 13, expenseId: 1002, tagId: 2, deletedAt: null, localId: 'join-13', syncStatus: 'synced' },
+    ])
+
+    const mergeId = await mergeTag(1, 2)
+
+    const mergedRows = await mocks.expenseTags.toArray()
+    expect(mergedRows.find((row) => row.id === 11)).toEqual(
+      expect.objectContaining({ tagId: 2, deletedAt: null, syncStatus: 'pending' }),
+    )
+    expect(mergedRows.find((row) => row.id === 12)).toEqual(
+      expect.objectContaining({ tagId: 1, deletedAt: expect.any(String), syncStatus: 'pending' }),
+    )
+    expect(await mocks.tags.get(1)).toEqual(expect.objectContaining({ isArchived: true }))
+    expect(await mocks.tagMergeHistory.get(mergeId)).toEqual(
+      expect.objectContaining({
+        sourceTagId: 1,
+        targetTagId: 2,
+        affectedExpenseTagIds: [11],
+        duplicateExpenseTagIds: [12],
+        revertedAt: null,
+      }),
+    )
+
+    await revertTagMerge(mergeId)
+
+    const revertedRows = await mocks.expenseTags.toArray()
+    expect(revertedRows.find((row) => row.id === 11)).toEqual(
+      expect.objectContaining({ tagId: 1, deletedAt: null, syncStatus: 'pending' }),
+    )
+    expect(revertedRows.find((row) => row.id === 12)).toEqual(
+      expect.objectContaining({ tagId: 1, deletedAt: null, syncStatus: 'pending' }),
+    )
+    expect(await mocks.tags.get(1)).toEqual(expect.objectContaining({ isArchived: false }))
+    expect(await mocks.tagMergeHistory.get(mergeId)).toEqual(
+      expect.objectContaining({
+        revertedAt: expect.any(String),
+        syncStatus: 'pending',
+      }),
+    )
   })
 })

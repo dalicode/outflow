@@ -3,5 +3,6 @@ export const ROUTES = {
   SUMMARY: '/summary',
   ANALYTICS: '/analytics',
   PAYEES: '/payees',
+  TAGS: '/tags',
   SETTINGS: '/settings',
 } as const

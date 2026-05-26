@@ -22,6 +22,7 @@ describe('Navbar', () => {
     expect(within(sidebar).getByText('Dashboard')).toBeInTheDocument()
     expect(within(sidebar).getByText('Budget')).toBeInTheDocument()
     expect(within(sidebar).getByText('Analytics')).toBeInTheDocument()
+    expect(within(sidebar).getByText('Tags')).toBeInTheDocument()
     expect(within(sidebar).getByText('Settings')).toBeInTheDocument()
   })
 

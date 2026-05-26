@@ -339,6 +339,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     scheduleRows,
     categoryMergeRows,
     payeeMergeRows,
+    tagMergeRows,
     expenseSplitRows,
     expRows,
     expenseTagRows,
@@ -354,6 +355,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     fetchAllRowsForUser('schedules', userId),
     fetchAllRowsForUser('category_merge_history', userId),
     fetchAllRowsForUser('payee_merge_history', userId),
+    fetchOptionalRowsForUser('tag_merge_history', userId),
     fetchAllRowsForUser('expense_splits', userId),
     fetchAllRowsForUser('expenses', userId),
     fetchOptionalRowsForUser('expense_tags', userId),
@@ -478,6 +480,12 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     await mergeRows(
       'payeeMergeHistory',
       payeeMergeRows.map((row) => fromCloud('payee_merge_history', row, identityMaps)),
+    )
+  }
+  if (tagMergeRows.length > 0) {
+    await mergeRows(
+      'tagMergeHistory',
+      tagMergeRows.map((row) => fromCloud('tag_merge_history', row, identityMaps)),
     )
   }
   if (expRows.length > 0) {

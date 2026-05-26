@@ -119,6 +119,18 @@ export interface PayeeMergeHistory extends SyncedRecord {
   updatedAt?: string
 }
 
+export interface TagMergeHistory extends SyncedRecord {
+  id?: number
+  cloudId?: string | null
+  sourceTagId: number
+  targetTagId: number
+  affectedExpenseTagIds: number[]
+  duplicateExpenseTagIds: number[]
+  createdAt: string
+  revertedAt?: string | null
+  updatedAt?: string
+}
+
 // ── Fixed Expenses ──────────────────────────────────────────────────────────
 
 export interface FixedExpense extends SyncedRecord {

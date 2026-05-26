@@ -76,7 +76,7 @@ export default function MobileBottomNav({
     ['summary', 'dashboard'].includes(pageKey),
   )
   const mobileSecondaryItems = NAV_ITEMS.filter(({ pageKey }) =>
-    ['analytics', 'payees', 'settings'].includes(pageKey),
+    ['analytics', 'payees', 'tags', 'settings'].includes(pageKey),
   )
   const shouldAutoHideAfterScroll = !isScrolling && scrollDirection === 'down'
   const isMobileNavBlocked = hidden

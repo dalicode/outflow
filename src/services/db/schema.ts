@@ -12,6 +12,7 @@ import type {
   PayeeMergeHistory,
   SavingsSnapshot,
   Schedule,
+  TagMergeHistory,
   SyncedSettingRow,
   Tag,
   SyncQueueItem,
@@ -179,6 +180,7 @@ class OutflowDB extends Dexie {
   syncQueue!: Table<SyncQueueItem, number>
   categoryMergeHistory!: Table<CategoryMergeHistory, number>
   payeeMergeHistory!: Table<PayeeMergeHistory, number>
+  tagMergeHistory!: Table<TagMergeHistory, number>
   expenseSplits!: Table<ExpenseSplit, number>
   tags!: Table<Tag, number>
   expenseTags!: Table<ExpenseTag, number>
@@ -549,6 +551,32 @@ class OutflowDB extends Dexie {
       .upgrade(async (tx) => {
         await migrateV22NotesFields(tx)
       })
+
+    this.version(23).stores({
+      expenses:
+        '++id, date, splitId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
+      expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt',
+      tags: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      expenseTags:
+        '++id, expenseId, tagId, localId, cloudId, syncStatus, deletedAt, [expenseId+tagId]',
+      settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
+      fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
+      categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      payees: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
+      syncQueue: '++id, table, timestamp',
+      fixedExpenseSnapshots:
+        '++id, [fixedExpenseId+year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      schedules:
+        '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
+      incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      savingsSnapshots:
+        '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      categoryMergeHistory:
+        '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
+      payeeMergeHistory:
+        '++id, sourcePayeeId, targetPayeeId, localId, cloudId, syncStatus, deletedAt',
+      tagMergeHistory: '++id, sourceTagId, targetTagId, localId, cloudId, syncStatus, deletedAt',
+    })
 
     this.on('populate', () => {
       const now = new Date().toISOString()

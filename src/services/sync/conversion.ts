@@ -12,6 +12,7 @@ import type {
   SavingsSnapshot,
   Schedule,
   Tag,
+  TagMergeHistory,
 } from '../../types'
 import { normalizeNameForSync } from '../../utils/syncMetadata'
 import type { FromCloudMaps, ToCloudMaps } from './types'
@@ -290,6 +291,17 @@ export function toCloud(
       reverted_at: p.revertedAt ?? null,
     }
   }
+  if (table === 'tagMergeHistory') {
+    const p = payload as unknown as TagMergeHistory
+    return {
+      ...base,
+      source_tag_id: resolveCloudRelationshipId(p.sourceTagId, maps?.tagIdToCloudId),
+      target_tag_id: resolveCloudRelationshipId(p.targetTagId, maps?.tagIdToCloudId),
+      affected_expense_tag_ids: p.affectedExpenseTagIds,
+      duplicate_expense_tag_ids: p.duplicateExpenseTagIds,
+      reverted_at: p.revertedAt ?? null,
+    }
+  }
   if (table === 'settings') {
     const baseSettings = buildCloudSettingsBase(payload, userId)
     return {
@@ -477,6 +489,16 @@ export function fromCloud(
       targetPayeeId: resolvePay(row.target_payee_id) ?? 0,
       affectedExpenseIds: toNumberArray(row.affected_expense_ids),
       affectedSplitIds: toNumberArray(row.affected_split_ids),
+      revertedAt: row.reverted_at ?? null,
+    }
+  }
+  if (table === 'tag_merge_history') {
+    return {
+      ...syncMetadata,
+      sourceTagId: resolveTag(row.source_tag_id) ?? 0,
+      targetTagId: resolveTag(row.target_tag_id) ?? 0,
+      affectedExpenseTagIds: toNumberArray(row.affected_expense_tag_ids),
+      duplicateExpenseTagIds: toNumberArray(row.duplicate_expense_tag_ids),
       revertedAt: row.reverted_at ?? null,
     }
   }

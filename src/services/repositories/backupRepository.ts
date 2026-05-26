@@ -12,6 +12,7 @@ import type {
   SavingsSnapshot,
   Schedule,
   Tag,
+  TagMergeHistory,
   SyncQueueItem,
 } from '../../types'
 import type { Setting } from '../db/schema'
@@ -221,6 +222,13 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
           ...normalizeImportedSyncMetadata(row, { now }),
         }) as unknown as PayeeMergeHistory,
     ),
+    tagMergeHistory: asBackupRows(payload.tagMergeHistory).map(
+      (row) =>
+        ({
+          ...row,
+          ...normalizeImportedSyncMetadata(row, { now }),
+        }) as unknown as TagMergeHistory,
+    ),
     expenseTags: asBackupRows(payload.expenseTags).map(
       (row) =>
         ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as ExpenseTag,
@@ -262,6 +270,11 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     syncQueue: await db.syncQueue.toArray(),
     categoryMergeHistory: await db.categoryMergeHistory.toArray(),
     payeeMergeHistory: await db.payeeMergeHistory.toArray(),
+    tagMergeHistory:
+      'tagMergeHistory' in db
+        ? await (db as unknown as { tagMergeHistory: { toArray: () => Promise<TagMergeHistory[]> } })
+            .tagMergeHistory.toArray()
+        : [],
     tags: tagsTable ? await tagsTable.toArray() : [],
     expenseTags: expenseTagsTable ? await expenseTagsTable.toArray() : [],
   }
@@ -376,6 +389,11 @@ export async function importAllData(
     }
     if (normalizedPayload.payeeMergeHistory) {
       await db.payeeMergeHistory.bulkPut(normalizedPayload.payeeMergeHistory as PayeeMergeHistory[])
+    }
+    if (normalizedPayload.tagMergeHistory && 'tagMergeHistory' in db) {
+      await (
+        db as unknown as { tagMergeHistory: { bulkPut: (rows: TagMergeHistory[]) => Promise<number> } }
+      ).tagMergeHistory.bulkPut(normalizedPayload.tagMergeHistory as TagMergeHistory[])
     }
 
     if (!queueFullSync && normalizedPayload.syncQueue) {

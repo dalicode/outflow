@@ -228,4 +228,62 @@ describe('sync conversion archivedAt removal', () => {
       }),
     )
   })
+
+  it('converts tag merge history between local and cloud shapes', () => {
+    const cloudTagMerge = toCloud(
+      'tagMergeHistory',
+      {
+        sourceTagId: 10,
+        targetTagId: 20,
+        affectedExpenseTagIds: [31, 32],
+        duplicateExpenseTagIds: [33],
+        revertedAt: null,
+      },
+      'user-1',
+      {
+        tagIdToCloudId: new Map([
+          [10, 'cloud-tag-10'],
+          [20, 'cloud-tag-20'],
+        ]),
+      },
+    )
+
+    expect(cloudTagMerge).toEqual(
+      expect.objectContaining({
+        source_tag_id: 'cloud-tag-10',
+        target_tag_id: 'cloud-tag-20',
+        affected_expense_tag_ids: [31, 32],
+        duplicate_expense_tag_ids: [33],
+      }),
+    )
+
+    const localTagMerge = fromCloud(
+      'tag_merge_history',
+      {
+        id: 'tag-merge-cloud-1',
+        local_id: 'tag-merge-local-1',
+        source_tag_id: 'cloud-tag-10',
+        target_tag_id: 'cloud-tag-20',
+        affected_expense_tag_ids: ['44', '45'],
+        duplicate_expense_tag_ids: ['46'],
+        reverted_at: null,
+        updated_at: '2026-05-01T00:00:00.000Z',
+      },
+      {
+        cloudIdToTagId: new Map([
+          ['cloud-tag-10', 101],
+          ['cloud-tag-20', 202],
+        ]),
+      },
+    )
+
+    expect(localTagMerge).toEqual(
+      expect.objectContaining({
+        sourceTagId: 101,
+        targetTagId: 202,
+        affectedExpenseTagIds: [44, 45],
+        duplicateExpenseTagIds: [46],
+      }),
+    )
+  })
 })

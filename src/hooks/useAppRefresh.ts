@@ -7,6 +7,7 @@ interface UseAppRefreshParams {
   refreshExpenses: () => Promise<void>
   refreshCategories: () => Promise<void>
   refreshPayees: () => Promise<void>
+  refreshTags: () => Promise<void>
   loadSettings: () => Promise<void>
   announceAppliedScheduleUpdates: (
     notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>,
@@ -26,6 +27,7 @@ export function useAppRefresh({
   refreshExpenses,
   refreshCategories,
   refreshPayees,
+  refreshTags,
   loadSettings,
   announceAppliedScheduleUpdates,
   showToast,
@@ -41,11 +43,13 @@ export function useAppRefresh({
       refreshExpenses(),
       refreshCategories(),
       refreshPayees(),
+      refreshTags(),
       loadSettings(),
     ]).then(() => forceFinanceDataRefresh?.())
   }, [
     pullAppliedCount,
     refreshPayees,
+    refreshTags,
     refreshExpenses,
     refreshCategories,
     loadSettings,
@@ -58,7 +62,7 @@ export function useAppRefresh({
         console.error,
       )
       await StorageService.rolloverSnapshots?.().catch(console.error)
-      await Promise.all([refreshExpenses(), refreshCategories(), refreshPayees()])
+      await Promise.all([refreshExpenses(), refreshCategories(), refreshPayees(), refreshTags()])
       forceFinanceDataRefresh?.()
 
       announceAppliedScheduleUpdates(appliedNotices ?? [])
@@ -84,6 +88,7 @@ export function useAppRefresh({
     refreshExpenses,
     refreshCategories,
     refreshPayees,
+    refreshTags,
     announceAppliedScheduleUpdates,
     syncNow,
     showToast,
