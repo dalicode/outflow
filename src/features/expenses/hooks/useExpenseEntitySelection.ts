@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { ComboboxOption } from '../components/inputs/comboboxUtils'
+import type { ComboboxOption } from '../../../components/inputs/comboboxUtils'
 import { getMostLikelyRelatedEntityId, getRecentEntityIds } from '../utils/entityHistory'
-import { type MatchConfidence, findBestPayeeMatch } from '../utils/payeeMatching'
-import type { Category, Expense, Payee } from '../types'
+import { type MatchConfidence, findBestPayeeMatch } from '../../payees/utils/payeeMatching'
+import type { Category, Expense, Payee } from '../../../types'
 
 interface UseExpenseEntitySelectionParams {
   categories: Category[]

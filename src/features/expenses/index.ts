@@ -1,4 +1,4 @@
-export { default as AddEntityButton } from './AddEntityButton'
-export { default as CategoryModal } from './CategoryModal'
 export { default as ExpenseForm } from './ExpenseForm'
-export { default as PayeeModal } from './PayeeModal'
+export { default as ExpenseEntityFields } from './components/ExpenseEntityFields'
+export { default as PayeeSuggestionBanner } from './components/PayeeSuggestionBanner'
+export { useExpenseEntitySelection } from './hooks/useExpenseEntitySelection'

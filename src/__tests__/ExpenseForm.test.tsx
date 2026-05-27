@@ -130,11 +130,11 @@ vi.mock('../components/inputs/TagMultiSelect', () => ({
   ),
 }))
 
-vi.mock('../features/expenses/CategoryModal', () => ({
+vi.mock('../features/categories/CategoryModal', () => ({
   default: () => null,
 }))
 
-vi.mock('../features/expenses/PayeeModal', () => ({
+vi.mock('../features/payees/PayeeModal', () => ({
   default: () => null,
 }))
 

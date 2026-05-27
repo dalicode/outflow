@@ -6,7 +6,7 @@ import {
   getPayeeSearchTerms,
   normalizePayeeText,
   tokenOverlapScore,
-} from '../utils/payeeMatching'
+} from '../features/payees/utils/payeeMatching'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

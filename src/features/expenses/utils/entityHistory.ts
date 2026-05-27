@@ -1,4 +1,4 @@
-import type { Expense } from '../types'
+import type { Expense } from '../../../types'
 
 type EntityField = 'categoryId' | 'payeeId'
 

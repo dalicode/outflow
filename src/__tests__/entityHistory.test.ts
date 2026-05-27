@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getMostLikelyRelatedEntityId, getRecentEntityIds } from '../utils/entityHistory'
+import {
+  getMostLikelyRelatedEntityId,
+  getRecentEntityIds,
+} from '../features/expenses/utils/entityHistory'
 
 describe('entityHistory', () => {
   it('returns the most recent active entity ids', () => {

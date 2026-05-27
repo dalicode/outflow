@@ -1,5 +1,5 @@
-import type { MatchConfidence } from '../../utils/payeeMatching'
-import type { Payee } from '../../types'
+import type { MatchConfidence } from '../../payees/utils/payeeMatching'
+import type { Payee } from '../../../types'
 
 interface PayeeSuggestionBannerProps {
   payeeId: string

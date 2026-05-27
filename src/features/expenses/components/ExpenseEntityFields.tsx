@@ -1,7 +1,7 @@
-import DesktopDropdown from '../inputs/DesktopDropdown'
-import MobileEntityPicker from '../inputs/MobileEntityPicker'
-import SingleSelectTrigger from '../inputs/SingleSelectTrigger'
-import type { ComboboxOption } from '../inputs/comboboxUtils'
+import DesktopDropdown from '../../../components/inputs/DesktopDropdown'
+import MobileEntityPicker from '../../../components/inputs/MobileEntityPicker'
+import SingleSelectTrigger from '../../../components/inputs/SingleSelectTrigger'
+import type { ComboboxOption } from '../../../components/inputs/comboboxUtils'
 
 interface ExpenseEntityFieldsProps {
   payeeId: string

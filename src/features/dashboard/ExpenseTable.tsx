@@ -10,12 +10,11 @@ import {
   useRef,
   useState,
 } from 'react'
-import { createPortal } from 'react-dom'
-import TagMultiSelect from '../../components/inputs/TagMultiSelect'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import ContextMenu from './components/ContextMenu'
 import DataTable from './components/DataTable'
+import TagsEditorPopover from './components/TagsEditorPopover'
 import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
 import { useContextMenu } from './hooks/useContextMenu'
@@ -33,6 +32,12 @@ import {
 } from './splitDisplayRows'
 import { useExpenseCellEditing } from './useExpenseCellEditing'
 import { StorageService } from '../../services/storageService'
+import {
+  findTagsAnchorElement,
+  getTagIds,
+  getTagsAnchorRect,
+  haveSameTagIds,
+} from './utils/tagsEditor'
 
 const BulkEditExpensesModal = lazy(() => import('./BulkEditExpensesModal'))
 
@@ -55,31 +60,6 @@ const TAGS_POPOVER_IDEAL_HEIGHT = 120
 const TAGS_POPOVER_MAX_HEIGHT = 320
 const TAGS_POPOVER_MIN_USABLE_HEIGHT = 120
 const TAGS_POPOVER_GAP = 6
-
-function getTagsAnchorRect(anchorElement: HTMLElement): DOMRect {
-  const tableCell = anchorElement.closest('td')
-  if (tableCell instanceof HTMLTableCellElement) {
-    return tableCell.getBoundingClientRect()
-  }
-  return anchorElement.getBoundingClientRect()
-}
-
-function findTagsAnchorElement(expenseId: number): HTMLElement | null {
-  const target = document.querySelector(`[data-expense-id="${expenseId}"][data-field="tags"]`)
-  return target instanceof HTMLElement ? target : null
-}
-
-function getTagIds(tags: Tag[]): number[] {
-  return tags.map((tag) => tag.id).filter((tagId): tagId is number => typeof tagId === 'number')
-}
-
-function haveSameTagIds(left: number[], right: number[]): boolean {
-  if (left.length !== right.length) return false
-  const leftSet = new Set(left)
-  const rightSet = new Set(right)
-  if (leftSet.size !== rightSet.size) return false
-  return left.every((tagId) => rightSet.has(tagId))
-}
 
 interface ExpenseTableProps {
   expenses: Expense[]
@@ -1139,61 +1119,18 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           menuRef={menuRef}
         />
       )}
-      {!isMobile && activeTagsEditor && tagsEditorPosition
-        ? createPortal(
-            <div
-              ref={tagsEditorRef}
-              role="dialog"
-              aria-label="Edit tags"
-              data-testid="tags-editor-popover"
-              data-placement={tagsEditorPosition.placement}
-              className="rounded-theme-large border border-theme-border bg-theme-surface p-3 shadow-lg"
-              style={{
-                position: 'fixed',
-                zIndex: 60,
-                left: tagsEditorPosition.left,
-                width: tagsEditorPosition.width,
-                maxHeight: tagsEditorPosition.maxHeight,
-                top: tagsEditorPosition.top,
-                bottom: tagsEditorPosition.bottom,
-              }}
-            >
-              <div className="space-y-2">
-                <TagMultiSelect
-                  tags={activeTags}
-                  selectedTagIds={activeTagsEditor.draftTagIds}
-                  onChange={handleTagsEditorChange}
-                  onCreate={handleCreateTagFromEditor}
-                  variant="inline"
-                  placeholder="Search or create tags"
-                  controlClassName="rounded-theme-medium border border-theme-border bg-theme-background px-2 py-1.5"
-                  autoFocus
-                  onCancel={cancelTagsEditor}
-                />
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    className="btn-cancel-sm px-3 py-1.5 text-xs"
-                    onClick={cancelTagsEditor}
-                    data-testid="tags-editor-cancel"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary-sm flex-1 px-3 py-1.5 text-xs"
-                    onClick={() => void handleSaveTagsEditor()}
-                    disabled={isSavingTagsEditor}
-                    data-testid="tags-editor-save"
-                  >
-                    {isSavingTagsEditor ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <TagsEditorPopover
+        isMobile={isMobile}
+        activeTagsEditor={activeTagsEditor}
+        tagsEditorPosition={tagsEditorPosition}
+        tagsEditorRef={tagsEditorRef}
+        activeTags={activeTags}
+        isSavingTagsEditor={isSavingTagsEditor}
+        onChange={handleTagsEditorChange}
+        onCreate={handleCreateTagFromEditor}
+        onCancel={cancelTagsEditor}
+        onSave={handleSaveTagsEditor}
+      />
     </div>
   )
 })

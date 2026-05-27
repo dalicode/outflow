@@ -7,7 +7,7 @@ import ModalFooter from '../../components/ui/ModalFooter'
 import { useToasts } from '../../context/toastContext'
 import { StorageService } from '../../services/storageService'
 import type { Payee } from '../../types'
-import AddEntityButton from './AddEntityButton'
+import AddEntityButton from '../../components/ui/AddEntityButton'
 
 interface PayeeModalProps {
   payees: Payee[]

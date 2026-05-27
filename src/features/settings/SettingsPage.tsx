@@ -1,7 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import './settings.css'
 import DatePicker from '../../components/inputs/DatePicker'
-import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import Card from '../../components/ui/Card'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import LazyModalFallback from '../../components/ui/LazyModalFallback'
@@ -17,7 +16,6 @@ import { StorageService } from '../../services/storageService'
 import { clearUserCloudData } from '../../services/syncService'
 import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
-import type { ComboboxOption } from '../../components/inputs'
 import { useBackup } from '../importExport/hooks/useBackup'
 import { useCsvImport } from '../importExport/hooks/useCsvImport'
 import ImportLogPanel from '../importExport/ImportLogPanel'
@@ -25,43 +23,18 @@ import { downloadCSV, expenseToRow } from '../importExport/utils/csvHelpers'
 import ScheduleList from './ScheduleList'
 import ThemeSelector from './ThemeSelector'
 import AboutSection from './AboutSection'
+import SettingsSelectRow, {
+  CURRENCY_OPTIONS,
+  DATE_FORMAT_OPTIONS,
+  DECIMAL_OPTIONS,
+  FONT_OPTIONS,
+  FONT_SIZE_OPTIONS,
+  THOUSAND_SEPARATOR_OPTIONS,
+} from './components/SettingsSelectRow'
 
 const ImportReviewModal = lazy(() => import('../importExport/ImportReviewModal'))
 const EditHistoricalDataModal = lazy(() => import('./EditHistoricalDataModal'))
 const ScheduleModal = lazy(() => import('./ScheduleModal'))
-
-interface RowProps {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  options: ComboboxOption[]
-}
-
-function Row({ label, value, onChange, options }: RowProps) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-xs text-theme-muted">{label}</span>
-      <div className="shrink-0">
-        <DesktopDropdown
-          value={value}
-          options={options}
-          onChange={(nextValue) => {
-            if (typeof nextValue === 'string') {
-              onChange(nextValue)
-            }
-          }}
-          placeholder={label}
-          emptyMessage={`No ${label.toLowerCase()} options available.`}
-          ariaLabel={label}
-          preserveOrder
-          searchable={false}
-          triggerSize="sm"
-          triggerClassName="w-auto min-w-[8rem]"
-        />
-      </div>
-    </div>
-  )
-}
 
 interface SettingsPageProps {
   expenses: Expense[]
@@ -321,72 +294,41 @@ export default function SettingsPage({
             Display
           </p>
 
-          <Row
+          <SettingsSelectRow
             label="Font"
             value={settings.font}
             onChange={(v) => void saveSyncedSettings({ font: v })}
-            options={[
-              { id: 'system', label: 'System UI' },
-              { id: 'sans', label: 'Sans-serif' },
-              { id: 'serif', label: 'Serif' },
-              { id: 'mono', label: 'Monospace' },
-              { id: 'roboto', label: 'Roboto' },
-              { id: 'georgia', label: 'Georgia' },
-              { id: 'financeMono', label: 'Data Mono' },
-            ]}
+            options={FONT_OPTIONS}
           />
-          <Row
+          <SettingsSelectRow
             label="Font size"
             value={settings.fontSize}
             onChange={(v) => void saveSyncedSettings({ fontSize: v })}
-            options={[
-              { id: '0.85', label: 'Small' },
-              { id: '1', label: 'Medium' },
-              { id: '1.15', label: 'Large' },
-              { id: '1.3', label: 'X-Large' },
-            ]}
+            options={FONT_SIZE_OPTIONS}
           />
-          <Row
+          <SettingsSelectRow
             label="Currency"
             value={settings.currencySymbol}
             onChange={(v) => void saveSyncedSettings({ currencySymbol: v })}
-            options={[
-              { id: '$', label: '$ Dollar' },
-              { id: '€', label: '€ Euro' },
-              { id: '£', label: '£ Pound' },
-              { id: '¥', label: '¥ Yen' },
-              { id: '₹', label: '₹ Rupee' },
-            ]}
+            options={CURRENCY_OPTIONS}
           />
-          <Row
+          <SettingsSelectRow
             label="Decimals"
             value={settings.decimalPlaces}
             onChange={(v) => void saveSyncedSettings({ decimalPlaces: v })}
-            options={[
-              { id: '0', label: '0' },
-              { id: '1', label: '1' },
-              { id: '2', label: '2' },
-            ]}
+            options={DECIMAL_OPTIONS}
           />
-          <Row
+          <SettingsSelectRow
             label="Separator"
             value={settings.thousandSep}
             onChange={(v) => void saveSyncedSettings({ thousandSep: v })}
-            options={[
-              { id: ',', label: '1,000' },
-              { id: '.', label: '1.000' },
-              { id: ' ', label: '1 000' },
-            ]}
+            options={THOUSAND_SEPARATOR_OPTIONS}
           />
-          <Row
+          <SettingsSelectRow
             label="Date format"
             value={settings.dateFormat}
             onChange={(v) => void saveSyncedSettings({ dateFormat: v })}
-            options={[
-              { id: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
-              { id: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
-              { id: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
-            ]}
+            options={DATE_FORMAT_OPTIONS}
           />
           <p className="text-xs text-theme-muted mt-2">
             Preview: {formatAmount(1234567.89)} · {formatDate(getLocalToday())}

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import PayeeModal from '../features/expenses/PayeeModal'
+import PayeeModal from '../features/payees/PayeeModal'
 import PayeesPage from '../features/payees/PayeesPage'
 
 const {

@@ -5,7 +5,7 @@
  * Returns a confidence score and whether the match needs user confirmation.
  */
 
-import type { Payee } from '../types'
+import type { Payee } from '../../../types'
 
 // ── Noise word sets ──────────────────────────────────────────────────────────
 

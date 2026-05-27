@@ -5,7 +5,7 @@ import {
   normalizePayeeText,
   fuzzySimilarity,
   tokenOverlapScore,
-} from '../../../utils/payeeMatching'
+} from '../../payees/utils/payeeMatching'
 
 export type ImportPayeeConfidence = 'confident' | 'needs_review' | 'no_match'
 
