@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ScheduleModal from '../features/settings/ScheduleModal'
 import { StorageService } from '../services/storageService'
 
+const mockExpenses = [
+  { id: 101, date: '2026-05-20', categoryId: 1, payeeId: 1 },
+  { id: 102, date: '2026-05-18', categoryId: 2, payeeId: 2 },
+]
+
 vi.mock('../services/storageService', () => ({
   StorageService: {
     getActiveFixedExpenses: vi.fn(() => Promise.resolve([])),
@@ -31,6 +36,19 @@ vi.mock('../context/settingsContext', () => ({
     formatDate: (iso: string) => iso,
     formatAmount: (n: number) => String(n),
     getNumberColorClass: () => 'text-theme-text',
+  }),
+}))
+
+vi.mock('../hooks/useLocalData', () => ({
+  useExpenses: () => ({
+    expenses: mockExpenses,
+  }),
+  usePayees: () => ({
+    payees: [
+      { id: 1, name: 'Amazon' },
+      { id: 2, name: 'Supermarket' },
+    ],
+    refresh: vi.fn(() => Promise.resolve()),
   }),
 }))
 
@@ -63,21 +81,30 @@ vi.mock('../components/inputs/MoneyInput', () => ({
 }))
 
 describe('ScheduleModal', () => {
+  const openTypeDropdown = (): void => {
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule type' }))
+  }
+
+  const selectScheduleType = async (label: string): Promise<void> => {
+    openTypeDropdown()
+    fireEvent.click(await screen.findByRole('button', { name: label }))
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renders expense type option in dropdown', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
-    expect(screen.getByText('Expense')).toBeInTheDocument()
+    openTypeDropdown()
+    expect(await screen.findByRole('button', { name: 'Expense' })).toBeInTheDocument()
     await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
   })
 
   it('shows expense fields (date, payee, category, notes, amount) when type is expense', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
-    const typeSelect = screen.getAllByRole('combobox')[0]
-    fireEvent.change(typeSelect, { target: { value: 'expense' } })
+    await selectScheduleType('Expense')
 
     await waitFor(() => {
       expect(screen.getByText('Date')).toBeInTheDocument()
@@ -91,19 +118,41 @@ describe('ScheduleModal', () => {
   it('shows notes field for expense type', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
-    const typeSelect = screen.getAllByRole('combobox')[0]
-    fireEvent.change(typeSelect, { target: { value: 'expense' } })
+    await selectScheduleType('Expense')
 
     await waitFor(() => {
       expect(screen.getByText('Notes')).toBeInTheDocument()
     })
   })
 
+  it('shows recent payees in the expense schedule payee dropdown', async () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
+
+    await selectScheduleType('Expense')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select payee' })[0])
+
+    expect(await screen.findByText('Recent')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Amazon' })).toBeInTheDocument()
+  })
+
+  it('auto-selects a payee from notes using the expense form matching logic', async () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
+
+    await selectScheduleType('Expense')
+
+    const notesInput = screen.getByTestId('schedule-notes-input')
+    fireEvent.change(notesInput, { target: { value: 'Amazon marketplace order' } })
+    fireEvent.blur(notesInput)
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'Amazon' }).length).toBeGreaterThan(0)
+    })
+  })
+
   it('validates category is required for expense schedules', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
-    const typeSelect = screen.getAllByRole('combobox')[0]
-    fireEvent.change(typeSelect, { target: { value: 'expense' } })
+    await selectScheduleType('Expense')
 
     await waitFor(() => {
       expect(screen.getByText('Amount')).toBeInTheDocument()
@@ -133,6 +182,19 @@ describe('ScheduleModal', () => {
     await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
   })
 
+  it('closes an open desktop dropdown when clicking elsewhere inside the modal', async () => {
+    render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
+
+    openTypeDropdown()
+    expect(await screen.findByRole('button', { name: 'Expense' })).toBeInTheDocument()
+
+    fireEvent.pointerDown(screen.getByText('Add Schedule'))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Expense' })).not.toBeInTheDocument()
+    })
+  })
+
   it('clamps oversized amount via money input before schedule save', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
@@ -153,8 +215,7 @@ describe('ScheduleModal', () => {
   it('keeps savings rate validation independent of money cap', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
 
-    const typeSelect = screen.getAllByRole('combobox')[0]
-    fireEvent.change(typeSelect, { target: { value: 'savingsRate' } })
+    await selectScheduleType('Auto Savings %')
 
     const valueInput = screen.getByPlaceholderText('e.g. 25')
     fireEvent.change(valueInput, { target: { value: '101' } })

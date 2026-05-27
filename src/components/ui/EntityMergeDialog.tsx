@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DesktopDropdown from '../inputs/DesktopDropdown'
 import { cn } from '../../utils/cn'
 import Modal from './Modal'
 import ModalFooter from './ModalFooter'
@@ -34,6 +35,10 @@ export default function EntityMergeDialog({
   const label =
     entityType === 'category' ? 'category' : entityType === 'payee' ? 'payee' : 'tag'
   const Label = entityType === 'category' ? 'Category' : entityType === 'payee' ? 'Payee' : 'Tag'
+  const targetDropdownOptions = targetOptions.map((target) => ({
+    id: target.id,
+    label: target.name,
+  }))
 
   const handleClose = () => {
     setSelectedTargetId('')
@@ -108,18 +113,16 @@ export default function EntityMergeDialog({
           <label className="text-xs font-medium text-theme-muted uppercase tracking-wider">
             Merge into
           </label>
-          <select
-            value={selectedTargetId}
-            onChange={(e) => setSelectedTargetId(e.target.value ? Number(e.target.value) : '')}
-            className="input-md w-full cursor-pointer"
-          >
-            <option value="">Select {label}…</option>
-            {targetOptions.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+          <DesktopDropdown
+            value={typeof selectedTargetId === 'number' ? selectedTargetId : undefined}
+            options={targetDropdownOptions}
+            placeholder={`Select ${label}...`}
+            emptyMessage={`No ${label} options available.`}
+            ariaLabel={`Merge into ${label}`}
+            preserveOrder
+            triggerClassName="input-md w-full"
+            onChange={(value) => setSelectedTargetId(typeof value === 'number' ? value : '')}
+          />
         </div>
 
         {/* Warning */}

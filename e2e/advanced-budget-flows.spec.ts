@@ -1,5 +1,13 @@
 import { test } from '@playwright/test'
-import { addPayee, expect, getAllExpenses, getPayees, resetAppState, seedExpenses } from './helpers'
+import {
+  addPayee,
+  expect,
+  getAllExpenses,
+  getPayees,
+  resetAppState,
+  seedExpenses,
+  selectDesktopDropdownOption,
+} from './helpers'
 
 test.describe('Advanced budget flows', () => {
   test('bulk edit applies notes updates to selected expenses', async ({ page }) => {
@@ -62,7 +70,7 @@ test.describe('Advanced budget flows', () => {
 
     const mergeDialog = page.getByRole('dialog', { name: 'Merge Payee' })
     await expect(mergeDialog).toBeVisible()
-    await mergeDialog.locator('select').selectOption(String(betaId))
+    await selectDesktopDropdownOption(page, 'Merge into payee', 'Beta Market')
     await mergeDialog.getByRole('button', { name: 'Merge Payee' }).click()
     await expect(mergeDialog).not.toBeVisible()
 

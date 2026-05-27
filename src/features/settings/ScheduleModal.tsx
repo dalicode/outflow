@@ -2,17 +2,18 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import DatePicker from '../../components/inputs/DatePicker'
-import MobileEntityPicker from '../../components/inputs/MobileEntityPicker'
-import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
+import ExpenseEntityFields from '../../components/expense/ExpenseEntityFields'
+import PayeeSuggestionBanner from '../../components/expense/PayeeSuggestionBanner'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import MoneyInput from '../../components/inputs/MoneyInput'
 import { useSettings } from '../../context/settingsContext'
+import { useExpenseEntitySelection } from '../../hooks/useExpenseEntitySelection'
 import { StorageService } from '../../services/storageService'
 import { cn } from '../../utils/cn'
 import { toISODate, parseISODate } from '../../utils/historicalDataHelpers'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 
-import { usePayees } from '../../hooks/useLocalData'
+import { useExpenses, usePayees } from '../../hooks/useLocalData'
 import type { Schedule, FixedExpense, Category } from '../../types'
 
 const SCHEDULE_TYPES = [
@@ -21,6 +22,11 @@ const SCHEDULE_TYPES = [
   { value: 'fixedExpense', label: 'Fixed Expense' },
   { value: 'expense', label: 'Expense' },
 ]
+
+const SCHEDULE_TYPE_OPTIONS = SCHEDULE_TYPES.map((typeOption) => ({
+  id: typeOption.value,
+  label: typeOption.label,
+}))
 
 // ── Main modal ────────────────────────────────────────────────────────────
 
@@ -52,6 +58,7 @@ export default function ScheduleModal({
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [showPayeePicker, setShowPayeePicker] = useState(false)
 
+  const { expenses } = useExpenses()
   const { payees, refresh: refreshPayees } = usePayees()
 
   const now = new Date()
@@ -64,30 +71,37 @@ export default function ScheduleModal({
       (editSchedule.effectiveYear === currentYear && editSchedule.effectiveMonth <= currentMonth)
     : false
 
-  const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
-  const activePayees = useMemo(
-    () => payees.filter((p) => !p.isArchived).sort((a, b) => a.name.localeCompare(b.name)),
-    [payees],
-  )
-  const categoryOptions = useMemo(
+  const {
+    categoryOptions,
+    payeeOptions,
+    recentCategoryOptions,
+    recentPayeeOptions,
+    selectedCategoryName,
+    selectedPayeeName,
+    payeeSuggestion,
+    payeeSuggestionConfidence,
+    runPayeeMatch,
+    handlePayeeManualSelect,
+    acceptSuggestion,
+    dismissSuggestion,
+    resetSuggestions,
+  } = useExpenseEntitySelection({
+    categories,
+    payees,
+    expenses,
+    categoryId,
+    payeeId,
+    onCategoryIdChange: setCategoryId,
+    onPayeeIdChange: setPayeeId,
+  })
+  const fixedExpenseOptions = useMemo(
     () =>
-      activeCategories.map((c) => ({
-        id: c.id as number,
-        label: c.name,
+      fixedExpenses.map((expense) => ({
+        id: expense.id as number,
+        label: expense.name,
       })),
-    [activeCategories],
+    [fixedExpenses],
   )
-  const payeeOptions = useMemo(
-    () =>
-      activePayees.map((p) => ({
-        id: p.id as number,
-        label: p.name,
-      })),
-    [activePayees],
-  )
-
-  const selectedCategoryName = categoryOptions.find((o) => o.id === Number(categoryId))?.label
-  const selectedPayeeName = payeeOptions.find((o) => o.id === Number(payeeId))?.label
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
 
   const reset = useCallback(() => {
@@ -98,8 +112,9 @@ export default function ScheduleModal({
     setNotes('')
     setCategoryId('')
     setPayeeId('')
+    resetSuggestions()
     setErrors([])
-  }, [currentMonthStr])
+  }, [currentMonthStr, resetSuggestions])
 
   useEffect(() => {
     if (!isOpen) return
@@ -123,10 +138,11 @@ export default function ScheduleModal({
       setNotes(editSchedule.notes || '')
       setCategoryId(editSchedule.categoryId ? String(editSchedule.categoryId) : '')
       setPayeeId(editSchedule.payeeId ? String(editSchedule.payeeId) : '')
+      resetSuggestions()
     } else {
       reset()
     }
-  }, [editSchedule, reset])
+  }, [editSchedule, reset, resetSuggestions])
 
   const validate = (): boolean => {
     const errs: string[] = []
@@ -225,7 +241,6 @@ export default function ScheduleModal({
   }
 
   const inputCls = 'input-md px-3 py-2 text-sm w-full'
-  const selectCls = 'input-md px-3 py-2 text-sm w-full cursor-pointer'
   const disabledCls = ' opacity-60 cursor-not-allowed'
 
   return (
@@ -254,38 +269,40 @@ export default function ScheduleModal({
         {/* Type */}
         <div className="space-y-1.5">
           <label className="text-sm font-semibold text-theme-text">Type</label>
-          <select
+          <DesktopDropdown
             value={type}
-            onChange={(e) => setType(e.target.value as Schedule['type'])}
-            className={cn(selectCls, isReadOnly && disabledCls)}
+            options={SCHEDULE_TYPE_OPTIONS}
+            placeholder="Select type"
+            emptyMessage="No schedule types available."
+            ariaLabel="Schedule type"
+            searchable={false}
+            preserveOrder
             disabled={isReadOnly}
-            data-testid="schedule-type-select"
-          >
-            {SCHEDULE_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            triggerClassName={cn(isReadOnly && disabledCls)}
+            onChange={(nextValue) => {
+              if (typeof nextValue === 'string') {
+                setType(nextValue as Schedule['type'])
+              }
+            }}
+          />
         </div>
 
         {/* Fixed expense target */}
         {type === 'fixedExpense' && (
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-theme-text">Fixed Expense</label>
-            <select
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-              className={cn(selectCls, isReadOnly && disabledCls)}
+            <DesktopDropdown
+              value={targetId ? Number(targetId) : undefined}
+              options={fixedExpenseOptions}
+              placeholder="Select fixed expense"
+              emptyMessage="No fixed expenses found."
+              ariaLabel="Fixed expense"
+              searchable={false}
+              preserveOrder
               disabled={isReadOnly}
-            >
-              <option value="">Select…</option>
-              {fixedExpenses.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
+              triggerClassName={cn(isReadOnly && disabledCls)}
+              onChange={(id) => setTargetId(id != null ? String(id) : '')}
+            />
           </div>
         )}
 
@@ -304,125 +321,56 @@ export default function ScheduleModal({
               />
             </div>
 
-            {/* Payee */}
-            <div className="space-y-1.5">
-              <label className="text-sm text-theme-muted">Payee</label>
-              {/* Desktop */}
-              <div className="hidden sm:block">
-                <DesktopDropdown
-                  value={payeeId ? Number(payeeId) : undefined}
-                  options={payeeOptions}
-                  placeholder="Select payee"
-                  emptyMessage="No payees found."
-                  createHint="Type a new payee name to add it."
-                  allowCreate
-                  allowClear
-                  clearLabel="No payee"
-                  disabled={isReadOnly}
-                  onChange={(id) => setPayeeId(id != null ? String(id) : '')}
-                  onCreate={async (name) => {
-                    const newId = await StorageService.addPayee(name)
-                    await refreshPayees()
-                    return newId
-                  }}
-                />
-              </div>
-              {/* Mobile */}
-              <div className="block sm:hidden">
-                <SingleSelectTrigger
-                  value={selectedPayeeName}
-                  placeholder="Select payee"
-                  isOpen={showPayeePicker}
-                  disabled={isReadOnly}
-                  onClick={() => !isReadOnly && setShowPayeePicker(true)}
-                />
-                <MobileEntityPicker
-                  open={showPayeePicker}
-                  title="Choose Payee"
-                  value={payeeId ? Number(payeeId) : undefined}
-                  options={payeeOptions}
-                  placeholder="Search or add payee"
-                  emptyMessage="No payees found."
-                  createHint="Type a new payee name to add it."
-                  allowCreate
-                  allowClear
-                  clearLabel="No payee"
-                  onChange={(id) => setPayeeId(id != null ? String(id) : '')}
-                  onCreate={async (name) => {
-                    const newId = await StorageService.addPayee(name)
-                    await refreshPayees()
-                    return newId
-                  }}
-                  onClose={() => setShowPayeePicker(false)}
-                />
-              </div>
-            </div>
+            <ExpenseEntityFields
+              payeeId={payeeId}
+              categoryId={categoryId}
+              disabled={isReadOnly}
+              payeeOptions={payeeOptions}
+              categoryOptions={categoryOptions}
+              recentPayeeOptions={recentPayeeOptions}
+              recentCategoryOptions={recentCategoryOptions}
+              selectedPayeeName={selectedPayeeName}
+              selectedCategoryName={selectedCategoryName}
+              showPayeePicker={showPayeePicker}
+              showCategoryPicker={showCategoryPicker}
+              onShowPayeePickerChange={setShowPayeePicker}
+              onShowCategoryPickerChange={setShowCategoryPicker}
+              onPayeeChange={handlePayeeManualSelect}
+              onCategoryChange={(id) => setCategoryId(id != null ? String(id) : '')}
+              onCreatePayee={async (name) => {
+                const newId = await StorageService.addPayee(name)
+                await refreshPayees()
+                return newId
+              }}
+              onCreateCategory={async (name) => {
+                const newId = await StorageService.addCategory(name)
+                const cats = await StorageService.getCategories()
+                setCategories(cats)
+                return newId
+              }}
+            />
 
-            {/* Category */}
-            <div className="space-y-1.5">
-              <label className="text-sm text-theme-muted">Category</label>
-              {/* Desktop */}
-              <div className="hidden sm:block">
-                <DesktopDropdown
-                  value={categoryId ? Number(categoryId) : undefined}
-                  options={categoryOptions}
-                  placeholder="Select category"
-                  emptyMessage="No categories found."
-                  createHint="Type a new category name to add it."
-                  allowCreate
-                  disabled={isReadOnly}
-                  onChange={(id) => setCategoryId(id != null ? String(id) : '')}
-                  onCreate={async (name) => {
-                    const newId = await StorageService.addCategory(name)
-                    const cats = await StorageService.getCategories()
-                    setCategories(cats)
-                    return newId
-                  }}
-                />
-              </div>
-              {/* Mobile */}
-              <div className="block sm:hidden">
-                <SingleSelectTrigger
-                  value={selectedCategoryName}
-                  placeholder="Select category"
-                  isOpen={showCategoryPicker}
-                  disabled={isReadOnly}
-                  onClick={() => !isReadOnly && setShowCategoryPicker(true)}
-                />
-                <MobileEntityPicker
-                  open={showCategoryPicker}
-                  title="Choose Category"
-                  value={categoryId ? Number(categoryId) : undefined}
-                  options={categoryOptions}
-                  placeholder="Search or add category"
-                  emptyMessage="No categories found."
-                  createHint="Type a new category name to add it."
-                  allowCreate
-                  onChange={(id) => setCategoryId(id != null ? String(id) : '')}
-                  onCreate={async (name) => {
-                    const newId = await StorageService.addCategory(name)
-                    const cats = await StorageService.getCategories()
-                    setCategories(cats)
-                    return newId
-                  }}
-                  onClose={() => setShowCategoryPicker(false)}
-                />
-              </div>
-            </div>
-
-            {/* Notes */}
             <div className="space-y-1.5">
               <label className="text-sm text-theme-muted">Notes</label>
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                onBlur={(e) => runPayeeMatch(e.target.value)}
                 placeholder="Optional"
                 disabled={isReadOnly}
                 className={cn(inputCls, isReadOnly && disabledCls)}
                 data-testid="schedule-notes-input"
               />
             </div>
+
+            <PayeeSuggestionBanner
+              payeeId={payeeId}
+              payeeSuggestion={payeeSuggestion}
+              payeeSuggestionConfidence={payeeSuggestionConfidence}
+              onAcceptSuggestion={acceptSuggestion}
+              onDismissSuggestion={dismissSuggestion}
+            />
 
             {/* Amount */}
             <div className="space-y-1.5">

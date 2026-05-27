@@ -198,6 +198,33 @@ describe('DesktopDropdown', () => {
     })
   })
 
+  it('closes when clicking outside the open desktop dropdown', async () => {
+    render(
+      <div>
+        <button type="button">Outside target</button>
+        <DesktopDropdown
+          value={undefined}
+          options={[
+            { id: 1, label: 'Coffee' },
+            { id: 2, label: 'Groceries' },
+          ]}
+          placeholder="Select payee"
+          emptyMessage="No matches found."
+          autoFocus
+          onChange={vi.fn()}
+        />
+      </div>,
+    )
+
+    await screen.findByPlaceholderText('Search...')
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Outside target' }))
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument()
+    })
+  })
+
   it('sizes small result sets to their natural height', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       x: 40,

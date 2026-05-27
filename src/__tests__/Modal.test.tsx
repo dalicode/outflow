@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import DesktopDropdown from '../components/inputs/DesktopDropdown'
 import Modal from '../components/ui/Modal'
 
 describe('Modal', () => {
@@ -208,6 +209,32 @@ describe('Modal', () => {
 
     expect(onParentTouchStart).not.toHaveBeenCalled()
     expect(onParentTouchEnd).not.toHaveBeenCalled()
+  })
+
+  it('still allows a desktop dropdown inside the modal to close on clicks elsewhere in the modal', async () => {
+    render(
+      <Modal isOpen={true} onClose={vi.fn()} title="Test Modal">
+        <DesktopDropdown
+          value={undefined}
+          options={[
+            { id: 1, label: 'Coffee' },
+            { id: 2, label: 'Groceries' },
+          ]}
+          placeholder="Select payee"
+          emptyMessage="No matches found."
+          autoFocus
+          onChange={vi.fn()}
+        />
+      </Modal>,
+    )
+
+    expect(await screen.findByPlaceholderText('Search...')).toBeInTheDocument()
+
+    fireEvent.pointerDown(screen.getByText('Test Modal'))
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument()
+    })
   })
 
   it('renders mobile action button in the footer when onMobileAction is provided', () => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import MoneyInput from '../../components/inputs/MoneyInput'
 import PercentInput from '../../components/inputs/PercentInput'
 import Modal from '../../components/ui/Modal'
@@ -107,25 +108,35 @@ function HistoricalYearTabs({ years, activeYear, dirtyYears, onSelect }: Histori
 
 interface MonthSelectProps {
   value: number
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
+  onChange: (month: number) => void
   minMonth?: number
   maxMonth?: number
   cls?: string
 }
 
 function MonthSelect({ value, onChange, minMonth = 1, maxMonth = 12, cls }: MonthSelectProps) {
+  const monthOptions = MONTHS.map((month, index) => ({
+    id: index + 1,
+    label: month,
+  })).filter((option) => option.id >= minMonth && option.id <= maxMonth)
+
   return (
-    <select value={value} onChange={onChange} className={cls}>
-      {MONTHS.map((m, i) => {
-        const monthNum = i + 1
-        if (monthNum < minMonth || monthNum > maxMonth) return null
-        return (
-          <option key={m} value={monthNum}>
-            {m}
-          </option>
-        )
-      })}
-    </select>
+    <DesktopDropdown
+      value={value}
+      options={monthOptions}
+      placeholder="Select month"
+      emptyMessage="No months available."
+      ariaLabel="Month"
+      searchable={false}
+      preserveOrder
+      triggerSize="sm"
+      triggerClassName={cls}
+      onChange={(month) => {
+        if (typeof month === 'number') {
+          onChange(month)
+        }
+      }}
+    />
   )
 }
 
@@ -207,18 +218,18 @@ function MultiRangeList({
               {/* Start month — editable, constrained to after previous range */}
               <MonthSelect
                 value={range.startMonth}
-                onChange={(e) => onUpdate(range.id, { startMonth: parseInt(e.target.value, 10) })}
+                onChange={(month) => onUpdate(range.id, { startMonth: month })}
                 minMonth={startMonthMin}
                 maxMonth={range.endMonth}
-                cls={`${ghostSelectCls} w-18`}
+                cls={`${ghostSelectCls} w-20`}
               />
               <span className="text-theme-muted text-xs">→</span>
               <MonthSelect
                 value={Math.min(range.endMonth, maxMonth)}
-                onChange={(e) => onUpdate(range.id, { endMonth: parseInt(e.target.value, 10) })}
+                onChange={(month) => onUpdate(range.id, { endMonth: month })}
                 minMonth={range.startMonth}
                 maxMonth={endMonthMax}
-                cls={`${ghostSelectCls} w-18`}
+                cls={`${ghostSelectCls} w-20`}
               />
               <RemoveBtn onClick={() => onRemove(range.id)} />
             </div>
@@ -330,20 +341,16 @@ function FixedExpenseList({
               />
               <MonthSelect
                 value={item.startMonth}
-                onChange={(e) =>
-                  onUpdate(item.id, {
-                    startMonth: parseInt(e.target.value, 10),
-                  })
-                }
+                onChange={(month) => onUpdate(item.id, { startMonth: month })}
                 maxMonth={maxMonth}
-                cls={`${ghostSelectCls} w-18`}
+                cls={`${ghostSelectCls} w-20`}
               />
               <span className="text-theme-muted text-xs">→</span>
               <MonthSelect
                 value={displayEndMonth}
-                onChange={(e) => onUpdate(item.id, { endMonth: parseInt(e.target.value, 10) })}
+                onChange={(month) => onUpdate(item.id, { endMonth: month })}
                 maxMonth={maxMonth}
-                cls={`${ghostSelectCls} w-18`}
+                cls={`${ghostSelectCls} w-20`}
               />
               <RemoveBtn onClick={() => onRemove(item.id)} />
             </div>

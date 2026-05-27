@@ -1,7 +1,43 @@
 import { expect } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 type TestApi = typeof import('../src/test/testApi').testApi
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function resolveDropdownTrigger(page: Page, trigger: Locator | string): Locator {
+  return typeof trigger === 'string'
+    ? page.getByRole('button', { name: trigger, exact: true })
+    : trigger
+}
+
+export async function openDesktopDropdown(page: Page, trigger: Locator | string): Promise<void> {
+  await resolveDropdownTrigger(page, trigger).click()
+}
+
+export function getOpenDesktopDropdownOptions(page: Page): Locator {
+  return page.locator('[id^="desktop-dropdown-option-"]')
+}
+
+export async function selectDesktopDropdownOption(
+  page: Page,
+  trigger: Locator | string,
+  optionName: string,
+): Promise<void> {
+  await openDesktopDropdown(page, trigger)
+
+  const searchInputs = page.getByPlaceholder('Search...')
+  if (await searchInputs.count()) {
+    await searchInputs.last().fill(optionName)
+  }
+
+  await getOpenDesktopDropdownOptions(page)
+    .filter({ hasText: new RegExp(`^${escapeRegExp(optionName)}$`) })
+    .first()
+    .click()
+}
 
 export interface SeedExpenseEntry {
   date: string

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import DatePicker from '../../components/inputs/DatePicker'
 import type { Category } from '../../types'
 
@@ -25,6 +26,10 @@ export default function ExpenseTableFilters({
 }: ExpenseTableFiltersProps) {
   const [localGlobal, setLocalGlobal] = useState(globalFilter)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const categoryOptions = categories.map((category) => ({
+    id: category.name,
+    label: category.name,
+  }))
 
   useEffect(() => {
     setLocalGlobal(globalFilter)
@@ -107,18 +112,19 @@ export default function ExpenseTableFilters({
             placeholder="To"
           />
         </div>
-        <select
-          value={columnFilters.category}
-          onChange={(e) => onColumnFilterChange('category', e.target.value)}
-          className="input-theme px-2 py-1 text-xs"
-        >
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.name}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <DesktopDropdown
+          value={columnFilters.category || undefined}
+          options={categoryOptions}
+          placeholder="All categories"
+          emptyMessage="No categories available."
+          ariaLabel="Category filter"
+          allowClear
+          clearLabel="All categories"
+          preserveOrder
+          triggerSize="sm"
+          triggerClassName="input-theme min-h-0 px-2 py-1 text-xs font-normal"
+          onChange={(value) => onColumnFilterChange('category', typeof value === 'string' ? value : '')}
+        />
         <input
           type="text"
           value={columnFilters.notes}

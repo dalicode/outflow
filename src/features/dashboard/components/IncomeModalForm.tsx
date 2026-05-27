@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
+import DesktopDropdown from '../../../components/inputs/DesktopDropdown'
 import MoneyInput from '../../../components/inputs/MoneyInput'
 import Modal from '../../../components/ui/Modal'
 import ModalFooter from '../../../components/ui/ModalFooter'
@@ -12,6 +13,10 @@ const MULTIPLIERS: Record<string, number> = {
   biweekly: 2.17,
   weekly: 4.33,
 }
+const FREQUENCY_OPTIONS = FREQUENCIES.map((frequency) => ({
+  id: frequency,
+  label: frequency.charAt(0).toUpperCase() + frequency.slice(1),
+}))
 
 interface IncomeModalFormProps {
   isOpen: boolean
@@ -161,17 +166,21 @@ export default function IncomeModalForm({
               inputClassName="text-2xl sm:text-sm"
             />
           </div>
-          <select
+          <DesktopDropdown
             value={displayFreq}
-            onChange={(e) => handleFreqChange(e.target.value)}
-            className={`${inputCls} w-full sm:w-auto min-w-0`}
-          >
-            {FREQUENCIES.map((f) => (
-              <option key={f} value={f}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </option>
-            ))}
-          </select>
+            options={FREQUENCY_OPTIONS}
+            placeholder="Select frequency"
+            emptyMessage="No frequencies available."
+            ariaLabel="Income frequency"
+            searchable={false}
+            preserveOrder
+            triggerClassName={`${inputCls} w-full sm:w-auto min-w-0`}
+            onChange={(value) => {
+              if (typeof value === 'string') {
+                handleFreqChange(value)
+              }
+            }}
+          />
         </div>
       </form>
     </Modal>

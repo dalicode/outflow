@@ -6,22 +6,21 @@ import MoneyInput from '../../components/inputs/MoneyInput'
 import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import LazyModalFallback from '../../components/ui/LazyModalFallback'
+import ExpenseEntityFields from '../../components/expense/ExpenseEntityFields'
+import PayeeSuggestionBanner from '../../components/expense/PayeeSuggestionBanner'
 import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
+import { useExpenseEntitySelection } from '../../hooks/useExpenseEntitySelection'
 import { useHaptics } from '../../hooks/useHaptics'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import { useExpenses, usePayees, useTags } from '../../hooks/useLocalData'
 import { StorageService } from '../../services/storageService'
-import { getMostLikelyRelatedEntityId, getRecentEntityIds } from '../../utils/entityHistory'
-import type { ComboboxOption } from '../../components/inputs/comboboxUtils'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
-import type { MatchConfidence } from '../../utils/payeeMatching'
-import { findBestPayeeMatch } from '../../utils/payeeMatching'
 import { distributeSplitAmountEvenly, reconcileSplitAmounts } from '../../utils/splitExpenseHelpers'
 import { cn } from '../../utils/cn'
 import './expenses.css'
-import type { Category, Expense, ExpenseSplit, Payee } from '../../types'
+import type { Category, Expense, ExpenseSplit } from '../../types'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
 import TagMultiSelect from '../../components/inputs/TagMultiSelect'
@@ -112,9 +111,6 @@ export default function ExpenseForm({
   const [openSplitCategoryPickers, setOpenSplitCategoryPickers] = useState<Record<string, boolean>>(
     {},
   )
-  const [payeeSuggestion, setPayeeSuggestion] = useState<Payee | null>(null)
-  const [payeeSuggestionConfidence, setPayeeSuggestionConfidence] =
-    useState<MatchConfidence | null>(null)
   const [isSplitMode, setIsSplitMode] = useState(() => editingSplitId != null)
   const [splitChildren, setSplitChildren] = useState<SplitChildDraft[]>([])
   const [showDistributePrompt, setShowDistributePrompt] = useState(false)
@@ -122,53 +118,30 @@ export default function ExpenseForm({
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const haptics = useHaptics()
 
-  const activeCategories = useMemo(
-    () => categories.filter((c): c is Category & { id: number } => !c.isArchived && c.id != null),
-    [categories],
-  )
-  const activePayees = useMemo(
-    () =>
-      payees
-        .filter((p): p is Payee & { id: number } => !p.isArchived && p.id != null)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [payees],
-  )
-  const activeCategoryIds = useMemo(
-    () => new Set(activeCategories.map((category) => category.id)),
-    [activeCategories],
-  )
-  const activePayeeIds = useMemo(
-    () => new Set(activePayees.map((payee) => payee.id)),
-    [activePayees],
-  )
+  const {
+    categoryOptions,
+    payeeOptions,
+    recentCategoryOptions,
+    recentPayeeOptions,
+    selectedCategoryName,
+    selectedPayeeName,
+    payeeSuggestion,
+    payeeSuggestionConfidence,
+    runPayeeMatch,
+    handlePayeeManualSelect,
+    acceptSuggestion,
+    dismissSuggestion,
+  } = useExpenseEntitySelection({
+    categories,
+    payees,
+    expenses,
+    categoryId: form.categoryId,
+    payeeId: form.payeeId,
+    onCategoryIdChange: (nextCategoryId) =>
+      setForm((current) => ({ ...current, categoryId: nextCategoryId })),
+    onPayeeIdChange: (nextPayeeId) => setForm((current) => ({ ...current, payeeId: nextPayeeId })),
+  })
 
-  const categoryOptions = useMemo<ComboboxOption[]>(
-    () =>
-      activeCategories.map((c) => ({
-        id: c.id,
-        label: c.name,
-      })),
-    [activeCategories],
-  )
-  const payeeOptions = useMemo<ComboboxOption[]>(
-    () => activePayees.map((p) => ({ id: p.id, label: p.name })),
-    [activePayees],
-  )
-  const recentCategoryOptions = useMemo(() => {
-    const recentIds = getRecentEntityIds(expenses, 'categoryId', 5, activeCategoryIds)
-    return recentIds
-      .map((id) => categoryOptions.find((option) => option.id === id))
-      .filter((option): option is ComboboxOption => Boolean(option))
-  }, [activeCategoryIds, categoryOptions, expenses])
-  const recentPayeeOptions = useMemo(() => {
-    const recentIds = getRecentEntityIds(expenses, 'payeeId', 5, activePayeeIds)
-    return recentIds
-      .map((id) => payeeOptions.find((option) => option.id === id))
-      .filter((option): option is ComboboxOption => Boolean(option))
-  }, [activePayeeIds, expenses, payeeOptions])
-
-  const selectedCategoryName = categoryOptions.find((o) => o.id === Number(form.categoryId))?.label
-  const selectedPayeeName = payeeOptions.find((o) => o.id === Number(form.payeeId))?.label
   const canToggleSplitMode = editingSplitId == null
   const splitContainerAmount = Number.parseFloat(form.amount || '0')
   const splitReconciliation = useMemo(
@@ -195,51 +168,6 @@ export default function ExpenseForm({
     [onCategoriesChange, refreshCategoriesProp],
   )
 
-  const set =
-    <K extends keyof typeof form>(field: K) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm((f) => ({ ...f, [field]: e.target.value }))
-
-  // Run payee matching when notes changes (debounced on blur)
-  const runPayeeMatch = useCallback(
-    (notes: string) => {
-      // Don't suggest if payee already selected
-      if (form.payeeId) return
-      if (!notes.trim()) {
-        setPayeeSuggestion(null)
-        return
-      }
-      const result = findBestPayeeMatch(notes, payees)
-      if (!result) {
-        setPayeeSuggestion(null)
-        return
-      }
-      setPayeeSuggestion(result.payee)
-      setPayeeSuggestionConfidence(result.confidence)
-      // Auto-apply only if confidence is "auto"
-      if (result.confidence === 'auto') {
-        setForm((f) => ({ ...f, payeeId: String(result.payee.id) }))
-      }
-    },
-    [form.payeeId, payees],
-  )
-
-  const handleNotesBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    runPayeeMatch(e.target.value)
-  }
-
-  const acceptSuggestion = () => {
-    if (!payeeSuggestion) return
-    setForm((f) => ({ ...f, payeeId: String(payeeSuggestion.id) }))
-    setPayeeSuggestion(null)
-    setPayeeSuggestionConfidence(null)
-  }
-
-  const dismissSuggestion = () => {
-    setPayeeSuggestion(null)
-    setPayeeSuggestionConfidence(null)
-  }
-
   const createSplitChild = useCallback(
     (seed?: Partial<SplitChildDraft>): SplitChildDraft => ({
       rowId: seed?.rowId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -261,30 +189,6 @@ export default function ExpenseForm({
       return next
     })
   }, [canToggleSplitMode, createSplitChild])
-
-  const handlePayeeManualSelect = useCallback(
-    (id: string | number | undefined) => {
-      const nextPayeeId = id != null ? String(id) : ''
-      setForm((f) => ({ ...f, payeeId: nextPayeeId }))
-      setPayeeSuggestion(null)
-      setPayeeSuggestionConfidence(null)
-      if (id != null) {
-        const likelyCategoryId = getMostLikelyRelatedEntityId(
-          expenses,
-          'payeeId',
-          Number(id),
-          'categoryId',
-          activeCategoryIds,
-        )
-        if (likelyCategoryId != null) {
-          setForm((current) =>
-            current.categoryId ? current : { ...current, categoryId: String(likelyCategoryId) },
-          )
-        }
-      }
-    },
-    [activeCategoryIds, expenses],
-  )
 
   useEffect(() => {
     if (editingSplitId == null) return
@@ -657,134 +561,41 @@ export default function ExpenseForm({
       >
         <form id="expense-form" onSubmit={submit} className="space-y-4" data-testid="expense-form">
           {amountField}
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-theme-muted">Payee</label>
-              <button
-                type="button"
-                onClick={() => setShowPayeeModal(true)}
-                className="text-xs text-theme-primary hover:opacity-80 font-medium"
-              >
-                + Manage
-              </button>
-            </div>
-            {isMobileViewport ? (
-              <div data-testid="mobile-payee-trigger">
-                <SingleSelectTrigger
-                  value={selectedPayeeName}
-                  placeholder="Select payee"
-                  isOpen={showPayeePicker}
-                  onClick={() => setShowPayeePicker(true)}
-                />
-                <MobileEntityPicker
-                  open={showPayeePicker}
-                  title="Choose Payee"
-                  value={form.payeeId ? Number(form.payeeId) : undefined}
-                  options={payeeOptions}
-                  recentOptions={recentPayeeOptions}
-                  placeholder="Search or add payee"
-                  emptyMessage="No payees found."
-                  createHint="Type a new payee name to add it."
-                  allowCreate
-                  allowClear
-                  clearLabel="No payee"
-                  onChange={handlePayeeManualSelect}
-                  onCreate={async (name) => {
-                    const newId = await StorageService.addPayee(name)
-                    await refreshPayees()
-                    await refreshPayeesProp?.()
-                    return newId
-                  }}
-                  onClose={() => setShowPayeePicker(false)}
-                />
-              </div>
-            ) : (
-              <div data-testid="desktop-payee-dropdown">
-                <DesktopDropdown
-                  value={form.payeeId ? Number(form.payeeId) : undefined}
-                  options={payeeOptions}
-                  recentOptions={recentPayeeOptions}
-                  placeholder="Select payee"
-                  emptyMessage="No payees found."
-                  createHint="Type a new payee name to add it."
-                  allowCreate
-                  allowClear
-                  clearLabel="No payee"
-                  autoFocus={false}
-                  onChange={handlePayeeManualSelect}
-                  onCreate={async (name) => {
-                    const newId = await StorageService.addPayee(name)
-                    await refreshPayees()
-                    await refreshPayeesProp?.()
-                    return newId
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          {!isSplitMode && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-sm text-theme-muted">Category</label>
-                <button
-                  type="button"
-                  onClick={() => setShowCatModal(true)}
-                  className="text-xs text-theme-primary hover:opacity-80 font-medium"
-                >
-                  + Manage
-                </button>
-              </div>
-              {isMobileViewport ? (
-                <div data-testid="mobile-category-trigger">
-                  <SingleSelectTrigger
-                    value={selectedCategoryName}
-                    placeholder="Select category"
-                    isOpen={showCategoryPicker}
-                    onClick={() => setShowCategoryPicker(true)}
-                  />
-                  <MobileEntityPicker
-                    open={showCategoryPicker}
-                    title="Choose Category"
-                    value={form.categoryId ? Number(form.categoryId) : undefined}
-                    options={categoryOptions}
-                    recentOptions={recentCategoryOptions}
-                    placeholder="Search or add category"
-                    emptyMessage="No categories found."
-                    createHint="Type a new category name to add it."
-                    allowCreate
-                    onChange={(id) =>
-                      setForm((f) => ({
-                        ...f,
-                        categoryId: id != null ? String(id) : '',
-                      }))
-                    }
-                    onCreate={createCategory}
-                    onClose={() => setShowCategoryPicker(false)}
-                  />
-                </div>
-              ) : (
-                <div data-testid="desktop-category-dropdown">
-                  <DesktopDropdown
-                    value={form.categoryId ? Number(form.categoryId) : undefined}
-                    options={categoryOptions}
-                    recentOptions={recentCategoryOptions}
-                    placeholder="Select category"
-                    emptyMessage="No categories found."
-                    createHint="Type a new category name to add it."
-                    allowCreate
-                    autoFocus={false}
-                    onChange={(id) =>
-                      setForm((f) => ({
-                        ...f,
-                        categoryId: id != null ? String(id) : '',
-                      }))
-                    }
-                    onCreate={createCategory}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+          <ExpenseEntityFields
+            payeeId={form.payeeId}
+            categoryId={form.categoryId}
+            showCategoryField={!isSplitMode}
+            payeeOptions={payeeOptions}
+            categoryOptions={categoryOptions}
+            recentPayeeOptions={recentPayeeOptions}
+            recentCategoryOptions={recentCategoryOptions}
+            selectedPayeeName={selectedPayeeName}
+            selectedCategoryName={selectedCategoryName}
+            showPayeePicker={showPayeePicker}
+            showCategoryPicker={showCategoryPicker}
+            onShowPayeePickerChange={setShowPayeePicker}
+            onShowCategoryPickerChange={setShowCategoryPicker}
+            onPayeeChange={handlePayeeManualSelect}
+            onCategoryChange={(id) =>
+              setForm((current) => ({
+                ...current,
+                categoryId: id != null ? String(id) : '',
+              }))
+            }
+            onCreatePayee={async (name) => {
+              const newId = await StorageService.addPayee(name)
+              await refreshPayees()
+              await refreshPayeesProp?.()
+              return newId
+            }}
+            onCreateCategory={createCategory}
+            desktopPayeeTestId="desktop-payee-dropdown"
+            desktopCategoryTestId="desktop-category-dropdown"
+            mobilePayeeTestId="mobile-payee-trigger"
+            mobileCategoryTestId="mobile-category-trigger"
+            onManagePayees={() => setShowPayeeModal(true)}
+            onManageCategories={() => setShowCatModal(true)}
+          />
           <div className="flex flex-col gap-1 text-sm text-theme-muted">
             <span>Date</span>
             <DatePicker
@@ -800,12 +611,19 @@ export default function ExpenseForm({
             <input
               type="text"
               value={form.notes}
-              onChange={set('notes')}
-              onBlur={handleNotesBlur}
+              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+              onBlur={(event) => runPayeeMatch(event.target.value)}
               placeholder="Optional"
               className={inputCls}
             />
           </div>
+          <PayeeSuggestionBanner
+            payeeId={form.payeeId}
+            payeeSuggestion={payeeSuggestion}
+            payeeSuggestionConfidence={payeeSuggestionConfidence}
+            onAcceptSuggestion={acceptSuggestion}
+            onDismissSuggestion={dismissSuggestion}
+          />
           <TagMultiSelect
             tags={tags}
             selectedTagIds={selectedTagIds}
@@ -1058,31 +876,6 @@ export default function ExpenseForm({
             )}
           </div>
 
-          {/* Payee suggestion banner */}
-          {payeeSuggestion && !form.payeeId && payeeSuggestionConfidence === 'confirm' && (
-            <div className="flex items-center justify-between gap-2 rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2 text-xs">
-              <span className="text-theme-muted">
-                Suggested payee:{' '}
-                <span className="font-medium text-theme-text">{payeeSuggestion.name}</span>
-              </span>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={acceptSuggestion}
-                  className="font-medium text-theme-primary hover:opacity-80"
-                >
-                  Use
-                </button>
-                <button
-                  type="button"
-                  onClick={dismissSuggestion}
-                  className="text-theme-muted hover:text-theme-text"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
         </form>
       </Modal>
       <ConfirmDialog

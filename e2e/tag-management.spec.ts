@@ -6,6 +6,7 @@ import {
   getTagIdsForExpense,
   getTags,
   resetAppState,
+  selectDesktopDropdownOption,
   setExpenseTags,
 } from './helpers'
 
@@ -94,7 +95,7 @@ test.describe('Tag management (desktop)', () => {
     const sourceRow = page.getByTestId(`tag-row-${groceryTag?.id as number}`)
     await sourceRow.getByRole('button', { name: 'Merge' }).click()
     const mergeDialog = page.getByRole('dialog', { name: 'Merge Tag' })
-    await mergeDialog.locator('select').selectOption({ label: 'Food' })
+    await selectDesktopDropdownOption(page, 'Merge into tag', 'Food')
     await mergeDialog.getByRole('button', { name: 'Merge Tag' }).click()
 
     await expect(page.getByTestId(`tag-row-${groceryTag?.id as number}`)).toHaveCount(0)

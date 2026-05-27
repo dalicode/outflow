@@ -9,6 +9,7 @@ import {
   getSchedules,
   getSetting,
   resetAppState,
+  selectDesktopDropdownOption,
   waitForRouteReady,
 } from './helpers'
 
@@ -34,20 +35,6 @@ async function openScheduleModal(page: Page) {
   return dialog
 }
 
-async function selectDesktopDropdownOption(
-  page: Page,
-  triggerName: string,
-  optionName: string,
-): Promise<void> {
-  await page.getByRole('button', { name: triggerName, exact: true }).click()
-  await page.getByPlaceholder('Search...').fill(optionName)
-  await page
-    .locator('[id^="desktop-dropdown-option-"]')
-    .filter({ hasText: optionName })
-    .first()
-    .click()
-}
-
 test.describe('Schedules — desktop', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
@@ -60,12 +47,10 @@ test.describe('Schedules — desktop', () => {
   })
 
   test('creates schedules through the modal for every schedule type', async ({ page }) => {
-    const payeeName = 'Coffee Shop'
     const fixedExpenseName = 'Rent'
     const expenseDate = new Date()
     const expenseDateInput = formatDateForInput(expenseDate)
 
-    await addPayee(page, payeeName)
     await addFixedExpense(page, { name: fixedExpenseName, amount: 1200 })
 
     const categories = await getCategories(page)
@@ -79,28 +64,32 @@ test.describe('Schedules — desktop', () => {
     await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
     dialog = await openScheduleModal(page)
-    await dialog.getByTestId('schedule-type-select').selectOption('savingsRate')
+    await selectDesktopDropdownOption(page, 'Schedule type', 'Auto Savings %')
     await dialog.getByTestId('schedule-value-input').fill('20')
     await dialog.getByTestId('schedule-notes-input').fill('Boost savings')
     await dialog.getByTestId('btn-save-schedule').click()
     await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
     dialog = await openScheduleModal(page)
-    await dialog.getByTestId('schedule-type-select').selectOption('fixedExpense')
-    await dialog.locator('select').nth(1).selectOption({ label: fixedExpenseName })
+    await selectDesktopDropdownOption(page, 'Schedule type', 'Fixed Expense')
+    await selectDesktopDropdownOption(page, 'Fixed expense', fixedExpenseName)
     await dialog.getByTestId('schedule-value-input').fill('1350')
     await dialog.getByTestId('schedule-notes-input').fill('Lease renewal')
     await dialog.getByTestId('btn-save-schedule').click()
     await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
     dialog = await openScheduleModal(page)
-    await dialog.getByTestId('schedule-type-select').selectOption('expense')
+    await selectDesktopDropdownOption(page, 'Schedule type', 'Expense')
+    await expect(dialog.getByText('Payee', { exact: true })).toBeVisible()
+    await selectDesktopDropdownOption(
+      page,
+      dialog.getByText('Select category', { exact: true }).first(),
+      'Groceries',
+    )
+    await dialog.getByLabel('Amount').fill('42.50')
     const expenseDateInputField = dialog.locator('input[type="text"]').first()
     await expenseDateInputField.fill(expenseDateInput)
-    await expenseDateInputField.press('Enter')
-    await selectDesktopDropdownOption(page, 'Select payee', payeeName)
-    await selectDesktopDropdownOption(page, 'Select category', 'Groceries')
-    await dialog.getByLabel('Amount').fill('42.50')
+    await expenseDateInputField.press('Tab')
     await dialog.getByTestId('btn-save-schedule').click()
     await expect(dialog).not.toBeVisible({ timeout: 5000 })
 

@@ -372,6 +372,30 @@ export default function BudgetPaceSection({
         <PaceBadge status={pace.status} tone={statusTone} colors={currentTheme.colors} />
       </div>
 
+      <div className="space-y-4 rounded-theme-large border border-theme-border bg-theme-background p-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <PaceProgressBar
+            label="Month elapsed"
+            percent={pace.monthElapsedPercent}
+            barColor={monthProgressBarColor}
+            secondaryLabel={`${(pace.monthElapsedPercent * 100).toFixed(0)}%`}
+            ariaLabel="Month elapsed"
+          />
+          <PaceProgressBar
+            label="Budget used"
+            percent={pace.budgetUsedPercent}
+            barColor={budgetProgressBarColor}
+            secondaryLabel={
+              pace.budgetUsedPercent == null
+                ? 'Set a monthly budget to compare pace'
+                : `${(pace.budgetUsedPercent * 100).toFixed(0)}%`
+            }
+            ariaLabel="Budget used"
+          />
+        </div>
+        <p className="text-sm text-theme-text">{insight}</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Metric
           label="Spent so far"
@@ -421,30 +445,6 @@ export default function BudgetPaceSection({
             pace.budgetUsedPercent == null ? undefined : { color: paceRemainingDisplayColor }
           }
         />
-      </div>
-
-      <div className="space-y-4 rounded-theme-large border border-theme-border bg-theme-background p-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          <PaceProgressBar
-            label="Month elapsed"
-            percent={pace.monthElapsedPercent}
-            barColor={monthProgressBarColor}
-            secondaryLabel={`${(pace.monthElapsedPercent * 100).toFixed(0)}%`}
-            ariaLabel="Month elapsed"
-          />
-          <PaceProgressBar
-            label="Budget used"
-            percent={pace.budgetUsedPercent}
-            barColor={budgetProgressBarColor}
-            secondaryLabel={
-              pace.budgetUsedPercent == null
-                ? 'Set a monthly budget to compare pace'
-                : `${(pace.budgetUsedPercent * 100).toFixed(0)}%`
-            }
-            ariaLabel="Budget used"
-          />
-        </div>
-        <p className="text-sm text-theme-text">{insight}</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

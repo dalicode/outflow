@@ -1,8 +1,10 @@
 import { test, type Locator, type Page } from '@playwright/test'
 import {
   expect,
+  getOpenDesktopDropdownOptions,
   getFixedExpenseSnapshots,
   getIncomeSnapshots,
+  openDesktopDropdown,
   getSavingsSnapshots,
   resetAppState,
 } from './helpers'
@@ -204,16 +206,21 @@ test.describe('Edit Historical Data', () => {
     await incomeInput.fill('3000')
     await incomeInput.press('Tab')
 
-    const endMonthSelect = dialog.locator('select').nth(1)
-    await expect(endMonthSelect.locator('option')).toHaveCount(editableMonthCount)
-    await expect(endMonthSelect.locator('option').last()).toHaveText(
+    const endMonthTrigger = dialog.getByRole('button', { name: 'Month' }).nth(1)
+    await openDesktopDropdown(page, endMonthTrigger)
+    await expect(getOpenDesktopDropdownOptions(page)).toHaveCount(editableMonthCount)
+    await expect(getOpenDesktopDropdownOptions(page).last()).toHaveText(
       MONTH_NAMES[editableMonthCount - 1],
     )
     if (editableMonthCount < 12) {
       await expect(
-        endMonthSelect.locator('option', { hasText: MONTH_NAMES[editableMonthCount] }),
+        getOpenDesktopDropdownOptions(page).filter({ hasText: MONTH_NAMES[editableMonthCount] }),
       ).toHaveCount(0)
     }
+    await getOpenDesktopDropdownOptions(page)
+      .filter({ hasText: MONTH_NAMES[editableMonthCount - 1] })
+      .first()
+      .click()
 
     await saveHistoricalModal(dialog)
 
