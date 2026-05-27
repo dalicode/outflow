@@ -112,7 +112,10 @@ function applySplitContainerFieldsToChild(
   }
 }
 
-export async function updateExpenseSplit(id: number, changes: Partial<ExpenseSplit>): Promise<void> {
+export async function updateExpenseSplit(
+  id: number,
+  changes: Partial<ExpenseSplit>,
+): Promise<void> {
   await db.transaction('rw', db.expenseSplits, db.expenses, async () => {
     const existing = await db.expenseSplits.get(id)
     if (!existing) return
@@ -123,7 +126,9 @@ export async function updateExpenseSplit(id: number, changes: Partial<ExpenseSpl
         {
           ...existing,
           ...changes,
-          deletedAt: hasDeletedAtChange ? (changes.deletedAt ?? null) : (existing.deletedAt ?? null),
+          deletedAt: hasDeletedAtChange
+            ? (changes.deletedAt ?? null)
+            : (existing.deletedAt ?? null),
         },
         now,
       ),
@@ -164,13 +169,7 @@ export async function saveExpenseSplitWithChildren(
   const { children, replaceExpenseId, split, splitId } = params
   const now = new Date().toISOString()
 
-  return db.transaction(
-    'rw',
-    db.expenseSplits,
-    db.expenses,
-    db.categories,
-    db.payees,
-    async () => {
+  return db.transaction('rw', db.expenseSplits, db.expenses, db.categories, db.payees, async () => {
     let resolvedSplitId = splitId
     if (typeof resolvedSplitId === 'number') {
       const existingSplit = await db.expenseSplits.get(resolvedSplitId)
@@ -190,7 +189,10 @@ export async function saveExpenseSplitWithChildren(
       const existingChildren = await db.expenses.where('splitId').equals(resolvedSplitId).toArray()
       const retainedExpenseIds = new Set(
         children
-          .filter((child): child is SplitChildExpenseInput & { expenseId: number } => typeof child.expenseId === 'number')
+          .filter(
+            (child): child is SplitChildExpenseInput & { expenseId: number } =>
+              typeof child.expenseId === 'number',
+          )
           .map((child) => child.expenseId),
       )
 
@@ -258,8 +260,7 @@ export async function saveExpenseSplitWithChildren(
     }
 
     return resolvedSplitId
-    },
-  )
+  })
 }
 
 export async function getSplitChildExpenses(splitId: number): Promise<Expense[]> {
@@ -402,7 +403,9 @@ export async function repairOrphanedSplitChildren(): Promise<number> {
   const allExpenses = await db.expenses.toArray()
   const activeExpenses = allExpenses.filter(
     (expense): expense is Expense & { id: number; splitId: number } =>
-      expense.deletedAt == null && typeof expense.id === 'number' && typeof expense.splitId === 'number',
+      expense.deletedAt == null &&
+      typeof expense.id === 'number' &&
+      typeof expense.splitId === 'number',
   )
   if (activeExpenses.length === 0) return 0
 

@@ -1,38 +1,38 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import Navbar from './components/layout/Navbar'
-import OfflineStatusBadge from './components/pwa/OfflineStatusBadge'
-import PWAInstallPrompt from './components/pwa/PWAInstallPrompt'
-import PWAUpdatePrompt from './components/pwa/PWAUpdatePrompt'
-import LoadingOverlay from './components/ui/LoadingOverlay'
-import Modal from './components/ui/Modal'
-import PageSectionFallback from './components/ui/PageSectionFallback'
-import PullToRefreshContainer from './components/ui/PullToRefreshContainer'
-import { installTestApi } from './test/testApi'
-import { testApi } from './test/testApi'
-import { ROUTES } from './constants/routes'
-import { useAuth } from './context/authContext'
-import { FinanceDataProvider, useFinanceActions } from './context/financeDataContext'
-import { useSettings } from './context/settingsContext'
-import { ToastProvider, useToasts } from './context/toastContext'
-import Dashboard from './features/dashboard/Dashboard'
-import ExpenseForm from './features/expenses/ExpenseForm'
-import AnalyticsPage from './features/analytics/AnalyticsPage'
-import PayeesPage from './features/payees/PayeesPage'
-import TagsPage from './features/tags/TagsPage'
-import SummaryPage from './features/summary/SummaryPage'
-import { useAppRefresh } from './hooks/useAppRefresh'
-import { useAppSessionState } from './hooks/useAppSessionState'
-import { useCategories, useExpenses, usePayees, useTags } from './hooks/useLocalData'
-import { useOptimisticExpenseDelete } from './hooks/useOptimisticExpenseDelete'
-import { useStartupSnapshots } from './hooks/useStartupSnapshots'
-import { StorageService } from './services/storageService'
-import { supabase } from './services/supabase'
-import type { Expense } from './types'
-import { cn } from './utils/cn'
+import Navbar from './layout/Navbar'
+import OfflineStatusBadge from '../components/pwa/OfflineStatusBadge'
+import PWAInstallPrompt from '../components/pwa/PWAInstallPrompt'
+import PWAUpdatePrompt from '../components/pwa/PWAUpdatePrompt'
+import LoadingOverlay from '../components/ui/LoadingOverlay'
+import Modal from '../components/ui/Modal'
+import PageSectionFallback from '../components/ui/PageSectionFallback'
+import PullToRefreshContainer from '../components/ui/PullToRefreshContainer'
+import { installTestApi } from '../test/testApi'
+import { testApi } from '../test/testApi'
+import { ROUTES } from '../constants/routes'
+import { useAuth } from '../context/authContext'
+import { useFinanceActions } from '../context/financeDataContext'
+import { useSettings } from '../context/settingsContext'
+import { useToasts } from '../context/toastContext'
+import Dashboard from '../features/dashboard/Dashboard'
+import ExpenseForm from '../features/expenses/ExpenseForm'
+import AnalyticsPage from '../features/analytics/AnalyticsPage'
+import PayeesPage from '../features/payees/PayeesPage'
+import TagsPage from '../features/tags/TagsPage'
+import SummaryPage from '../features/summary/SummaryPage'
+import { useAppRefresh } from '../hooks/useAppRefresh'
+import { useAppSessionState } from '../hooks/useAppSessionState'
+import { useCategories, useExpenses, usePayees, useTags } from '../hooks/useLocalData'
+import { useOptimisticExpenseDelete } from '../hooks/useOptimisticExpenseDelete'
+import { useStartupSnapshots } from '../hooks/useStartupSnapshots'
+import { StorageService } from '../services/storageService'
+import { supabase } from '../services/supabase'
+import type { Expense } from '../types'
+import { cn } from '../utils/cn'
 
-const AuthPage = lazy(() => import('./features/auth/AuthPage'))
-const loadSettingsPage = () => import('./features/settings/SettingsPage')
+const AuthPage = lazy(() => import('../features/auth/AuthPage'))
+const loadSettingsPage = () => import('../features/settings/SettingsPage')
 
 const SettingsPage = lazy(loadSettingsPage)
 
@@ -62,13 +62,7 @@ function useScrollVisibility() {
 }
 
 export default function App() {
-  return (
-    <ToastProvider>
-      <FinanceDataProvider>
-        <AppShell />
-      </FinanceDataProvider>
-    </ToastProvider>
-  )
+  return <AppShell />
 }
 
 function useScrollDirection() {
@@ -406,7 +400,10 @@ function AppShell() {
                       onRefresh={handlePullRefresh}
                       bottomSpacerClassName="mobile-bottom-spacer-sm"
                     >
-                      <PayeesPage refreshExpenses={refreshExpenses} triggerSync={syncLocalChanges} />
+                      <PayeesPage
+                        refreshExpenses={refreshExpenses}
+                        triggerSync={syncLocalChanges}
+                      />
                     </ScrollablePage>
                   }
                 />

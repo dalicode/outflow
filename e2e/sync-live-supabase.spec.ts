@@ -187,17 +187,23 @@ test.describe('Live Supabase sync (UAT)', () => {
       const tagIdOnA = await addTag(pageA, 'uat-sync-tag-rename-old')
       await triggerManualSyncRounds([pageA, pageB], 2)
       await expect
-        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-old'))
+        .poll(async () =>
+          (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-old'),
+        )
         .toBe(true)
 
       await updateTag(pageA, tagIdOnA, { name: 'uat-sync-tag-rename-new' })
       await triggerManualSyncRounds([pageA, pageB], 2)
 
       await expect
-        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-new'))
+        .poll(async () =>
+          (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-new'),
+        )
         .toBe(true)
       await expect
-        .poll(async () => (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-old'))
+        .poll(async () =>
+          (await getTags(pageB)).some((tag) => tag.name === 'uat-sync-tag-rename-old'),
+        )
         .toBe(false)
 
       await waitForZeroPendingSync(pageA)

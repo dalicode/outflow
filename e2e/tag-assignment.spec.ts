@@ -52,7 +52,10 @@ test.describe('Tag assignment flows (desktop)', () => {
     await page.getByTestId('btn-save-expense').click()
 
     await page.getByTestId('view-tab-expenses').first().click()
-    const row = page.locator("[data-testid^='expense-row-']").filter({ hasText: 'Market stop' }).first()
+    const row = page
+      .locator("[data-testid^='expense-row-']")
+      .filter({ hasText: 'Market stop' })
+      .first()
     await row.click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Edit' }).click()
     const editDialog = page.getByRole('dialog', { name: 'Edit Expense' })
@@ -81,7 +84,10 @@ test.describe('Tag assignment flows (desktop)', () => {
     await page.getByTestId('btn-save-expense').click()
 
     await page.getByTestId('view-tab-expenses').first().click()
-    const row = page.locator("[data-testid^='expense-row-']").filter({ hasText: 'Internet' }).first()
+    const row = page
+      .locator("[data-testid^='expense-row-']")
+      .filter({ hasText: 'Internet' })
+      .first()
     const tagsCell = row.locator('[data-field="tags"]')
     await tagsCell.click()
     const popover = page.getByTestId('tags-editor-popover')

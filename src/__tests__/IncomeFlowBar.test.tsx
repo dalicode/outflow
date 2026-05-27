@@ -6,7 +6,7 @@ vi.mock('../components/privacy/PrivateValue', () => ({
   default: ({ children }: { children: unknown }) => <>{children}</>,
 }))
 
-vi.mock('../features/analytics/AnalyticsCharts', () => ({
+vi.mock('../features/analytics/hooks/useThemeColors', () => ({
   useThemeColors: () => ({
     primary: '#2563eb',
     secondary: '#7c3aed',

@@ -13,11 +13,11 @@ import {
   RankedCategoryViz,
   RankedPayeeTable,
   RankedPayeeViz,
-  useThemeColors,
 } from '../AnalyticsCharts'
 import PrivateValue from '../../../components/privacy/PrivateValue'
 import IncomeFlowBar from '../IncomeFlowBar'
 import ViewToggle from '../ViewToggle'
+import { useThemeColors } from '../hooks/useThemeColors'
 import IncomeTrendExpensePreview from './IncomeTrendExpensePreview'
 import IncomeTrendMonthDrilldown from './IncomeTrendMonthDrilldown'
 import IncomeTrendMonthPreview from './IncomeTrendMonthPreview'

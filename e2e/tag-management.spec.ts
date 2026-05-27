@@ -44,8 +44,9 @@ test.describe('Tag management (desktop)', () => {
       expenses: [{ date: '2026-05-10', amount: 18, notes: 'Tagged lunch' }],
     })
     const lunchTagId = await addTag(page, 'LunchTag')
-    const taggedExpenseId = (await getAllExpenses(page)).find((expense) => expense.notes === 'Tagged lunch')
-      ?.id as number
+    const taggedExpenseId = (await getAllExpenses(page)).find(
+      (expense) => expense.notes === 'Tagged lunch',
+    )?.id as number
     await setExpenseTags(page, taggedExpenseId, [lunchTagId])
     expect(await getTagIdsForExpense(page, taggedExpenseId)).toContain(lunchTagId)
 
@@ -68,8 +69,9 @@ test.describe('Tag management (desktop)', () => {
       expenses: [{ date: '2026-05-10', amount: 50, notes: 'Utilities bill' }],
     })
     const utilitiesTagId = await addTag(page, 'Utilities')
-    const utilitiesExpenseId = (await getAllExpenses(page)).find((expense) => expense.notes === 'Utilities bill')
-      ?.id as number
+    const utilitiesExpenseId = (await getAllExpenses(page)).find(
+      (expense) => expense.notes === 'Utilities bill',
+    )?.id as number
     await setExpenseTags(page, utilitiesExpenseId, [utilitiesTagId])
     expect(await getTagIdsForExpense(page, utilitiesExpenseId)).toContain(utilitiesTagId)
 

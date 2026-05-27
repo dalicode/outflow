@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ThemeColors } from '../features/analytics/AnalyticsCharts'
+import type { ThemeColors } from '../features/analytics/hooks/useThemeColors'
 import ColoredCumulativeLine from '../features/analytics/incomeTrend/ColoredCumulativeLine'
 
 const colors: ThemeColors = {

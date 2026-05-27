@@ -316,7 +316,10 @@ async function mergeSettingsRows(rows: Record<string, unknown>[]): Promise<void>
   }
 }
 
-async function fetchOptionalRowsForUser(table: string, userId: string): Promise<Record<string, unknown>[]> {
+async function fetchOptionalRowsForUser(
+  table: string,
+  userId: string,
+): Promise<Record<string, unknown>[]> {
   try {
     return await fetchAllRowsForUser(table, userId)
   } catch {
@@ -501,9 +504,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       'expenseTags',
       expenseTagRows
         .map((row) => fromCloud('expense_tags', row, identityMaps))
-        .filter(
-          (row) => typeof row.expenseId === 'number' && typeof row.tagId === 'number',
-        ),
+        .filter((row) => typeof row.expenseId === 'number' && typeof row.tagId === 'number'),
     )
   }
 

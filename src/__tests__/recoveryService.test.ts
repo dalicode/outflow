@@ -59,7 +59,9 @@ describe('runRecoveryDiagnostics', () => {
   })
 
   it('returns local_repair_required when local duplicates and broken refs exist', async () => {
-    mockDb.expenses.toArray.mockResolvedValue([{ id: 1, categoryId: 999, payeeId: 888, splitId: 777 }])
+    mockDb.expenses.toArray.mockResolvedValue([
+      { id: 1, categoryId: 999, payeeId: 888, splitId: 777 },
+    ])
     mockDb.categories.toArray.mockResolvedValue([
       { id: 10, name: 'Food' },
       { id: 11, name: 'food' },
@@ -121,15 +123,15 @@ describe('runRecoveryDiagnostics', () => {
                           ? 3
                           : table === 'expense_splits'
                             ? 4
-                          : table === 'fixed_expense_snapshots'
-                            ? 3
-                            : table === 'income_snapshots'
-                              ? 2
-                              : table === 'savings_snapshots'
+                            : table === 'fixed_expense_snapshots'
+                              ? 3
+                              : table === 'income_snapshots'
                                 ? 2
-                                : table === 'schedules'
-                                  ? 1
-                                  : 0,
+                                : table === 'savings_snapshots'
+                                  ? 2
+                                  : table === 'schedules'
+                                    ? 1
+                                    : 0,
                 error: null,
               }),
       }),

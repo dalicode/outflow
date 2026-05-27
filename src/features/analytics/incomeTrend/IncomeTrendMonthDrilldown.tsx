@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { AnalyticsData, Category, Expense, FormattingProps, Payee } from '../../../types'
 import { buildMonthDrilldownData } from '../../../utils/analyticsTrendUtils'
-import type { ThemeColors } from '../AnalyticsCharts'
+import type { ThemeColors } from '../hooks/useThemeColors'
 import {
   RankedCategoryTable,
   RankedCategoryViz,

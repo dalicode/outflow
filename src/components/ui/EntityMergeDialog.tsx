@@ -32,8 +32,7 @@ export default function EntityMergeDialog({
   const [merging, setMerging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const label =
-    entityType === 'category' ? 'category' : entityType === 'payee' ? 'payee' : 'tag'
+  const label = entityType === 'category' ? 'category' : entityType === 'payee' ? 'payee' : 'tag'
   const Label = entityType === 'category' ? 'Category' : entityType === 'payee' ? 'Payee' : 'Tag'
   const targetDropdownOptions = targetOptions.map((target) => ({
     id: target.id,

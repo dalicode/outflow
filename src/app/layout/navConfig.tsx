@@ -301,7 +301,12 @@ const TagsIcon = ({ active }: NavIconProps) => (
       strokeWidth="1.75"
       strokeLinejoin="round"
     />
-    <circle cx="8.5" cy="8.5" r="1.25" fill={active ? 'var(--theme-primary)' : 'var(--theme-muted)'} />
+    <circle
+      cx="8.5"
+      cy="8.5"
+      r="1.25"
+      fill={active ? 'var(--theme-primary)' : 'var(--theme-muted)'}
+    />
   </svg>
 )
 

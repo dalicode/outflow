@@ -75,7 +75,9 @@ describe('splitDisplayRows', () => {
   })
 
   it('keeps split container notes empty when the parent has no notes', () => {
-    const expenses: Expense[] = [{ id: 1, date: '2026-05-02', amount: 12, splitId: 10, categoryId: 3 }]
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-02', amount: 12, splitId: 10, categoryId: 3 },
+    ]
     const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-02', amount: 12 }]
 
     const rows = buildExpenseDisplayRows({

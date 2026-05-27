@@ -26,9 +26,7 @@ export function useDashboardFilters(
   const [filterGlobal, setFilterGlobalState] = useState(initialFilters?.filterGlobal ?? '')
   const [filterDateFrom, setFilterDateFromState] = useState(initialFilters?.filterDateFrom ?? '')
   const [filterDateTo, setFilterDateToState] = useState(initialFilters?.filterDateTo ?? '')
-  const [filterNotes, setFilterNotesState] = useState(
-    initialFilters?.filterNotes ?? '',
-  )
+  const [filterNotes, setFilterNotesState] = useState(initialFilters?.filterNotes ?? '')
   const [filterAmount, setFilterAmountState] = useState(initialFilters?.filterAmount ?? '')
   const [selectedCategories, setSelectedCategoriesState] = useState<Set<string>>(
     new Set(initialFilters?.selectedCategories ?? []),

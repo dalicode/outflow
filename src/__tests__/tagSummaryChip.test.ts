@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  getStableTagIdentity,
-  getTagSummaryChipStyle,
-  getTagSummaryData,
-} from '../utils/tagChip'
+import { getStableTagIdentity, getTagSummaryChipStyle, getTagSummaryData } from '../utils/tagChip'
 
 describe('getTagSummaryData', () => {
   it('returns empty summary when no tags are present', () => {

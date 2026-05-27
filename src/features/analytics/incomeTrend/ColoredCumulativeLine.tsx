@@ -1,5 +1,5 @@
 import { coloredMonotoneSegments } from '../../../utils/chartMath'
-import type { ThemeColors } from '../AnalyticsCharts'
+import type { ThemeColors } from '../hooks/useThemeColors'
 
 interface PointPayload {
   hasData: boolean

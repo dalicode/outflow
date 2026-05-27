@@ -440,21 +440,11 @@ export default function MoneyInput({
         aria-label={isNegativeMode ? `Switch to ${positiveLabel}` : `Switch to ${negativeLabel}`}
       >
         {isNegativeMode ? (
-          <svg
-            viewBox="0 0 10 2"
-            className="w-2.5 h-0.5"
-            fill="currentColor"
-            aria-hidden="true"
-          >
+          <svg viewBox="0 0 10 2" className="w-2.5 h-0.5" fill="currentColor" aria-hidden="true">
             <rect x="0" y="0" width="10" height="2" rx="1" />
           </svg>
         ) : (
-          <svg
-            viewBox="0 0 10 10"
-            className="w-2.5 h-2.5"
-            fill="currentColor"
-            aria-hidden="true"
-          >
+          <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="currentColor" aria-hidden="true">
             <rect x="0" y="4" width="10" height="2" rx="1" />
             <rect x="4" y="0" width="2" height="10" rx="1" />
           </svg>
@@ -481,8 +471,7 @@ export default function MoneyInput({
           shellClassOverride,
         )
 
-  const signControls =
-    signTogglePosition === 'outside-left' ? renderSignControls() : null
+  const signControls = signTogglePosition === 'outside-left' ? renderSignControls() : null
   const shouldFloatOutsideLeftControls =
     signTogglePosition === 'outside-left' &&
     detachedOutsideLeftControls &&
@@ -504,9 +493,7 @@ export default function MoneyInput({
         )}
       >
         {shouldFloatOutsideLeftControls ? (
-          <div className="absolute left-[-2.75rem] top-1/2 -translate-y-1/2">
-            {signControls}
-          </div>
+          <div className="absolute left-[-2.75rem] top-1/2 -translate-y-1/2">{signControls}</div>
         ) : (
           signControls
         )}
@@ -585,7 +572,9 @@ export default function MoneyInput({
               )}
               aria-invalid={hasError}
               aria-label={label ?? 'Amount'}
-              inputMode={entryMode === 'decimal' ? 'decimal' : allowNegative ? 'decimal' : 'numeric'}
+              inputMode={
+                entryMode === 'decimal' ? 'decimal' : allowNegative ? 'decimal' : 'numeric'
+              }
               data-testid={inputTestId}
             />
 

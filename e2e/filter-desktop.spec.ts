@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { addTag, getAllExpenses, getTagIdsForExpense, resetAppState, setExpenseTags } from './helpers'
+import {
+  addTag,
+  getAllExpenses,
+  getTagIdsForExpense,
+  resetAppState,
+  setExpenseTags,
+} from './helpers'
 
 test.describe('Filter modal (desktop)', () => {
   const visibleFiltersButton = (page: import('@playwright/test').Page) =>

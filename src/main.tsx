@@ -1,7 +1,5 @@
 import ReactDOM from 'react-dom/client'
-import App from './App'
-import { AuthProvider } from './context/authContext'
-import { SettingsProvider } from './context/settingsContext'
+import { App, AppProviders } from './app'
 import { applyDisplayModeClasses } from './utils/displayModeClasses'
 import './index.css'
 
@@ -28,11 +26,9 @@ try {
     showError('Fatal: #root not found')
   } else {
     ReactDOM.createRoot(root).render(
-      <AuthProvider>
-        <SettingsProvider>
-          <App />
-        </SettingsProvider>
-      </AuthProvider>,
+      <AppProviders>
+        <App />
+      </AppProviders>,
     )
   }
 } catch (e: unknown) {

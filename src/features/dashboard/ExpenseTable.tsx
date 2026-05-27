@@ -70,9 +70,7 @@ function findTagsAnchorElement(expenseId: number): HTMLElement | null {
 }
 
 function getTagIds(tags: Tag[]): number[] {
-  return tags
-    .map((tag) => tag.id)
-    .filter((tagId): tagId is number => typeof tagId === 'number')
+  return tags.map((tag) => tag.id).filter((tagId): tagId is number => typeof tagId === 'number')
 }
 
 function haveSameTagIds(left: number[], right: number[]): boolean {
@@ -156,7 +154,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const [activeSplitTargetId, setActiveSplitTargetId] = useState<number | null>(null)
   const [activeSplitChildTargetId, setActiveSplitChildTargetId] = useState<number | null>(null)
   const [editingSplitField, setEditingSplitField] = useState<EditingSplitField | null>(null)
-  const [splits, setSplits] = useState<Awaited<ReturnType<typeof StorageService.getExpenseSplits>>>([])
+  const [splits, setSplits] = useState<Awaited<ReturnType<typeof StorageService.getExpenseSplits>>>(
+    [],
+  )
   const [activeTags, setActiveTags] = useState<Tag[]>([])
   const [activeTagsEditor, setActiveTagsEditor] = useState<ActiveTagsEditorState | null>(null)
   const [tagsEditorPosition, setTagsEditorPosition] = useState<FloatingPosition | null>(null)
@@ -526,29 +526,35 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     [openContextMenu, isMobile],
   )
 
-  const handleUnsplit = useCallback(async (splitId: number) => {
-    try {
-      await StorageService.unsplitExpenseSplit(splitId)
-      await refreshExpenses?.()
-      triggerSync?.()
-      showToast({ message: 'Transaction unsplit', tone: 'success' })
-    } catch (error) {
-      console.error('Failed to unsplit transaction:', error)
-      showToast({ message: 'Could not unsplit transaction.', tone: 'danger' })
-    }
-  }, [refreshExpenses, showToast, triggerSync])
+  const handleUnsplit = useCallback(
+    async (splitId: number) => {
+      try {
+        await StorageService.unsplitExpenseSplit(splitId)
+        await refreshExpenses?.()
+        triggerSync?.()
+        showToast({ message: 'Transaction unsplit', tone: 'success' })
+      } catch (error) {
+        console.error('Failed to unsplit transaction:', error)
+        showToast({ message: 'Could not unsplit transaction.', tone: 'danger' })
+      }
+    },
+    [refreshExpenses, showToast, triggerSync],
+  )
 
-  const handleUnsplitChild = useCallback(async (expenseId: number) => {
-    try {
-      await StorageService.unsplitSplitChildExpense(expenseId)
-      await refreshExpenses?.()
-      triggerSync?.()
-      showToast({ message: 'Split allocation unsplit', tone: 'success' })
-    } catch (error) {
-      console.error('Failed to unsplit split allocation:', error)
-      showToast({ message: 'Could not unsplit split allocation.', tone: 'danger' })
-    }
-  }, [refreshExpenses, showToast, triggerSync])
+  const handleUnsplitChild = useCallback(
+    async (expenseId: number) => {
+      try {
+        await StorageService.unsplitSplitChildExpense(expenseId)
+        await refreshExpenses?.()
+        triggerSync?.()
+        showToast({ message: 'Split allocation unsplit', tone: 'success' })
+      } catch (error) {
+        console.error('Failed to unsplit split allocation:', error)
+        showToast({ message: 'Could not unsplit split allocation.', tone: 'danger' })
+      }
+    },
+    [refreshExpenses, showToast, triggerSync],
+  )
 
   const toggleSplitParentSelection = useCallback(
     (splitId: number) => {
@@ -673,7 +679,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const handleCommitSplitPayeeEdit = useCallback(
     async (splitId: number, payeeId: number | undefined) => {
       if (!beginSplitFieldCommit(splitId, 'payeeId')) return
-      const nextPayee = typeof payeeId === 'number' ? payees.find((payee) => payee.id === payeeId) : null
+      const nextPayee =
+        typeof payeeId === 'number' ? payees.find((payee) => payee.id === payeeId) : null
       const changes = {
         payeeId,
         payeeNameSnapshot: nextPayee?.name ?? null,
@@ -689,12 +696,20 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         endSplitFieldCommit(splitId, 'payeeId')
       }
     },
-    [beginSplitFieldCommit, endSplitFieldCommit, payees, refreshExpenses, showToast, updateLocalSplit],
+    [
+      beginSplitFieldCommit,
+      endSplitFieldCommit,
+      payees,
+      refreshExpenses,
+      showToast,
+      updateLocalSplit,
+    ],
   )
+
+  const editingCell = editing.editingCell
 
   useEffect(() => {
     if (isMobile) return
-    const editingCell = editing.editingCell
     if (editingCell?.field !== 'tags') {
       if (activeTagsEditor) {
         dismissTagsEditor()
@@ -717,15 +732,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       lastOpenedTagsEditorKeyRef.current = editingKey
       openTagsEditor(editingCell.expenseId, target)
     }
-  }, [
-    activeTagsEditor?.expenseId,
-    activeTagsEditor,
-    dismissTagsEditor,
-    editing.editingCell?.expenseId,
-    editing.editingCell?.field,
-    isMobile,
-    openTagsEditor,
-  ])
+  }, [activeTagsEditor, dismissTagsEditor, editingCell, isMobile, openTagsEditor])
 
   useEffect(() => {
     if (!activeTagsEditor) return
@@ -738,7 +745,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     if (!activeTagsEditor) return
     const updatePosition = () => {
       const anchorElement = findTagsAnchorElement(activeTagsEditor.expenseId)
-      if (!anchorElement || !anchorElement.isConnected) {
+      if (!anchorElement?.isConnected) {
         closeTagsEditor()
         return
       }
@@ -941,7 +948,11 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         return cn(isSelected && 'selected-row', 'row-hover')
       }
       const isSelected = selectedIds.has(row.expense.id as number)
-      return cn(isSelected && 'selected-row', 'row-hover', row.rowType === 'splitChild' && 'opacity-90')
+      return cn(
+        isSelected && 'selected-row',
+        'row-hover',
+        row.rowType === 'splitChild' && 'opacity-90',
+      )
     },
     [selectedIds, splitChildIdsBySplitId],
   )

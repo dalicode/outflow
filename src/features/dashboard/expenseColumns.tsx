@@ -306,7 +306,9 @@ export function getExpenseColumns({
         if (rowData.rowType === 'splitContainer') {
           const isSelected = isSplitParentSelected(rowData.splitId)
           return (
-            <label className={cn('expense-checkbox-wrapper cursor-pointer', isSelected && 'checked')}>
+            <label
+              className={cn('expense-checkbox-wrapper cursor-pointer', isSelected && 'checked')}
+            >
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -757,11 +759,12 @@ export function getExpenseColumns({
         }
 
         const exp = rowData.expense
-        const expenseTags = typeof exp.id === 'number' ? expenseTagsMap[exp.id] ?? [] : []
+        const expenseTags = typeof exp.id === 'number' ? (expenseTagsMap[exp.id] ?? []) : []
         const expenseSummary = getTagSummaryData(expenseTags)
         return renderEditableDisplayCell(
           {
-            className: 'flex min-h-[1.25rem] w-full cursor-pointer items-center overflow-hidden text-xs',
+            className:
+              'flex min-h-[1.25rem] w-full cursor-pointer items-center overflow-hidden text-xs',
             field: 'tags',
             title: expenseSummary.summary || undefined,
             isEditableCell: true,

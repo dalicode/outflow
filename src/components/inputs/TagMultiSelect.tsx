@@ -58,7 +58,10 @@ export default function TagMultiSelect({
         .map((tag) => ({ id: tag.id, label: tag.name, tag })),
     [tags],
   )
-  const selectableOptions = useMemo(() => options.filter((option) => !option.tag.isArchived), [options])
+  const selectableOptions = useMemo(
+    () => options.filter((option) => !option.tag.isArchived),
+    [options],
+  )
   const selectedIdSet = useMemo(() => new Set(selectedTagIds), [selectedTagIds])
   const selected = useMemo(
     () => options.filter((option) => selectedIdSet.has(option.id)),
@@ -74,9 +77,13 @@ export default function TagMultiSelect({
   )
   const normalizedQuery = query.trim().toLowerCase()
   const hasQuery = normalizedQuery.length > 0
-  const hasExact = selectableOptions.some((option) => option.label.trim().toLowerCase() === normalizedQuery)
+  const hasExact = selectableOptions.some(
+    (option) => option.label.trim().toLowerCase() === normalizedQuery,
+  )
   const canCreate = hasQuery && !hasExact
-  const exactMatchOption = selectableOptions.find((option) => option.label.trim().toLowerCase() === normalizedQuery)
+  const exactMatchOption = selectableOptions.find(
+    (option) => option.label.trim().toLowerCase() === normalizedQuery,
+  )
   const isInline = variant === 'inline'
   const dropdownItems = [
     ...filteredOptions.map((option) => ({ type: 'option' as const, option })),
@@ -99,7 +106,7 @@ export default function TagMultiSelect({
   useEffect(() => {
     if (!isOpen) return
     setHighlightedIndex(0)
-  }, [isOpen, query, selectedTagIds])
+  }, [isOpen])
 
   const addTagId = (tagId: number) => {
     if (selectedIdSet.has(tagId)) return
@@ -239,14 +246,18 @@ export default function TagMultiSelect({
             if (event.key === 'ArrowDown') {
               event.preventDefault()
               setIsOpen(true)
-              setHighlightedIndex((prev) => (dropdownItems.length === 0 ? 0 : (prev + 1) % dropdownItems.length))
+              setHighlightedIndex((prev) =>
+                dropdownItems.length === 0 ? 0 : (prev + 1) % dropdownItems.length,
+              )
               return
             }
             if (event.key === 'ArrowUp') {
               event.preventDefault()
               setIsOpen(true)
               setHighlightedIndex((prev) =>
-                dropdownItems.length === 0 ? 0 : (prev - 1 + dropdownItems.length) % dropdownItems.length,
+                dropdownItems.length === 0
+                  ? 0
+                  : (prev - 1 + dropdownItems.length) % dropdownItems.length,
               )
               return
             }
@@ -279,7 +290,10 @@ export default function TagMultiSelect({
             }
           }}
           placeholder={selected.length === 0 ? placeholder : ''}
-          className={cn('min-w-[7rem] flex-1 bg-transparent text-sm text-theme-text outline-none', inputClassName)}
+          className={cn(
+            'min-w-[7rem] flex-1 bg-transparent text-sm text-theme-text outline-none',
+            inputClassName,
+          )}
           autoFocus={autoFocus}
         />
       </div>
@@ -317,7 +331,9 @@ export default function TagMultiSelect({
             >
               <span className="flex items-center justify-between gap-3">
                 <span>{option.label}</span>
-                {option.isSelected ? <span className="text-xs text-theme-muted">Selected</span> : null}
+                {option.isSelected ? (
+                  <span className="text-xs text-theme-muted">Selected</span>
+                ) : null}
               </span>
             </button>
           ))}

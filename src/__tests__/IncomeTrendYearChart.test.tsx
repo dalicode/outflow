@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import IncomeTrendYearChart from '../features/analytics/incomeTrend/IncomeTrendYearChart'
-import type { ThemeColors } from '../features/analytics/AnalyticsCharts'
+import type { ThemeColors } from '../features/analytics/hooks/useThemeColors'
 import type { AllTimeRow, YearTrendRow } from '../utils/analyticsTrendUtils'
 
 vi.mock('../hooks/useViewportWidth', () => ({
@@ -58,9 +58,9 @@ vi.mock('recharts', async () => {
     Tooltip: () => <div data-testid="tooltip" />,
     XAxis: ({ dataKey }: { dataKey: string }) => (
       <div className="recharts-xAxis">
-        {activeChartData.map((row, index) => (
+        {activeChartData.map((row) => (
           <span
-            key={`${String(row[dataKey])}-${index}`}
+            key={String(row.monthKey ?? row[dataKey])}
             className="recharts-cartesian-axis-tick-value"
           >
             {String(row[dataKey] ?? '')}

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import Navbar from '../components/layout/Navbar'
+import Navbar from '../app/layout/Navbar'
 
 function renderNavbar(props: Parameters<typeof Navbar>[0]) {
   return render(

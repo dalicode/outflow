@@ -83,7 +83,11 @@ export async function verifySyncIntegrity(): Promise<void> {
     'expenseTags' in db
       ? (
           db as unknown as {
-            expenseTags: { toArray: () => Promise<Array<{ deletedAt?: string | null; tagId: number; expenseId: number }>> }
+            expenseTags: {
+              toArray: () => Promise<
+                Array<{ deletedAt?: string | null; tagId: number; expenseId: number }>
+              >
+            }
           }
         ).expenseTags.toArray()
       : Promise.resolve([])
@@ -100,7 +104,9 @@ export async function verifySyncIntegrity(): Promise<void> {
   const activeExpenses = exps.filter((expense) => expense.deletedAt == null)
   const validCatIds = new Set(activeCats.filter(hasLocalId).map((c) => c.id))
   const validPayeeIds = new Set(activePays.filter(hasLocalId).map((p) => p.id))
-  const validTagIds = new Set(tags.filter((tag) => tag.deletedAt == null && tag.id != null).map((tag) => tag.id as number))
+  const validTagIds = new Set(
+    tags.filter((tag) => tag.deletedAt == null && tag.id != null).map((tag) => tag.id as number),
+  )
   const validExpenseIds = new Set(activeExpenses.filter(hasLocalId).map((expense) => expense.id))
   const activeSplitIds = new Set(
     splits
@@ -180,7 +186,10 @@ export async function verifySyncIntegrity(): Promise<void> {
   }
   const duplicateCategories = logDuplicateActiveNames('category', activeCats)
   const duplicatePayees = logDuplicateActiveNames('payee', activePays)
-  const duplicateTags = logDuplicateActiveNames('tag', tags.filter((tag) => tag.deletedAt == null))
+  const duplicateTags = logDuplicateActiveNames(
+    'tag',
+    tags.filter((tag) => tag.deletedAt == null),
+  )
   const tombstoneConflicts = await logTombstoneConflicts()
   if (brokenCats > 0) {
     debugWarn('[integrity] total expenses with broken category link:', brokenCats)
@@ -192,10 +201,7 @@ export async function verifySyncIntegrity(): Promise<void> {
     debugWarn('[integrity] total expenses with broken split link:', brokenSplitRefs)
   }
   if (tombstonedSplitRefs > 0) {
-    debugWarn(
-      '[integrity] total expenses with tombstoned split link:',
-      tombstonedSplitRefs,
-    )
+    debugWarn('[integrity] total expenses with tombstoned split link:', tombstonedSplitRefs)
   }
   debugLog(
     '[integrity] checked',
@@ -234,7 +240,10 @@ function resolveNormalizedName(row: NamedSyncRow): string | null {
   return null
 }
 
-function logDuplicateActiveNames(label: 'category' | 'payee' | 'tag', rows: NamedSyncRow[]): number {
+function logDuplicateActiveNames(
+  label: 'category' | 'payee' | 'tag',
+  rows: NamedSyncRow[],
+): number {
   const groups = new Map<string, NamedSyncRow[]>()
   for (const row of rows) {
     const normalizedName = resolveNormalizedName(row)

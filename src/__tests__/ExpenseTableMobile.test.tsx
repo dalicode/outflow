@@ -223,7 +223,9 @@ describe('ExpenseTableMobile', () => {
       />,
     )
 
-    expect(within(screen.getByTestId('expense-row-mobile-1')).queryByText('Cafe')).not.toBeInTheDocument()
+    expect(
+      within(screen.getByTestId('expense-row-mobile-1')).queryByText('Cafe'),
+    ).not.toBeInTheDocument()
   })
 
   it('toggles split parent selection on tap in selection mode', () => {

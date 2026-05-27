@@ -42,17 +42,15 @@ function createTable<T extends { id?: number }>(initialRows: T[] = []) {
     reset: (nextRows: T[] = []) => {
       rows = [...nextRows]
       nextId =
-        rows.reduce(
-          (max, row) => (typeof row.id === 'number' ? Math.max(max, row.id) : max),
-          0,
-        ) + 1
+        rows.reduce((max, row) => (typeof row.id === 'number' ? Math.max(max, row.id) : max), 0) + 1
       anyOfCalls.length = 0
       bulkGetCalls.length = 0
     },
     toArray: async () => rows.map((row) => ({ ...row })),
     where: (field: string) => ({
       equals: (value: unknown) => ({
-        toArray: async () => rows.filter((row) => (row as Record<string, unknown>)[field] === value),
+        toArray: async () =>
+          rows.filter((row) => (row as Record<string, unknown>)[field] === value),
       }),
       anyOf: (values: unknown[]) => {
         anyOfCalls.push([...values])
@@ -186,7 +184,13 @@ describe('tagRepository', () => {
   it('replaces joins, tombstones removed rows, and revives existing joins', async () => {
     mocks.expenseTags.reset([
       { id: 1, expenseId: 10, tagId: 100, deletedAt: null, localId: 'join-1' },
-      { id: 2, expenseId: 10, tagId: 101, deletedAt: '2026-05-01T00:00:00.000Z', localId: 'join-2' },
+      {
+        id: 2,
+        expenseId: 10,
+        tagId: 101,
+        deletedAt: '2026-05-01T00:00:00.000Z',
+        localId: 'join-2',
+      },
       { id: 3, expenseId: 10, tagId: 102, deletedAt: null, localId: 'join-3' },
     ])
 
@@ -228,7 +232,9 @@ describe('tagRepository', () => {
   })
 
   it('archives and unarchives tags', async () => {
-    mocks.tags.reset([{ id: 9, name: 'Work', normalizedName: 'work', isArchived: false, deletedAt: null }])
+    mocks.tags.reset([
+      { id: 9, name: 'Work', normalizedName: 'work', isArchived: false, deletedAt: null },
+    ])
 
     await archiveTag(9)
     expect(await mocks.tags.get(9)).toEqual(expect.objectContaining({ isArchived: true }))
@@ -238,7 +244,9 @@ describe('tagRepository', () => {
   })
 
   it('unlinks all active joins and archives tag with undo payload', async () => {
-    mocks.tags.reset([{ id: 9, name: 'Work', normalizedName: 'work', isArchived: false, deletedAt: null }])
+    mocks.tags.reset([
+      { id: 9, name: 'Work', normalizedName: 'work', isArchived: false, deletedAt: null },
+    ])
     mocks.expenseTags.reset([
       { id: 1, expenseId: 101, tagId: 9, deletedAt: null },
       { id: 2, expenseId: 102, tagId: 9, deletedAt: null },
@@ -251,8 +259,12 @@ describe('tagRepository', () => {
       unlinkedExpenseTagIds: [1, 2],
     })
     expect(await mocks.tags.get(9)).toEqual(expect.objectContaining({ isArchived: true }))
-    expect(await mocks.expenseTags.get(1)).toEqual(expect.objectContaining({ deletedAt: expect.any(String) }))
-    expect(await mocks.expenseTags.get(2)).toEqual(expect.objectContaining({ deletedAt: expect.any(String) }))
+    expect(await mocks.expenseTags.get(1)).toEqual(
+      expect.objectContaining({ deletedAt: expect.any(String) }),
+    )
+    expect(await mocks.expenseTags.get(2)).toEqual(
+      expect.objectContaining({ deletedAt: expect.any(String) }),
+    )
     expect(await mocks.expenseTags.get(3)).toEqual(
       expect.objectContaining({ deletedAt: '2026-05-01T00:00:00.000Z' }),
     )
@@ -260,7 +272,9 @@ describe('tagRepository', () => {
   })
 
   it('undoes unlink-and-archive by reviving only affected joins and unarchiving tag', async () => {
-    mocks.tags.reset([{ id: 9, name: 'Work', normalizedName: 'work', isArchived: true, deletedAt: null }])
+    mocks.tags.reset([
+      { id: 9, name: 'Work', normalizedName: 'work', isArchived: true, deletedAt: null },
+    ])
     mocks.expenseTags.reset([
       { id: 1, expenseId: 101, tagId: 9, deletedAt: '2026-05-10T00:00:00.000Z' },
       { id: 2, expenseId: 102, tagId: 9, deletedAt: '2026-05-10T00:00:00.000Z' },
@@ -344,9 +358,9 @@ describe('tagRepository', () => {
     expect(counts[501]).toBe(1)
     expect(counts[1001]).toBe(1)
     expect(mocks.expenseTags.anyOfCalls).toHaveLength(3)
-    expect((mocks.expenseTags.anyOfCalls[0] as unknown[])).toHaveLength(500)
-    expect((mocks.expenseTags.anyOfCalls[1] as unknown[])).toHaveLength(500)
-    expect((mocks.expenseTags.anyOfCalls[2] as unknown[])).toHaveLength(1)
+    expect(mocks.expenseTags.anyOfCalls[0] as unknown[]).toHaveLength(500)
+    expect(mocks.expenseTags.anyOfCalls[1] as unknown[]).toHaveLength(500)
+    expect(mocks.expenseTags.anyOfCalls[2] as unknown[]).toHaveLength(1)
     expect(mocks.expenses.bulkGetCalls).toHaveLength(3)
     expect(mocks.expenses.bulkGetCalls[0]).toHaveLength(500)
     expect(mocks.expenses.bulkGetCalls[1]).toHaveLength(500)
@@ -359,9 +373,30 @@ describe('tagRepository', () => {
       { id: 2, name: 'Beta', normalizedName: 'beta', isArchived: false, deletedAt: null },
     ])
     mocks.expenseTags.reset([
-      { id: 11, expenseId: 1001, tagId: 1, deletedAt: null, localId: 'join-11', syncStatus: 'synced' },
-      { id: 12, expenseId: 1002, tagId: 1, deletedAt: null, localId: 'join-12', syncStatus: 'synced' },
-      { id: 13, expenseId: 1002, tagId: 2, deletedAt: null, localId: 'join-13', syncStatus: 'synced' },
+      {
+        id: 11,
+        expenseId: 1001,
+        tagId: 1,
+        deletedAt: null,
+        localId: 'join-11',
+        syncStatus: 'synced',
+      },
+      {
+        id: 12,
+        expenseId: 1002,
+        tagId: 1,
+        deletedAt: null,
+        localId: 'join-12',
+        syncStatus: 'synced',
+      },
+      {
+        id: 13,
+        expenseId: 1002,
+        tagId: 2,
+        deletedAt: null,
+        localId: 'join-13',
+        syncStatus: 'synced',
+      },
     ])
 
     const mergeId = await mergeTag(1, 2)

@@ -15,7 +15,10 @@ function createSplitTable(initial: Row[] = []) {
     setRows: (nextRows: Row[]) => {
       rows = nextRows.map((row) => ({ ...row }))
       nextId =
-        nextRows.reduce((maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId), 0) + 1
+        nextRows.reduce(
+          (maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId),
+          0,
+        ) + 1
     },
     toArray: async () => rows.map((row) => ({ ...row })),
     orderBy: (_key: string) => ({
@@ -56,13 +59,19 @@ function createExpenseTable(initial: Row[] = []) {
     seed: (nextRows: Row[]) => {
       rows = nextRows.map((row) => ({ ...row }))
       nextId =
-        nextRows.reduce((maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId), 0) + 1
+        nextRows.reduce(
+          (maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId),
+          0,
+        ) + 1
     },
     rows: () => rows,
     setRows: (nextRows: Row[]) => {
       rows = nextRows.map((row) => ({ ...row }))
       nextId =
-        nextRows.reduce((maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId), 0) + 1
+        nextRows.reduce(
+          (maxId, row) => (typeof row.id === 'number' ? Math.max(maxId, row.id) : maxId),
+          0,
+        ) + 1
     },
     toArray: async () => rows.map((row) => ({ ...row })),
     where: (field: string) => ({
@@ -339,7 +348,9 @@ describe('expenseSplitRepository', () => {
       notes: 'Single split line',
     })
 
-    expenseTable.seed([{ id: 1, date: '2026-05-10', amount: 40, splitId, categoryId: 8, deletedAt: null }])
+    expenseTable.seed([
+      { id: 1, date: '2026-05-10', amount: 40, splitId, categoryId: 8, deletedAt: null },
+    ])
 
     await unsplitSplitChildExpense(1)
 
@@ -453,7 +464,9 @@ describe('expenseSplitRepository', () => {
 
     const rows = expenseTable.rows()
     expect(rows).toHaveLength(3)
-    expect(rows[0]).toEqual(expect.objectContaining({ id: 1, date: '2026-05-11', amount: 6, splitId }))
+    expect(rows[0]).toEqual(
+      expect.objectContaining({ id: 1, date: '2026-05-11', amount: 6, splitId }),
+    )
     expect(rows[1]).toEqual(expect.objectContaining({ id: 2, deletedAt: expect.any(String) }))
     expect(rows[2]).toEqual(
       expect.objectContaining({
@@ -485,7 +498,9 @@ describe('expenseSplitRepository', () => {
       notes: 'Original split',
     })
 
-    expenseTable.seed([{ id: 1, date: '2026-05-10', amount: 12, splitId, categoryId: 1, deletedAt: null }])
+    expenseTable.seed([
+      { id: 1, date: '2026-05-10', amount: 12, splitId, categoryId: 1, deletedAt: null },
+    ])
 
     const originalAdd = expenseTable.add
     const addSpy = vi.spyOn(expenseTable, 'add').mockImplementationOnce(async (_row: Row) => {
@@ -507,7 +522,9 @@ describe('expenseSplitRepository', () => {
       }),
     ).rejects.toThrow('insert failed')
 
-    expect(splitTable.rows()[0]).toEqual(expect.objectContaining({ id: splitId, date: '2026-05-10' }))
+    expect(splitTable.rows()[0]).toEqual(
+      expect.objectContaining({ id: splitId, date: '2026-05-10' }),
+    )
     expect(expenseTable.rows()).toEqual([
       expect.objectContaining({ id: 1, date: '2026-05-10', amount: 12, splitId, deletedAt: null }),
     ])

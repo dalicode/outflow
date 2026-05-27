@@ -276,7 +276,9 @@ describe('ExpenseTable', () => {
 
     expect(within(noTagRow).getByTestId('editable-cell-display-tags')).toBeEmptyDOMElement()
     expect(within(oneTagRow).getByTestId('editable-cell-display-tags')).toHaveTextContent('Travel')
-    expect(within(multiTagRow).getByTestId('editable-cell-display-tags')).toHaveTextContent('Work +2')
+    expect(within(multiTagRow).getByTestId('editable-cell-display-tags')).toHaveTextContent(
+      'Work +2',
+    )
     expect(screen.getByRole('columnheader', { name: 'Tags' })).toBeInTheDocument()
   })
 
@@ -457,7 +459,10 @@ describe('ExpenseTable', () => {
         expect(input).toHaveValue('20.00')
       },
     },
-  ])('dismisses the tags popover and opens the $label editor from the same click', async ({ getTarget, expectEditor }) => {
+  ])('dismisses the tags popover and opens the $label editor from the same click', async ({
+    getTarget,
+    expectEditor,
+  }) => {
     const user = userEvent.setup()
     storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
 
@@ -652,7 +657,9 @@ describe('ExpenseTable', () => {
   it('dismisses the tags popover and opens a split field editor when clicking a split container cell', async () => {
     const user = userEvent.setup()
     storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
-    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 25, notes: '' }])
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 25, notes: '' },
+    ])
 
     const expenses: Expense[] = [
       { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
@@ -696,7 +703,9 @@ describe('ExpenseTable', () => {
   it('dismisses the tags popover and opens split parent date editor from the same click', async () => {
     const user = userEvent.setup()
     storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
-    storageMocks.getExpenseSplits.mockResolvedValue([{ id: 10, date: '2026-05-10', amount: 25, notes: '' }])
+    storageMocks.getExpenseSplits.mockResolvedValue([
+      { id: 10, date: '2026-05-10', amount: 25, notes: '' },
+    ])
 
     const expenses: Expense[] = [
       { id: 1, date: '2026-05-11', amount: 15, categoryId: 1, notes: 'Regular' },
@@ -741,7 +750,14 @@ describe('ExpenseTable', () => {
     const user = userEvent.setup()
     storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
     storageMocks.getExpenseSplits.mockResolvedValue([
-      { id: 10, date: '2026-05-10', amount: 25, notes: '', payeeId: undefined, payeeNameSnapshot: null },
+      {
+        id: 10,
+        date: '2026-05-10',
+        amount: 25,
+        notes: '',
+        payeeId: undefined,
+        payeeNameSnapshot: null,
+      },
     ])
 
     const expenses: Expense[] = [
@@ -821,9 +837,7 @@ describe('ExpenseTable', () => {
       { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },
       { id: 2, splitId: 10, date: '2026-05-10', amount: 8, categoryId: 2, notes: 'B' },
     ]
-    const splits: ExpenseSplit[] = [
-      { id: 10, date: '2026-05-10', amount: 20, notes: 'Lunch' },
-    ]
+    const splits: ExpenseSplit[] = [{ id: 10, date: '2026-05-10', amount: 20, notes: 'Lunch' }]
 
     storageMocks.getExpenseSplits.mockResolvedValue(splits)
     storageMocks.getAllExpenseSplits.mockResolvedValue(splits)
@@ -1176,7 +1190,9 @@ describe('ExpenseTable', () => {
   it('keeps empty notes blank and still opens notes and tags editors from the cell', async () => {
     storageMocks.getActiveTags.mockResolvedValue([{ id: 101, name: 'Work', isArchived: false }])
 
-    const expenses: Expense[] = [{ id: 1, date: '2026-05-10', amount: 12, categoryId: 1, notes: '' }]
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-10', amount: 12, categoryId: 1, notes: '' },
+    ]
 
     const view = render(
       <ExpenseTable

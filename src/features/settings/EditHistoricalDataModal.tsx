@@ -609,7 +609,7 @@ export default function EditHistoricalDataModal({
   const [resultMsg, setResultMsg] = useState('')
   const [currentFixedDefs, setCurrentFixedDefs] = useState<FixedExpense[]>([])
   const [restoredFromDraft, setRestoredFromDraft] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
+  const [reloadNonce, setReloadNonce] = useState(0)
   // Track the id of the most recently added range so its input gets focused
   const [focusedIncomeRangeId, setFocusedIncomeRangeId] = useState<string | null>(null)
   const [focusedSavingsRangeId, setFocusedSavingsRangeId] = useState<string | null>(null)
@@ -657,7 +657,8 @@ export default function EditHistoricalDataModal({
     }
 
     let cancelled = false
-    const load = async () => {
+    // Passing the nonce makes the reload trigger explicit for this effect run.
+    const load = async (reloadNonceForLoad: number) => {
       setLoading(true)
       try {
         const [fixedDefs, incSnaps, savSnaps, allFixedSnaps] = await Promise.all([
@@ -725,17 +726,17 @@ export default function EditHistoricalDataModal({
           setCurrentFixedDefs(fixedDefs as FixedExpense[])
         }
       } catch (err) {
-        console.error('Failed to load historical data:', err)
+        console.error('Failed to load historical data:', err, { reloadNonce: reloadNonceForLoad })
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
 
-    load()
+    void load(reloadNonce)
     return () => {
       cancelled = true
     }
-  }, [isOpen, years, draftKey, reloadKey])
+  }, [draftKey, isOpen, reloadNonce, years])
 
   const updateYearConfig = (year: number, patch: Partial<YearConfig>) => {
     setYearConfigs((prev) => ({
@@ -971,7 +972,7 @@ export default function EditHistoricalDataModal({
   const discardDraft = () => {
     clearDraft()
     setRestoredFromDraft(false)
-    setReloadKey((k) => k + 1) // re-triggers the load effect to reload from DB
+    setReloadNonce((nonce) => nonce + 1) // re-triggers the load effect to reload from DB
   }
 
   const activeConfig: YearConfig = yearConfigs[activeYear ?? 0] || {

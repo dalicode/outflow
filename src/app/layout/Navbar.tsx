@@ -1,7 +1,7 @@
 import { useState, type MouseEventHandler } from 'react'
 import DesktopSidebar from './DesktopSidebar'
 import MobileBottomNav from './MobileBottomNav'
-import ConfirmDialog from '../ui/ConfirmDialog'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import type { SyncStatus } from '../../types'
 
 interface NavbarProps {

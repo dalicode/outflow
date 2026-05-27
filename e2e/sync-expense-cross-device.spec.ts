@@ -72,9 +72,9 @@ test.describe('Cross-device expense sync repro', () => {
       })
 
       const deviceBExpenses = await getAllExpenses(pageB)
-      expect(
-        deviceBExpenses.some((row) => row.notes === 'Cross-device sync repro expense'),
-      ).toBe(true)
+      expect(deviceBExpenses.some((row) => row.notes === 'Cross-device sync repro expense')).toBe(
+        true,
+      )
     } finally {
       await contextA.close()
       await contextB.close()

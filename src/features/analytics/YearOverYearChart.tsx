@@ -13,7 +13,7 @@ import {
 } from 'recharts'
 import type { AnalyticsData } from '../../types'
 import { fmtCompact, fmtDelta, fmtFull } from '../../utils/analyticsFormatting'
-import type { ThemeColors } from './AnalyticsCharts'
+import type { ThemeColors } from './hooks/useThemeColors'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

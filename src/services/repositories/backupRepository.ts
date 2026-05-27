@@ -170,17 +170,15 @@ function normalizeBackupPayload(payload: Record<string, unknown>): Record<string
       (row) =>
         ({ ...row, ...normalizeImportedSyncMetadata(row, { now }) }) as unknown as FixedExpense,
     ),
-    expenseSplits: asBackupRows(payload.expenseSplits).map(
-      (row) => {
-        return {
-          ...row,
-          ...normalizeImportedSyncMetadata(row, { now }),
-          notes: resolveSplitNotes(row),
-          description: undefined,
-          note: undefined,
-        } as unknown as ExpenseSplit
-      },
-    ),
+    expenseSplits: asBackupRows(payload.expenseSplits).map((row) => {
+      return {
+        ...row,
+        ...normalizeImportedSyncMetadata(row, { now }),
+        notes: resolveSplitNotes(row),
+        description: undefined,
+        note: undefined,
+      } as unknown as ExpenseSplit
+    }),
     fixedExpenseSnapshots: asBackupRows(payload.fixedExpenseSnapshots).map(
       (row) =>
         ({
@@ -253,9 +251,11 @@ export function dbVersion(): number {
 
 export async function exportAllData(): Promise<Record<string, unknown>> {
   const tagsTable = (db as unknown as { tags?: { toArray: () => Promise<Tag[]> } }).tags
-  const expenseTagsTable = (db as unknown as {
-    expenseTags?: { toArray: () => Promise<ExpenseTag[]> }
-  }).expenseTags
+  const expenseTagsTable = (
+    db as unknown as {
+      expenseTags?: { toArray: () => Promise<ExpenseTag[]> }
+    }
+  ).expenseTags
   return {
     expenses: await db.expenses.toArray(),
     categories: await db.categories.toArray(),
@@ -272,8 +272,9 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     payeeMergeHistory: await db.payeeMergeHistory.toArray(),
     tagMergeHistory:
       'tagMergeHistory' in db
-        ? await (db as unknown as { tagMergeHistory: { toArray: () => Promise<TagMergeHistory[]> } })
-            .tagMergeHistory.toArray()
+        ? await (
+            db as unknown as { tagMergeHistory: { toArray: () => Promise<TagMergeHistory[]> } }
+          ).tagMergeHistory.toArray()
         : [],
     tags: tagsTable ? await tagsTable.toArray() : [],
     expenseTags: expenseTagsTable ? await expenseTagsTable.toArray() : [],
@@ -392,7 +393,9 @@ export async function importAllData(
     }
     if (normalizedPayload.tagMergeHistory && 'tagMergeHistory' in db) {
       await (
-        db as unknown as { tagMergeHistory: { bulkPut: (rows: TagMergeHistory[]) => Promise<number> } }
+        db as unknown as {
+          tagMergeHistory: { bulkPut: (rows: TagMergeHistory[]) => Promise<number> }
+        }
       ).tagMergeHistory.bulkPut(normalizedPayload.tagMergeHistory as TagMergeHistory[])
     }
 

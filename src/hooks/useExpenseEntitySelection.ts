@@ -93,7 +93,9 @@ export function useExpenseEntitySelection({
       .filter((option): option is ComboboxOption => Boolean(option))
   }, [activePayeeIds, expenses, payeeOptions])
 
-  const selectedCategoryName = categoryOptions.find((option) => option.id === Number(categoryId))?.label
+  const selectedCategoryName = categoryOptions.find(
+    (option) => option.id === Number(categoryId),
+  )?.label
   const selectedPayeeName = payeeOptions.find((option) => option.id === Number(payeeId))?.label
 
   const resetSuggestions = useCallback(() => {
@@ -143,7 +145,14 @@ export function useExpenseEntitySelection({
         onCategoryIdChange(String(likelyCategoryId))
       }
     },
-    [activeCategoryIds, categoryId, expenses, onCategoryIdChange, onPayeeIdChange, resetSuggestions],
+    [
+      activeCategoryIds,
+      categoryId,
+      expenses,
+      onCategoryIdChange,
+      onPayeeIdChange,
+      resetSuggestions,
+    ],
   )
 
   const acceptSuggestion = useCallback(() => {

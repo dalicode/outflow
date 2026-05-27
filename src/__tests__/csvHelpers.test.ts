@@ -95,13 +95,16 @@ describe('parseCSV', () => {
       notes: 'Split child allocation',
     }
 
-    const row = expenseToRow(
-      splitChild,
-      { 3: 'Transport' },
-      { 7: 'Metro' },
-      (iso) => iso,
-    )
+    const row = expenseToRow(splitChild, { 3: 'Transport' }, { 7: 'Metro' }, (iso) => iso)
 
-    expect(row).toEqual(['2026-05-12', 'Transport', 'Metro', 'Split child allocation', 8.25, 5, '2026'])
+    expect(row).toEqual([
+      '2026-05-12',
+      'Transport',
+      'Metro',
+      'Split child allocation',
+      8.25,
+      5,
+      '2026',
+    ])
   })
 })

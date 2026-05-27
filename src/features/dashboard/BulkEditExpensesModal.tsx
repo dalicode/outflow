@@ -307,11 +307,7 @@ export default function BulkEditExpensesModal({
           )}
         </BulkEditField>
 
-        <BulkEditField
-          checked={applyNotes}
-          label="Notes"
-          onToggle={setApplyNotes}
-        >
+        <BulkEditField checked={applyNotes} label="Notes" onToggle={setApplyNotes}>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}

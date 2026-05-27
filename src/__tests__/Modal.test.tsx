@@ -279,7 +279,14 @@ describe('Modal', () => {
   it('keeps the mobile full-screen footer anchored when the keyboard shrinks the visual viewport', () => {
     setVisualViewport(390, 520, 0, 844)
     render(
-      <Modal isOpen={true} onClose={vi.fn()} title="Test" size="full" mobileActionLabel="Save" onMobileAction={vi.fn()}>
+      <Modal
+        isOpen={true}
+        onClose={vi.fn()}
+        title="Test"
+        size="full"
+        mobileActionLabel="Save"
+        onMobileAction={vi.fn()}
+      >
         <input type="text" aria-label="Amount" />
       </Modal>,
     )

@@ -14,10 +14,7 @@ export default function PageSectionFallback({
 }: PageSectionFallbackProps) {
   return (
     <div
-      className={cn(
-        'w-full mx-auto px-4 py-6',
-        size === 'lg' ? 'max-w-6xl' : 'max-w-4xl',
-      )}
+      className={cn('w-full mx-auto px-4 py-6', size === 'lg' ? 'max-w-6xl' : 'max-w-4xl')}
       data-testid="page-section-fallback"
     >
       <div

@@ -1,6 +1,6 @@
-export type { ThemeColors } from './AnalyticsCharts'
+export type { ThemeColors } from './hooks/useThemeColors'
+export { useThemeColors } from './hooks/useThemeColors'
 export {
-  useThemeColors,
   RankedCategoryTable,
   RankedPayeeTable,
   CategoryBreakdownChart,

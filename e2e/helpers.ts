@@ -107,18 +107,21 @@ export async function clearAllData(page: Page): Promise<void> {
 }
 
 export async function seedExpenses(page: Page, entries: SeedExpenseEntry[]): Promise<void> {
-  await page.evaluate(async (data) => {
-    const api = (
-      window as Window & {
-        outflowTestApi?: typeof import('../src/test/testApi').testApi
-      }
-    ).outflowTestApi
-    if (!api) throw new Error('outflowTestApi not found')
-    await api.seedExpenses(data)
-  }, entries.map((entry) => ({
-    ...entry,
-    notes: entry.notes ?? entry.description ?? '',
-  })))
+  await page.evaluate(
+    async (data) => {
+      const api = (
+        window as Window & {
+          outflowTestApi?: typeof import('../src/test/testApi').testApi
+        }
+      ).outflowTestApi
+      if (!api) throw new Error('outflowTestApi not found')
+      await api.seedExpenses(data)
+    },
+    entries.map((entry) => ({
+      ...entry,
+      notes: entry.notes ?? entry.description ?? '',
+    })),
+  )
 }
 
 export async function seedSettings(page: Page, settings: Record<string, unknown>): Promise<void> {
@@ -133,28 +136,28 @@ export async function seedSettings(page: Page, settings: Record<string, unknown>
   }, settings)
 }
 
-export async function seedExpenseSplit(
-  page: Page,
-  params: SeedExpenseSplitInput,
-): Promise<void> {
-  await page.evaluate(async (data) => {
-    const api = (
-      window as Window & {
-        outflowTestApi?: typeof import('../src/test/testApi').testApi
-      }
-    ).outflowTestApi
-    if (!api) throw new Error('outflowTestApi not found')
-    await api.seedExpenseSplit(data)
-  }, {
-    split: {
-      ...params.split,
-      notes: params.split.notes ?? params.split.note ?? params.split.description ?? '',
+export async function seedExpenseSplit(page: Page, params: SeedExpenseSplitInput): Promise<void> {
+  await page.evaluate(
+    async (data) => {
+      const api = (
+        window as Window & {
+          outflowTestApi?: typeof import('../src/test/testApi').testApi
+        }
+      ).outflowTestApi
+      if (!api) throw new Error('outflowTestApi not found')
+      await api.seedExpenseSplit(data)
     },
-    children: params.children.map((child) => ({
-      ...child,
-      notes: child.notes ?? child.description ?? '',
-    })),
-  })
+    {
+      split: {
+        ...params.split,
+        notes: params.split.notes ?? params.split.note ?? params.split.description ?? '',
+      },
+      children: params.children.map((child) => ({
+        ...child,
+        notes: child.notes ?? child.description ?? '',
+      })),
+    },
+  )
 }
 
 export async function addCategory(page: Page, name: string): Promise<number> {
@@ -549,23 +552,26 @@ export async function addSchedule(
   page: Page,
   schedule: Parameters<TestApi['addSchedule']>[0],
 ): Promise<void> {
-  await page.evaluate(async (data) => {
-    const api = (
-      window as Window & {
-        outflowTestApi?: typeof import('../src/test/testApi').testApi
-      }
-    ).outflowTestApi
-    if (!api) throw new Error('outflowTestApi not found')
-    await api.addSchedule(data)
-  }, {
-    ...schedule,
-    notes:
-      'notes' in schedule && typeof schedule.notes === 'string'
-        ? schedule.notes
-        : 'note' in schedule && typeof schedule.note === 'string'
-          ? schedule.note
-          : '',
-  })
+  await page.evaluate(
+    async (data) => {
+      const api = (
+        window as Window & {
+          outflowTestApi?: typeof import('../src/test/testApi').testApi
+        }
+      ).outflowTestApi
+      if (!api) throw new Error('outflowTestApi not found')
+      await api.addSchedule(data)
+    },
+    {
+      ...schedule,
+      notes:
+        'notes' in schedule && typeof schedule.notes === 'string'
+          ? schedule.notes
+          : 'note' in schedule && typeof schedule.note === 'string'
+            ? schedule.note
+            : '',
+    },
+  )
 }
 
 export async function deleteSchedule(page: Page, id: number): Promise<void> {
@@ -652,7 +658,11 @@ export async function updateTag(
   )
 }
 
-export async function setExpenseTags(page: Page, expenseId: number, tagIds: number[]): Promise<void> {
+export async function setExpenseTags(
+  page: Page,
+  expenseId: number,
+  tagIds: number[],
+): Promise<void> {
   await page.evaluate(
     async ({ id, ids }) => {
       const api = (

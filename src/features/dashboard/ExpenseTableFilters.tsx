@@ -123,7 +123,9 @@ export default function ExpenseTableFilters({
           preserveOrder
           triggerSize="sm"
           triggerClassName="input-theme min-h-0 px-2 py-1 text-xs font-normal"
-          onChange={(value) => onColumnFilterChange('category', typeof value === 'string' ? value : '')}
+          onChange={(value) =>
+            onColumnFilterChange('category', typeof value === 'string' ? value : '')
+          }
         />
         <input
           type="text"

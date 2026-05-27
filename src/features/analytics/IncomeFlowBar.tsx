@@ -4,7 +4,7 @@ import BudgetFlowBar, {
   getRemainingBarColor,
 } from '../../components/ui/BudgetFlowBar'
 import PrivateValue from '../../components/privacy/PrivateValue'
-import { useThemeColors } from './AnalyticsCharts'
+import { useThemeColors } from './hooks/useThemeColors'
 
 const MONTH_LABELS = [
   'Jan',

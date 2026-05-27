@@ -83,7 +83,10 @@ function makeNumericTable(name: TableName) {
     toArray: async () => getRows().map(cloneRow),
     where: (field: string) => ({
       equals: (value: unknown) => ({
-        toArray: async () => getRows().filter((row) => row[field] === value).map(cloneRow),
+        toArray: async () =>
+          getRows()
+            .filter((row) => row[field] === value)
+            .map(cloneRow),
       }),
     }),
     add: async (row: Record<string, unknown>) => {

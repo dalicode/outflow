@@ -1,7 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useViewportWidth } from '../../../hooks/useViewportWidth'
 import type { DailySpendingRow } from '../../../utils/analyticsTrendUtils'
-import type { ThemeColors } from '../AnalyticsCharts'
+import type { ThemeColors } from '../hooks/useThemeColors'
 
 interface DailyTooltipPayloadItem {
   payload: DailySpendingRow

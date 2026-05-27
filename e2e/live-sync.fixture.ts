@@ -10,7 +10,7 @@ interface LiveSyncFixtures {
 }
 
 export const test = base.extend<LiveSyncFixtures>({
-  liveUser: async ({}, use) => {
+  liveUser: async (_args, use) => {
     const user = await createLiveSupabaseUser()
     try {
       await use(user)

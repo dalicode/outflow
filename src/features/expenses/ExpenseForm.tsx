@@ -55,7 +55,7 @@ interface SplitChildDraft {
 }
 
 interface ExpenseFormProps {
-  onAdd?: (expense: Omit<Expense, 'id'>) => Promise<number | void> | number | void
+  onAdd?: (expense: Omit<Expense, 'id'>) => Promise<number | undefined> | number | undefined
   onUpdate?: (id: number, changes: Partial<Expense>) => Promise<void> | void
   onSplitSave?: () => void | Promise<void>
   onClose: () => void
@@ -611,7 +611,9 @@ export default function ExpenseForm({
             <input
               type="text"
               value={form.notes}
-              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, notes: event.target.value }))
+              }
               onBlur={(event) => runPayeeMatch(event.target.value)}
               placeholder="Optional"
               className={inputCls}
@@ -875,7 +877,6 @@ export default function ExpenseForm({
               </div>
             )}
           </div>
-
         </form>
       </Modal>
       <ConfirmDialog

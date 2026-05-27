@@ -492,8 +492,7 @@ class OutflowDB extends Dexie {
       schedules:
         '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
       incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
-      savingsSnapshots:
-        '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      savingsSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
       categoryMergeHistory:
         '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
       payeeMergeHistory:
@@ -504,7 +503,8 @@ class OutflowDB extends Dexie {
         '++id, date, splitId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt, [categoryId+date]',
       expenseSplits: '++id, date, payeeId, localId, cloudId, syncStatus, deletedAt',
       tags: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
-      expenseTags: '++id, expenseId, tagId, localId, cloudId, syncStatus, deletedAt, [expenseId+tagId]',
+      expenseTags:
+        '++id, expenseId, tagId, localId, cloudId, syncStatus, deletedAt, [expenseId+tagId]',
       settings: 'key, updatedAt, localId, cloudId, syncStatus, deletedAt',
       fixedExpenses: '++id, localId, cloudId, syncStatus, deletedAt',
       categories: '++id, name, normalizedName, localId, cloudId, syncStatus, deletedAt',
@@ -515,8 +515,7 @@ class OutflowDB extends Dexie {
       schedules:
         '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
       incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
-      savingsSnapshots:
-        '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      savingsSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
       categoryMergeHistory:
         '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
       payeeMergeHistory:
@@ -539,8 +538,7 @@ class OutflowDB extends Dexie {
           '++id, [fixedExpenseId+year+month], year, month, localId, cloudId, syncStatus, deletedAt',
         schedules:
           '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
-        incomeSnapshots:
-          '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+        incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
         savingsSnapshots:
           '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
         categoryMergeHistory:
@@ -569,8 +567,7 @@ class OutflowDB extends Dexie {
       schedules:
         '++id, type, effectiveYear, effectiveMonth, isActive, targetId, categoryId, payeeId, localId, cloudId, syncStatus, deletedAt',
       incomeSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
-      savingsSnapshots:
-        '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
+      savingsSnapshots: '++id, [year+month], year, month, localId, cloudId, syncStatus, deletedAt',
       categoryMergeHistory:
         '++id, sourceCategoryId, targetCategoryId, localId, cloudId, syncStatus, deletedAt',
       payeeMergeHistory:

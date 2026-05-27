@@ -1,11 +1,5 @@
 import { test, type Page } from '@playwright/test'
-import {
-  addCategory,
-  addPayee,
-  expect,
-  resetAppState,
-  seedExpenseSplit,
-} from './helpers'
+import { addCategory, addPayee, expect, resetAppState, seedExpenseSplit } from './helpers'
 
 async function openExpensesView(page: Page): Promise<void> {
   await page.getByTestId('view-tab-expenses').first().click()

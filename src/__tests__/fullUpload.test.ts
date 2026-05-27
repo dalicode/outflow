@@ -200,20 +200,22 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
         syncStatus: 'pending',
       },
     ])
-    upsertRowsInBatchesMock.mockImplementation(async (table: string, rows: Record<string, unknown>[]) => {
-      if (table === 'tags') {
-        return rows.map((row) => ({
-          ...row,
-          id: 'cloud-tag-5',
-          local_id: row.local_id,
-          updated_at: '2026-05-21T00:00:00.000Z',
-        }))
-      }
-      if (table === 'expense_tags') {
-        return rows
-      }
-      return []
-    })
+    upsertRowsInBatchesMock.mockImplementation(
+      async (table: string, rows: Record<string, unknown>[]) => {
+        if (table === 'tags') {
+          return rows.map((row) => ({
+            ...row,
+            id: 'cloud-tag-5',
+            local_id: row.local_id,
+            updated_at: '2026-05-21T00:00:00.000Z',
+          }))
+        }
+        if (table === 'expense_tags') {
+          return rows
+        }
+        return []
+      },
+    )
 
     await migrateLocalToSupabase('user-1')
 

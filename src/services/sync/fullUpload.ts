@@ -439,9 +439,9 @@ export async function migrateLocalToSupabase(
     StorageService.getAllExpenses() as Promise<Expense[]>,
     StorageService.getAllCategories() as Promise<Category[]>,
     StorageService.getAllPayees() as Promise<Payee[]>,
-    (typeof StorageService.getAllTags === 'function'
+    typeof StorageService.getAllTags === 'function'
       ? (StorageService.getAllTags() as Promise<Tag[]>)
-      : Promise.resolve([])),
+      : Promise.resolve([]),
     StorageService.getAllFixedExpenses() as Promise<FixedExpense[]>,
     StorageService.getAllSettingsRows(),
     StorageService.getAllExpenseSplits() as Promise<ExpenseSplit[]>,

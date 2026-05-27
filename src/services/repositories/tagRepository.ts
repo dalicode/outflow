@@ -223,9 +223,7 @@ export async function getExpenseCountsForTags(tagIds: number[]): Promise<Record<
     const batchRows = await db.expenses.bulkGet(expenseIdBatch)
     expenses.push(...batchRows.filter((row): row is Expense => Boolean(row)))
   }
-  const activeExpenseIds = new Set(
-    filterActiveRows(expenses).map((expense) => expense.id),
-  )
+  const activeExpenseIds = new Set(filterActiveRows(expenses).map((expense) => expense.id))
 
   const expenseIdsByTag = new Map<number, Set<number>>()
   for (const join of activeJoins) {
@@ -264,8 +262,12 @@ export async function mergeTag(sourceTagId: number, targetTagId: number): Promis
         throw new Error('Target tag not found.')
       }
 
-      const sourceRows = filterActiveRows(await db.expenseTags.where('tagId').equals(sourceTagId).toArray())
-      const targetRows = filterActiveRows(await db.expenseTags.where('tagId').equals(targetTagId).toArray())
+      const sourceRows = filterActiveRows(
+        await db.expenseTags.where('tagId').equals(sourceTagId).toArray(),
+      )
+      const targetRows = filterActiveRows(
+        await db.expenseTags.where('tagId').equals(targetTagId).toArray(),
+      )
       const targetExpenseIds = new Set(targetRows.map((row) => row.expenseId))
 
       const affectedExpenseTagIds: number[] = []
@@ -391,12 +393,16 @@ export async function revertTagMerge(mergeId: number): Promise<void> {
 }
 
 export async function getTagIdsForExpense(expenseId: number): Promise<number[]> {
-  const joins = filterActiveRows(await db.expenseTags.where('expenseId').equals(expenseId).toArray())
+  const joins = filterActiveRows(
+    await db.expenseTags.where('expenseId').equals(expenseId).toArray(),
+  )
   return joins.map((row) => row.tagId)
 }
 
 export async function getTagsForExpense(expenseId: number): Promise<Tag[]> {
-  const joins = filterActiveRows(await db.expenseTags.where('expenseId').equals(expenseId).toArray())
+  const joins = filterActiveRows(
+    await db.expenseTags.where('expenseId').equals(expenseId).toArray(),
+  )
   const tags = await db.tags.bulkGet(joins.map((row) => row.tagId))
   return filterActiveRows(tags.filter((row): row is Tag => Boolean(row)))
 }
@@ -410,8 +416,12 @@ export async function getExpenseTagsMap(expenseIds: number[]): Promise<Record<nu
   )
   if (joins.length === 0) return map
   const tagIds = Array.from(new Set(joins.map((join) => join.tagId)))
-  const tags = filterActiveRows((await db.tags.bulkGet(tagIds)).filter((row): row is Tag => Boolean(row)))
-  const tagById = new Map(tags.filter((tag) => tag.id != null).map((tag) => [tag.id as number, tag]))
+  const tags = filterActiveRows(
+    (await db.tags.bulkGet(tagIds)).filter((row): row is Tag => Boolean(row)),
+  )
+  const tagById = new Map(
+    tags.filter((tag) => tag.id != null).map((tag) => [tag.id as number, tag]),
+  )
 
   for (const expenseId of expenseIds) {
     map[expenseId] = []

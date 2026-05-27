@@ -276,9 +276,7 @@ export function useCsvImport({
 
           const toAdd = nextReplaceMode
             ? rows
-            : rows.filter(
-                (row) => !existingKeys.has(`${row.date}|${row.amount}|${row.notes}`),
-              )
+            : rows.filter((row) => !existingKeys.has(`${row.date}|${row.amount}|${row.notes}`))
 
           const importedYears = [
             ...new Set(toAdd.map((row) => parseInt(row.date.slice(0, 4), 10))),

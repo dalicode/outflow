@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import PrivateValue from '../../../components/privacy/PrivateValue'
-import type { ThemeColors } from '../AnalyticsCharts'
+import type { ThemeColors } from '../hooks/useThemeColors'
 
 function DrilldownStat({
   label,

@@ -118,11 +118,7 @@ vi.mock('../components/inputs/MoneyInput', () => ({
 }))
 
 vi.mock('../components/inputs/TagMultiSelect', () => ({
-  default: ({
-    onCreate,
-  }: {
-    onCreate?: (name: string) => Promise<number>
-  }) => (
+  default: ({ onCreate }: { onCreate?: (name: string) => Promise<number> }) => (
     <button
       type="button"
       onClick={() => {
@@ -357,10 +353,7 @@ describe('ExpenseForm', () => {
 
     expect(StorageService.saveExpenseSplitWithChildren).toHaveBeenCalledWith(
       expect.objectContaining({
-        children: [
-          expect.objectContaining({ amount: 5 }),
-          expect.objectContaining({ amount: 5 }),
-        ],
+        children: [expect.objectContaining({ amount: 5 }), expect.objectContaining({ amount: 5 })],
       }),
     )
   })

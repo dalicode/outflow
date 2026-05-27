@@ -1,4 +1,4 @@
-import type { ThemeColors } from './AnalyticsCharts'
+import type { ThemeColors } from './hooks/useThemeColors'
 
 interface TooltipPayloadItem {
   value: number
