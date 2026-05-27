@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import AnalyticsBreakdownTable from './AnalyticsBreakdownTable'
 import EmptyState from '../../../components/ui/EmptyState'
 import type { AnalyticsData } from '../../../types'
 import { fmtFull } from '../../../utils/analyticsFormatting'
@@ -53,46 +54,41 @@ export function RankedCategoryTable({ data, focusMonth, focusLabel }: RankedCate
   if (rows.length === 0) return <EmptyState chartHeight message="No category data" />
 
   return (
-    <div className="overflow-x-auto">
-      <table className="analytics-breakdown-table">
-        <thead>
-          <tr>
-            <th>Category</th>
-            <th>{focusLabel}</th>
-            <th>Previous</th>
-            <th>Delta</th>
-            <th>Share</th>
-            <th>Year total</th>
+    <AnalyticsBreakdownTable
+      headers={[
+        { key: 'category', label: 'Category' },
+        { key: 'focus', label: focusLabel },
+        { key: 'previous', label: 'Previous' },
+        { key: 'delta', label: 'Delta' },
+        { key: 'share', label: 'Share' },
+        { key: 'year-total', label: 'Year total' },
+      ]}
+    >
+      {rows.map((row) => {
+        const delta = row.focus - row.previous
+        return (
+          <tr key={row.key}>
+            <td className="font-semibold text-theme-text">{row.name}</td>
+            <td className="tabular-nums">{fmtFull(row.focus)}</td>
+            <td className="tabular-nums">{fmtFull(row.previous)}</td>
+            <td
+              className={cn(
+                'tabular-nums',
+                delta === 0
+                  ? 'text-theme-muted'
+                  : delta > 0
+                    ? 'text-theme-danger'
+                    : 'text-theme-success',
+              )}
+            >
+              {fmtChange(delta)}
+            </td>
+            <td className="tabular-nums">{`${row.share.toFixed(1)}%`}</td>
+            <td className="tabular-nums">{fmtFull(row.total)}</td>
           </tr>
-        </thead>
-        <tbody className="text-theme-text text-sm">
-          {rows.map((row) => {
-            const delta = row.focus - row.previous
-            return (
-              <tr key={row.key}>
-                <td className="font-semibold text-theme-text">{row.name}</td>
-                <td className="tabular-nums">{fmtFull(row.focus)}</td>
-                <td className="tabular-nums">{fmtFull(row.previous)}</td>
-                <td
-                  className={cn(
-                    'tabular-nums',
-                    delta === 0
-                      ? 'text-theme-muted'
-                      : delta > 0
-                        ? 'text-theme-danger'
-                        : 'text-theme-success',
-                  )}
-                >
-                  {fmtChange(delta)}
-                </td>
-                <td className="tabular-nums">{`${row.share.toFixed(1)}%`}</td>
-                <td className="tabular-nums">{fmtFull(row.total)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+        )
+      })}
+    </AnalyticsBreakdownTable>
   )
 }
 
@@ -141,45 +137,40 @@ export function RankedPayeeTable({ data, focusMonth, focusLabel }: RankedPayeeTa
   if (rows.length === 0) return <EmptyState chartHeight message="No payee data" />
 
   return (
-    <div className="overflow-x-auto">
-      <table className="analytics-breakdown-table">
-        <thead>
-          <tr>
-            <th>Payee</th>
-            <th>{focusLabel}</th>
-            <th>Previous</th>
-            <th>Delta</th>
-            <th>Share</th>
-            <th>Year total</th>
+    <AnalyticsBreakdownTable
+      headers={[
+        { key: 'payee', label: 'Payee' },
+        { key: 'focus', label: focusLabel },
+        { key: 'previous', label: 'Previous' },
+        { key: 'delta', label: 'Delta' },
+        { key: 'share', label: 'Share' },
+        { key: 'year-total', label: 'Year total' },
+      ]}
+    >
+      {rows.map((row) => {
+        const delta = row.focus - row.previous
+        return (
+          <tr key={row.key}>
+            <td className="font-semibold text-theme-text">{row.name}</td>
+            <td className="tabular-nums">{fmtFull(row.focus)}</td>
+            <td className="tabular-nums">{fmtFull(row.previous)}</td>
+            <td
+              className={cn(
+                'tabular-nums',
+                delta === 0
+                  ? 'text-theme-muted'
+                  : delta > 0
+                    ? 'text-theme-danger'
+                    : 'text-theme-success',
+              )}
+            >
+              {fmtChange(delta)}
+            </td>
+            <td className="tabular-nums">{`${row.share.toFixed(1)}%`}</td>
+            <td className="tabular-nums">{fmtFull(row.total)}</td>
           </tr>
-        </thead>
-        <tbody className="text-theme-text text-sm">
-          {rows.map((row) => {
-            const delta = row.focus - row.previous
-            return (
-              <tr key={row.key}>
-                <td className="font-semibold text-theme-text">{row.name}</td>
-                <td className="tabular-nums">{fmtFull(row.focus)}</td>
-                <td className="tabular-nums">{fmtFull(row.previous)}</td>
-                <td
-                  className={cn(
-                    'tabular-nums',
-                    delta === 0
-                      ? 'text-theme-muted'
-                      : delta > 0
-                        ? 'text-theme-danger'
-                        : 'text-theme-success',
-                  )}
-                >
-                  {fmtChange(delta)}
-                </td>
-                <td className="tabular-nums">{`${row.share.toFixed(1)}%`}</td>
-                <td className="tabular-nums">{fmtFull(row.total)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+        )
+      })}
+    </AnalyticsBreakdownTable>
   )
 }

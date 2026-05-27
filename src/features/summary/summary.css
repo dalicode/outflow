@@ -1,6 +1,6 @@
 /* Summary feature styles */
 
-/* Stat card used in SummarySection */
+/* Summary stat card */
 .summary-stat-card {
   display: flex;
   flex-direction: column;

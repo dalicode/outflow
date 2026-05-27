@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import InlineBanner from '../../components/ui/InlineBanner'
 import Modal from '../../components/ui/Modal'
-import ModalFooter from '../../components/ui/ModalFooter'
+import ModalActionRow from '../../components/ui/ModalActionRow'
 import DatePicker from '../../components/inputs/DatePicker'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import MoneyInput from '../../components/inputs/MoneyInput'
@@ -262,9 +263,9 @@ export default function ScheduleModal({
     >
       <div className="space-y-4">
         {isReadOnly && (
-          <div className="modal-readonly-banner">
+          <InlineBanner tone="info" contentClassName="font-medium">
             This schedule has already taken effect and cannot be edited.
-          </div>
+          </InlineBanner>
         )}
 
         {/* Type */}
@@ -483,20 +484,27 @@ function ScheduleModalFooter({
   editSchedule: boolean
 }) {
   return (
-    <ModalFooter>
-      <button onClick={onClose} className="btn-cancel-sm flex-1">
-        {isReadOnly ? 'Close' : 'Cancel'}
-      </button>
-      {!isReadOnly && (
-        <button
-          onClick={onSave}
-          className="btn-modal-primary flex-1"
-          disabled={saving}
-          data-testid="btn-save-schedule"
-        >
-          {saving ? 'Saving…' : editSchedule ? 'Update' : 'Save Schedule'}
-        </button>
-      )}
-    </ModalFooter>
+    <ModalActionRow
+      actions={[
+        {
+          key: 'cancel',
+          label: isReadOnly ? 'Close' : 'Cancel',
+          onClick: onClose,
+          tone: 'cancel',
+        },
+        ...(!isReadOnly
+          ? [
+              {
+                key: 'save',
+                label: saving ? 'Saving…' : editSchedule ? 'Update' : 'Save Schedule',
+                onClick: onSave,
+                disabled: saving,
+                dataTestId: 'btn-save-schedule',
+                tone: 'primary' as const,
+              },
+            ]
+          : []),
+      ]}
+    />
   )
 }

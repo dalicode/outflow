@@ -1,4 +1,3 @@
-export { default as DangerZone } from './DangerZone'
 export { default as EditHistoricalDataModal } from './EditHistoricalDataModal'
 export { default as ScheduleList } from './ScheduleList'
 export { default as ScheduleModal } from './ScheduleModal'

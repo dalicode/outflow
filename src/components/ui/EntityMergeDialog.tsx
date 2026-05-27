@@ -2,7 +2,7 @@ import { useState } from 'react'
 import DesktopDropdown from '../inputs/DesktopDropdown'
 import { cn } from '../../lib/cn'
 import Modal from './Modal'
-import ModalFooter from './ModalFooter'
+import ModalActionRow from './ModalActionRow'
 
 interface MergeTarget {
   id: number
@@ -66,28 +66,26 @@ export default function EntityMergeDialog({
       title={`Merge ${Label}`}
       size="sm"
       footer={
-        <ModalFooter>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="btn-modal-cancel flex-1"
-            disabled={merging}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={handleConfirm}
-            disabled={!selectedTargetId || merging}
-            className={cn(
-              'flex-1 btn-modal-primary',
-              (!selectedTargetId || merging) && 'opacity-50 cursor-not-allowed',
-            )}
-          >
-            {merging ? 'Merging…' : `Merge ${Label}`}
-          </button>
-        </ModalFooter>
+        <ModalActionRow
+          actions={[
+            {
+              key: 'cancel',
+              label: 'Cancel',
+              onClick: handleClose,
+              disabled: merging,
+              tone: 'modalCancel',
+            },
+            {
+              key: 'confirm',
+              label: merging ? 'Merging…' : `Merge ${Label}`,
+              onClick: () => void handleConfirm(),
+              disabled: !selectedTargetId || merging,
+              stopPointerDownPropagation: true,
+              tone: 'primary',
+              className: cn((!selectedTargetId || merging) && 'opacity-50 cursor-not-allowed'),
+            },
+          ]}
+        />
       }
     >
       <div className="space-y-4">

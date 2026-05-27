@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import MoneyInput from '../../../components/inputs/MoneyInput'
 import PercentInput from '../../../components/inputs/PercentInput'
 import Modal from '../../../components/ui/Modal'
-import ModalFooter from '../../../components/ui/ModalFooter'
+import ModalActionRow from '../../../components/ui/ModalActionRow'
 import { useSettings } from '../../../context/settingsContext'
 import { cn } from '../../../lib/cn'
 import { resolveMoneyLocaleConfig } from '../../../utils/moneyInput'
@@ -88,19 +88,24 @@ export default function SavingsModalForm({
       title={title}
       size={size}
       footer={
-        <ModalFooter>
-          <button type="button" onClick={onClose} className="btn-cancel-sm flex-1">
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="savings-modal-form"
-            data-testid="btn-save-savings"
-            className="btn-modal-primary flex-1"
-          >
-            Save
-          </button>
-        </ModalFooter>
+        <ModalActionRow
+          actions={[
+            {
+              key: 'cancel',
+              label: 'Cancel',
+              onClick: onClose,
+              tone: 'cancel',
+            },
+            {
+              key: 'save',
+              label: 'Save',
+              type: 'submit',
+              form: 'savings-modal-form',
+              dataTestId: 'btn-save-savings',
+              tone: 'primary',
+            },
+          ]}
+        />
       }
     >
       <form

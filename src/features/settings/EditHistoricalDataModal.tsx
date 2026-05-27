@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import InlineBanner from '../../components/ui/InlineBanner'
 import Modal from '../../components/ui/Modal'
-import ModalFooter from '../../components/ui/ModalFooter'
+import ModalActionRow from '../../components/ui/ModalActionRow'
 import {
   FixedExpenseList,
   HistoricalYearTabs,
@@ -463,22 +464,27 @@ export default function EditHistoricalDataModal({
       onMobileAction={handleConfirm}
       mobileActionDisabled={saving || Object.keys(errors).length > 0}
       footer={
-        <ModalFooter className="justify-end">
-          <button
-            onClick={handleClose}
-            className="btn-cancel-sm flex-1 sm:min-w-[8.5rem] sm:flex-none"
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="btn-modal-primary flex-1 sm:min-w-[9.5rem] sm:flex-none"
-            disabled={saving || Object.keys(errors).length > 0}
-          >
-            {saving ? 'Saving…' : 'Confirm Save'}
-          </button>
-        </ModalFooter>
+        <ModalActionRow
+          className="justify-end"
+          actions={[
+            {
+              key: 'cancel',
+              label: 'Cancel',
+              onClick: handleClose,
+              disabled: saving,
+              className: 'sm:min-w-[8.5rem] sm:flex-none',
+              tone: 'cancel',
+            },
+            {
+              key: 'confirm',
+              label: saving ? 'Saving…' : 'Confirm Save',
+              onClick: handleConfirm,
+              disabled: saving || Object.keys(errors).length > 0,
+              className: 'sm:min-w-[9.5rem] sm:flex-none',
+              tone: 'primary',
+            },
+          ]}
+        />
       }
     >
       {loading ? (
@@ -501,17 +507,21 @@ export default function EditHistoricalDataModal({
 
           {/* Draft restored banner */}
           {restoredFromDraft && (
-            <div className="shrink-0 flex items-center justify-between gap-3 rounded-theme-medium border border-theme-primary bg-[color:color-mix(in_srgb,var(--theme-primary)_8%,transparent)] px-3 py-2 text-xs mb-2">
-              <span className="text-theme-primary font-medium">
-                Unsaved changes restored from your last session.
-              </span>
-              <button
-                onClick={discardDraft}
-                className="text-theme-muted hover:text-theme-danger transition-colors shrink-0"
-              >
-                Discard
-              </button>
-            </div>
+            <InlineBanner
+              tone="info"
+              className="shrink-0 mb-2"
+              contentClassName="font-medium"
+              action={
+                <button
+                  onClick={discardDraft}
+                  className="text-theme-muted hover:text-theme-danger transition-colors"
+                >
+                  Discard
+                </button>
+              }
+            >
+              <span>Unsaved changes restored from your last session.</span>
+            </InlineBanner>
           )}
 
           {/* Year tabs — attached to the card below */}

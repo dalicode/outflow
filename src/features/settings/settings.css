@@ -89,16 +89,6 @@
   opacity: 0.8;
 }
 
-/* Readonly banner in schedule modal */
-.modal-readonly-banner {
-  border-radius: var(--radius-small);
-  background-color: color-mix(in srgb, var(--theme-primary) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--theme-primary) 20%, transparent);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
-  color: var(--theme-primary);
-}
-
 /* Danger zone card border override */
 .card-danger {
   border-color: color-mix(in srgb, var(--theme-danger) 30%, transparent);

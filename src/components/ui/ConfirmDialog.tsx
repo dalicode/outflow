@@ -1,6 +1,6 @@
 import { cn } from '../../lib/cn'
 import Modal from './Modal'
-import ModalFooter from './ModalFooter'
+import ModalActionRow from './ModalActionRow'
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -46,23 +46,25 @@ export default function ConfirmDialog({
       title={title}
       size={size}
       footer={
-        <ModalFooter>
-          <button type="button" onClick={handleCancel} className="btn-cancel-sm flex-1">
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={handleConfirm}
-            disabled={confirmDisabled}
-            className={cn(
-              'flex-1',
-              confirmVariant === 'destructive' ? 'btn-modal-destructive' : 'btn-modal-primary',
-            )}
-          >
-            {confirmLabel}
-          </button>
-        </ModalFooter>
+        <ModalActionRow
+          actions={[
+            {
+              key: 'cancel',
+              label: cancelLabel,
+              onClick: handleCancel,
+              tone: 'cancel',
+            },
+            {
+              key: 'confirm',
+              label: confirmLabel,
+              onClick: handleConfirm,
+              disabled: confirmDisabled,
+              stopPointerDownPropagation: true,
+              tone: confirmVariant === 'destructive' ? 'destructive' : 'primary',
+              className: cn(confirmDisabled && 'opacity-50'),
+            },
+          ]}
+        />
       }
     >
       {description && <div className="pb-1 text-sm text-theme-muted">{description}</div>}

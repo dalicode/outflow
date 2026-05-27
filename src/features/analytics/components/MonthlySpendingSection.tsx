@@ -15,6 +15,7 @@ import EmptyState from '../../../components/ui/EmptyState'
 import { fmtCompact, fmtFull, fmtPct } from '../../../utils/analyticsFormatting'
 import { cn } from '../../../lib/cn'
 import { getCategoryColor } from '../../../utils/summaryColorUtils'
+import AnalyticsBreakdownTable from './AnalyticsBreakdownTable'
 import ChartTooltip from '../ChartTooltip'
 import { MONTHS, type ChartProps, fmtChange } from '../utils/analyticsChartUtils'
 
@@ -178,53 +179,48 @@ export function MonthlyComparisonTable({ data, monthCount }: MonthlyComparisonTa
   if (rows.length === 0) return <EmptyState chartHeight message="No month data" />
 
   return (
-    <div className="overflow-x-auto">
-      <table className="analytics-breakdown-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Income</th>
-            <th>Spend</th>
-            <th>Fixed</th>
-            <th>Variable</th>
-            <th>Remaining</th>
-            <th>Savings %</th>
-            <th>MoM</th>
-          </tr>
-        </thead>
-        <tbody className="text-theme-text text-sm">
-          {rows.map((row) => (
-            <tr key={row.month}>
-              <td className="font-semibold text-theme-text">{row.month}</td>
-              <td className="tabular-nums">{fmtFull(row.income)}</td>
-              <td className="tabular-nums">{fmtFull(row.spending)}</td>
-              <td className="tabular-nums">{fmtFull(row.fixed)}</td>
-              <td className="tabular-nums">{fmtFull(row.variable)}</td>
-              <td
-                className={cn(
-                  'tabular-nums',
-                  row.remaining < 0 ? 'text-theme-danger' : 'text-theme-success',
-                )}
-              >
-                {fmtFull(row.remaining)}
-              </td>
-              <td className="tabular-nums">{fmtPct(row.savingsRate)}</td>
-              <td
-                className={cn(
-                  'tabular-nums',
-                  row.delta == null || row.delta === 0
-                    ? 'text-theme-muted'
-                    : row.delta > 0
-                      ? 'text-theme-danger'
-                      : 'text-theme-success',
-                )}
-              >
-                {fmtChange(row.delta)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <AnalyticsBreakdownTable
+      headers={[
+        { key: 'month', label: 'Month' },
+        { key: 'income', label: 'Income' },
+        { key: 'spend', label: 'Spend' },
+        { key: 'fixed', label: 'Fixed' },
+        { key: 'variable', label: 'Variable' },
+        { key: 'remaining', label: 'Remaining' },
+        { key: 'savings-rate', label: 'Savings %' },
+        { key: 'mom', label: 'MoM' },
+      ]}
+    >
+      {rows.map((row) => (
+        <tr key={row.month}>
+          <td className="font-semibold text-theme-text">{row.month}</td>
+          <td className="tabular-nums">{fmtFull(row.income)}</td>
+          <td className="tabular-nums">{fmtFull(row.spending)}</td>
+          <td className="tabular-nums">{fmtFull(row.fixed)}</td>
+          <td className="tabular-nums">{fmtFull(row.variable)}</td>
+          <td
+            className={cn(
+              'tabular-nums',
+              row.remaining < 0 ? 'text-theme-danger' : 'text-theme-success',
+            )}
+          >
+            {fmtFull(row.remaining)}
+          </td>
+          <td className="tabular-nums">{fmtPct(row.savingsRate)}</td>
+          <td
+            className={cn(
+              'tabular-nums',
+              row.delta == null || row.delta === 0
+                ? 'text-theme-muted'
+                : row.delta > 0
+                  ? 'text-theme-danger'
+                  : 'text-theme-success',
+            )}
+          >
+            {fmtChange(row.delta)}
+          </td>
+        </tr>
+      ))}
+    </AnalyticsBreakdownTable>
   )
 }

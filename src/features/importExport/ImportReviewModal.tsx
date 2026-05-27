@@ -4,7 +4,7 @@ import type { ComboboxOption } from '../../components/inputs/comboboxUtils'
 import MobileEntityPicker from '../../components/inputs/MobileEntityPicker'
 import Card from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
-import ModalFooter from '../../components/ui/ModalFooter'
+import ModalActionRow from '../../components/ui/ModalActionRow'
 import Spinner from '../../components/ui/Spinner'
 import { StorageService } from '../../services/storageService'
 import type { Payee } from '../../types'
@@ -97,26 +97,31 @@ export default function ImportReviewModal({
       size="xl"
       bodyClassName="p-0"
       footer={
-        <ModalFooter>
-          <button onClick={onBack} className="btn-cancel-sm flex-1">
-            Back
-          </button>
-          <button
-            onClick={onSkipReview}
-            className="btn-cancel-sm flex-1"
-            disabled={isLoading || isSubmitting}
-          >
-            Skip review
-          </button>
-          <button
-            onClick={() => void handleImport()}
-            data-testid="btn-import-confirm"
-            className="btn-modal-primary flex-1"
-            disabled={isLoading || isSubmitting}
-          >
-            Import
-          </button>
-        </ModalFooter>
+        <ModalActionRow
+          actions={[
+            {
+              key: 'back',
+              label: 'Back',
+              onClick: onBack,
+              tone: 'cancel',
+            },
+            {
+              key: 'skip-review',
+              label: 'Skip review',
+              onClick: onSkipReview,
+              disabled: isLoading || isSubmitting,
+              tone: 'cancel',
+            },
+            {
+              key: 'import',
+              label: 'Import',
+              onClick: () => void handleImport(),
+              dataTestId: 'btn-import-confirm',
+              disabled: isLoading || isSubmitting,
+              tone: 'primary',
+            },
+          ]}
+        />
       }
     >
       <div className="relative flex min-h-0 flex-col">

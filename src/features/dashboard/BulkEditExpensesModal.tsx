@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import DatePicker from '../../components/inputs/DatePicker'
 import MobileEntityPicker from '../../components/inputs/MobileEntityPicker'
 import Modal from '../../components/ui/Modal'
-import ModalFooter from '../../components/ui/ModalFooter'
+import ModalActionRow from '../../components/ui/ModalActionRow'
 import { StorageService } from '../../services/storageService'
 import type { Category, Expense, Payee } from '../../types'
 import { cn } from '../../lib/cn'
@@ -168,24 +168,26 @@ export default function BulkEditExpensesModal({
       size="lg"
       mobileFullScreen
       footer={
-        <ModalFooter>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="btn-cancel-sm hidden flex-1 sm:inline-flex"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="bulk-edit-expenses-form"
-            disabled={saving}
-            className="btn-modal-primary flex-1"
-          >
-            {saving ? 'Saving...' : 'Apply Changes'}
-          </button>
-        </ModalFooter>
+        <ModalActionRow
+          actions={[
+            {
+              key: 'cancel',
+              label: 'Cancel',
+              onClick: onClose,
+              disabled: saving,
+              className: 'hidden sm:inline-flex',
+              tone: 'cancel',
+            },
+            {
+              key: 'apply',
+              label: saving ? 'Saving...' : 'Apply Changes',
+              type: 'submit',
+              form: 'bulk-edit-expenses-form',
+              disabled: saving,
+              tone: 'primary',
+            },
+          ]}
+        />
       }
     >
       <form id="bulk-edit-expenses-form" onSubmit={handleSubmit} className="space-y-4">

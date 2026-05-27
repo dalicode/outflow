@@ -1,5 +1,5 @@
 import Modal from './Modal'
-import ModalFooter from './ModalFooter'
+import ModalActionRow from './ModalActionRow'
 
 interface DeleteEntityDialogProps {
   isOpen: boolean
@@ -42,21 +42,23 @@ export default function DeleteEntityDialog({
       title={`Delete ${label}`}
       size="sm"
       footer={
-        <ModalFooter>
-          <button type="button" onClick={onClose} className="btn-modal-cancel flex-1">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => {
-              onConfirmDelete()
-            }}
-            className="btn-modal-destructive flex-1"
-          >
-            Delete
-          </button>
-        </ModalFooter>
+        <ModalActionRow
+          actions={[
+            {
+              key: 'cancel',
+              label: 'Cancel',
+              onClick: onClose,
+              tone: 'modalCancel',
+            },
+            {
+              key: 'delete',
+              label: 'Delete',
+              onClick: onConfirmDelete,
+              stopPointerDownPropagation: true,
+              tone: 'destructive',
+            },
+          ]}
+        />
       }
     >
       <div className="space-y-3">

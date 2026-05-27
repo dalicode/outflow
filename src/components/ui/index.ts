@@ -10,6 +10,7 @@ export { default as ConfirmDialog } from './ConfirmDialog'
 export { default as DeleteEntityDialog } from './DeleteEntityDialog'
 export { default as EmptyState } from './EmptyState'
 export { default as EntityMergeDialog } from './EntityMergeDialog'
+export { default as InlineBanner } from './InlineBanner'
 export {
   default as IconButton,
   PencilIcon,
@@ -19,9 +20,8 @@ export {
 } from './IconButton'
 export { default as LoadingOverlay } from './LoadingOverlay'
 export { default as Modal } from './Modal'
+export { default as ModalActionRow } from './ModalActionRow'
 export { default as ModalFooter } from './ModalFooter'
-export { default as OutflowMark } from './OutflowMark'
-export { default as OutflowWordmark } from './OutflowWordmark'
 export { default as PullToRefreshContainer } from './PullToRefreshContainer'
 export { default as Spinner } from './Spinner'
 export { default as Strip } from './Strip'
