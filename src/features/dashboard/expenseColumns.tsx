@@ -31,6 +31,8 @@ interface GetExpenseColumnsParams {
   activePayees: Payee[]
   payeeMap: Record<number, Payee>
   expenseTagsMap: Record<number, Tag[]>
+  showNotesColumn: boolean
+  showTagsColumn: boolean
   onToggleSplitExpanded: (splitId: number) => void
   isSplitExpanded: (splitId: number) => boolean
   isSplitParentSelected: (splitId: number) => boolean
@@ -253,6 +255,8 @@ export function getExpenseColumns({
   activePayees,
   payeeMap,
   expenseTagsMap,
+  showNotesColumn,
+  showTagsColumn,
   onToggleSplitExpanded,
   isSplitExpanded,
   isSplitParentSelected,
@@ -265,7 +269,12 @@ export function getExpenseColumns({
   refreshCategories,
   refreshPayees,
 }: GetExpenseColumnsParams): ColumnDef<ExpenseDisplayRow>[] {
-  return [
+  const notesWidth = showTagsColumn ? '20%' : '28%'
+  const tagsWidth = showNotesColumn ? '13%' : '18%'
+  const payeeWidth = showNotesColumn || showTagsColumn ? '20%' : '24%'
+  const categoryWidth = showNotesColumn || showTagsColumn ? '20%' : '24%'
+
+  const columns: ColumnDef<ExpenseDisplayRow>[] = [
     {
       id: 'select',
       header: () => (
@@ -572,7 +581,7 @@ export function getExpenseColumns({
               : editing.isCellEditing(rowData.expense.id as number, 'payeeId')
                 ? 'cell-editing'
                 : '',
-        width: '20%',
+        width: payeeWidth,
       },
     },
     {
@@ -667,10 +676,13 @@ export function getExpenseColumns({
           editing.isCellEditing(rowData.expense.id as number, 'categoryId')
             ? 'cell-editing'
             : '',
-        width: '20%',
+        width: categoryWidth,
       },
     },
-    {
+  ]
+
+  if (showNotesColumn) {
+    columns.push({
       id: 'notes',
       header: 'Notes',
       cell: ({ row }) => {
@@ -735,10 +747,13 @@ export function getExpenseColumns({
             : editing.isCellEditing(rowData.expense.id as number, 'notes')
               ? 'cell-editing'
               : '',
-        width: '20%',
+        width: notesWidth,
       },
-    },
-    {
+    })
+  }
+
+  if (showTagsColumn) {
+    columns.push({
       id: 'tags',
       header: 'Tags',
       cell: ({ row }) => {
@@ -788,10 +803,12 @@ export function getExpenseColumns({
           editing.isCellEditing(rowData.expense.id as number, 'tags')
             ? 'cell-editing'
             : '',
-        width: '13%',
+        width: tagsWidth,
       },
-    },
-    {
+    })
+  }
+
+  columns.push({
       id: 'amount',
       header: 'Amount',
       cell: ({ row }) => {
@@ -851,8 +868,9 @@ export function getExpenseColumns({
           editing.isCellEditing(rowData.expense.id as number, 'amount')
             ? 'cell-editing'
             : '',
-        width: '12ch',
+        width: '14ch',
       },
-    },
-  ]
+    })
+
+  return columns
 }

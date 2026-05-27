@@ -8,8 +8,6 @@ interface EditingCell {
   field: EditableField
 }
 
-const FIELD_ORDER: EditableField[] = ['date', 'payeeId', 'categoryId', 'notes', 'tags', 'amount']
-
 function validateField(field: EditableField, value: unknown): string | null {
   if (field === 'amount') {
     const str = String(value ?? '').trim()
@@ -50,6 +48,8 @@ interface UseExpenseCellEditingParams {
   expenses: Expense[]
   onUpdate: (id: number, changes: Partial<Expense>) => void
   isMobile: boolean
+  showNotesColumn?: boolean
+  showTagsColumn?: boolean
   selectedIds: Set<number>
   onToggleSelect: (id: number) => void
   setMobileEditExpense: (expense: Expense | null) => void
@@ -60,6 +60,8 @@ export function useExpenseCellEditing({
   expenses,
   onUpdate,
   isMobile,
+  showNotesColumn = true,
+  showTagsColumn = true,
   selectedIds,
   onToggleSelect,
   setMobileEditExpense,
@@ -311,14 +313,23 @@ export function useExpenseCellEditing({
     [cancelCurrentCellEdit, startCellEdit],
   )
 
+  const getFieldOrder = useCallback((): EditableField[] => {
+    const order: EditableField[] = ['date', 'payeeId', 'categoryId']
+    if (showNotesColumn) order.push('notes')
+    if (showTagsColumn) order.push('tags')
+    order.push('amount')
+    return order
+  }, [showNotesColumn, showTagsColumn])
+
   const handleTabNavigation = useCallback(
     (expense: Expense, field: EditableField, shiftKey: boolean) => {
-      const idx = FIELD_ORDER.indexOf(field)
+      const fieldOrder = getFieldOrder()
+      const idx = fieldOrder.indexOf(field)
       const rowIdx = expensesRef.current.findIndex((ex) => ex.id === expense.id)
 
       if (shiftKey) {
         if (idx > 0) {
-          switchCellEdit(expense, FIELD_ORDER[idx - 1])
+          switchCellEdit(expense, fieldOrder[idx - 1])
         } else if (rowIdx > 0) {
           const prevExpense = expensesRef.current[rowIdx - 1]
           switchCellEdit(prevExpense, 'amount')
@@ -326,8 +337,8 @@ export function useExpenseCellEditing({
           cancelCurrentCellEdit()
         }
       } else {
-        if (idx < FIELD_ORDER.length - 1) {
-          switchCellEdit(expense, FIELD_ORDER[idx + 1])
+        if (idx < fieldOrder.length - 1) {
+          switchCellEdit(expense, fieldOrder[idx + 1])
         } else if (rowIdx < expensesRef.current.length - 1) {
           const nextExpense = expensesRef.current[rowIdx + 1]
           switchCellEdit(nextExpense, 'date')
@@ -336,7 +347,7 @@ export function useExpenseCellEditing({
         }
       }
     },
-    [switchCellEdit, cancelCurrentCellEdit],
+    [cancelCurrentCellEdit, getFieldOrder, switchCellEdit],
   )
 
   return {

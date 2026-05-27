@@ -73,6 +73,8 @@ interface ExpenseTableProps {
   onToggleSelect: (id: number) => void
   onToggleSelectAll: () => void
   isMobile?: boolean
+  showNotesColumn?: boolean
+  showTagsColumn?: boolean
   mobileEditTrigger?: number | null
   refreshCategories?: () => Promise<void>
   refreshPayees?: () => Promise<void>
@@ -105,6 +107,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     onToggleSelect,
     onToggleSelectAll,
     isMobile = false,
+    showNotesColumn = true,
+    showTagsColumn = true,
     mobileEditTrigger,
     refreshCategories,
     refreshPayees,
@@ -366,6 +370,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     expenses,
     onUpdate,
     isMobile,
+    showNotesColumn,
+    showTagsColumn,
     selectedIds,
     onToggleSelect,
     setMobileEditExpense: openExpenseEditor,
@@ -689,6 +695,23 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const editingCell = editing.editingCell
 
   useEffect(() => {
+    if (showTagsColumn) return
+    if (activeTagsEditor) {
+      closeTagsEditor()
+    }
+    if (editingCell?.field === 'tags') {
+      editing.cancelCurrentCellEdit()
+    }
+  }, [activeTagsEditor, closeTagsEditor, editing, editingCell?.field, showTagsColumn])
+
+  useEffect(() => {
+    if (showNotesColumn) return
+    if (editingCell?.field === 'notes') {
+      editing.cancelCurrentCellEdit()
+    }
+  }, [editing, editingCell?.field, showNotesColumn])
+
+  useEffect(() => {
     if (isMobile) return
     if (editingCell?.field !== 'tags') {
       if (activeTagsEditor) {
@@ -877,6 +900,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         activePayees,
         payeeMap,
         expenseTagsMap,
+        showNotesColumn,
+        showTagsColumn,
         onToggleSplitExpanded: resolvedOnToggleSplitParentExpanded,
         isSplitExpanded: resolvedIsSplitParentExpanded,
         isSplitParentSelected: (splitId) => {
@@ -906,6 +931,8 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       activePayees,
       payeeMap,
       expenseTagsMap,
+      showNotesColumn,
+      showTagsColumn,
       resolvedOnToggleSplitParentExpanded,
       resolvedIsSplitParentExpanded,
       splitChildIdsBySplitId,

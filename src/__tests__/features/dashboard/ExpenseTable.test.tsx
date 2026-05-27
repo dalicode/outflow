@@ -282,6 +282,101 @@ describe('ExpenseTable', () => {
     expect(screen.getByRole('columnheader', { name: 'Tags' })).toBeInTheDocument()
   })
 
+  it('shows Notes and Tags columns by default on desktop', async () => {
+    const expenses: Expense[] = [{ id: 1, date: '2026-05-10', amount: 20, categoryId: 1, notes: 'N' }]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await screen.findByTestId('expense-row-1')
+    expect(screen.getByRole('columnheader', { name: 'Notes' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Tags' })).toBeInTheDocument()
+  })
+
+  it('hides Tags column when showTagsColumn is false', async () => {
+    const expenses: Expense[] = [{ id: 1, date: '2026-05-10', amount: 20, categoryId: 1, notes: 'N' }]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        showTagsColumn={false}
+      />,
+    )
+
+    await screen.findByTestId('expense-row-1')
+    expect(screen.queryByRole('columnheader', { name: 'Tags' })).not.toBeInTheDocument()
+  })
+
+  it('hides Notes column when showNotesColumn is false', async () => {
+    const expenses: Expense[] = [{ id: 1, date: '2026-05-10', amount: 20, categoryId: 1, notes: 'N' }]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        showNotesColumn={false}
+      />,
+    )
+
+    await screen.findByTestId('expense-row-1')
+    expect(screen.queryByRole('columnheader', { name: 'Notes' })).not.toBeInTheDocument()
+  })
+
+  it('keeps mobile rows unchanged when notes/tags desktop columns are hidden', async () => {
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, payeeId: 1, notes: 'Lunch' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[{ id: 1, name: 'Cafe' }]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        isMobile
+        showNotesColumn={false}
+        showTagsColumn={false}
+        expenseTagsMap={{
+          1: [
+            { id: 101, name: 'Travel', isArchived: false },
+            { id: 102, name: 'Work', isArchived: false },
+          ],
+        }}
+      />,
+    )
+
+    const mobileRow = await screen.findByTestId('expense-row-mobile-1')
+    expect(within(mobileRow).getByText('Food · Lunch')).toBeInTheDocument()
+    expect(within(mobileRow).getByText('Travel +1')).toBeInTheDocument()
+  })
+
   it('shows split parent tags as a deduped read-only aggregate summary', async () => {
     storageMocks.getActiveTags.mockResolvedValue([
       { id: 101, name: 'Travel', isArchived: false },

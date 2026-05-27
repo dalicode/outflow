@@ -15,6 +15,8 @@ interface ExpensesViewProps {
   onUpdate: (id: number, changes: Partial<Expense>) => Promise<void>
   onDelete: (id: number) => Promise<void>
   isMobile: boolean
+  showNotesColumn: boolean
+  showTagsColumn: boolean
   mobileEditTrigger: number | null
   viewAnimation: 'slide-left' | 'slide-right' | null
   refreshCategories?: () => Promise<void>
@@ -43,6 +45,8 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
       onUpdate,
       onDelete,
       isMobile,
+      showNotesColumn,
+      showTagsColumn,
       mobileEditTrigger,
       viewAnimation,
       refreshCategories,
@@ -76,6 +80,8 @@ const ExpensesView = forwardRef<React.ComponentRef<typeof ExpenseTable>, Expense
           onToggleSelect={onToggleSelect}
           onToggleSelectAll={onToggleSelectAll}
           isMobile={isMobile}
+          showNotesColumn={showNotesColumn}
+          showTagsColumn={showTagsColumn}
           mobileEditTrigger={mobileEditTrigger}
           refreshCategories={refreshCategories}
           refreshPayees={refreshPayees}

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from '@/features/dashboard/Dashboard'
 import { DASHBOARD_VIEWS } from '@/features/dashboard/constants'
 import { useDashboard } from '@/features/dashboard/hooks/useDashboard'
+import { StorageService } from '@/services/storageService'
 import type { Expense } from '@/types'
 
 const mocks = vi.hoisted(() => ({
@@ -27,6 +28,15 @@ vi.mock('@/context/settingsContext', () => ({
 
 vi.mock('@/features/dashboard/hooks/useDashboard', () => ({
   useDashboard: vi.fn(),
+}))
+
+vi.mock('@/services/storageService', () => ({
+  StorageService: {
+    getSetting: vi.fn().mockResolvedValue({ showNotesColumn: true, showTagsColumn: true }),
+    setLocalSetting: vi.fn().mockResolvedValue(undefined),
+    getActiveTags: vi.fn(),
+    getExpenseTagsMap: vi.fn(),
+  },
 }))
 
 vi.mock('@/components/ui/PullToRefreshContainer', () => ({
@@ -334,6 +344,10 @@ function renderDashboard(state: DashboardState) {
 
 describe('Dashboard', () => {
   beforeEach(() => {
+    vi.mocked(StorageService.getSetting).mockResolvedValue({
+      showNotesColumn: true,
+      showTagsColumn: true,
+    })
     mocks.categoryViewSpy.mockReset()
     mocks.payeeViewSpy.mockReset()
     mocks.drilldownSpy.mockReset()

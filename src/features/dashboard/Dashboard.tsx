@@ -27,6 +27,16 @@ import PayeeViewTable from './PayeeViewTable'
 import PrivateValue from '../../components/privacy/PrivateValue'
 import { StorageService } from '../../services/storageService'
 
+interface DashboardExpenseTableDisplay {
+  showNotesColumn: boolean
+  showTagsColumn: boolean
+}
+
+const DEFAULT_EXPENSE_TABLE_DISPLAY: DashboardExpenseTableDisplay = {
+  showNotesColumn: true,
+  showTagsColumn: true,
+}
+
 interface DashboardProps {
   expenses: Expense[]
   categories: Category[]
@@ -127,6 +137,34 @@ export default function Dashboard({
     null,
   )
   const [isMobileScrolling, setIsMobileScrolling] = useState(false)
+  const [expenseTableDisplay, setExpenseTableDisplay] = useState<DashboardExpenseTableDisplay>(
+    DEFAULT_EXPENSE_TABLE_DISPLAY,
+  )
+
+  useEffect(() => {
+    let isCancelled = false
+    void StorageService.getSetting<DashboardExpenseTableDisplay>(
+      'dashboardExpenseTableDisplay',
+      DEFAULT_EXPENSE_TABLE_DISPLAY,
+    ).then((saved) => {
+      if (isCancelled || !saved) return
+      setExpenseTableDisplay({
+        showNotesColumn: saved.showNotesColumn ?? true,
+        showTagsColumn: saved.showTagsColumn ?? true,
+      })
+    })
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  const updateExpenseTableDisplay = useCallback(
+    (nextValue: DashboardExpenseTableDisplay) => {
+      setExpenseTableDisplay(nextValue)
+      void StorageService.setLocalSetting('dashboardExpenseTableDisplay', nextValue)
+    },
+    [],
+  )
 
   useEffect(() => {
     if (dash.viewMode !== DASHBOARD_VIEWS.EXPENSES || dash.selectedIds.size === 0) {
@@ -244,6 +282,21 @@ export default function Dashboard({
         onOpenFilters={() => dash.setIsFilterModalOpen(true)}
         onResetCategoryFilter={() => dash.setSelectedCategories(new Set())}
         monthSpan={dash.monthSpan}
+        showNotesColumn={expenseTableDisplay.showNotesColumn}
+        showTagsColumn={expenseTableDisplay.showTagsColumn}
+        onToggleShowNotesColumn={() =>
+          updateExpenseTableDisplay({
+            ...expenseTableDisplay,
+            showNotesColumn: !expenseTableDisplay.showNotesColumn,
+          })
+        }
+        onToggleShowTagsColumn={() =>
+          updateExpenseTableDisplay({
+            ...expenseTableDisplay,
+            showTagsColumn: !expenseTableDisplay.showTagsColumn,
+          })
+        }
+        isMobile={isMobile}
       />
 
       {/* ── Scrollable content ── */}
@@ -410,6 +463,8 @@ export default function Dashboard({
                   onUpdate={onUpdate}
                   onDelete={onDelete}
                   isMobile={isMobile}
+                  showNotesColumn={expenseTableDisplay.showNotesColumn}
+                  showTagsColumn={expenseTableDisplay.showTagsColumn}
                   mobileEditTrigger={dash.mobileEditTrigger}
                   viewAnimation={dash.viewAnimation}
                   refreshCategories={refreshCategories}

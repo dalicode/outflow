@@ -228,4 +228,61 @@ describe('useExpenseCellEditing', () => {
       })
     })
   })
+
+  it('skips tags in Tab navigation when tags column is hidden', async () => {
+    const { result } = renderHook(() =>
+      useExpenseCellEditing({
+        expenses,
+        onUpdate: vi.fn(),
+        isMobile: false,
+        showTagsColumn: false,
+        selectedIds: new Set<number>(),
+        onToggleSelect: vi.fn(),
+        setMobileEditExpense: vi.fn(),
+        setShowMobileEditModal: vi.fn(),
+      }),
+    )
+
+    act(() => {
+      result.current.startCellEdit(expenses[0], 'notes')
+    })
+    act(() => {
+      result.current.handleTabNavigation(expenses[0], 'notes', false)
+    })
+    await waitFor(() => {
+      expect(result.current.editingCell).toEqual({
+        expenseId: 1,
+        field: 'amount',
+      })
+    })
+  })
+
+  it('skips notes and tags in Tab navigation when both columns are hidden', async () => {
+    const { result } = renderHook(() =>
+      useExpenseCellEditing({
+        expenses,
+        onUpdate: vi.fn(),
+        isMobile: false,
+        showNotesColumn: false,
+        showTagsColumn: false,
+        selectedIds: new Set<number>(),
+        onToggleSelect: vi.fn(),
+        setMobileEditExpense: vi.fn(),
+        setShowMobileEditModal: vi.fn(),
+      }),
+    )
+
+    act(() => {
+      result.current.startCellEdit(expenses[0], 'categoryId')
+    })
+    act(() => {
+      result.current.handleTabNavigation(expenses[0], 'categoryId', false)
+    })
+    await waitFor(() => {
+      expect(result.current.editingCell).toEqual({
+        expenseId: 1,
+        field: 'amount',
+      })
+    })
+  })
 })
