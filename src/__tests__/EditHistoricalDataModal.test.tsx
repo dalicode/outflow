@@ -9,15 +9,19 @@ vi.mock('../context/settingsContext', () => ({
   }),
 }))
 
-const { storageMock, saveHistoricalSnapshotConfigs } = vi.hoisted(() => ({
-  saveHistoricalSnapshotConfigs: vi.fn(async () => undefined),
-  storageMock: {
-    getFixedExpenses: vi.fn(async (): Promise<FixedExpense[]> => []),
-    getIncomeSnapshots: vi.fn(async (): Promise<IncomeSnapshot[]> => []),
-    getSavingsSnapshots: vi.fn(async (): Promise<SavingsSnapshot[]> => []),
-    getFixedExpenseSnapshots: vi.fn(async (): Promise<FixedExpenseSnapshot[]> => []),
-  },
-}))
+const { fixedExpenseRepoMock, snapshotRepoMock, saveHistoricalSnapshotConfigs } = vi.hoisted(
+  () => ({
+    saveHistoricalSnapshotConfigs: vi.fn(async () => undefined),
+    fixedExpenseRepoMock: {
+      getFixedExpenses: vi.fn(async (): Promise<FixedExpense[]> => []),
+      getFixedExpenseSnapshots: vi.fn(async (): Promise<FixedExpenseSnapshot[]> => []),
+    },
+    snapshotRepoMock: {
+      getIncomeSnapshots: vi.fn(async (): Promise<IncomeSnapshot[]> => []),
+      getSavingsSnapshots: vi.fn(async (): Promise<SavingsSnapshot[]> => []),
+    },
+  }),
+)
 
 vi.mock('../context/financeDataContext', () => ({
   useFinanceActions: () => ({
@@ -25,8 +29,14 @@ vi.mock('../context/financeDataContext', () => ({
   }),
 }))
 
-vi.mock('../services/storageService', () => ({
-  StorageService: storageMock,
+vi.mock('../services/repositories/fixedExpenseRepository', () => ({
+  getFixedExpenses: fixedExpenseRepoMock.getFixedExpenses,
+  getFixedExpenseSnapshots: fixedExpenseRepoMock.getFixedExpenseSnapshots,
+}))
+
+vi.mock('../services/repositories/snapshotRepository', () => ({
+  getIncomeSnapshots: snapshotRepoMock.getIncomeSnapshots,
+  getSavingsSnapshots: snapshotRepoMock.getSavingsSnapshots,
 }))
 
 describe('EditHistoricalDataModal', () => {
@@ -59,7 +69,7 @@ describe('EditHistoricalDataModal', () => {
   })
 
   it('reloads db-backed values after discarding restored draft', async () => {
-    storageMock.getIncomeSnapshots.mockResolvedValueOnce([
+    snapshotRepoMock.getIncomeSnapshots.mockResolvedValueOnce([
       { year: 2025, month: 1, amountSnapshot: 4500 },
     ])
     localStorage.setItem(
@@ -82,7 +92,7 @@ describe('EditHistoricalDataModal', () => {
       expect(screen.queryByText('Unsaved changes restored from your last session.')).toBeNull()
     })
     await waitFor(() => {
-      expect(storageMock.getIncomeSnapshots).toHaveBeenCalledTimes(2)
+      expect(snapshotRepoMock.getIncomeSnapshots).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -98,8 +108,10 @@ describe('EditHistoricalDataModal', () => {
   })
 
   it('loads fixed snapshot names when live fixed definition names differ', async () => {
-    storageMock.getFixedExpenses.mockResolvedValueOnce([{ id: 11, name: 'Live Name', amount: 999 }])
-    storageMock.getFixedExpenseSnapshots.mockResolvedValueOnce([
+    fixedExpenseRepoMock.getFixedExpenses.mockResolvedValueOnce([
+      { id: 11, name: 'Live Name', amount: 999 },
+    ])
+    fixedExpenseRepoMock.getFixedExpenseSnapshots.mockResolvedValueOnce([
       {
         fixedExpenseId: 11,
         year: 2025,
@@ -114,7 +126,7 @@ describe('EditHistoricalDataModal', () => {
   })
 
   it('keeps fixed snapshot name changes as separate historical rows', async () => {
-    storageMock.getFixedExpenseSnapshots.mockResolvedValueOnce([
+    fixedExpenseRepoMock.getFixedExpenseSnapshots.mockResolvedValueOnce([
       { fixedExpenseId: 11, year: 2025, month: 1, amountSnapshot: 1200, nameSnapshot: 'Old Rent' },
       { fixedExpenseId: 11, year: 2025, month: 2, amountSnapshot: 1200, nameSnapshot: 'New Rent' },
     ])

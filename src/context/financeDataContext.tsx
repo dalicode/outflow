@@ -1,8 +1,29 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useAuth } from './authContext'
-import { StorageService } from '../services/storageService'
-import type { SaveHistoricalSnapshotConfigsParams } from '../services/repositories/historicalSnapshotRepository'
+import { getCategories } from '../services/repositories/categoryRepository'
+import {
+  addFixedExpense as addFixedExpenseRow,
+  getFixedExpenseSnapshots,
+  getFixedExpenses,
+  removeFixedExpense as removeFixedExpenseRow,
+  updateFixedExpense as updateFixedExpenseRow,
+} from '../services/repositories/fixedExpenseRepository'
+import {
+  type SaveHistoricalSnapshotConfigsParams,
+  saveHistoricalSnapshotConfigs as saveHistoricalSnapshotConfigsRow,
+} from '../services/repositories/historicalSnapshotRepository'
+import { getPayees } from '../services/repositories/payeeRepository'
+import { getSchedules } from '../services/repositories/scheduleRepository'
+import {
+  getIncomeSnapshots,
+  getSavingsSnapshots,
+  setIncomeSnapshot,
+  setSavingsSnapshot,
+} from '../services/repositories/snapshotRepository'
+import { getSettingsRows, setSetting } from '../services/repositories/settingsRepository'
+import { getExpenseSplits } from '../services/repositories/expenseSplitRepository'
+import { getAll as getExpenses } from '../services/repositories/expenseRepository'
 import type {
   Category,
   Expense,
@@ -64,19 +85,16 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
   const [actionError, setActionError] = useState<Error | null>(null)
   const { syncLocalChanges } = useAuth()
 
-  const expenses = useLiveQuery(() => StorageService.getExpenses(), [refreshNonce])
-  const categories = useLiveQuery(() => StorageService.getCategories(), [refreshNonce])
-  const expenseSplits = useLiveQuery(() => StorageService.getExpenseSplits(), [refreshNonce])
-  const payees = useLiveQuery(() => StorageService.getPayees(), [refreshNonce])
-  const fixedExpenses = useLiveQuery(() => StorageService.getFixedExpenses(), [refreshNonce])
-  const fixedExpenseSnapshots = useLiveQuery(
-    () => StorageService.getFixedExpenseSnapshots(),
-    [refreshNonce],
-  )
-  const incomeSnapshots = useLiveQuery(() => StorageService.getIncomeSnapshots(), [refreshNonce])
-  const savingsSnapshots = useLiveQuery(() => StorageService.getSavingsSnapshots(), [refreshNonce])
-  const schedules = useLiveQuery(() => StorageService.getSchedules(), [refreshNonce])
-  const settingsRows = useLiveQuery(() => StorageService.getSettingsRows(), [refreshNonce])
+  const expenses = useLiveQuery(() => getExpenses(), [refreshNonce])
+  const categories = useLiveQuery(() => getCategories(), [refreshNonce])
+  const expenseSplits = useLiveQuery(() => getExpenseSplits(), [refreshNonce])
+  const payees = useLiveQuery(() => getPayees(), [refreshNonce])
+  const fixedExpenses = useLiveQuery(() => getFixedExpenses(), [refreshNonce])
+  const fixedExpenseSnapshots = useLiveQuery(() => getFixedExpenseSnapshots(), [refreshNonce])
+  const incomeSnapshots = useLiveQuery(() => getIncomeSnapshots(), [refreshNonce])
+  const savingsSnapshots = useLiveQuery(() => getSavingsSnapshots(), [refreshNonce])
+  const schedules = useLiveQuery(() => getSchedules(), [refreshNonce])
+  const settingsRows = useLiveQuery(() => getSettingsRows(), [refreshNonce])
 
   const forceFinanceDataRefresh = useCallback(() => {
     setRefreshNonce((prev) => prev + 1)
@@ -158,10 +176,10 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await Promise.all([
-          StorageService.setSetting('incomeAmount', String(income)),
-          StorageService.setSetting('incomeFrequency', frequency),
-          StorageService.setSetting('monthlyIncome', monthlyIncome),
-          StorageService.setSetting('monthlyIncomeUpdatedAt', yearMonth),
+          setSetting('incomeAmount', String(income)),
+          setSetting('incomeFrequency', frequency),
+          setSetting('monthlyIncome', monthlyIncome),
+          setSetting('monthlyIncomeUpdatedAt', yearMonth),
         ])
         void syncLocalChanges()
         forceFinanceDataRefresh()
@@ -181,8 +199,8 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       try {
         setActionError(null)
         await Promise.all([
-          StorageService.setSetting('savingsRate', rate),
-          StorageService.setSetting('savingsRateUpdatedAt', yearMonth),
+          setSetting('savingsRate', rate),
+          setSetting('savingsRateUpdatedAt', yearMonth),
         ])
         void syncLocalChanges()
         forceFinanceDataRefresh()
@@ -199,7 +217,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     async (item: Omit<FixedExpense, 'id'>) => {
       try {
         setActionError(null)
-        await StorageService.addFixedExpense(item)
+        await addFixedExpenseRow(item)
         void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
@@ -215,7 +233,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     async (id: number, changes: Partial<FixedExpense>) => {
       try {
         setActionError(null)
-        await StorageService.updateFixedExpense(id, changes)
+        await updateFixedExpenseRow(id, changes)
         void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
@@ -231,7 +249,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     async (id: number) => {
       try {
         setActionError(null)
-        await StorageService.removeFixedExpense(id)
+        await removeFixedExpenseRow(id)
         void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
@@ -247,7 +265,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     async (year: number, month: number, amount: number) => {
       try {
         setActionError(null)
-        await StorageService.setIncomeSnapshot(year, month, amount)
+        await setIncomeSnapshot(year, month, amount)
         void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
@@ -263,7 +281,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     async (year: number, month: number, rate: number) => {
       try {
         setActionError(null)
-        await StorageService.setSavingsSnapshot(year, month, rate)
+        await setSavingsSnapshot(year, month, rate)
         void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {
@@ -279,7 +297,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     async (params: SaveHistoricalSnapshotConfigsParams) => {
       try {
         setActionError(null)
-        await StorageService.saveHistoricalSnapshotConfigs(params)
+        await saveHistoricalSnapshotConfigsRow(params)
         void syncLocalChanges()
         forceFinanceDataRefresh()
       } catch (error) {

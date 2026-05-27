@@ -1,7 +1,11 @@
 import { useCallback, useEffect } from 'react'
-import { StorageService } from '../services/storageService'
+import {
+  materializePendingSnapshots,
+  rolloverSnapshots,
+} from '../services/repositories/scheduleRepository'
 import { supabase } from '../services/supabase'
 import { checkForServiceWorkerUpdate } from '../utils/serviceWorkerUpdates'
+import type { ScheduleMaterializationNotice } from '../types'
 
 interface UseAppRefreshParams {
   pullAppliedCount: number
@@ -10,9 +14,7 @@ interface UseAppRefreshParams {
   refreshPayees: () => Promise<void>
   refreshTags: () => Promise<void>
   loadSettings: () => Promise<void>
-  announceAppliedScheduleUpdates: (
-    notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>,
-  ) => void
+  announceAppliedScheduleUpdates: (notices: ScheduleMaterializationNotice[]) => void
   showToast: (toast: {
     message: string
     tone: 'success' | 'warning' | 'danger' | 'default'
@@ -60,10 +62,8 @@ export function useAppRefresh({
   const handlePullRefresh = useCallback(async () => {
     try {
       const serviceWorkerUpdateCheck = checkForServiceWorkerUpdate().catch(() => undefined)
-      const appliedNotices = await StorageService.materializePendingSnapshots?.().catch(
-        console.error,
-      )
-      await StorageService.rolloverSnapshots?.().catch(console.error)
+      const appliedNotices = await materializePendingSnapshots().catch(console.error)
+      await rolloverSnapshots().catch(console.error)
       await Promise.all([refreshExpenses(), refreshCategories(), refreshPayees(), refreshTags()])
       forceFinanceDataRefresh?.()
 

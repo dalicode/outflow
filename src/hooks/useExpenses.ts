@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { StorageService } from '../services/storageService'
+import { getAll } from '../services/repositories/expenseRepository'
 import type { Expense } from '../types'
 
 const areExpenseListsEqual = (left: Expense[], right: Expense[]): boolean => {
@@ -10,7 +10,7 @@ const areExpenseListsEqual = (left: Expense[], right: Expense[]): boolean => {
 }
 
 export const useExpenses = () => {
-  const liveExpenses = useLiveQuery(() => StorageService.getExpenses(), [])
+  const liveExpenses = useLiveQuery(() => getAll(), [])
   const [optimisticExpenses, setOptimisticExpenses] = useState<Expense[] | null>(null)
 
   const resolvedLiveExpenses = liveExpenses ?? []
@@ -35,7 +35,7 @@ export const useExpenses = () => {
   )
 
   const refresh = useCallback(async () => {
-    setOptimisticExpenses((await StorageService.getExpenses()) as Expense[])
+    setOptimisticExpenses((await getAll()) as Expense[])
   }, [])
 
   const expenses = useMemo(

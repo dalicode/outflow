@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import SettingsPage from '../features/settings/SettingsPage'
-import { StorageService } from '../services/storageService'
 import { useAuth } from '../context/authContext'
+import { getCategories } from '../services/repositories/categoryRepository'
+import { getSetting } from '../services/repositories/settingsRepository'
 
 const { settingsSave, loadSchedules, deleteSchedule } = vi.hoisted(() => ({
   settingsSave: vi.fn(),
@@ -67,11 +68,18 @@ vi.mock('../features/settings/hooks/useScheduleList', () => ({
   }),
 }))
 
-vi.mock('../services/storageService', () => ({
-  StorageService: {
-    getCategories: vi.fn(),
-    getSetting: vi.fn(),
-  },
+vi.mock('../services/repositories/categoryRepository', () => ({
+  getCategories: vi.fn(),
+}))
+
+vi.mock('../services/repositories/settingsRepository', () => ({
+  getSetting: vi.fn(),
+  setSetting: vi.fn(),
+}))
+
+vi.mock('../services/repositories/backupRepository', () => ({
+  clearAllData: vi.fn(),
+  dbVersion: vi.fn(() => 7),
 }))
 
 vi.mock('../services/syncService', () => ({
@@ -173,10 +181,8 @@ describe('SettingsPage', () => {
     deleteSchedule.mockResolvedValue(undefined)
     loadSchedules.mockResolvedValue(undefined)
     showToast.mockReset()
-    vi.mocked(StorageService.getCategories).mockResolvedValue([])
-    vi.mocked(StorageService.getSetting).mockImplementation(
-      async (_key: string, fallback?: unknown) => fallback,
-    )
+    vi.mocked(getCategories).mockResolvedValue([])
+    vi.mocked(getSetting).mockImplementation(async (_key: string, fallback?: unknown) => fallback)
     vi.mocked(useAuth).mockReturnValue(makeAuthValue())
   })
 

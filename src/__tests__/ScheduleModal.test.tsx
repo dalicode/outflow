@@ -1,34 +1,55 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ScheduleModal from '../features/settings/ScheduleModal'
-import { StorageService } from '../services/storageService'
+import { addSchedule } from '../services/repositories/scheduleRepository'
+import { getCategories } from '../services/repositories/categoryRepository'
 
 const mockExpenses = [
   { id: 101, date: '2026-05-20', categoryId: 1, payeeId: 1 },
   { id: 102, date: '2026-05-18', categoryId: 2, payeeId: 2 },
 ]
 
-vi.mock('../services/storageService', () => ({
-  StorageService: {
+vi.mock('../services/repositories/fixedExpenseRepository', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../services/repositories/fixedExpenseRepository')>()
+  return {
+    ...actual,
     getActiveFixedExpenses: vi.fn(() => Promise.resolve([])),
+  }
+})
+
+vi.mock('../services/repositories/categoryRepository', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../services/repositories/categoryRepository')>()
+  return {
+    ...actual,
     getCategories: vi.fn(() =>
       Promise.resolve([
         { id: 1, name: 'Groceries' },
         { id: 2, name: 'Entertainment' },
       ]),
     ),
-    getPayees: vi.fn(() =>
-      Promise.resolve([
-        { id: 1, name: 'Amazon' },
-        { id: 2, name: 'Supermarket' },
-      ]),
-    ),
     addCategory: vi.fn(() => Promise.resolve(3)),
+  }
+})
+
+vi.mock('../services/repositories/payeeRepository', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services/repositories/payeeRepository')>()
+  return {
+    ...actual,
     addPayee: vi.fn(() => Promise.resolve(3)),
+  }
+})
+
+vi.mock('../services/repositories/scheduleRepository', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../services/repositories/scheduleRepository')>()
+  return {
+    ...actual,
     addSchedule: vi.fn(() => Promise.resolve(1)),
     updateSchedule: vi.fn(() => Promise.resolve()),
-  },
-}))
+  }
+})
 
 vi.mock('../context/settingsContext', () => ({
   useSettings: () => ({
@@ -98,7 +119,7 @@ describe('ScheduleModal', () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     openTypeDropdown()
     expect(await screen.findByRole('button', { name: 'Expense' })).toBeInTheDocument()
-    await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
+    await waitFor(() => expect(getCategories).toHaveBeenCalled())
   })
 
   it('shows expense fields (date, payee, category, notes, amount) when type is expense', async () => {
@@ -173,13 +194,13 @@ describe('ScheduleModal', () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     // Default type is income
     expect(screen.getByText('Notes')).toBeInTheDocument()
-    await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
+    await waitFor(() => expect(getCategories).toHaveBeenCalled())
   })
 
   it('shows effective date label for non-expense types', async () => {
     render(<ScheduleModal isOpen={true} onClose={vi.fn()} />)
     expect(screen.getByText('Effective Date')).toBeInTheDocument()
-    await waitFor(() => expect(StorageService.getCategories).toHaveBeenCalled())
+    await waitFor(() => expect(getCategories).toHaveBeenCalled())
   })
 
   it('closes an open desktop dropdown when clicking elsewhere inside the modal', async () => {
@@ -205,11 +226,9 @@ describe('ScheduleModal', () => {
     fireEvent.click(saveBtn)
 
     await waitFor(() => {
-      expect(StorageService.addSchedule).toHaveBeenCalled()
+      expect(addSchedule).toHaveBeenCalled()
     })
-    expect(StorageService.addSchedule).toHaveBeenCalledWith(
-      expect.objectContaining({ newValue: 100000 }),
-    )
+    expect(addSchedule).toHaveBeenCalledWith(expect.objectContaining({ newValue: 100000 }))
   })
 
   it('keeps savings rate validation independent of money cap', async () => {

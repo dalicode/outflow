@@ -21,30 +21,52 @@ vi.mock('../context/authContext', () => ({
   }),
 }))
 
-vi.mock('../services/storageService', () => ({
-  StorageService: {
-    db: {
-      expenses: { toArray: vi.fn() },
-      categories: { toArray: vi.fn() },
-      payees: { toArray: vi.fn() },
-      fixedExpenses: { toArray: vi.fn() },
-      fixedExpenseSnapshots: { toArray: vi.fn() },
-      incomeSnapshots: { toArray: vi.fn() },
-      savingsSnapshots: { toArray: vi.fn() },
-      schedules: { toArray: vi.fn() },
-      settings: { toArray: vi.fn() },
-    },
-    setSetting: vi.fn(),
-    setIncomeSnapshot: vi.fn(),
-    setSavingsSnapshot: vi.fn(),
-    addFixedExpense: vi.fn(),
-    updateFixedExpense: vi.fn(),
-    removeFixedExpense: vi.fn(),
-    saveHistoricalSnapshotConfigs: vi.fn(),
-  },
+vi.mock('../services/repositories/expenseRepository', () => ({
+  getAll: vi.fn(),
 }))
 
-import { StorageService } from '../services/storageService'
+vi.mock('../services/repositories/categoryRepository', () => ({
+  getCategories: vi.fn(),
+}))
+
+vi.mock('../services/repositories/expenseSplitRepository', () => ({
+  getExpenseSplits: vi.fn(),
+}))
+
+vi.mock('../services/repositories/payeeRepository', () => ({
+  getPayees: vi.fn(),
+}))
+
+vi.mock('../services/repositories/fixedExpenseRepository', () => ({
+  getFixedExpenses: vi.fn(),
+  getFixedExpenseSnapshots: vi.fn(),
+  addFixedExpense: vi.fn(),
+  updateFixedExpense: vi.fn(),
+  removeFixedExpense: vi.fn(),
+}))
+
+vi.mock('../services/repositories/snapshotRepository', () => ({
+  getIncomeSnapshots: vi.fn(),
+  getSavingsSnapshots: vi.fn(),
+  setIncomeSnapshot: vi.fn(),
+  setSavingsSnapshot: vi.fn(),
+}))
+
+vi.mock('../services/repositories/scheduleRepository', () => ({
+  getSchedules: vi.fn(),
+}))
+
+vi.mock('../services/repositories/settingsRepository', () => ({
+  getSettingsRows: vi.fn(),
+  setSetting: vi.fn(),
+}))
+
+vi.mock('../services/repositories/historicalSnapshotRepository', () => ({
+  saveHistoricalSnapshotConfigs: vi.fn(),
+}))
+
+import { saveHistoricalSnapshotConfigs } from '../services/repositories/historicalSnapshotRepository'
+import { setSetting } from '../services/repositories/settingsRepository'
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <FinanceDataProvider>{children}</FinanceDataProvider>
@@ -140,9 +162,9 @@ describe('FinanceDataProvider', () => {
     ])
   })
 
-  it('writes current income through StorageService actions', async () => {
+  it('writes current income through repository actions', async () => {
     mockLiveResults([[], [], [], [], [], [], [], [], [], []])
-    vi.mocked(StorageService.setSetting).mockResolvedValue(undefined)
+    vi.mocked(setSetting).mockResolvedValue(undefined)
 
     const { result } = renderHook(() => useFinanceActions(), { wrapper })
 
@@ -155,20 +177,20 @@ describe('FinanceDataProvider', () => {
     })
 
     await waitFor(() => {
-      expect(StorageService.setSetting).toHaveBeenCalledWith('incomeAmount', '5000')
+      expect(setSetting).toHaveBeenCalledWith('incomeAmount', '5000')
     })
-    expect(StorageService.setSetting).toHaveBeenCalledWith('incomeFrequency', 'monthly')
-    expect(StorageService.setSetting).toHaveBeenCalledWith('monthlyIncome', 5000)
-    expect(StorageService.setSetting).toHaveBeenCalledWith(
+    expect(setSetting).toHaveBeenCalledWith('incomeFrequency', 'monthly')
+    expect(setSetting).toHaveBeenCalledWith('monthlyIncome', 5000)
+    expect(setSetting).toHaveBeenCalledWith(
       'monthlyIncomeUpdatedAt',
       expect.stringMatching(/^\d{4}-\d{2}$/),
     )
     expect(mockSyncLocalChanges).toHaveBeenCalledTimes(1)
   })
 
-  it('saves historical snapshot configs through StorageService and refreshes live queries', async () => {
+  it('saves historical snapshot configs through repository and refreshes live queries', async () => {
     mockLiveResults([[], [], [], [], [], [], [], [], [], []])
-    vi.mocked(StorageService.saveHistoricalSnapshotConfigs).mockResolvedValue(undefined)
+    vi.mocked(saveHistoricalSnapshotConfigs).mockResolvedValue(undefined)
 
     const { result } = renderHook(() => useFinanceActions(), { wrapper })
     const params = {
@@ -186,7 +208,7 @@ describe('FinanceDataProvider', () => {
       await result.current.saveHistoricalSnapshotConfigs(params)
     })
 
-    expect(StorageService.saveHistoricalSnapshotConfigs).toHaveBeenCalledWith(params)
+    expect(saveHistoricalSnapshotConfigs).toHaveBeenCalledWith(params)
     expect(mockUseLiveQuery.mock.calls[10]?.[1]).toEqual([1])
     expect(mockSyncLocalChanges).toHaveBeenCalledTimes(1)
   })

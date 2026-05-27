@@ -9,7 +9,14 @@ import {
 } from './components/HistoricalEditorSections'
 import { useFinanceActions } from '../../context/financeDataContext'
 import { useSettings } from '../../context/settingsContext'
-import { StorageService } from '../../services/storageService'
+import {
+  getFixedExpenseSnapshots,
+  getFixedExpenses,
+} from '../../services/repositories/fixedExpenseRepository'
+import {
+  getIncomeSnapshots,
+  getSavingsSnapshots,
+} from '../../services/repositories/snapshotRepository'
 import type {
   HistoricalFixedItem,
   HistoricalYearConfig,
@@ -126,10 +133,10 @@ export default function EditHistoricalDataModal({
       setLoading(true)
       try {
         const [fixedDefs, incSnaps, savSnaps, allFixedSnaps] = await Promise.all([
-          StorageService.getFixedExpenses(),
-          StorageService.getIncomeSnapshots(),
-          StorageService.getSavingsSnapshots(),
-          StorageService.getFixedExpenseSnapshots(),
+          getFixedExpenses(),
+          getIncomeSnapshots(),
+          getSavingsSnapshots(),
+          getFixedExpenseSnapshots(),
         ])
 
         const configs: Record<number, YearConfig> = {}

@@ -15,11 +15,9 @@ vi.mock('../utils/serviceWorkerUpdates', () => ({
   checkForServiceWorkerUpdate: checkForServiceWorkerUpdateMock,
 }))
 
-vi.mock('../services/storageService', () => ({
-  StorageService: {
-    materializePendingSnapshots: materializePendingSnapshotsMock,
-    rolloverSnapshots: rolloverSnapshotsMock,
-  },
+vi.mock('../services/repositories/scheduleRepository', () => ({
+  materializePendingSnapshots: materializePendingSnapshotsMock,
+  rolloverSnapshots: rolloverSnapshotsMock,
 }))
 
 describe('useAppRefresh', () => {

@@ -22,8 +22,8 @@ const liveExpenseStore = vi.hoisted(() => {
   }
 })
 
-const { getExpenses } = vi.hoisted(() => ({
-  getExpenses: vi.fn(async () => liveExpenseStore.get() ?? []),
+const { getAll } = vi.hoisted(() => ({
+  getAll: vi.fn(async () => liveExpenseStore.get() ?? []),
 }))
 
 vi.mock('dexie-react-hooks', async () => {
@@ -34,10 +34,8 @@ vi.mock('dexie-react-hooks', async () => {
   }
 })
 
-vi.mock('../services/storageService', () => ({
-  StorageService: {
-    getExpenses,
-  },
+vi.mock('../services/repositories/expenseRepository', () => ({
+  getAll,
 }))
 
 function ExpenseListConsumer() {

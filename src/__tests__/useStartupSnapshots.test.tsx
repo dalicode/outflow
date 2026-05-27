@@ -8,11 +8,9 @@ const { materializePendingSnapshots, rolloverSnapshots, withTimeout } = vi.hoist
   withTimeout: vi.fn(),
 }))
 
-vi.mock('../services/storageService', () => ({
-  StorageService: {
-    materializePendingSnapshots,
-    rolloverSnapshots,
-  },
+vi.mock('../services/repositories/scheduleRepository', () => ({
+  materializePendingSnapshots,
+  rolloverSnapshots,
 }))
 
 vi.mock('../lib/withTimeout', () => ({

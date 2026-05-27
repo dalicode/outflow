@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { StorageService } from '../services/storageService'
+import { getPayees } from '../services/repositories/payeeRepository'
 import type { Payee } from '../types'
 
 export const usePayees = () => {
   const [refreshNonce, setRefreshNonce] = useState(0)
-  const payees = useLiveQuery(() => StorageService.getPayees(), [refreshNonce]) ?? []
+  const payees = useLiveQuery(() => getPayees(), [refreshNonce]) ?? []
 
   const refresh = useCallback(async () => {
-    await StorageService.getPayees()
+    await getPayees()
     setRefreshNonce((current) => current + 1)
   }, [])
 

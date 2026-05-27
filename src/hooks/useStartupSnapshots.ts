@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { StorageService } from '../services/storageService'
+import {
+  materializePendingSnapshots,
+  rolloverSnapshots,
+} from '../services/repositories/scheduleRepository'
 import { summarizeScheduleMaterializationNotices } from '../utils/scheduleNotificationUtils'
 import { withTimeout } from '../lib/withTimeout'
+import type { ScheduleMaterializationNotice } from '../types'
 
 interface UseStartupSnapshotsParams {
   showToast: (toast: {
@@ -15,14 +19,12 @@ const STARTUP_SNAPSHOT_TIMEOUT_MS = 10_000
 
 export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
   snapshotsReady: boolean
-  announceAppliedScheduleUpdates: (
-    notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>,
-  ) => void
+  announceAppliedScheduleUpdates: (notices: ScheduleMaterializationNotice[]) => void
 } {
   const [snapshotsReady, setSnapshotsReady] = useState(false)
 
   const announceAppliedScheduleUpdates = useCallback(
-    (notices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>>) => {
+    (notices: ScheduleMaterializationNotice[]) => {
       if (!notices || notices.length === 0) return
       showToast({
         message: summarizeScheduleMaterializationNotices(notices),
@@ -43,13 +45,12 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
           ? 0
           : 800
       const startTime = Date.now()
-      let appliedNotices: Awaited<ReturnType<typeof StorageService.materializePendingSnapshots>> =
-        []
+      let appliedNotices: ScheduleMaterializationNotice[] = []
       let startupFailed = false
 
       try {
         appliedNotices = await withTimeout(
-          StorageService.materializePendingSnapshots?.() ?? Promise.resolve([]),
+          materializePendingSnapshots(),
           STARTUP_SNAPSHOT_TIMEOUT_MS,
           '[startup-snapshots] materializePendingSnapshots timed out',
         )
@@ -64,7 +65,7 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
 
       try {
         await withTimeout(
-          StorageService.rolloverSnapshots?.() ?? Promise.resolve(),
+          rolloverSnapshots(),
           STARTUP_SNAPSHOT_TIMEOUT_MS,
           '[startup-snapshots] rolloverSnapshots timed out',
         )

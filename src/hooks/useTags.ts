@@ -1,13 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useState } from 'react'
-import { StorageService } from '../services/storageService'
+import { getTags } from '../services/repositories/tagRepository'
 
 export function useTags() {
   const [refreshNonce, setRefreshNonce] = useState(0)
-  const tags = useLiveQuery(() => StorageService.getTags(), [refreshNonce]) ?? []
+  const tags = useLiveQuery(() => getTags(), [refreshNonce]) ?? []
 
   const refresh = useCallback(async () => {
-    await StorageService.getTags()
+    await getTags()
     setRefreshNonce((current) => current + 1)
   }, [])
 

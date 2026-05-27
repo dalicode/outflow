@@ -6,7 +6,10 @@ import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import MoneyInput from '../../components/inputs/MoneyInput'
 import { useSettings } from '../../context/settingsContext'
 import { ExpenseEntityFields, PayeeSuggestionBanner, useExpenseEntitySelection } from '../expenses'
-import { StorageService } from '../../services/storageService'
+import { addCategory, getCategories } from '../../services/repositories/categoryRepository'
+import { getActiveFixedExpenses } from '../../services/repositories/fixedExpenseRepository'
+import { addPayee } from '../../services/repositories/payeeRepository'
+import { addSchedule, updateSchedule } from '../../services/repositories/scheduleRepository'
 import { cn } from '../../lib/cn'
 import { toISODate, parseISODate } from '../../utils/historicalDataHelpers'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
@@ -117,9 +120,9 @@ export default function ScheduleModal({
   useEffect(() => {
     if (!isOpen) return
     const load = async () => {
-      const defs = await StorageService.getActiveFixedExpenses()
+      const defs = await getActiveFixedExpenses()
       setFixedExpenses(defs)
-      const cats = await StorageService.getCategories()
+      const cats = await getCategories()
       setCategories(cats)
     }
     load()
@@ -218,9 +221,9 @@ export default function ScheduleModal({
             }
 
       if (editSchedule && editSchedule.id != null) {
-        await StorageService.updateSchedule(editSchedule.id, payload)
+        await updateSchedule(editSchedule.id, payload)
       } else {
-        await StorageService.addSchedule(payload)
+        await addSchedule(payload)
       }
 
       onComplete?.()
@@ -336,13 +339,13 @@ export default function ScheduleModal({
               onPayeeChange={handlePayeeManualSelect}
               onCategoryChange={(id) => setCategoryId(id != null ? String(id) : '')}
               onCreatePayee={async (name) => {
-                const newId = await StorageService.addPayee(name)
+                const newId = await addPayee(name)
                 await refreshPayees()
                 return newId
               }}
               onCreateCategory={async (name) => {
-                const newId = await StorageService.addCategory(name)
-                const cats = await StorageService.getCategories()
+                const newId = await addCategory(name)
+                const cats = await getCategories()
                 setCategories(cats)
                 return newId
               }}

@@ -12,7 +12,9 @@ import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
 import { usePayees } from '../../hooks/useLocalData'
 import { useScheduleList } from './hooks/useScheduleList'
-import { StorageService } from '../../services/storageService'
+import { clearAllData, dbVersion } from '../../services/repositories/backupRepository'
+import { getCategories } from '../../services/repositories/categoryRepository'
+import { getSetting, setSetting } from '../../services/repositories/settingsRepository'
 import { clearUserCloudData } from '../../services/syncService'
 import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
@@ -123,27 +125,23 @@ export default function SettingsPage({
   })
 
   useEffect(() => {
-    StorageService.getCategories().then(setCategories)
+    getCategories().then(setCategories)
   }, [])
   useEffect(() => {
-    StorageService.getSetting<ScheduleMaterializationNotice[]>(
-      'scheduleMaterializationLog',
-      [],
-    ).then((log) => {
+    getSetting<ScheduleMaterializationNotice[]>('scheduleMaterializationLog', []).then((log) => {
       setAppliedScheduleNotices(Array.isArray(log) ? log : [])
     })
   }, [])
   useEffect(() => {
-    Promise.all([
-      StorageService.getSetting('monthlyIncome', 0),
-      StorageService.getSetting('savingsRate', 0),
-    ]).then(([income, rate]) => {
-      setMonthlyIncome(String((income as number | null) ?? ''))
-      setSavingsRate(String((rate as number | null) ?? ''))
-    })
+    Promise.all([getSetting('monthlyIncome', 0), getSetting('savingsRate', 0)]).then(
+      ([income, rate]) => {
+        setMonthlyIncome(String((income as number | null) ?? ''))
+        setSavingsRate(String((rate as number | null) ?? ''))
+      },
+    )
   }, [])
   useEffect(() => {
-    StorageService.getCategories().then(setCsvCategories)
+    getCategories().then(setCsvCategories)
   }, [])
 
   const dismissHistoricalCompletionPrompt = () => {
@@ -174,7 +172,7 @@ export default function SettingsPage({
   }
 
   const handleDismissAppliedScheduleNotices = async () => {
-    await StorageService.setSetting('scheduleMaterializationLog', [])
+    await setSetting('scheduleMaterializationLog', [])
     setAppliedScheduleNotices([])
     queueLocalSync()
   }
@@ -199,7 +197,7 @@ export default function SettingsPage({
       if (user?.id) {
         await clearUserCloudData(user.id)
       }
-      await StorageService.clearAllData()
+      await clearAllData()
       setImportStatus(
         user?.id
           ? 'All local and cloud data cleared successfully.'
@@ -747,8 +745,7 @@ export default function SettingsPage({
                     {String(backup.pendingImportMeta.dbVersion ?? '?')}
                   </p>
                   <p>
-                    <span className="font-medium">Current DB version:</span>{' '}
-                    {StorageService.dbVersion()}
+                    <span className="font-medium">Current DB version:</span> {dbVersion()}
                   </p>
                 </div>
               )}
