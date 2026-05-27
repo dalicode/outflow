@@ -8,6 +8,8 @@ import {
   useRef,
   useState,
 } from 'react'
+import { isIgnorableStartupSyncError, resolveStartupSyncReason } from './authSessionHelpers'
+import { useAuthSessionLifecycle } from '../hooks/useAuthSessionLifecycle'
 import { useSyncController, type QueueSyncOptions } from '../hooks/useSyncController'
 import {
   runRecoveryDiagnostics,
@@ -24,25 +26,6 @@ import { withTimeout } from '../lib/withTimeout'
 
 const shouldBypassRecoveryPause =
   import.meta.env.DEV && import.meta.env.VITE_E2E_FAKE_SUPABASE === '1'
-
-function isIgnorableStartupSyncError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
-  const normalizedMessage = message.toLowerCase()
-
-  if (message === STALE_SYNC_RUN_MESSAGE) return true
-  if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) return true
-
-  return (
-    normalizedMessage.includes('failed to fetch') ||
-    normalizedMessage.includes('networkerror') ||
-    normalizedMessage.includes('network error') ||
-    normalizedMessage.includes('network request failed') ||
-    normalizedMessage.includes('load failed') ||
-    normalizedMessage.includes('the network connection was lost') ||
-    normalizedMessage.includes('network timeout') ||
-    normalizedMessage.includes('timeout')
-  )
-}
 
 interface AuthContextValue {
   user: User | null
@@ -141,79 +124,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [runRecoveryCheck, setExternalSyncStatus, user?.id])
 
-  // ─── Auth initialization — runs once on mount ──────────────────────────
-  useEffect(() => {
-    let mounted = true
-
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-
-    const supabaseClient = supabase
-
-    async function initializeAuth() {
-      try {
-        const { data, error } = await withTimeout(supabaseClient.auth.getSession(), 10000)
-
-        if (error) {
-          console.error('[auth] Failed to restore Supabase session:', error)
-        }
-
-        if (!mounted) return
-
-        debugLog('[auth] getSession result', {
-          hasSession: Boolean(data.session),
-          userId: data.session?.user?.id,
-          error,
-        })
-
-        setUser(data.session?.user ?? null)
-      } catch (error) {
-        console.error('[auth] initialization failed:', error)
-
-        if (!mounted) return
-
-        setUser(null)
-      } finally {
-        if (mounted) {
-          setLoading(false)
-          debugLog('[auth] loading false')
-        }
-      }
-    }
-
-    initializeAuth()
-
-    const {
-      data: { subscription },
-    } = supabaseClient.auth.onAuthStateChange((event, session) => {
-      // Keep this callback synchronous — no awaits, no supabase calls
-      const previousUserId = currentUserRef.current?.id ?? null
-      const nextUser = session?.user ?? null
-      const nextUserId = nextUser?.id ?? null
-      const shouldInvalidateSyncRun =
-        (previousUserId != null && nextUserId == null) ||
-        (previousUserId != null && nextUserId != null && previousUserId !== nextUserId)
-
-      if (shouldInvalidateSyncRun) {
-        invalidateSyncRun()
-      }
-
-      currentUserRef.current = nextUser
-      if (!nextUser) lastStartupSyncUserRef.current = null
-      setUser(nextUser)
-      setLoading(false)
-      setAuthEvent(event)
-      debugLog('[auth] state change', event, Boolean(session))
-    })
-
-    return () => {
-      mounted = false
-      clearSyncTimers()
-      subscription.unsubscribe()
-    }
-  }, [clearSyncTimers, invalidateSyncRun])
+  useAuthSessionLifecycle({
+    currentUserRef,
+    lastStartupSyncUserRef,
+    clearSyncTimers,
+    invalidateSyncRun,
+    setUser,
+    setLoading,
+    setAuthEvent,
+  })
 
   // ─── Signed-in startup trigger (outside onAuthStateChange) ───────────
   useEffect(() => {
@@ -225,10 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false
 
     async function queueStartupSync() {
-      const isSignIn = authEventRef.current === 'SIGNED_IN'
-      const options: QueueSyncOptions = isSignIn
-        ? { reason: 'sign-in', force: true }
-        : { reason: 'startup', force: true }
+      const startupReason = resolveStartupSyncReason(authEventRef.current)
+      const isSignIn = startupReason === 'sign-in'
+      const options: QueueSyncOptions = { reason: startupReason, force: true }
 
       try {
         if (isSignIn) {
@@ -237,7 +155,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await queueSync(options)
       } catch (error) {
         if (!cancelled) {
-          if (isIgnorableStartupSyncError(error)) {
+          if (
+            isIgnorableStartupSyncError(
+              error,
+              typeof navigator !== 'undefined' && 'onLine' in navigator ? !navigator.onLine : false,
+              STALE_SYNC_RUN_MESSAGE,
+            )
+          ) {
             debugLog('[auth] Ignoring startup sync interruption', error)
             return
           }
