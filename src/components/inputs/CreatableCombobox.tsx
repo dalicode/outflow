@@ -541,10 +541,25 @@ export default function CreatableCombobox({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
+    const trimmed = val.trim()
+    const nextFiltered = getFilteredOptions(options, val)
+    const nextShowCreateOption =
+      Boolean(allowCreate && onCreate && trimmed) && !hasExactMatch(options, val)
+
     isUserEditingRef.current = true
     setDisplayQuery(val)
     setHasTyped(true)
     setLocalError(null)
+    if (!trimmed) {
+      setHighlightedIndex(-1)
+    } else if (nextFiltered.length > 0) {
+      // Keep keyboard selection stable as the user types to avoid highlight timing races.
+      setHighlightedIndex(0)
+    } else if (nextShowCreateOption) {
+      setHighlightedIndex(0)
+    } else {
+      setHighlightedIndex(-1)
+    }
     if (!dropdownState.isOpen) {
       const rect = getAnchorRect(containerRef.current, variant)
       setDropdownState({
