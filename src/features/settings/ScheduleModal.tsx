@@ -9,7 +9,7 @@ import MoneyInput from '../../components/inputs/MoneyInput'
 import { useSettings } from '../../context/settingsContext'
 import { useExpenseEntitySelection } from '../../hooks/useExpenseEntitySelection'
 import { StorageService } from '../../services/storageService'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { toISODate, parseISODate } from '../../utils/historicalDataHelpers'
 import { resolveMoneyLocaleConfig } from '../../utils/moneyInput'
 

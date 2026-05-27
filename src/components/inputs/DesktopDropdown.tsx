@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
 import SingleSelectTrigger from './SingleSelectTrigger'
 import { type ComboboxOption, getFilteredOptions, hasExactMatch } from './comboboxUtils'

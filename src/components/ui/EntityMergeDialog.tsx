@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import DesktopDropdown from '../inputs/DesktopDropdown'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import Modal from './Modal'
 import ModalFooter from './ModalFooter'
 

@@ -1,5 +1,5 @@
 import { useSettings } from '../../context/settingsContext'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface PrivacyToggleProps {
   className?: string

@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useLongPress } from './hooks/useLongPress'
 import type { Expense, Tag } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import type { ExpenseDisplayRow } from './splitDisplayRows'
 import { getTagSummaryChipStyle, getTagSummaryData } from './tagSummaryChip'
 

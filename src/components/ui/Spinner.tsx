@@ -1,4 +1,4 @@
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 const SIZE_MAP = {
   xs: 'w-3.5 h-3.5',

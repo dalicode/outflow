@@ -19,8 +19,8 @@ import { isSyncPaused, pauseSync, resumeSync } from '../services/syncRuntime'
 import { STALE_SYNC_RUN_MESSAGE } from '../services/sync/constants'
 import { clearUserCloudData, migrateLocalToSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
-import { debugLog } from '../utils/debug'
-import { withTimeout } from '../utils/withTimeout'
+import { debugLog } from '../lib/debug'
+import { withTimeout } from '../lib/withTimeout'
 
 const shouldBypassRecoveryPause =
   import.meta.env.DEV && import.meta.env.VITE_E2E_FAKE_SUPABASE === '1'

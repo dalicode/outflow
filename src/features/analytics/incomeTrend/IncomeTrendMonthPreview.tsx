@@ -1,6 +1,6 @@
 import { forwardRef, type ReactNode } from 'react'
 import PrivateValue from '../../../components/privacy/PrivateValue'
-import type { YearTrendRow } from '../../../utils/analyticsTrendUtils'
+import type { YearTrendRow } from '../utils/analyticsTrendUtils'
 import type { ThemeColors } from '../hooks/useThemeColors'
 
 function formatSavingsRate(rate: number | null): string {

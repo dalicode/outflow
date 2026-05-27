@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { AnalyticsSessionState } from '../features/analytics/hooks/useAnalytics'
 import { DASHBOARD_VIEWS } from '../features/dashboard/constants'
 import type { DashboardSessionState } from '../features/dashboard/hooks/useDashboard'
-import { parseTrendDrilldownParam, parseTrendMonthParam, parseYearParam } from '../utils/urlParams'
+import { parseTrendDrilldownParam, parseTrendMonthParam, parseYearParam } from '../lib/urlParams'
 
 export function useAppSessionState(): {
   dashboardSession: DashboardSessionState

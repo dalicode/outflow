@@ -1,4 +1,4 @@
-import type { Expense, Payee } from '../types'
+import type { Expense, Payee } from '../../../types'
 
 export interface SplitReconciliationResult {
   childTotal: number

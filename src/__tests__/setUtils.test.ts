@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toggleInSet } from '../utils/setUtils'
+import { toggleInSet } from '../lib/setUtils'
 
 describe('toggleInSet', () => {
   it('adds a value not in the set', () => {

@@ -12,7 +12,7 @@ import type {
   HistoricalYearConfig,
 } from '../../services/repositories/historicalSnapshotRepository'
 import type { Expense, FixedExpense, FixedExpenseSnapshot } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import {
   checkRangeOverlaps,
   clamp,

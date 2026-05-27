@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSettings } from '../../../context/settingsContext'
 import { useViewportWidth } from '../../../hooks/useViewportWidth'
 import type { AnalyticsData, Category, Expense, Payee } from '../../../types'
-import type { AllTimeRow } from '../../../utils/analyticsTrendUtils'
+import type { AllTimeRow } from '../utils/analyticsTrendUtils'
 import {
   buildAllYearsTrendRows,
   buildRangeAnalyticsData,
   buildYearTrendRows,
-} from '../../../utils/analyticsTrendUtils'
+} from '../utils/analyticsTrendUtils'
 import {
   RankedCategoryTable,
   RankedCategoryViz,

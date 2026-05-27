@@ -14,7 +14,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useViewportWidth } from '../../../hooks/useViewportWidth'
-import type { AllTimeRow, YearTrendRow } from '../../../utils/analyticsTrendUtils'
+import type { AllTimeRow, YearTrendRow } from '../utils/analyticsTrendUtils'
 import type { ThemeColors } from '../hooks/useThemeColors'
 import BrushOverview from './BrushOverview'
 import ColoredCumulativeLine, { type ColoredCumulativeLineProps } from './ColoredCumulativeLine'

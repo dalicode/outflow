@@ -15,7 +15,7 @@ vi.mock('../services/storageService', () => ({
   },
 }))
 
-vi.mock('../utils/withTimeout', () => ({
+vi.mock('../lib/withTimeout', () => ({
   withTimeout,
 }))
 

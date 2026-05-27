@@ -1,5 +1,5 @@
 import Spinner from './Spinner'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface PageSectionFallbackProps {
   title?: string

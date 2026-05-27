@@ -11,7 +11,7 @@ import {
 } from 'react'
 
 import { useHaptics } from '../../hooks/useHaptics'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface PullToRefreshContainerProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onRefresh'> {
   onRefresh: () => Promise<void>

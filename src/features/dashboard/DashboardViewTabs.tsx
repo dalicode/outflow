@@ -1,4 +1,4 @@
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import type { DashboardView } from './constants'
 import { DASHBOARD_VIEWS } from './constants'
 

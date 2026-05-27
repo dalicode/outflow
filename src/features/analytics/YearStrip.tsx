@@ -1,6 +1,6 @@
 import Strip from '../../components/ui/Strip'
 import { useHaptics } from '../../hooks/useHaptics'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface YearStripProps {
   /** The year the strip is currently positioned at (for chevron step back/forward) */

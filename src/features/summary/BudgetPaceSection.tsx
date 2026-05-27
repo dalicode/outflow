@@ -17,7 +17,7 @@ import PrivateValue from '../../components/privacy/PrivateValue'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import { getRemainingBarColor } from '../../components/ui/BudgetFlowBar'
 import type { Expense, MonthlySummary } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import {
   type BudgetPaceSummary,
   type ChartDensityMode,

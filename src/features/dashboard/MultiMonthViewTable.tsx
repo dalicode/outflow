@@ -7,7 +7,7 @@ import type {
 } from '../../types'
 import PrivateValue from '../../components/privacy/PrivateValue'
 import { useSettings } from '../../context/settingsContext'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { getSavingsGradientColor } from '../../utils/colorHelpers'
 import { getRemainingDisplayState } from '../../utils/remainingDisplayState'
 

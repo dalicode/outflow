@@ -1,5 +1,5 @@
 import type { ThemeConfig } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { THEMES } from '../../utils/themeConfig'
 
 const THEME_ORDER = [

@@ -3,8 +3,8 @@ import { StorageService } from '../services/storageService'
 import { isSyncPaused } from '../services/syncRuntime'
 import { flushSyncQueue, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
-import { debugLog, debugWarn } from '../utils/debug'
-import { withTimeout } from '../utils/withTimeout'
+import { debugLog, debugWarn } from '../lib/debug'
+import { withTimeout } from '../lib/withTimeout'
 
 const PERIODIC_PULL_INTERVAL_MS = 300 * 1000
 const FRESHNESS_SYNC_THRESHOLD_MS = 30 * 1000

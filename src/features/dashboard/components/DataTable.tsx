@@ -1,5 +1,5 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
-import { cn } from '../../../utils/cn'
+import { cn } from '../../../lib/cn'
 import EmptyState from '../../../components/ui/EmptyState'
 
 declare module '@tanstack/react-table' {

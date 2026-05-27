@@ -11,7 +11,7 @@ import type {
   MonthlySummary,
   MultiMonthCategoryRow,
   MultiMonthFixedRow,
-} from '../types'
+} from '../../../types'
 
 /**
  * Build an array of MonthKey entries going backwards from the selected month.

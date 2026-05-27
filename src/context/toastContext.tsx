@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { cn } from '../utils/cn'
+import { cn } from '../lib/cn'
 
 type ToastTone = 'default' | 'success' | 'warning' | 'danger'
 

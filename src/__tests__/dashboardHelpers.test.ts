@@ -4,7 +4,7 @@ import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
   getMonthKeys,
-} from '../utils/dashboardHelpers'
+} from '../features/dashboard/utils/dashboardHelpers'
 
 describe('getMonthKeys', () => {
   it('returns single month for span=1', () => {

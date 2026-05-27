@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 let modalDepth = 0
 // Shared flag: true while a modal is programmatically calling history.back()

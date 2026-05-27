@@ -1,5 +1,5 @@
 import db from '../db/schema'
-import { debugLog, debugWarn } from '../../utils/debug'
+import { debugLog, debugWarn } from '../../lib/debug'
 
 function hasLocalId<T extends { id?: number }>(item: T): item is T & { id: number } {
   return item.id != null

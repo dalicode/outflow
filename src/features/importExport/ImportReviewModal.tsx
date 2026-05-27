@@ -8,7 +8,7 @@ import ModalFooter from '../../components/ui/ModalFooter'
 import Spinner from '../../components/ui/Spinner'
 import { StorageService } from '../../services/storageService'
 import type { Payee } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import type { ImportPayeeMatchSummary, ImportPayeeReviewRow } from './utils/importPayeeMatching'
 import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
 

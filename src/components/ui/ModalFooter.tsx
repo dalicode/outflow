@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface ModalFooterProps {
   children: ReactNode

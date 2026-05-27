@@ -1,6 +1,6 @@
 import { forwardRef } from 'react'
 import type { Category, Expense, Payee, Tag } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import ExpenseTable from './ExpenseTable'
 
 interface ExpensesViewProps {

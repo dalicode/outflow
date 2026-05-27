@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSettings } from '../../context/settingsContext'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import type { CalendarDay } from '../../utils/datePickerHelpers'
 import {
   addDays,
@@ -26,7 +26,7 @@ import {
   toISO,
 } from '../../utils/datePickerHelpers'
 import { getCalendarFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
-import { triggerHaptic } from '../../utils/haptics'
+import { triggerHaptic } from '../../lib/haptics'
 
 const POPUP_MAX_HEIGHT = 320
 const POPUP_GAP = 4

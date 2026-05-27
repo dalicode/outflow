@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 const AUTO_DISMISS_MS = 4000
 

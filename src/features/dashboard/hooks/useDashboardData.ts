@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useFinanceActions, useFinanceData } from '../../../context/financeDataContext'
 import type { Expense } from '../../../types'
-import { getMonthKeys } from '../../../utils/dashboardHelpers'
+import { getMonthKeys } from '../utils/dashboardHelpers'
 import { getMonthEngineData } from '../../../utils/financeDataHelpers'
 import { getMonthlyFinancialSummary } from '../../../utils/financeEngine'
 

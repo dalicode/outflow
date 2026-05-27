@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MonthSpan } from '../constants'
 import { MONTH_SPANS, VIEWPORT_THRESHOLDS } from '../constants'
-import { partsToMonthKey } from '../../../utils/urlParams'
+import { partsToMonthKey } from '../../../lib/urlParams'
 import { useMaxVisible } from '../../../hooks/useMaxVisible'
 import { useViewportWidth } from '../../../hooks/useViewportWidth'
 

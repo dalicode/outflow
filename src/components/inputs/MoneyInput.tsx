@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useHaptics } from '../../hooks/useHaptics'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import {
   MAX_USER_MONEY_AMOUNT,
   centsToSignedDollars,

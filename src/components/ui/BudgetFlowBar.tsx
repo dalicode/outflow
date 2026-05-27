@@ -14,7 +14,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { GREEN_TO_RED_SCALE } from '../../utils/summaryColorUtils'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import PrivateValue from '../privacy/PrivateValue'
 import { PencilIcon } from './IconButton'
 

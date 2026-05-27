@@ -1,5 +1,5 @@
 import type { Category, Schedule } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { partitionSchedulesForList } from '../../utils/scheduleListVisibility'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useToasts } from '../../context/toastContext'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { getTagSummaryChipStyle } from '../../utils/tagChip'
 import { getFilteredOptions } from './comboboxUtils'
 import type { Tag } from '../../types'

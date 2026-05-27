@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useHaptics } from '../../hooks/useHaptics'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { CheckIcon } from '../ui/IconButton'
 import Modal from '../ui/Modal'
 import Spinner from '../ui/Spinner'

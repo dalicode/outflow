@@ -12,7 +12,7 @@
  *   - monthlySavingsPct = (totalSavings / income) × 100, or null when income = 0
  */
 
-import type { AnalyticsData, Expense } from '../types'
+import type { AnalyticsData, Expense } from '../../../types'
 
 // ── Short month labels ────────────────────────────────────────────────────────
 

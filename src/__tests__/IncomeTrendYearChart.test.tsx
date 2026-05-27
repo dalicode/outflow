@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import IncomeTrendYearChart from '../features/analytics/incomeTrend/IncomeTrendYearChart'
 import type { ThemeColors } from '../features/analytics/hooks/useThemeColors'
-import type { AllTimeRow, YearTrendRow } from '../utils/analyticsTrendUtils'
+import type { AllTimeRow, YearTrendRow } from '../features/analytics/utils/analyticsTrendUtils'
 
 vi.mock('../hooks/useViewportWidth', () => ({
   useViewportWidth: () => 375,

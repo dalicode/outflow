@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react'
 import { useSettings } from '../../../context/settingsContext'
 import { runLocalImport } from '../../../services/importService'
 import { StorageService } from '../../../services/storageService'
-import { APP_VERSION } from '../../../utils/appVersion'
+import { APP_VERSION } from '../../../lib/appVersion'
 import { decryptBackup, encryptBackup, isEncryptedEnvelope } from '../../../utils/backupCrypto'
 import { getLocalToday } from '../../../utils/historicalDataHelpers'
 

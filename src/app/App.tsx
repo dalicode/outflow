@@ -29,7 +29,7 @@ import { useStartupSnapshots } from '../hooks/useStartupSnapshots'
 import { StorageService } from '../services/storageService'
 import { supabase } from '../services/supabase'
 import type { Expense } from '../types'
-import { cn } from '../utils/cn'
+import { cn } from '../lib/cn'
 
 const AuthPage = lazy(() => import('../features/auth/AuthPage'))
 const loadSettingsPage = () => import('../features/settings/SettingsPage')

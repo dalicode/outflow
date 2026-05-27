@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useSettings } from '../context/settingsContext'
-import { triggerHaptic } from '../utils/haptics'
+import { triggerHaptic } from '../lib/haptics'
 
 export function useHaptics() {
   try {

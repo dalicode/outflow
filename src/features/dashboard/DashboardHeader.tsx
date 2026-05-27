@@ -2,7 +2,7 @@ import PrivateValue from '../../components/privacy/PrivateValue'
 import PrivacyToggle from '../../components/privacy/PrivacyToggle'
 import { useSettings } from '../../context/settingsContext'
 import type { MonthlySummary } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { getRemainingDisplayState } from '../../utils/remainingDisplayState'
 
 interface DashboardHeaderProps {

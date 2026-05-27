@@ -5,7 +5,7 @@ import { compareExpensesByDateAscThenIdAsc } from '../../../utils/expenseOrderin
 import {
   computeMultiMonthCategoryRows,
   computeMultiMonthFixedRows,
-} from '../../../utils/dashboardHelpers'
+} from '../utils/dashboardHelpers'
 import { getEffectiveSplitParentExpanded } from '../splitDisplayRows'
 import { useDashboardData } from './useDashboardData'
 import type { DashboardFiltersState } from './useDashboardFilters'

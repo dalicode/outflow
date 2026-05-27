@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { StorageService } from '../services/storageService'
 import { summarizeScheduleMaterializationNotices } from '../utils/scheduleNotificationUtils'
-import { withTimeout } from '../utils/withTimeout'
+import { withTimeout } from '../lib/withTimeout'
 
 interface UseStartupSnapshotsParams {
   showToast: (toast: {

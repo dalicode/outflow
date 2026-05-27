@@ -1,6 +1,6 @@
 import Strip from '../../components/ui/Strip'
 import { useHaptics } from '../../hooks/useHaptics'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { getLocalMonthKey } from '../../utils/historicalDataHelpers'
 import type { MonthSpan } from './constants'
 

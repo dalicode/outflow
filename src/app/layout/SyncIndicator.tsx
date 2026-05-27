@@ -1,5 +1,5 @@
 import type { SyncStatus } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface SyncIndicatorProps {
   syncStatus: SyncStatus

@@ -4,7 +4,7 @@ import MoneyInput from '../../../components/inputs/MoneyInput'
 import Modal from '../../../components/ui/Modal'
 import ModalFooter from '../../../components/ui/ModalFooter'
 import { useSettings } from '../../../context/settingsContext'
-import { cn } from '../../../utils/cn'
+import { cn } from '../../../lib/cn'
 import { resolveMoneyLocaleConfig } from '../../../utils/moneyInput'
 
 const FREQUENCIES = ['monthly', 'biweekly', 'weekly'] as const

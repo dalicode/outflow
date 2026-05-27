@@ -5,7 +5,7 @@ import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { StorageService } from '../../services/storageService'
 import type { Category, Expense, Payee } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import DesktopDropdown from '../../components/inputs/DesktopDropdown'
 import SingleSelectTrigger from '../../components/inputs/SingleSelectTrigger'
 

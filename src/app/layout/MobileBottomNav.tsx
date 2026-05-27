@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useHaptics } from '../../hooks/useHaptics'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { ROUTES } from '../../constants/routes'
 import type { NavItemConfig } from './navConfig'
 import { NAV_ITEMS, PlusIcon } from './navConfig'

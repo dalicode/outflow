@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import {
   checkForServiceWorkerUpdate,
   SW_UPDATE_READY_EVENT,

@@ -3,7 +3,7 @@ import {
   distributeSplitAmountEvenly,
   getSplitContainerPayeeDisplay,
   reconcileSplitAmounts,
-} from '../utils/splitExpenseHelpers'
+} from '../features/expenses/utils/splitExpenseHelpers'
 
 describe('reconcileSplitAmounts', () => {
   it('returns balanced when totals match at precision', () => {

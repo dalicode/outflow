@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom/client'
 import { App, AppProviders } from './app'
-import { applyDisplayModeClasses } from './utils/displayModeClasses'
+import { applyDisplayModeClasses } from './lib/displayModeClasses'
 import './index.css'
 
 // Suppress Chrome service worker "message channel closed" noise on refresh

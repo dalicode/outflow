@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import './dashboard.css'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import MobileSelectionBanner from './components/MobileSelectionBanner'

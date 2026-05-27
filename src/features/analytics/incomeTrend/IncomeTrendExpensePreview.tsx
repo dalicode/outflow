@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Category, Expense, FormattingProps, Payee } from '../../../types'
-import { cn } from '../../../utils/cn'
+import { cn } from '../../../lib/cn'
 
 const COLLAPSED_COUNT = 5
 

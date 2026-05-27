@@ -1,6 +1,6 @@
 import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from 'react'
 import { useHaptics } from '../../hooks/useHaptics'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface StripProps {
   maxVisible: number

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import EmptyState from '../../components/ui/EmptyState'
 import { useSettings } from '../../context/settingsContext'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface BreakdownItem {
   name: string

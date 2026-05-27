@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 
 interface PercentInputProps {
   value: number // 0–100

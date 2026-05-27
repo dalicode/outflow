@@ -1,6 +1,6 @@
 import type { Expense } from '../../../types'
 import { parseISODate, toISODate } from '../../../utils/historicalDataHelpers'
-import { partsToMonthKey } from '../../../utils/urlParams'
+import { partsToMonthKey } from '../../../lib/urlParams'
 
 export interface BudgetPaceDailyRow {
   day: number

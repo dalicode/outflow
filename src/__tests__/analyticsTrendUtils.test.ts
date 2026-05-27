@@ -9,7 +9,7 @@ import {
   formatMonthKey,
   getMonthLabelFromIndex,
   getSavingsRate,
-} from '../utils/analyticsTrendUtils'
+} from '../features/analytics/utils/analyticsTrendUtils'
 
 // ── Test data factories ───────────────────────────────────────────────────────
 

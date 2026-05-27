@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Brush, ComposedChart, ResponsiveContainer } from 'recharts'
 import { useViewportWidth } from '../../../hooks/useViewportWidth'
-import type { AllTimeRow } from '../../../utils/analyticsTrendUtils'
+import type { AllTimeRow } from '../utils/analyticsTrendUtils'
 import { monotonePath } from '../../../utils/chartMath'
 import type { ThemeColors } from '../hooks/useThemeColors'
 

@@ -6,9 +6,9 @@ import Modal from '../../components/ui/Modal'
 import ModalFooter from '../../components/ui/ModalFooter'
 import { useViewportWidth } from '../../hooks/useViewportWidth'
 import type { Category, Payee, Tag } from '../../types'
-import { cn } from '../../utils/cn'
+import { cn } from '../../lib/cn'
 import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
-import { toggleInSet } from '../../utils/setUtils'
+import { toggleInSet } from '../../lib/setUtils'
 
 interface FilterDraft {
   filterGlobal: string

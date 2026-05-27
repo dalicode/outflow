@@ -32,7 +32,7 @@ vi.mock('../services/syncService', () => ({
   pullFromSupabase,
 }))
 
-vi.mock('../utils/debug', () => ({
+vi.mock('../lib/debug', () => ({
   debugLog: vi.fn(),
   debugWarn: vi.fn(),
 }))

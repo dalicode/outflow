@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from 'react'
 import { supabase } from '../../services/supabase'
-import { withTimeout } from '../../utils/withTimeout'
+import { withTimeout } from '../../lib/withTimeout'
 import './auth.css'
 
 type AuthMode = 'login' | 'signup'

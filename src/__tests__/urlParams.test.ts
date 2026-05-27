@@ -10,7 +10,7 @@ import {
   parseViewParam,
   parseYearParam,
   partsToMonthKey,
-} from '../utils/urlParams'
+} from '../lib/urlParams'
 
 describe('parseMonthParam', () => {
   it('returns default when value is null', () => {
