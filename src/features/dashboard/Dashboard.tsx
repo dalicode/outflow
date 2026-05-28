@@ -5,6 +5,7 @@ import './dashboard.css'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import MobileSelectionBanner from './components/MobileSelectionBanner'
 import PullToRefreshContainer from '../../components/ui/PullToRefreshContainer'
+import { useScrollActivity } from '../../hooks/useScrollActivity'
 import { useSettings } from '../../context/settingsContext'
 import type { DashboardSessionState } from './hooks/useDashboard'
 import { useDashboard } from './hooks/useDashboard'
@@ -76,7 +77,6 @@ export default function Dashboard({
   onRefresh,
 }: DashboardProps) {
   const { formatAmount, getNumberColorClass, formatDate } = useSettings()
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const expenseIds = useMemo(
     () =>
       expenses.map((expense) => expense.id).filter((id): id is number => typeof id === 'number'),
@@ -135,7 +135,9 @@ export default function Dashboard({
   const [mobileSplitParentSelectionId, setMobileSplitParentSelectionId] = useState<number | null>(
     null,
   )
-  const [isMobileScrolling, setIsMobileScrolling] = useState(false)
+  const { isScrolling: isMobileScrolling, markScrolling: markMobileScrolling } = useScrollActivity({
+    enabled: isMobile,
+  })
   const [expenseTableDisplay, setExpenseTableDisplay] = useState<DashboardExpenseTableDisplay>(
     DEFAULT_EXPENSE_TABLE_DISPLAY,
   )
@@ -196,34 +198,11 @@ export default function Dashboard({
 
   const handleScrollableContentScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
-      if (isMobile) {
-        setIsMobileScrolling(true)
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current)
-        }
-        scrollTimeoutRef.current = setTimeout(() => {
-          setIsMobileScrolling(false)
-        }, 800)
-      }
-
+      markMobileScrolling()
       onScroll?.(event)
     },
-    [isMobile, onScroll],
+    [markMobileScrolling, onScroll],
   )
-
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isMobile && isMobileScrolling) {
-      setIsMobileScrolling(false)
-    }
-  }, [isMobile, isMobileScrolling])
 
   // ── Income / Savings modal helpers ──
   const modalTargetSummary = dash.monthSummaries[dash.modalTargetMonthIndex]

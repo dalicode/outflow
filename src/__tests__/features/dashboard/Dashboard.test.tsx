@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from '@/features/dashboard/Dashboard'
 import { DASHBOARD_VIEWS } from '@/features/dashboard/constants'
 import { useDashboard } from '@/features/dashboard/hooks/useDashboard'
@@ -344,6 +344,7 @@ function renderDashboard(state: DashboardState) {
 
 describe('Dashboard', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.mocked(StorageService.getSetting).mockResolvedValue({
       showNotesColumn: true,
       showTagsColumn: true,
@@ -357,6 +358,9 @@ describe('Dashboard', () => {
     mocks.handleSplitEditRequest.mockReset()
     mocks.handleCopyRequest.mockReset()
     mocks.handleCopyRequest.mockResolvedValue(undefined)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders the category view using dashboard-derived rows and payee drilldown resolution', () => {
@@ -437,5 +441,52 @@ describe('Dashboard', () => {
     expect(mocks.handleSplitEditRequest).toHaveBeenCalledWith(10)
     expect(mocks.handleEditRequest).not.toHaveBeenCalled()
     expect(setMobileEditTrigger).not.toHaveBeenCalled()
+  })
+
+  it('keeps scrollbar auto-hide mobile-only and toggles scrolling visibility on activity', () => {
+    const { container, rerender } = renderDashboard(
+      makeDash({
+        viewMode: DASHBOARD_VIEWS.EXPENSES,
+        viewportWidth: 375,
+      }),
+    )
+
+    const scrollableContent = container.querySelector('.overflow-y-auto')
+    expect(scrollableContent).toBeTruthy()
+    expect(scrollableContent?.className).toContain('scrollbar-auto-hide')
+    expect(scrollableContent?.className).not.toContain('is-scrolling')
+
+    if (!scrollableContent) {
+      throw new Error('Expected dashboard scrollable content to render')
+    }
+
+    fireEvent.scroll(scrollableContent)
+    expect(scrollableContent.className).toContain('is-scrolling')
+
+    act(() => {
+      vi.advanceTimersByTime(801)
+    })
+    expect(scrollableContent.className).not.toContain('is-scrolling')
+
+    vi.mocked(useDashboard).mockReturnValue(
+      makeDash({
+        viewMode: DASHBOARD_VIEWS.EXPENSES,
+        viewportWidth: 1024,
+      }),
+    )
+
+    rerender(
+      <Dashboard
+        expenses={[categoryExpense, payeeExpense]}
+        categories={[{ id: 10, name: 'Groceries' }]}
+        payees={[{ id: 20, name: 'Market' }]}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        onBulkDelete={vi.fn()}
+      />,
+    )
+
+    const desktopScrollableContent = container.querySelector('.overflow-y-auto')
+    expect(desktopScrollableContent?.className).not.toContain('scrollbar-auto-hide')
   })
 })

@@ -7,7 +7,6 @@ import PWAUpdatePrompt from '../components/pwa/PWAUpdatePrompt'
 import LoadingOverlay from '../components/ui/LoadingOverlay'
 import Modal from '../components/ui/Modal'
 import PageSectionFallback from '../components/ui/PageSectionFallback'
-import PullToRefreshContainer from '../components/ui/PullToRefreshContainer'
 import { installTestApi } from '../test/testApi'
 import { testApi } from '../test/testApi'
 import { ROUTES } from '../constants/routes'
@@ -22,6 +21,7 @@ import PayeesPage from '../features/payees/PayeesPage'
 import TagsPage from '../features/tags/TagsPage'
 import SummaryPage from '../features/summary/SummaryPage'
 import { useAppRefresh } from '../hooks/useAppRefresh'
+import { useScrollActivity } from '../hooks/useScrollActivity'
 import { useAppSessionState } from '../hooks/useAppSessionState'
 import { useCategories, useExpenses, usePayees, useTags } from '../hooks/useLocalData'
 import { useOptimisticExpenseDelete } from '../hooks/useOptimisticExpenseDelete'
@@ -30,36 +30,12 @@ import { StorageService } from '../services/storageService'
 import { supabase } from '../services/supabase'
 import type { Expense } from '../types'
 import { cn } from '../lib/cn'
+import ScrollablePage from './ScrollablePage'
 
 const AuthPage = lazy(() => import('../features/auth/AuthPage'))
 const loadSettingsPage = () => import('../features/settings/SettingsPage')
 
 const SettingsPage = lazy(loadSettingsPage)
-
-function useScrollVisibility() {
-  const [isScrolling, setIsScrolling] = useState(false)
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const handleScroll = useCallback(() => {
-    setIsScrolling(true)
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current)
-    }
-    scrollTimeoutRef.current = setTimeout(() => {
-      setIsScrolling(false)
-    }, 800)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  return { isScrolling, handleScroll }
-}
 
 export default function App() {
   return <AppShell />
@@ -96,41 +72,6 @@ function useScrollDirection() {
   return { direction, onScroll, reset }
 }
 
-function ScrollablePage({
-  children,
-  onScroll,
-  onRouteChange,
-  bottomSpacerClassName,
-  onRefresh,
-}: {
-  children: React.ReactNode
-  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void
-  onRouteChange?: () => void
-  bottomSpacerClassName?: string
-  onRefresh: () => Promise<void>
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const showBottomSpacer = bottomSpacerClassName !== 'h-0'
-
-  useEffect(() => {
-    ref.current?.scrollTo({ top: 0, behavior: 'auto' })
-    onRouteChange?.()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onRouteChange]) // location.key changes on back/forward too
-
-  return (
-    <PullToRefreshContainer ref={ref} className="h-full" onScroll={onScroll} onRefresh={onRefresh}>
-      {children}
-      {showBottomSpacer && (
-        <div
-          className={cn('sm:hidden', bottomSpacerClassName ?? 'mobile-bottom-spacer')}
-          aria-hidden="true"
-        />
-      )}
-    </PullToRefreshContainer>
-  )
-}
-
 function AppShell() {
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -165,7 +106,7 @@ function AppShell() {
   const { forceFinanceDataRefresh } = useFinanceActions()
   const { showToast, showUndoToast } = useToasts()
   const [showForm, setShowForm] = useState(false)
-  const { isScrolling, handleScroll } = useScrollVisibility()
+  const { isScrolling, markScrolling } = useScrollActivity()
   const {
     direction,
     onScroll: handleScrollDirection,
@@ -188,10 +129,10 @@ function AppShell() {
 
   const handlePageScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
-      handleScroll()
+      markScrolling()
       handleScrollDirection(e.currentTarget)
     },
-    [handleScroll, handleScrollDirection],
+    [handleScrollDirection, markScrolling],
   )
 
   const { handlePullRefresh } = useAppRefresh({
