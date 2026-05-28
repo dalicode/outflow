@@ -1,6 +1,6 @@
 export type { ContextMenuItem } from './ContextMenu'
 export { default as ContextMenu } from './ContextMenu'
-export { default as DataTable } from './DataTable'
+export { default as DashboardDataTable } from './DashboardDataTable'
 export { default as IncomeModalForm, FREQUENCIES, MULTIPLIERS } from './IncomeModalForm'
 export { default as MobileSelectionBanner } from './MobileSelectionBanner'
 export { default as SavingsModalForm } from './SavingsModalForm'

@@ -12,7 +12,7 @@ declare module '@tanstack/react-table' {
   }
 }
 
-interface DataTableProps<T> {
+interface DashboardDataTableProps<T> {
   data: T[]
   columns: ColumnDef<T, unknown>[]
   emptyMessage?: string
@@ -20,14 +20,14 @@ interface DataTableProps<T> {
   headerCellClassName?: string
   bodyCellClassName?: string
   getRowClassName?: (row: T) => string
-  getRowId?: (row: T) => string
+  getRowTestId?: (row: T) => string
   onRowContextMenu?: (e: React.MouseEvent, row: T) => void
   onRowTouchStart?: (e: React.TouchEvent, row: T) => void
   onRowTouchMove?: (e: React.TouchEvent) => void
   onRowTouchEnd?: (e: React.TouchEvent, row: T) => void
 }
 
-export default function DataTable<T>({
+export default function DashboardDataTable<T>({
   data,
   columns,
   emptyMessage = 'No rows to display.',
@@ -35,12 +35,12 @@ export default function DataTable<T>({
   headerCellClassName,
   bodyCellClassName,
   getRowClassName,
-  getRowId,
+  getRowTestId,
   onRowContextMenu,
   onRowTouchStart,
   onRowTouchMove,
   onRowTouchEnd,
-}: DataTableProps<T>) {
+}: DashboardDataTableProps<T>) {
   const table = useReactTable({
     data,
     columns,
@@ -96,7 +96,7 @@ export default function DataTable<T>({
         {rows.map((row) => (
           <tr
             key={row.id}
-            data-testid={getRowId?.(row.original)}
+            data-testid={getRowTestId?.(row.original)}
             className={cn(getRowClassName?.(row.original))}
             onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(e, row.original) : undefined}
             onTouchStart={onRowTouchStart ? (e) => onRowTouchStart(e, row.original) : undefined}

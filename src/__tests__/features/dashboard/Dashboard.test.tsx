@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   categoryViewSpy: vi.fn(),
   payeeViewSpy: vi.fn(),
   drilldownSpy: vi.fn(),
-  expensesViewSpy: vi.fn(),
+  expenseTableSpy: vi.fn(),
   mobileSelectionBannerSpy: vi.fn(),
   handleEditRequest: vi.fn(),
   handleSplitEditRequest: vi.fn(),
@@ -138,7 +138,7 @@ vi.mock('@/features/dashboard/ExpenseDrilldown', async () => {
   }
 })
 
-vi.mock('@/features/dashboard/ExpensesView', async () => {
+vi.mock('@/features/dashboard/ExpenseTable', async () => {
   const React = await vi.importActual<typeof import('react')>('react')
 
   return {
@@ -158,7 +158,7 @@ vi.mock('@/features/dashboard/ExpensesView', async () => {
         handleSplitEditRequest: mocks.handleSplitEditRequest,
         handleCopyRequest: mocks.handleCopyRequest,
       }))
-      mocks.expensesViewSpy(props)
+      mocks.expenseTableSpy(props)
       return (
         <div data-testid="expenses-view">
           {props.expenses.map((expense) => (
@@ -351,7 +351,7 @@ describe('Dashboard', () => {
     mocks.categoryViewSpy.mockReset()
     mocks.payeeViewSpy.mockReset()
     mocks.drilldownSpy.mockReset()
-    mocks.expensesViewSpy.mockReset()
+    mocks.expenseTableSpy.mockReset()
     mocks.mobileSelectionBannerSpy.mockReset()
     mocks.handleEditRequest.mockReset()
     mocks.handleSplitEditRequest.mockReset()
@@ -409,7 +409,7 @@ describe('Dashboard', () => {
 
     expect(screen.getByTestId('expenses-view')).toHaveTextContent('Category drilldown expense')
     expect(screen.getByTestId('expenses-view')).toHaveTextContent('Payee drilldown expense')
-    expect(mocks.expensesViewSpy).toHaveBeenCalledWith(
+    expect(mocks.expenseTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({ expenses: [categoryExpense, payeeExpense] }),
     )
   })
@@ -425,7 +425,7 @@ describe('Dashboard', () => {
       }),
     )
 
-    const expensesViewProps = mocks.expensesViewSpy.mock.calls.at(-1)?.[0] as {
+    const expensesViewProps = mocks.expenseTableSpy.mock.calls.at(-1)?.[0] as {
       onMobileSplitParentSelectionChange?: (splitId: number | null) => void
     }
     act(() => {

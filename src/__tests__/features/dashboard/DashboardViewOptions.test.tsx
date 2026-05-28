@@ -50,7 +50,7 @@ vi.mock('@/features/dashboard/components/IncomeModalForm', () => ({ default: () 
 vi.mock('@/features/dashboard/components/SavingsModalForm', () => ({ default: () => null }))
 vi.mock('@/features/dashboard/FilterModal', () => ({ default: () => null }))
 vi.mock('@/features/dashboard/components/MobileSelectionBanner', () => ({ default: () => null }))
-vi.mock('@/features/dashboard/ExpensesView', async () => {
+vi.mock('@/features/dashboard/ExpenseTable', async () => {
   const React = await vi.importActual<typeof import('react')>('react')
   return {
     default: React.forwardRef<HTMLDivElement>(() => <div data-testid="expenses-view" />),

@@ -13,7 +13,7 @@ import {
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import ContextMenu from './components/ContextMenu'
-import DataTable from './components/DataTable'
+import DashboardDataTable from './components/DashboardDataTable'
 import SplitBalancePopover from './components/SplitBalancePopover'
 import TagsEditorPopover from './components/TagsEditorPopover'
 import { useSettings } from '../../context/settingsContext'
@@ -1893,14 +1893,14 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           }}
         />
       ) : (
-        <DataTable
+        <DashboardDataTable
           data={displayRows}
           columns={columns}
           fixedLayout
           headerCellClassName="px-2"
           bodyCellClassName="px-2"
           getRowClassName={getRowClassName}
-          getRowId={(row) => row.rowId}
+          getRowTestId={(row) => row.rowId}
           onRowContextMenu={handleContextMenu}
         />
       )}

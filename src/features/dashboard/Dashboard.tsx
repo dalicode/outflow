@@ -19,8 +19,7 @@ import DashboardHeader from './DashboardHeader'
 import DashboardMonthStrip from './DashboardMonthStrip'
 import DashboardViewTabs from './DashboardViewTabs'
 import ExpenseDrilldown from './ExpenseDrilldown'
-import ExpensesView from './ExpensesView'
-import type { ExpenseTableHandle } from './ExpenseTable'
+import ExpenseTable, { type ExpenseTableHandle } from './ExpenseTable'
 import FilterModal from './FilterModal'
 import MonthSpanSelector from './MonthSpanSelector'
 import PayeeViewTable from './PayeeViewTable'
@@ -450,32 +449,38 @@ export default function Dashboard({
                     )}
                 </div>
               ) : (
-                <ExpensesView
-                  ref={expenseTableRef}
-                  expenses={dash.filteredExpenses}
-                  categories={categories}
-                  payees={payees}
-                  expenseTagsMap={dash.expenseTagsMap}
-                  selectedIds={dash.selectedIds}
-                  onToggleSelect={dash.toggleExpenseSelection}
-                  onToggleSelectAll={dash.toggleSelectAll}
-                  onBulkDelete={() => onBulkDelete(Array.from(dash.selectedIds))}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                  isMobile={isMobile}
-                  showNotesColumn={expenseTableDisplay.showNotesColumn}
-                  showTagsColumn={expenseTableDisplay.showTagsColumn}
-                  mobileEditTrigger={dash.mobileEditTrigger}
-                  viewAnimation={dash.viewAnimation}
-                  refreshCategories={refreshCategories}
-                  refreshPayees={refreshPayees}
-                  refreshExpenses={refreshExpenses}
-                  triggerSync={triggerSync}
-                  onMobileExtraMenuActionsChange={setMobileExtraMenuActions}
-                  onMobileSplitParentSelectionChange={setMobileSplitParentSelectionId}
-                  isSplitParentExpanded={dash.isSplitParentExpanded}
-                  onToggleSplitParentExpanded={dash.toggleSplitParentExpanded}
-                />
+                <div
+                  className={cn(
+                    dash.viewAnimation === 'slide-left' && 'view-slide-left',
+                    dash.viewAnimation === 'slide-right' && 'view-slide-right',
+                  )}
+                >
+                  <ExpenseTable
+                    ref={expenseTableRef}
+                    expenses={dash.filteredExpenses}
+                    categories={categories}
+                    payees={payees}
+                    expenseTagsMap={dash.expenseTagsMap}
+                    selectedIds={dash.selectedIds}
+                    onToggleSelect={dash.toggleExpenseSelection}
+                    onToggleSelectAll={dash.toggleSelectAll}
+                    onBulkDelete={() => onBulkDelete(Array.from(dash.selectedIds))}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                    isMobile={isMobile}
+                    showNotesColumn={expenseTableDisplay.showNotesColumn}
+                    showTagsColumn={expenseTableDisplay.showTagsColumn}
+                    mobileEditTrigger={dash.mobileEditTrigger}
+                    refreshCategories={refreshCategories}
+                    refreshPayees={refreshPayees}
+                    refreshExpenses={refreshExpenses}
+                    triggerSync={triggerSync}
+                    onMobileExtraMenuActionsChange={setMobileExtraMenuActions}
+                    onMobileSplitParentSelectionChange={setMobileSplitParentSelectionId}
+                    isSplitParentExpanded={dash.isSplitParentExpanded}
+                    onToggleSplitParentExpanded={dash.toggleSplitParentExpanded}
+                  />
+                </div>
               )}
             </section>
           </div>

@@ -82,17 +82,27 @@ interface EditableCellDisplayConfig {
   content: React.ReactNode
   expenseId?: number
   field?: string
+  splitAmountAnchor?: string
   isEditableCell?: boolean
   isSplitEditableDisplay?: boolean
 }
 
-interface PayeeEditorConfig {
+interface SelectionCheckboxConfig {
+  checked: boolean
+  ariaLabel: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  boxClassName: string
+}
+
+interface EntityEditorConfig {
   value: number | undefined
   options: Array<{ id: number; label: string }>
+  placeholder: string
+  createHint: string
   autoOpen: boolean
-  onCommit: (payeeId: number | undefined) => void
-  onEnterSelect: (payeeId: number | undefined, shiftKey: boolean) => void
-  onTabSelect: (payeeId: number | undefined) => void
+  onCommit: (id: number | undefined) => void
+  onEnterSelect: (id: number | undefined, shiftKey: boolean) => void
+  onTabSelect: (id: number | undefined) => void
   onCreate: (name: string) => Promise<number>
   onCancel: () => void
   onTab: (shiftKey: boolean) => void
@@ -219,6 +229,7 @@ function renderEditableDisplayCell(
       data-split-editable-display={display.isSplitEditableDisplay ? true : undefined}
       data-expense-id={display.expenseId}
       data-field={display.field}
+      data-split-amount-anchor={display.splitAmountAnchor}
       data-testid={display.field ? `editable-cell-display-${display.field}` : undefined}
       className={display.className}
       title={display.title}
@@ -226,6 +237,43 @@ function renderEditableDisplayCell(
     >
       {display.content}
     </span>
+  )
+}
+
+function renderSelectionCheckbox({
+  checked,
+  ariaLabel,
+  onChange,
+  boxClassName,
+}: SelectionCheckboxConfig): React.ReactNode {
+  return (
+    <label className={cn('expense-checkbox-wrapper cursor-pointer', checked && 'checked')}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="sr-only"
+        aria-label={ariaLabel}
+      />
+      <div
+        className={cn(
+          'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
+          boxClassName,
+        )}
+      >
+        {checked && (
+          <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
+            <path
+              d="M2.5 6.5L5 9l4.5-5.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </div>
+    </label>
   )
 }
 
@@ -251,28 +299,53 @@ function renderDateEditor(
   )
 }
 
-function renderPayeeEditor(config: PayeeEditorConfig): React.ReactNode {
+function toOptionalNumber(id: number | string | null | undefined): number | undefined {
+  return id != null ? Number(id) : undefined
+}
+
+function toEntityOptions(items: Array<{ id: number; name: string }>): Array<{ id: number; label: string }> {
+  return items.map((item) => ({
+    id: item.id,
+    label: item.name,
+  }))
+}
+
+async function createEntityAndRefresh(
+  createEntity: (name: string) => Promise<number | undefined>,
+  errorMessage: string,
+  name: string,
+  refresh?: () => Promise<void>,
+  afterCreate?: (trimmedName: string) => void,
+): Promise<number> {
+  const newId = await createEntity(name)
+  if (newId == null) throw new Error(errorMessage)
+  afterCreate?.(name.trim())
+  await refresh?.()
+  return newId as number
+}
+
+function renderEntityEditor(config: EntityEditorConfig): React.ReactNode {
   return (
     <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
       <CreatableCombobox
         value={config.value}
         variant="inline"
         options={config.options}
-        placeholder="Select payee…"
-        createHint="Type a new payee name to add it."
+        placeholder={config.placeholder}
+        createHint={config.createHint}
         allowCreate
         autoOpen={config.autoOpen}
         autoFocus
         onChange={(id) => {
-          const numId = id != null ? Number(id) : undefined
+          const numId = toOptionalNumber(id)
           config.onCommit(numId)
         }}
         onEnterSelect={(id, shiftKey) => {
-          const numId = id != null ? Number(id) : undefined
+          const numId = toOptionalNumber(id)
           config.onEnterSelect(numId, shiftKey)
         }}
         onTabSelect={(id) => {
-          const numId = id != null ? Number(id) : undefined
+          const numId = toOptionalNumber(id)
           config.onTabSelect(numId)
         }}
         onCreate={config.onCreate}
@@ -373,120 +446,61 @@ export function getExpenseColumns({
   const tagsWidth = showNotesColumn ? '13%' : '18%'
   const payeeWidth = showNotesColumn || showTagsColumn ? '20%' : '24%'
   const categoryWidth = showNotesColumn || showTagsColumn ? '20%' : '24%'
+  const activePayeeOptions = toEntityOptions(
+    activePayees.map((payee) => ({
+      id: payee.id as number,
+      name: payee.name,
+    })),
+  )
+  const activeCategoryOptions = toEntityOptions(
+    activeCategories.map((category) => ({
+      id: category.id as number,
+      name: category.name,
+    })),
+  )
 
   const columns: ColumnDef<ExpenseDisplayRow>[] = [
     {
       id: 'select',
       header: () => (
         <div className="flex items-center justify-center">
-          <label
-            className={cn('expense-checkbox-wrapper cursor-pointer', allSelected && 'checked')}
-          >
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={onToggleSelectAll}
-              className="sr-only"
-              aria-label="Select all"
-            />
-            <div
-              className={cn(
-                'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
-                'border-theme-muted bg-transparent',
-              )}
-            >
-              {allSelected && (
-                <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
-                  <path
-                    d="M2.5 6.5L5 9l4.5-5.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </div>
-          </label>
+          {renderSelectionCheckbox({
+            checked: allSelected,
+            onChange: onToggleSelectAll,
+            ariaLabel: 'Select all',
+            boxClassName: 'border-theme-muted bg-transparent',
+          })}
         </div>
       ),
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
           const isSelected = isSplitParentSelected(rowData.splitId)
-          return (
-            <label
-              className={cn('expense-checkbox-wrapper cursor-pointer', isSelected && 'checked')}
-            >
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={(e) => {
-                  e.stopPropagation()
-                  onToggleSplitParentSelect(rowData.splitId)
-                }}
-                className="sr-only"
-                aria-label="Select split transaction"
-              />
-              <div
-                className={cn(
-                  'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
-                  isSelected
-                    ? 'border-theme-text bg-transparent'
-                    : 'border-theme-muted bg-transparent',
-                )}
-              >
-                {isSelected && (
-                  <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
-                    <path
-                      d="M2.5 6.5L5 9l4.5-5.5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-              </div>
-            </label>
-          )
+          return renderSelectionCheckbox({
+            checked: isSelected,
+            onChange: (e) => {
+              e.stopPropagation()
+              onToggleSplitParentSelect(rowData.splitId)
+            },
+            ariaLabel: 'Select split transaction',
+            boxClassName: isSelected
+              ? 'border-theme-text bg-transparent'
+              : 'border-theme-muted bg-transparent',
+          })
         }
         const exp = rowData.expense
         const isSelected = selectedIds.has(exp.id as number)
-        return (
-          <label className={cn('expense-checkbox-wrapper cursor-pointer', isSelected && 'checked')}>
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={(e) => {
-                e.stopPropagation()
-                onToggleSelect(exp.id as number)
-              }}
-              className="sr-only"
-              aria-label={`Select ${exp.notes || 'expense'}`}
-            />
-            <div
-              className={cn(
-                'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
-                isSelected
-                  ? 'border-theme-text bg-transparent'
-                  : 'border-theme-muted bg-transparent',
-              )}
-            >
-              {isSelected && (
-                <svg className="w-2.5 h-2.5 text-theme-text" viewBox="0 0 12 12" fill="none">
-                  <path
-                    d="M2.5 6.5L5 9l4.5-5.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </div>
-          </label>
-        )
+        return renderSelectionCheckbox({
+          checked: isSelected,
+          onChange: (e) => {
+            e.stopPropagation()
+            onToggleSelect(exp.id as number)
+          },
+          ariaLabel: `Select ${exp.notes || 'expense'}`,
+          boxClassName: isSelected
+            ? 'border-theme-text bg-transparent'
+            : 'border-theme-muted bg-transparent',
+        })
       },
       meta: {
         className: 'text-center w-10',
@@ -603,12 +617,11 @@ export function getExpenseColumns({
           const splitPayeeLabel = getSplitPayeeLabel(rowData, payeeMap)
           const splitNavigationExpense = getSplitNavigationExpense(rowData)
           if (isSplitFieldEditing(editingSplitField, rowData.splitId, 'payeeId')) {
-            return renderPayeeEditor({
+            return renderEntityEditor({
               value: rowData.split?.payeeId,
-              options: activePayees.map((payee) => ({
-                id: payee.id as number,
-                label: payee.name,
-              })),
+              options: activePayeeOptions,
+              placeholder: 'Select payee…',
+              createHint: 'Type a new payee name to add it.',
               autoOpen: true,
               onCommit: (payeeId) => onCommitSplitPayeeEdit(rowData.splitId, payeeId),
               onEnterSelect: (payeeId, shiftKey) => {
@@ -620,12 +633,13 @@ export function getExpenseColumns({
                 runEnterNavigation(splitNavigationExpense, 'payeeId', shiftKey)
               },
               onTabSelect: (payeeId) => onCommitSplitPayeeEdit(rowData.splitId, payeeId),
-              onCreate: async (name) => {
-                const newId = await StorageService.addPayee(name)
-                if (newId == null) throw new Error('Failed to create payee')
-                await refreshPayees?.()
-                return newId as number
-              },
+              onCreate: (name) =>
+                createEntityAndRefresh(
+                  StorageService.addPayee,
+                  'Failed to create payee',
+                  name,
+                  refreshPayees,
+                ),
               onCancel: onCancelSplitFieldEdit,
               onTab: (shiftKey) => {
                 if (!splitNavigationExpense) {
@@ -656,12 +670,11 @@ export function getExpenseColumns({
         }
         const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'payeeId')) {
-          return renderPayeeEditor({
+          return renderEntityEditor({
             value: exp.payeeId,
-            options: activePayees.map((p) => ({
-              id: p.id as number,
-              label: p.name,
-            })),
+            options: activePayeeOptions,
+            placeholder: 'Select payee…',
+            createHint: 'Type a new payee name to add it.',
             autoOpen: editing.shouldAutoOpenEditor(exp.id as number, 'payeeId'),
             onCommit: (payeeId) => {
               editing.createOnCommit(exp.id as number, 'payeeId', {
@@ -675,13 +688,16 @@ export function getExpenseColumns({
             onTabSelect: (payeeId) => {
               editing.createOnCommit(exp.id as number, 'payeeId')(payeeId)
             },
-            onCreate: async (name) => {
-              const newId = await StorageService.addPayee(name)
-              if (newId == null) throw new Error('Failed to create payee')
-              editing.setPendingName(exp.id as number, 'payeeId', name.trim())
-              await refreshPayees?.()
-              return newId as number
-            },
+            onCreate: (name) =>
+              createEntityAndRefresh(
+                StorageService.addPayee,
+                'Failed to create payee',
+                name,
+                refreshPayees,
+                (trimmedName) => {
+                  editing.setPendingName(exp.id as number, 'payeeId', trimmedName)
+                },
+              ),
             onCancel: editing.createOnCancel(),
             onTab: (shiftKey) => runTabNavigation(exp, 'payeeId', shiftKey),
           })
@@ -764,67 +780,57 @@ export function getExpenseColumns({
         }
         const exp = rowData.expense
         if (editing.isCellEditing(exp.id as number, 'categoryId')) {
-          return (
-            <div className="w-full" data-no-cell-switch onPointerDown={(e) => e.stopPropagation()}>
-              <CreatableCombobox
-                value={exp.categoryId}
-                variant="inline"
-                options={activeCategories.map((c) => ({
-                  id: c.id as number,
-                  label: c.name,
-                }))}
-                placeholder="Select category…"
-                createHint="Type a new category name to add it."
-                allowCreate
-                autoOpen={editing.shouldAutoOpenEditor(exp.id as number, 'categoryId')}
-                autoFocus
-                onChange={(id) => {
-                  const numId = id != null ? Number(id) : undefined
-                  editing.createOnCommit(exp.id as number, 'categoryId', {
-                    stayInEdit: true,
-                  })(numId)
-                }}
-                onEnterSelect={(id, shiftKey) => {
-                  const numId = id != null ? Number(id) : undefined
-                  editing.createOnCommit(exp.id as number, 'categoryId')(numId)
-                  runEnterNavigation(exp, 'categoryId', shiftKey)
-                }}
-                onTabSelect={(id) => {
-                  const numId = id != null ? Number(id) : undefined
-                  editing.createOnCommit(exp.id as number, 'categoryId')(numId)
-                }}
-                onCreate={async (name) => {
-                  const newId = await StorageService.addCategory(name)
-                  if (newId == null) throw new Error('Failed to create category')
-                  editing.setPendingName(exp.id as number, 'categoryId', name.trim())
-                  await refreshCategories?.()
-                  return newId as number
-                }}
-                onCancel={editing.createOnCancel()}
-                onTab={(shiftKey) => runTabNavigation(exp, 'categoryId', shiftKey)}
-              />
-            </div>
-          )
+          return renderEntityEditor({
+            value: exp.categoryId,
+            options: activeCategoryOptions,
+            placeholder: 'Select category…',
+            createHint: 'Type a new category name to add it.',
+            autoOpen: editing.shouldAutoOpenEditor(exp.id as number, 'categoryId'),
+            onCommit: (categoryId) => {
+              editing.createOnCommit(exp.id as number, 'categoryId', {
+                stayInEdit: true,
+              })(categoryId)
+            },
+            onEnterSelect: (categoryId, shiftKey) => {
+              editing.createOnCommit(exp.id as number, 'categoryId')(categoryId)
+              runEnterNavigation(exp, 'categoryId', shiftKey)
+            },
+            onTabSelect: (categoryId) => {
+              editing.createOnCommit(exp.id as number, 'categoryId')(categoryId)
+            },
+            onCreate: (name) =>
+              createEntityAndRefresh(
+                StorageService.addCategory,
+                'Failed to create category',
+                name,
+                refreshCategories,
+                (trimmedName) => {
+                  editing.setPendingName(exp.id as number, 'categoryId', trimmedName)
+                },
+              ),
+            onCancel: editing.createOnCancel(),
+            onTab: (shiftKey) => runTabNavigation(exp, 'categoryId', shiftKey),
+          })
         }
-        return (
-          <span
-            data-editable-cell
-            data-expense-id={exp.id}
-            data-field="categoryId"
-            {...editableCellActivate(editing, exp, 'categoryId')}
-            className={cn(
+        const activeCategory = catMap[exp.categoryId as number]
+        const categoryLabel = activeCategory
+          ? activeCategory.isArchived
+            ? `${activeCategory.name} (deleted)`
+            : activeCategory.name
+          : (editing.getPendingName(exp.id as number, 'categoryId') ?? 'No category')
+        return renderEditableDisplayCell(
+          {
+            className: cn(
               'cursor-pointer',
-              catMap[exp.categoryId as number]?.isArchived
-                ? 'text-theme-muted italic'
-                : 'text-theme-text font-medium',
-            )}
-          >
-            {catMap[exp.categoryId as number]
-              ? catMap[exp.categoryId as number].isArchived
-                ? `${catMap[exp.categoryId as number].name} (deleted)`
-                : catMap[exp.categoryId as number].name
-              : (editing.getPendingName(exp.id as number, 'categoryId') ?? 'No category')}
-          </span>
+              activeCategory?.isArchived ? 'text-theme-muted italic' : 'text-theme-text font-medium',
+            ),
+            title: categoryLabel,
+            isEditableCell: true,
+            expenseId: exp.id as number,
+            field: 'categoryId',
+            content: categoryLabel,
+          },
+          editableCellActivate(editing, exp, 'categoryId').onPointerDown,
         )
       },
       meta: {
@@ -1055,19 +1061,20 @@ export function getExpenseColumns({
               />
             )
           }
-          return (
-            <span
-              data-split-amount-anchor={`split-container-${rowData.splitId}`}
-              className="cursor-pointer text-theme-text"
-              onPointerDown={(e) => {
-                if (e.button !== 0) return
-                e.preventDefault()
-                e.stopPropagation()
-                onStartSplitContainerAmountEdit(rowData.splitId)
-              }}
-            >
-              {formatAmount(splitAmount)}
-            </span>
+          return renderEditableDisplayCell(
+            {
+              className: 'cursor-pointer text-theme-text',
+              splitAmountAnchor: `split-container-${rowData.splitId}`,
+              field: 'amount',
+              isSplitEditableDisplay: true,
+              content: formatAmount(splitAmount),
+            },
+            (e) => {
+              if (e.button !== 0) return
+              e.preventDefault()
+              e.stopPropagation()
+              onStartSplitContainerAmountEdit(rowData.splitId)
+            },
           )
         }
         const exp = rowData.expense
@@ -1094,19 +1101,20 @@ export function getExpenseColumns({
               />
             )
           }
-          return (
-            <span
-              data-split-amount-anchor={`split-child-${exp.id as number}`}
-              onPointerDown={(e) => {
-                if (e.button !== 0) return
-                e.preventDefault()
-                e.stopPropagation()
-                onStartSplitChildAmountEdit(rowData.splitId, exp.id as number)
-              }}
-              className="cursor-pointer text-theme-text"
-            >
-              {formatAmount(splitChildAmount)}
-            </span>
+          return renderEditableDisplayCell(
+            {
+              className: 'cursor-pointer text-theme-text',
+              splitAmountAnchor: `split-child-${exp.id as number}`,
+              field: 'amount',
+              isSplitEditableDisplay: true,
+              content: formatAmount(splitChildAmount),
+            },
+            (e) => {
+              if (e.button !== 0) return
+              e.preventDefault()
+              e.stopPropagation()
+              onStartSplitChildAmountEdit(rowData.splitId, exp.id as number)
+            },
           )
         }
         if (editing.isCellEditing(exp.id as number, 'amount')) {
@@ -1122,16 +1130,15 @@ export function getExpenseColumns({
             />
           )
         }
-        return (
-          <span
-            data-editable-cell
-            data-expense-id={exp.id}
-            data-field="amount"
-            {...editableCellActivate(editing, exp, 'amount')}
-            className="cursor-pointer text-theme-text"
-          >
-            {formatAmount(exp.amount ?? 0)}
-          </span>
+        return renderEditableDisplayCell(
+          {
+            className: 'cursor-pointer text-theme-text',
+            isEditableCell: true,
+            expenseId: exp.id as number,
+            field: 'amount',
+            content: formatAmount(exp.amount ?? 0),
+          },
+          editableCellActivate(editing, exp, 'amount').onPointerDown,
         )
       },
       meta: {
