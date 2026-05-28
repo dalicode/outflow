@@ -15,6 +15,8 @@ interface TagsEditorPopoverProps {
   onCreate: (name: string) => Promise<number>
   onCancel: () => void
   onSave: () => void | Promise<void>
+  onEnter: (shiftKey: boolean) => void | Promise<void>
+  onTab: (shiftKey: boolean) => void | Promise<void>
 }
 
 export default function TagsEditorPopover({
@@ -28,6 +30,8 @@ export default function TagsEditorPopover({
   onCreate,
   onCancel,
   onSave,
+  onEnter,
+  onTab,
 }: TagsEditorPopoverProps) {
   if (isMobile || !activeTagsEditor || !tagsEditorPosition) return null
 
@@ -60,6 +64,8 @@ export default function TagsEditorPopover({
           controlClassName="rounded-theme-medium border border-theme-border bg-theme-background px-2 py-1.5"
           autoFocus
           onCancel={onCancel}
+          onEnter={onEnter}
+          onTab={onTab}
         />
         <div className="flex items-center justify-end gap-2">
           <button

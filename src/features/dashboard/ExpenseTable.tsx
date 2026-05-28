@@ -14,6 +14,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import LazyModalFallback from '../../components/ui/LazyModalFallback'
 import ContextMenu from './components/ContextMenu'
 import DataTable from './components/DataTable'
+import SplitBalancePopover from './components/SplitBalancePopover'
 import TagsEditorPopover from './components/TagsEditorPopover'
 import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
@@ -38,6 +39,15 @@ import {
   getTagsAnchorRect,
   haveSameTagIds,
 } from './utils/tagsEditor'
+import {
+  getSplitBalanceTargetPreviews,
+  getSplitPopoverTargetChildIds,
+  getSplitRemainingAmount,
+  isSplitBalanced,
+  roundToCents,
+  type SplitBalanceTargetPreview,
+} from './utils/splitBalance'
+import { centsToSignedDollars, parseDecimalMoneyInput } from '../../utils/moneyInput'
 
 const BulkEditExpensesModal = lazy(() => import('./BulkEditExpensesModal'))
 
@@ -52,6 +62,31 @@ interface ActiveTagsEditorState {
   expenseId: number
   originalTagIds: number[]
   draftTagIds: number[]
+}
+interface EditingSplitAmountState {
+  splitId: number
+  expenseId?: number
+}
+
+type PendingSplitEditKind = 'splitChild' | 'splitContainer'
+type NavigationField = 'date' | 'payeeId' | 'categoryId' | 'notes' | 'tags' | 'amount'
+
+interface ReadOnlyNavigationCell {
+  rowId: string
+  field: NavigationField
+}
+
+interface PendingSplitAmountEditState {
+  kind: PendingSplitEditKind
+  splitId: number
+  editedExpenseId?: number
+  draftAmount: number
+  containerAmount: number
+  remainingAmount: number
+  anchorKey: string
+  childPreviewAmounts: Record<number, number>
+  targetPreviews: SplitBalanceTargetPreview[]
+  pendingChildrenTotal: number
 }
 
 const TAGS_POPOVER_MIN_WIDTH = 260
@@ -145,11 +180,28 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const [activeTagsEditor, setActiveTagsEditor] = useState<ActiveTagsEditorState | null>(null)
   const [tagsEditorPosition, setTagsEditorPosition] = useState<FloatingPosition | null>(null)
   const [isSavingTagsEditor, setIsSavingTagsEditor] = useState(false)
+  const [editingSplitAmount, setEditingSplitAmount] = useState<EditingSplitAmountState | null>(null)
+  const [pendingSplitAmountEdit, setPendingSplitAmountEdit] = useState<PendingSplitAmountEditState | null>(
+    null,
+  )
+  const [splitBalancePopoverPosition, setSplitBalancePopoverPosition] = useState<FloatingPosition | null>(
+    null,
+  )
+  const [activeReadOnlyCell, setActiveReadOnlyCell] = useState<ReadOnlyNavigationCell | null>(null)
   const editingSplitFieldRef = useRef<EditingSplitField | null>(null)
   const pendingSplitFieldSwitchRef = useRef<EditingSplitField | null>(null)
   const pendingSplitFieldTimeoutRef = useRef<number | null>(null)
+  const editingSplitAmountRef = useRef<EditingSplitAmountState | null>(null)
+  const pendingSplitAmountSwitchRef = useRef<EditingSplitAmountState | null>(null)
+  const pendingSplitAmountTimeoutRef = useRef<number | null>(null)
+  const pendingExpenseCellSwitchRef = useRef<{ expense: Expense; field: NavigationField } | null>(
+    null,
+  )
+  const pendingExpenseCellSwitchTimeoutRef = useRef<number | null>(null)
   const splitFieldCommitInFlightRef = useRef<Set<string>>(new Set())
   const tagsEditorRef = useRef<HTMLDivElement>(null)
+  const splitBalancePopoverRef = useRef<HTMLDivElement>(null)
+  const splitBalanceOpenRequestRef = useRef(0)
   const lastOpenedTagsEditorKeyRef = useRef<string | null>(null)
 
   const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
@@ -157,11 +209,33 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
   const payeeMap = useMemo(() => Object.fromEntries(payees.map((p) => [p.id, p])), [payees])
   const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
   const activePayees = useMemo(() => payees.filter((p) => !p.isArchived), [payees])
+  editingSplitAmountRef.current = editingSplitAmount
   const closeTagsEditor = useCallback(() => {
     setActiveTagsEditor(null)
     setTagsEditorPosition(null)
     setIsSavingTagsEditor(false)
   }, [])
+  const closeSplitBalancePopover = useCallback(() => {
+    splitBalanceOpenRequestRef.current += 1
+    setPendingSplitAmountEdit(null)
+    setSplitBalancePopoverPosition(null)
+  }, [])
+  const isSplitBalancePopoverSafeInteraction = useCallback(
+    (target: EventTarget | null): boolean => {
+      if (!(target instanceof Element)) return false
+      if (splitBalancePopoverRef.current?.contains(target)) return true
+      if (
+        target.closest(
+          '[data-editable-cell], [data-split-editable-display], [data-split-amount-anchor], [data-no-cell-switch]',
+        )
+      ) {
+        return true
+      }
+      if (target.closest('[data-testid="expense-table"] td')) return true
+      return false
+    },
+    [],
+  )
   const loadActiveTags = useCallback(async () => {
     const nextTags = await StorageService.getActiveTags()
     setActiveTags(nextTags)
@@ -377,6 +451,45 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     setMobileEditExpense: openExpenseEditor,
     setShowMobileEditModal,
   })
+
+  const navigationFieldOrder = useMemo(() => {
+    const order: NavigationField[] = ['date', 'payeeId', 'categoryId']
+    if (showNotesColumn) order.push('notes')
+    if (showTagsColumn) order.push('tags')
+    order.push('amount')
+    return order
+  }, [showNotesColumn, showTagsColumn])
+
+  const findRowByExpenseId = useCallback(
+    (expenseId: number): ExpenseDisplayRow | null =>
+      displayRows.find(
+        (row) =>
+          (row.rowType === 'expense' || row.rowType === 'splitChild') && row.expense.id === expenseId,
+      ) ?? null,
+    [displayRows],
+  )
+
+  const getCellMode = useCallback(
+    (
+      row: ExpenseDisplayRow,
+      field: NavigationField,
+    ): 'editableExpense' | 'editableSplitField' | 'editableSplitAmount' | 'readOnly' | 'hidden' => {
+      if (row.rowType === 'expense') {
+        return 'editableExpense'
+      }
+      if (row.rowType === 'splitContainer') {
+        if (field === 'date' || field === 'payeeId' || field === 'notes') return 'editableSplitField'
+        if (field === 'amount') return 'editableSplitAmount'
+        return 'readOnly'
+      }
+      if (field === 'payeeId') return 'hidden'
+      if (field === 'date') return 'readOnly'
+      if (field === 'amount') return 'editableSplitAmount'
+      return 'editableExpense'
+    },
+    [],
+  )
+
   const dismissTagsEditor = useCallback(() => {
     closeTagsEditor()
   }, [closeTagsEditor])
@@ -384,13 +497,13 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     editing.cancelCurrentCellEdit()
     dismissTagsEditor()
   }, [dismissTagsEditor, editing])
-  const handleSaveTagsEditor = useCallback(async () => {
-    if (!activeTagsEditor || isSavingTagsEditor) return
+  const saveTagsEditorDraft = useCallback(async (): Promise<boolean> => {
+    if (!activeTagsEditor || isSavingTagsEditor) return false
     const nextTagIds = Array.from(new Set(activeTagsEditor.draftTagIds))
     if (haveSameTagIds(nextTagIds, activeTagsEditor.originalTagIds)) {
       editing.cancelCurrentCellEdit()
       dismissTagsEditor()
-      return
+      return true
     }
     setIsSavingTagsEditor(true)
     try {
@@ -398,12 +511,17 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       triggerSync?.()
       editing.cancelCurrentCellEdit()
       dismissTagsEditor()
+      return true
     } catch (error) {
       console.error('Failed to update expense tags:', error)
       showToast({ message: 'Could not update tags.', tone: 'danger' })
       setIsSavingTagsEditor(false)
+      return false
     }
   }, [activeTagsEditor, dismissTagsEditor, editing, isSavingTagsEditor, showToast, triggerSync])
+  const handleSaveTagsEditor = useCallback(async () => {
+    await saveTagsEditorDraft()
+  }, [saveTagsEditorDraft])
   const handleTagsEditorChange = useCallback((tagIds: number[]) => {
     setActiveTagsEditor((current) => {
       if (!current) return null
@@ -559,14 +677,39 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
 
   const handleStartSplitFieldEdit = useCallback(
     (splitId: number, field: EditableSplitField) => {
+      closeTagsEditor()
       const nextField: EditingSplitField = { splitId, field }
       const currentField = editingSplitFieldRef.current
+      const hasActiveExpenseCellEdit = editing.editingCell != null
 
       if (currentField?.splitId === splitId && currentField.field === field) return
 
       if (currentField == null) {
         clearPendingSplitFieldSwitch()
-        activateSplitFieldEdit(nextField)
+        if (!hasActiveExpenseCellEdit) {
+          activateSplitFieldEdit(nextField)
+          return
+        }
+      } else {
+        clearPendingSplitFieldSwitch()
+        pendingSplitFieldSwitchRef.current = nextField
+
+        const activeElement = document.activeElement
+        if (activeElement instanceof HTMLElement) {
+          activeElement.blur()
+        }
+
+        pendingSplitFieldTimeoutRef.current = window.setTimeout(() => {
+          window.setTimeout(() => {
+            const pendingField = pendingSplitFieldSwitchRef.current
+            if (pendingField?.splitId !== splitId || pendingField.field !== field) {
+              return
+            }
+            editing.cancelCurrentCellEdit()
+            activateSplitFieldEdit(nextField)
+            clearPendingSplitFieldSwitch()
+          }, 0)
+        }, 0)
         return
       }
 
@@ -579,22 +722,383 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       }
 
       pendingSplitFieldTimeoutRef.current = window.setTimeout(() => {
-        const pendingField = pendingSplitFieldSwitchRef.current
-        if (pendingField?.splitId !== splitId || pendingField.field !== field) {
-          return
-        }
-        activateSplitFieldEdit(nextField)
-        clearPendingSplitFieldSwitch()
+        window.setTimeout(() => {
+          const pendingField = pendingSplitFieldSwitchRef.current
+          if (pendingField?.splitId !== splitId || pendingField.field !== field) {
+            return
+          }
+          editing.cancelCurrentCellEdit()
+          activateSplitFieldEdit(nextField)
+          clearPendingSplitFieldSwitch()
+        }, 0)
       }, 0)
     },
-    [activateSplitFieldEdit, clearPendingSplitFieldSwitch],
+    [
+      activateSplitFieldEdit,
+      clearPendingSplitFieldSwitch,
+      closeTagsEditor,
+      editing.editingCell,
+    ],
   )
 
   const handleCancelSplitFieldEdit = useCallback(() => {
+    if (pendingSplitFieldSwitchRef.current) return
     clearPendingSplitFieldSwitch()
     setEditingSplitField(null)
     editingSplitFieldRef.current = null
   }, [clearPendingSplitFieldSwitch])
+  const getActiveSplitAmountInput = useCallback((): HTMLInputElement | null => {
+    const currentAmount = editingSplitAmountRef.current
+    if (!currentAmount) return null
+
+    const rowSelector =
+      typeof currentAmount.expenseId === 'number'
+        ? `[data-testid="split-child-${currentAmount.expenseId}"]`
+        : `[data-testid="split-container-${currentAmount.splitId}"]`
+    return document.querySelector(`${rowSelector} input[type="text"]`) as HTMLInputElement | null
+  }, [])
+  const blurActiveSplitAmountEditor = useCallback(() => {
+    const activeInput = getActiveSplitAmountInput()
+    if (activeInput) {
+      if (document.activeElement === activeInput) {
+        activeInput.blur()
+      } else {
+        activeInput.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+      }
+      return
+    }
+
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur()
+    }
+  }, [getActiveSplitAmountInput])
+  const clearPendingExpenseCellSwitch = useCallback(() => {
+    pendingExpenseCellSwitchRef.current = null
+    if (pendingExpenseCellSwitchTimeoutRef.current != null) {
+      window.clearTimeout(pendingExpenseCellSwitchTimeoutRef.current)
+      pendingExpenseCellSwitchTimeoutRef.current = null
+    }
+  }, [])
+  const clearPendingSplitAmountSwitch = useCallback(() => {
+    pendingSplitAmountSwitchRef.current = null
+    if (pendingSplitAmountTimeoutRef.current != null) {
+      window.clearTimeout(pendingSplitAmountTimeoutRef.current)
+      pendingSplitAmountTimeoutRef.current = null
+    }
+  }, [])
+  const activateSplitAmountEdit = useCallback(
+    (nextAmount: EditingSplitAmountState) => {
+      setEditingSplitAmount(nextAmount)
+      editingSplitAmountRef.current = nextAmount
+    },
+    [],
+  )
+  const finishSplitAmountEdit = useCallback((target: EditingSplitAmountState) => {
+    setEditingSplitAmount((current) => {
+      const isMatchingTarget =
+        current?.splitId === target.splitId && current?.expenseId === target.expenseId
+      if (!isMatchingTarget) return current
+      editingSplitAmountRef.current = null
+      return null
+    })
+  }, [])
+  const handleStartSplitContainerAmountEdit = useCallback(
+    (splitId: number) => {
+      if (pendingSplitAmountEdit) return
+      editing.cancelCurrentCellEdit()
+      handleCancelSplitFieldEdit()
+      closeTagsEditor()
+      const nextAmount: EditingSplitAmountState = { splitId }
+      const currentAmount = editingSplitAmountRef.current
+
+      if (currentAmount?.splitId === splitId && typeof currentAmount.expenseId !== 'number') return
+
+      if (currentAmount == null) {
+        clearPendingSplitAmountSwitch()
+        activateSplitAmountEdit(nextAmount)
+        return
+      }
+
+      clearPendingSplitAmountSwitch()
+      pendingSplitAmountSwitchRef.current = nextAmount
+
+      blurActiveSplitAmountEditor()
+
+      pendingSplitAmountTimeoutRef.current = window.setTimeout(() => {
+        window.setTimeout(() => {
+          const pendingAmount = pendingSplitAmountSwitchRef.current
+          if (pendingAmount?.splitId !== splitId || typeof pendingAmount.expenseId === 'number') {
+            return
+          }
+          activateSplitAmountEdit(nextAmount)
+          clearPendingSplitAmountSwitch()
+        }, 0)
+      }, 0)
+    },
+    [
+      activateSplitAmountEdit,
+      clearPendingSplitAmountSwitch,
+      closeTagsEditor,
+      editing,
+      handleCancelSplitFieldEdit,
+      pendingSplitAmountEdit,
+    ],
+  )
+  const handleStartSplitChildAmountEdit = useCallback(
+    (splitId: number, expenseId: number) => {
+      if (pendingSplitAmountEdit) return
+      editing.cancelCurrentCellEdit()
+      handleCancelSplitFieldEdit()
+      closeTagsEditor()
+      const nextAmount: EditingSplitAmountState = { splitId, expenseId }
+      const currentAmount = editingSplitAmountRef.current
+
+      if (currentAmount?.splitId === splitId && currentAmount.expenseId === expenseId) return
+
+      if (currentAmount == null) {
+        clearPendingSplitAmountSwitch()
+        activateSplitAmountEdit(nextAmount)
+        return
+      }
+
+      clearPendingSplitAmountSwitch()
+      pendingSplitAmountSwitchRef.current = nextAmount
+
+      blurActiveSplitAmountEditor()
+
+      pendingSplitAmountTimeoutRef.current = window.setTimeout(() => {
+        window.setTimeout(() => {
+          const pendingAmount = pendingSplitAmountSwitchRef.current
+          if (pendingAmount?.splitId !== splitId || pendingAmount.expenseId !== expenseId) {
+            return
+          }
+          activateSplitAmountEdit(nextAmount)
+          clearPendingSplitAmountSwitch()
+        }, 0)
+      }, 0)
+    },
+    [
+      activateSplitAmountEdit,
+      clearPendingSplitAmountSwitch,
+      closeTagsEditor,
+      editing,
+      handleCancelSplitFieldEdit,
+      pendingSplitAmountEdit,
+    ],
+  )
+  const handleCancelSplitAmountEdit = useCallback(() => {
+    clearPendingSplitAmountSwitch()
+    setEditingSplitAmount(null)
+    editingSplitAmountRef.current = null
+    closeSplitBalancePopover()
+  }, [clearPendingSplitAmountSwitch, closeSplitBalancePopover])
+  const dismissActiveEditorBeforePopoverClose = useCallback((): boolean => {
+    const hasActiveEditor = Boolean(
+      editing.editingCell || editingSplitField || editingSplitAmount || activeTagsEditor,
+    )
+    if (!hasActiveEditor) return false
+
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement && activeElement !== document.body) {
+      activeElement.blur()
+    } else if (activeTagsEditor) {
+      cancelTagsEditor()
+    } else if (editing.editingCell) {
+      editing.cancelCurrentCellEdit()
+    } else if (editingSplitField) {
+      handleCancelSplitFieldEdit()
+    } else if (editingSplitAmount) {
+      clearPendingSplitAmountSwitch()
+      setEditingSplitAmount(null)
+      editingSplitAmountRef.current = null
+    }
+
+    return true
+  }, [
+    activeTagsEditor,
+    cancelTagsEditor,
+    clearPendingSplitAmountSwitch,
+    editing,
+    editingSplitAmount,
+    editingSplitField,
+    handleCancelSplitFieldEdit,
+  ])
+  const getCurrentNavigationCell = useCallback((): ReadOnlyNavigationCell | null => {
+    if (activeReadOnlyCell) return activeReadOnlyCell
+    if (editingSplitAmount) {
+      if (typeof editingSplitAmount.expenseId === 'number') {
+        return { rowId: `split-child-${editingSplitAmount.expenseId}`, field: 'amount' }
+      }
+      return { rowId: `split-container-${editingSplitAmount.splitId}`, field: 'amount' }
+    }
+    if (editingSplitField) {
+      return { rowId: `split-container-${editingSplitField.splitId}`, field: editingSplitField.field }
+    }
+    if (editing.editingCell) {
+      const row = findRowByExpenseId(editing.editingCell.expenseId)
+      if (!row) return null
+      return { rowId: row.rowId, field: editing.editingCell.field }
+    }
+    return null
+  }, [activeReadOnlyCell, editing.editingCell, editingSplitAmount, editingSplitField, findRowByExpenseId])
+
+  const activateNavigationTarget = useCallback(
+    (target: ReadOnlyNavigationCell) => {
+      const row = displayRows.find((item) => item.rowId === target.rowId)
+      if (!row) return
+      const mode = getCellMode(row, target.field)
+      if (mode === 'hidden') return
+
+      if (mode === 'readOnly') {
+        editing.cancelCurrentCellEdit()
+        handleCancelSplitFieldEdit()
+        handleCancelSplitAmountEdit()
+        setActiveReadOnlyCell(target)
+        return
+      }
+
+      setActiveReadOnlyCell(null)
+      if (mode === 'editableSplitField' && row.rowType === 'splitContainer') {
+        if (target.field === 'date' || target.field === 'payeeId' || target.field === 'notes') {
+          handleStartSplitFieldEdit(row.splitId, target.field)
+        }
+        return
+      }
+      if (mode === 'editableSplitAmount') {
+        if (row.rowType === 'splitContainer') {
+          handleStartSplitContainerAmountEdit(row.splitId)
+          return
+        }
+        if (row.rowType === 'splitChild') {
+          handleStartSplitChildAmountEdit(row.splitId, row.expense.id as number)
+          return
+        }
+      }
+      if (mode === 'editableExpense') {
+        if (row.rowType === 'expense' || row.rowType === 'splitChild') {
+          switchExpenseCellEdit(row.expense, target.field)
+        }
+      }
+    },
+    [
+      displayRows,
+      editing,
+      getCellMode,
+      handleCancelSplitAmountEdit,
+      handleCancelSplitFieldEdit,
+      handleStartSplitChildAmountEdit,
+      handleStartSplitContainerAmountEdit,
+      handleStartSplitFieldEdit,
+      switchExpenseCellEdit,
+    ],
+  )
+
+  const navigateFromCell = useCallback(
+    (field: NavigationField, shiftKey: boolean, movement: 'horizontal' | 'vertical') => {
+      const current = getCurrentNavigationCell()
+      if (!current) return
+
+      const rowIndex = displayRows.findIndex((row) => row.rowId === current.rowId)
+      if (rowIndex < 0) return
+
+      const fieldIndex = navigationFieldOrder.indexOf(field)
+      if (fieldIndex < 0) return
+
+      const rowStep = shiftKey ? -1 : 1
+      const fieldStep = shiftKey ? -1 : 1
+
+      if (movement === 'vertical') {
+        let nextRowIndex = rowIndex + rowStep
+        while (nextRowIndex >= 0 && nextRowIndex < displayRows.length) {
+          const targetRow = displayRows[nextRowIndex]
+          if (getCellMode(targetRow, field) !== 'hidden') {
+            activateNavigationTarget({ rowId: targetRow.rowId, field })
+            return
+          }
+          nextRowIndex += rowStep
+        }
+        setActiveReadOnlyCell(null)
+        editing.cancelCurrentCellEdit()
+        handleCancelSplitFieldEdit()
+        handleCancelSplitAmountEdit()
+        return
+      }
+
+      let nextRowIndex = rowIndex
+      let nextFieldIndex = fieldIndex + fieldStep
+
+      while (nextRowIndex >= 0 && nextRowIndex < displayRows.length) {
+        while (nextFieldIndex >= 0 && nextFieldIndex < navigationFieldOrder.length) {
+          const nextField = navigationFieldOrder[nextFieldIndex]
+          const targetRow = displayRows[nextRowIndex]
+          if (getCellMode(targetRow, nextField) !== 'hidden') {
+            activateNavigationTarget({ rowId: targetRow.rowId, field: nextField })
+            return
+          }
+          nextFieldIndex += fieldStep
+        }
+
+        nextRowIndex += rowStep
+        nextFieldIndex = shiftKey ? navigationFieldOrder.length - 1 : 0
+      }
+
+      setActiveReadOnlyCell(null)
+      editing.cancelCurrentCellEdit()
+      handleCancelSplitFieldEdit()
+      handleCancelSplitAmountEdit()
+    },
+    [
+      activateNavigationTarget,
+      displayRows,
+      editing,
+      getCurrentNavigationCell,
+      getCellMode,
+      handleCancelSplitAmountEdit,
+      handleCancelSplitFieldEdit,
+      navigationFieldOrder,
+    ],
+  )
+
+  const handleTableEnterNavigation = useCallback(
+    (_expense: Expense, field: NavigationField, shiftKey: boolean) => {
+      const current = getCurrentNavigationCell()
+      const sourceField = current?.field ?? field
+      navigateFromCell(sourceField, shiftKey, 'vertical')
+    },
+    [getCurrentNavigationCell, navigateFromCell],
+  )
+
+  const handleTableTabNavigation = useCallback(
+    (_expense: Expense, field: NavigationField, shiftKey: boolean) => {
+      const current = getCurrentNavigationCell()
+      const sourceField = current?.field ?? field
+      navigateFromCell(sourceField, shiftKey, 'horizontal')
+    },
+    [getCurrentNavigationCell, navigateFromCell],
+  )
+  const handleTagsEnterNavigation = useCallback(
+    async (shiftKey: boolean) => {
+      if (!activeTagsEditor) return
+      const activeExpense = expenses.find((expense) => expense.id === activeTagsEditor.expenseId)
+      if (!activeExpense) return
+      const didSave = await saveTagsEditorDraft()
+      if (!didSave) return
+      handleTableEnterNavigation(activeExpense, 'tags', shiftKey)
+    },
+    [activeTagsEditor, expenses, handleTableEnterNavigation, saveTagsEditorDraft],
+  )
+  const handleTagsTabNavigation = useCallback(
+    async (shiftKey: boolean) => {
+      if (!activeTagsEditor) return
+      const activeExpense = expenses.find((expense) => expense.id === activeTagsEditor.expenseId)
+      if (!activeExpense) return
+      const didSave = await saveTagsEditorDraft()
+      if (!didSave) return
+      handleTableTabNavigation(activeExpense, 'tags', shiftKey)
+    },
+    [activeTagsEditor, expenses, handleTableTabNavigation, saveTagsEditorDraft],
+  )
 
   const updateLocalSplit = useCallback((splitId: number, changes: Record<string, unknown>) => {
     setSplits((current) =>
@@ -617,11 +1121,10 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       const key = `${splitId}:${field}`
       if (splitFieldCommitInFlightRef.current.has(key)) return false
       splitFieldCommitInFlightRef.current.add(key)
-      clearPendingSplitFieldSwitch()
       finishSplitFieldCommit(splitId, field)
       return true
     },
-    [clearPendingSplitFieldSwitch, finishSplitFieldCommit],
+    [finishSplitFieldCommit],
   )
 
   const endSplitFieldCommit = useCallback((splitId: number, field: EditableSplitField) => {
@@ -691,6 +1194,235 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       updateLocalSplit,
     ],
   )
+  const openSplitBalancePopover = useCallback(
+    (payload: PendingSplitAmountEditState) => {
+      const requestId = splitBalanceOpenRequestRef.current + 1
+      splitBalanceOpenRequestRef.current = requestId
+      window.setTimeout(() => {
+        if (splitBalanceOpenRequestRef.current !== requestId) return
+        const anchor = document.querySelector(
+          `[data-split-amount-anchor="${payload.anchorKey}"]`,
+        ) as HTMLElement | null
+        if (!anchor?.isConnected) {
+          closeSplitBalancePopover()
+          return
+        }
+        const rect = anchor.getBoundingClientRect()
+        setPendingSplitAmountEdit(payload)
+        setSplitBalancePopoverPosition(
+          getDropdownFloatingPosition(rect, {
+            minWidth: 220,
+            maxWidth: 260,
+            desiredWidth: 240,
+            idealHeight: 180,
+            maxHeight: 280,
+            minUsableHeight: 100,
+            gap: 6,
+          }),
+        )
+      }, 0)
+    },
+    [closeSplitBalancePopover],
+  )
+  const handleSplitAmountCommit = useCallback(
+    (params: {
+      splitId: number
+      editedExpenseId?: number
+      nextAmount: number
+      isContainerEdit: boolean
+    }) => {
+      const { splitId, editedExpenseId, nextAmount, isContainerEdit } = params
+      const children = expenses.filter((expense) => expense.splitId === splitId)
+      const childAmountsById = new Map<number, number>()
+      const childAmounts = children.map((child) => {
+        const amount = child.id === editedExpenseId ? nextAmount : (child.amount ?? 0)
+        if (typeof child.id === 'number') {
+          childAmountsById.set(child.id, amount)
+        }
+        return amount
+      })
+      const containerAmount = isContainerEdit
+        ? nextAmount
+        : (splits.find((split) => split.id === splitId)?.amount ?? 0)
+
+      const remainingAmount = getSplitRemainingAmount(containerAmount, childAmounts)
+      if (isSplitBalanced(containerAmount, childAmounts)) {
+        closeSplitBalancePopover()
+        if (isContainerEdit) {
+          void StorageService.updateExpenseSplit(splitId, { amount: nextAmount })
+            .then(() => {
+              updateLocalSplit(splitId, { amount: nextAmount })
+            })
+            .catch((error) => {
+              console.error('Failed to update split amount:', error)
+              showToast({ message: 'Could not update split amount.', tone: 'danger' })
+            })
+          return
+        }
+        if (typeof editedExpenseId === 'number') {
+          onUpdate(editedExpenseId, { amount: nextAmount })
+        }
+        return
+      }
+
+      const targetChildIds = getSplitPopoverTargetChildIds({
+        children,
+        editedExpenseId,
+        prioritizeSiblingsForChildEdit: !isContainerEdit,
+      })
+      const childPreviewAmounts = Object.fromEntries(childAmountsById)
+      const targetPreviews = getSplitBalanceTargetPreviews({
+        containerAmount,
+        childAmountsById: childPreviewAmounts,
+        targetChildIds,
+        remainingAmount,
+      })
+      const pendingChildrenTotal = roundToCents(Object.values(childPreviewAmounts).reduce((sum, amount) => sum + amount, 0))
+      openSplitBalancePopover({
+        kind: isContainerEdit ? 'splitContainer' : 'splitChild',
+        splitId,
+        editedExpenseId,
+        draftAmount: nextAmount,
+        containerAmount,
+        remainingAmount,
+        anchorKey: isContainerEdit ? `split-container-${splitId}` : `split-child-${editedExpenseId}`,
+        childPreviewAmounts,
+        targetPreviews,
+        pendingChildrenTotal,
+      })
+    },
+    [closeSplitBalancePopover, expenses, onUpdate, openSplitBalancePopover, showToast, splits, updateLocalSplit],
+  )
+  const handleCommitSplitContainerAmountEdit = useCallback(
+    (splitId: number, amount: number) => {
+      finishSplitAmountEdit({ splitId })
+      handleSplitAmountCommit({ splitId, nextAmount: amount, isContainerEdit: true })
+    },
+    [finishSplitAmountEdit, handleSplitAmountCommit],
+  )
+  const handleCommitSplitChildAmountEdit = useCallback(
+    (splitId: number, expenseId: number, amount: number) => {
+      finishSplitAmountEdit({ splitId, expenseId })
+      handleSplitAmountCommit({
+        splitId,
+        editedExpenseId: expenseId,
+        nextAmount: amount,
+        isContainerEdit: false,
+      })
+    },
+    [finishSplitAmountEdit, handleSplitAmountCommit],
+  )
+  function switchExpenseCellEdit(expense: Expense, field: NavigationField): void {
+    const currentSplitAmount = editingSplitAmountRef.current
+    const currentSplitField = editingSplitFieldRef.current
+    if (!currentSplitAmount && !currentSplitField) {
+      editing.switchCellEdit(expense, field)
+      return
+    }
+
+    if (currentSplitAmount) {
+      const activeInput = getActiveSplitAmountInput()
+      if (activeInput) {
+        const parsed = parseDecimalMoneyInput(activeInput.value, { allowNegative: true })
+        if (parsed.isValid) {
+          const parsedValue = centsToSignedDollars(parsed.cents, parsed.isNegative)
+          if (typeof currentSplitAmount.expenseId === 'number') {
+            handleCommitSplitChildAmountEdit(
+              currentSplitAmount.splitId,
+              currentSplitAmount.expenseId,
+              parsedValue,
+            )
+          } else {
+            handleCommitSplitContainerAmountEdit(currentSplitAmount.splitId, parsedValue)
+          }
+        }
+      } else {
+        handleCancelSplitAmountEdit()
+      }
+    }
+
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur()
+    }
+
+    clearPendingExpenseCellSwitch()
+    pendingExpenseCellSwitchRef.current = { expense, field }
+    pendingExpenseCellSwitchTimeoutRef.current = window.setTimeout(() => {
+      const pendingTarget = pendingExpenseCellSwitchRef.current
+      if (
+        !pendingTarget ||
+        pendingTarget.expense.id !== expense.id ||
+        pendingTarget.field !== field
+      ) {
+        return
+      }
+      editing.switchCellEdit(expense, field)
+      clearPendingExpenseCellSwitch()
+    }, 16)
+  }
+  const handleApplySplitRemainingToChild = useCallback(
+    (expenseId: number) => {
+      if (!pendingSplitAmountEdit) return
+      const targetExpense = expenses.find((expense) => expense.id === expenseId)
+      if (!targetExpense) {
+        closeSplitBalancePopover()
+        return
+      }
+      const targetAmount = roundToCents(
+        (pendingSplitAmountEdit.childPreviewAmounts[expenseId] ?? targetExpense.amount ?? 0) +
+          pendingSplitAmountEdit.remainingAmount,
+      )
+
+      if (pendingSplitAmountEdit.kind === 'splitContainer') {
+        void StorageService.updateExpenseSplit(pendingSplitAmountEdit.splitId, {
+          amount: pendingSplitAmountEdit.draftAmount,
+        })
+          .then(() => {
+            updateLocalSplit(pendingSplitAmountEdit.splitId, { amount: pendingSplitAmountEdit.draftAmount })
+            onUpdate(expenseId, { amount: targetAmount })
+          })
+          .catch((error) => {
+            console.error('Failed to update split amount:', error)
+            showToast({ message: 'Could not update split amount.', tone: 'danger' })
+          })
+        closeSplitBalancePopover()
+        return
+      }
+
+      if (typeof pendingSplitAmountEdit.editedExpenseId === 'number') {
+        if (pendingSplitAmountEdit.editedExpenseId !== expenseId) {
+          onUpdate(pendingSplitAmountEdit.editedExpenseId, { amount: pendingSplitAmountEdit.draftAmount })
+        }
+        onUpdate(expenseId, { amount: targetAmount })
+      }
+      closeSplitBalancePopover()
+    },
+    [pendingSplitAmountEdit, closeSplitBalancePopover, expenses, onUpdate, showToast, updateLocalSplit],
+  )
+  const handleApplySplitBalanceTotal = useCallback(() => {
+    if (!pendingSplitAmountEdit) return
+    if (pendingSplitAmountEdit.kind !== 'splitChild') return
+    if (typeof pendingSplitAmountEdit.editedExpenseId !== 'number') {
+      closeSplitBalancePopover()
+      return
+    }
+
+    const { editedExpenseId, draftAmount, splitId, pendingChildrenTotal } = pendingSplitAmountEdit
+    void StorageService.updateExpenseSplit(splitId, {
+      amount: pendingChildrenTotal,
+    })
+      .then(() => {
+        updateLocalSplit(splitId, { amount: pendingChildrenTotal })
+        onUpdate(editedExpenseId, { amount: draftAmount })
+      })
+      .catch((error) => {
+        console.error('Failed to update split amount:', error)
+        showToast({ message: 'Could not update split amount.', tone: 'danger' })
+      })
+
+    closeSplitBalancePopover()
+  }, [closeSplitBalancePopover, onUpdate, pendingSplitAmountEdit, showToast, updateLocalSplit])
 
   const editingCell = editing.editingCell
 
@@ -710,6 +1442,31 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       editing.cancelCurrentCellEdit()
     }
   }, [editing, editingCell?.field, showNotesColumn])
+
+  useEffect(() => {
+    if (!isMobile && activeReadOnlyCell) return
+    setActiveReadOnlyCell(null)
+  }, [activeReadOnlyCell, isMobile])
+
+  useEffect(() => {
+    if (!activeReadOnlyCell) return
+    if (editing.editingCell || editingSplitField || editingSplitAmount) {
+      setActiveReadOnlyCell(null)
+    }
+  }, [activeReadOnlyCell, editing.editingCell, editingSplitAmount, editingSplitField])
+
+  useEffect(() => {
+    if (!activeReadOnlyCell || isMobile) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' && event.key !== 'Enter') return
+      event.preventDefault()
+      navigateFromCell(activeReadOnlyCell.field, event.shiftKey, event.key === 'Tab' ? 'horizontal' : 'vertical')
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeReadOnlyCell, isMobile, navigateFromCell])
 
   useEffect(() => {
     if (isMobile) return
@@ -743,6 +1500,37 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       cancelTagsEditor()
     }
   }, [activeTagsEditor, cancelTagsEditor, editingSplitField])
+  useEffect(() => {
+    if (!pendingSplitAmountEdit) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (isSplitBalancePopoverSafeInteraction(event.target)) return
+      if (dismissActiveEditorBeforePopoverClose()) return
+      closeSplitBalancePopover()
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closeSplitBalancePopover()
+    }
+    const handleViewportChange = () => {
+      closeSplitBalancePopover()
+    }
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    document.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('scroll', handleViewportChange, true)
+    window.addEventListener('resize', handleViewportChange)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true)
+      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('scroll', handleViewportChange, true)
+      window.removeEventListener('resize', handleViewportChange)
+    }
+  }, [
+    pendingSplitAmountEdit,
+    closeSplitBalancePopover,
+    dismissActiveEditorBeforePopoverClose,
+    isSplitBalancePopoverSafeInteraction,
+  ])
 
   useLayoutEffect(() => {
     if (!activeTagsEditor) return
@@ -790,9 +1578,15 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
 
   useEffect(() => {
     return () => {
+      clearPendingExpenseCellSwitch()
       clearPendingSplitFieldSwitch()
+      clearPendingSplitAmountSwitch()
     }
-  }, [clearPendingSplitFieldSwitch])
+  }, [
+    clearPendingExpenseCellSwitch,
+    clearPendingSplitAmountSwitch,
+    clearPendingSplitFieldSwitch,
+  ])
 
   const contextMenuItems = useMemo(() => {
     if (!menu) return []
@@ -892,7 +1686,12 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         onToggleSelectAll,
         onToggleSplitParentSelect: toggleSplitParentSelection,
         allSelected,
-        editing,
+        editing: {
+          ...editing,
+          switchCellEdit: switchExpenseCellEdit,
+        },
+        onEnterNavigation: handleTableEnterNavigation,
+        onTabNavigation: handleTableTabNavigation,
         formatDate,
         formatAmount,
         catMap,
@@ -914,6 +1713,15 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         onCommitSplitPayeeEdit: handleCommitSplitPayeeEdit,
         onCommitSplitNotesEdit: handleCommitSplitNotesEdit,
         onCancelSplitFieldEdit: handleCancelSplitFieldEdit,
+        editingSplitAmount,
+        onStartSplitContainerAmountEdit: handleStartSplitContainerAmountEdit,
+        onStartSplitChildAmountEdit: handleStartSplitChildAmountEdit,
+        onCommitSplitContainerAmountEdit: handleCommitSplitContainerAmountEdit,
+        onCommitSplitChildAmountEdit: handleCommitSplitChildAmountEdit,
+        onCancelSplitAmountEdit: handleCancelSplitAmountEdit,
+        pendingSplitAmountEdit,
+        isReadOnlyActiveCell: (row, field) =>
+          activeReadOnlyCell?.rowId === row.rowId && activeReadOnlyCell.field === field,
         refreshCategories,
         refreshPayees,
       }),
@@ -924,6 +1732,9 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       toggleSplitParentSelection,
       allSelected,
       editing,
+      switchExpenseCellEdit,
+      handleTableEnterNavigation,
+      handleTableTabNavigation,
       formatDate,
       formatAmount,
       catMap,
@@ -942,6 +1753,14 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       handleCommitSplitPayeeEdit,
       handleCommitSplitNotesEdit,
       handleCancelSplitFieldEdit,
+      editingSplitAmount,
+      handleStartSplitContainerAmountEdit,
+      handleStartSplitChildAmountEdit,
+      handleCommitSplitContainerAmountEdit,
+      handleCommitSplitChildAmountEdit,
+      handleCancelSplitAmountEdit,
+      pendingSplitAmountEdit,
+      activeReadOnlyCell,
       refreshCategories,
       refreshPayees,
     ],
@@ -1157,6 +1976,34 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         onCreate={handleCreateTagFromEditor}
         onCancel={cancelTagsEditor}
         onSave={handleSaveTagsEditor}
+        onEnter={handleTagsEnterNavigation}
+        onTab={handleTagsTabNavigation}
+      />
+      <SplitBalancePopover
+        isOpen={Boolean(pendingSplitAmountEdit)}
+        position={splitBalancePopoverPosition}
+        popoverRef={splitBalancePopoverRef}
+        remainingAmount={pendingSplitAmountEdit?.remainingAmount ?? 0}
+        targetRows={(pendingSplitAmountEdit?.targetPreviews ?? []).map((preview) => ({
+          ...preview,
+          label: (() => {
+            const target = expenses.find((expense) => expense.id === preview.expenseId)
+            return target ? resolveName(target) : 'Expense'
+          })(),
+        }))}
+        formatAmount={formatAmount}
+        onApplyToChild={handleApplySplitRemainingToChild}
+        totalRow={
+          pendingSplitAmountEdit?.kind === 'splitChild'
+            ? {
+                currentAmount: pendingSplitAmountEdit.containerAmount,
+                resultingAmount: pendingSplitAmountEdit.pendingChildrenTotal,
+              }
+            : undefined
+        }
+        onApplyToTotal={
+          pendingSplitAmountEdit?.kind === 'splitChild' ? handleApplySplitBalanceTotal : undefined
+        }
       />
     </div>
   )

@@ -7,6 +7,7 @@ declare module '@tanstack/react-table' {
     className?: string
     cellClassName?: string
     getCellClassName?: (row: TData) => string
+    onBodyCellPointerDown?: (e: React.PointerEvent<HTMLTableCellElement>, row: TData) => void
     width?: string
   }
 }
@@ -105,6 +106,11 @@ export default function DataTable<T>({
             {row.getVisibleCells().map((cell) => (
               <td
                 key={cell.id}
+                onPointerDown={
+                  cell.column.columnDef.meta?.onBodyCellPointerDown
+                    ? (e) => cell.column.columnDef.meta?.onBodyCellPointerDown?.(e, row.original)
+                    : undefined
+                }
                 className={cn(
                   'px-3 py-1 border-r border-b border-theme-muted-subtle last:border-r-0',
                   bodyCellClassName,
