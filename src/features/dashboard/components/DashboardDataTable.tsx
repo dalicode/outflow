@@ -25,6 +25,7 @@ interface DashboardDataTableProps<T> {
   onRowTouchStart?: (e: React.TouchEvent, row: T) => void
   onRowTouchMove?: (e: React.TouchEvent) => void
   onRowTouchEnd?: (e: React.TouchEvent, row: T) => void
+  removeLastRowBottomBorder?: boolean
 }
 
 export default function DashboardDataTable<T>({
@@ -40,6 +41,7 @@ export default function DashboardDataTable<T>({
   onRowTouchStart,
   onRowTouchMove,
   onRowTouchEnd,
+  removeLastRowBottomBorder = false,
 }: DashboardDataTableProps<T>) {
   const table = useReactTable({
     data,
@@ -56,7 +58,8 @@ export default function DashboardDataTable<T>({
   return (
     <table
       className={cn(
-        'w-full text-sm border-separate border-spacing-0 border-b border-theme-muted-subtle',
+        'w-full text-sm border-separate border-spacing-0',
+        !removeLastRowBottomBorder && 'border-b border-theme-muted-subtle',
         fixedLayout && 'table-fixed',
       )}
     >
@@ -93,7 +96,7 @@ export default function DashboardDataTable<T>({
         ))}
       </thead>
       <tbody>
-        {rows.map((row) => (
+        {rows.map((row, rowIndex) => (
           <tr
             key={row.id}
             data-testid={getRowTestId?.(row.original)}
@@ -113,6 +116,7 @@ export default function DashboardDataTable<T>({
                 }
                 className={cn(
                   'px-3 py-1 border-r border-b border-theme-muted-subtle last:border-r-0',
+                  removeLastRowBottomBorder && rowIndex === rows.length - 1 && 'border-b-0',
                   bodyCellClassName,
                   cell.column.columnDef.meta?.cellClassName,
                   cell.column.columnDef.meta?.getCellClassName?.(row.original),

@@ -94,12 +94,15 @@ export default function ExpenseTableMobile({
 
   return (
     <div>
-      {groupedExpenses.map(([date, items]) => (
+      {groupedExpenses.map(([date, items], groupIndex) => (
         <div key={date}>
           <div className="px-1.5 py-2 text-xs text-theme-muted bg-theme-background border-b border-theme-muted-subtle">
             {formatDate(date)}
           </div>
-          {items.map((item) => {
+          {items.map((item, itemIndex) => {
+            const isLastVisibleItem =
+              groupIndex === groupedExpenses.length - 1 && itemIndex === items.length - 1
+
             if ('rowType' in item && item.rowType === 'splitContainer') {
               const expanded = resolvedIsSplitExpanded(item.splitId)
               return (
@@ -107,7 +110,8 @@ export default function ExpenseTableMobile({
                   key={item.rowId}
                   data-testid={`split-container-mobile-${item.splitId}`}
                   className={cn(
-                    'border-b border-theme-muted-subtle px-2.5 py-2',
+                    'px-2.5 py-2',
+                    !isLastVisibleItem && 'border-b border-theme-muted-subtle',
                     'grid grid-cols-[minmax(0,1fr)_6.5rem] grid-rows-[auto_auto] gap-x-3 gap-y-0.5',
                     resolvedIsSplitParentSelected(item.splitId) &&
                       'selected-row bg-theme-primary-subtle shadow-[inset_4px_0_0_var(--theme-primary)]',
@@ -190,7 +194,8 @@ export default function ExpenseTableMobile({
                 key={exp.id}
                 data-testid={`expense-row-mobile-${exp.id}`}
                 className={cn(
-                  'expense-row-mobile border-b border-theme-muted-subtle px-2.5 py-2',
+                  'expense-row-mobile px-2.5 py-2',
+                  !isLastVisibleItem && 'border-b border-theme-muted-subtle',
                   'grid grid-cols-[minmax(0,1fr)_6.5rem] grid-rows-[auto_auto] gap-x-3 gap-y-0.5',
                   isSelected &&
                     'selected-row bg-theme-primary-subtle shadow-[inset_4px_0_0_var(--theme-primary)]',

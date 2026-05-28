@@ -1899,6 +1899,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
           fixedLayout
           headerCellClassName="px-2"
           bodyCellClassName="px-2"
+          removeLastRowBottomBorder
           getRowClassName={getRowClassName}
           getRowTestId={(row) => row.rowId}
           onRowContextMenu={handleContextMenu}

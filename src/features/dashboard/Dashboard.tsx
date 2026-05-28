@@ -333,7 +333,10 @@ export default function Dashboard({
               ref={dash.swipeAreaRef}
               onTouchStart={dash.handleTouchStart}
               onTouchEnd={dash.handleTouchEnd}
-              className="relative rounded-theme-large border border-theme-border bg-theme-surface py-4 px-2"
+              className={cn(
+                'relative rounded-theme-large border border-theme-border bg-theme-surface px-2 pt-4',
+                dash.viewMode === DASHBOARD_VIEWS.EXPENSES ? 'pb-0' : 'pb-4',
+              )}
             >
               {/* Count row */}
               <div className="flex justify-end items-center gap-1.5 pb-2 pr-3">
