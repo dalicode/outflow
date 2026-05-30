@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DatePicker from '@/components/inputs/DatePicker'
 
@@ -165,6 +166,40 @@ describe('DatePicker', () => {
     render(<DatePicker value="2024-06-15" autoOpen onChange={onChange} />)
 
     // Click on the day 16 (which is not the current date, so it's a regular day button)
+    fireEvent.click(screen.getByText('16'))
+
+    expect(onChange).toHaveBeenCalledWith('2024-06-16')
+  })
+
+  it('updates the input text when a calendar day is clicked', () => {
+    function ControlledDatePicker() {
+      const [value, setValue] = useState('2024-06-15')
+      return <DatePicker value={value} autoOpen onChange={setValue} />
+    }
+
+    render(<ControlledDatePicker />)
+
+    const input = screen.getByRole('textbox') as HTMLInputElement
+    fireEvent.click(screen.getByText('16'))
+
+    expect(input.value).toBe('06/16/2024')
+  })
+
+  it('keeps the popup open while pointer down starts inside the calendar', () => {
+    const onChange = vi.fn()
+    render(<DatePicker value="2024-06-15" autoOpen onChange={onChange} />)
+
+    fireEvent.pointerDown(screen.getByText('16'), { button: 0 })
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByText('Jun 2024')).toBeInTheDocument()
+  })
+
+  it('does not close on input blur while the calendar popup is open', () => {
+    const onChange = vi.fn()
+    render(<DatePicker value="2024-06-15" autoOpen onChange={onChange} />)
+
+    fireEvent.blur(screen.getByRole('textbox'))
     fireEvent.click(screen.getByText('16'))
 
     expect(onChange).toHaveBeenCalledWith('2024-06-16')

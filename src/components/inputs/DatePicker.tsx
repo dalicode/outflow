@@ -92,7 +92,11 @@ function CalendarGrid({
       <div className={cn('flex items-center justify-between', isLg ? 'mb-3' : 'mb-2')}>
         <button
           type="button"
+          onMouseDown={(e) => {
+            e.preventDefault()
+          }}
           onClick={onPrevMonth}
+          aria-label="Previous month"
           className={cn(
             'flex items-center justify-center rounded-theme-medium hover:bg-theme-primary-subtle text-theme-text transition-colors',
             isLg ? 'w-10 h-10' : 'w-7 h-7',
@@ -113,7 +117,11 @@ function CalendarGrid({
         </span>
         <button
           type="button"
+          onMouseDown={(e) => {
+            e.preventDefault()
+          }}
           onClick={onNextMonth}
+          aria-label="Next month"
           className={cn(
             'flex items-center justify-center rounded-theme-medium hover:bg-theme-primary-subtle text-theme-text transition-colors',
             isLg ? 'w-10 h-10' : 'w-7 h-7',
@@ -155,7 +163,11 @@ function CalendarGrid({
             <button
               key={`${day.year}-${day.month}-${day.date}`}
               type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+              }}
               onClick={() => onDayClick(day)}
+              aria-label={`${getMonthName(day.month)} ${day.date}, ${day.year}`}
               aria-current={isActive ? 'date' : undefined}
               className={cn(
                 'flex items-center justify-center rounded-theme-medium transition-colors',
@@ -219,6 +231,7 @@ export default function DatePicker({
   const inputRef = useRef<HTMLInputElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isInteractingWithPopupRef = useRef(false)
   const listboxId = useId()
 
   // Track mobile breakpoint
@@ -270,6 +283,7 @@ export default function DatePicker({
   }, [disabled, value, dateFormat, variant])
 
   const closePopup = useCallback(() => {
+    isInteractingWithPopupRef.current = false
     setPopupState({ isOpen: false, pos: null })
   }, [])
 
@@ -279,11 +293,13 @@ export default function DatePicker({
         clearTimeout(blurTimeoutRef.current)
         blurTimeoutRef.current = null
       }
+      setActiveDate(date)
+      setTextValue(formatISODate(toISO(date), dateFormat))
       onChange(toISO(date))
       setIsInvalid(false)
       closePopup()
     },
-    [onChange, closePopup],
+    [onChange, closePopup, dateFormat],
   )
 
   const commitActiveDate = useCallback(() => {
@@ -336,9 +352,16 @@ export default function DatePicker({
         }),
       }))
     }
-    const handleClick = (e: MouseEvent) => {
-      if (containerRef.current?.contains(e.target as Node)) return
-      if (popupRef.current?.contains(e.target as Node)) return
+    const handlePointerDownCapture = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      isInteractingWithPopupRef.current = Boolean(popupRef.current?.contains(target))
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (containerRef.current?.contains(target) || popupRef.current?.contains(target)) return
+      isInteractingWithPopupRef.current = false
       if (blurTimeoutRef.current) {
         clearTimeout(blurTimeoutRef.current)
         blurTimeoutRef.current = null
@@ -348,11 +371,13 @@ export default function DatePicker({
     }
     window.addEventListener('resize', updatePos)
     window.addEventListener('scroll', updatePos, true)
-    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('pointerdown', handlePointerDownCapture, true)
+    document.addEventListener('pointerdown', handlePointerDown)
     return () => {
       window.removeEventListener('resize', updatePos)
       window.removeEventListener('scroll', updatePos, true)
-      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('pointerdown', handlePointerDownCapture, true)
+      document.removeEventListener('pointerdown', handlePointerDown)
     }
   }, [popupState.isOpen, isMobile, commitActiveDate, closePopup, variant])
 
@@ -386,6 +411,7 @@ export default function DatePicker({
         setIsInvalid(false)
       }
     }
+    if (popupState.isOpen && isInteractingWithPopupRef.current) return
     blurTimeoutRef.current = setTimeout(() => {
       commitActiveDate()
     }, 0)
@@ -409,9 +435,9 @@ export default function DatePicker({
     <div
       ref={popupRef}
       id={listboxId}
+      data-testid="date-picker-popover"
       data-no-cell-switch
-      onMouseDown={(e) => {
-        e.stopPropagation()
+      onPointerDown={(e) => {
         e.preventDefault()
       }}
       onWheel={(e) => e.stopPropagation()}
@@ -455,6 +481,7 @@ export default function DatePicker({
 
         {/* Card */}
         <div
+          data-testid="date-picker-popover"
           className="relative bg-theme-surface rounded-theme-large border border-theme-border shadow-xl w-full max-w-xs"
           onClick={(e) => e.stopPropagation()}
         >
