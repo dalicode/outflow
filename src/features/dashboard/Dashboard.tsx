@@ -159,13 +159,10 @@ export default function Dashboard({
     }
   }, [])
 
-  const updateExpenseTableDisplay = useCallback(
-    (nextValue: DashboardExpenseTableDisplay) => {
-      setExpenseTableDisplay(nextValue)
-      void StorageService.setLocalSetting('dashboardExpenseTableDisplay', nextValue)
-    },
-    [],
-  )
+  const updateExpenseTableDisplay = useCallback((nextValue: DashboardExpenseTableDisplay) => {
+    setExpenseTableDisplay(nextValue)
+    void StorageService.setLocalSetting('dashboardExpenseTableDisplay', nextValue)
+  }, [])
 
   useEffect(() => {
     if (dash.viewMode !== DASHBOARD_VIEWS.EXPENSES || dash.selectedIds.size === 0) {
@@ -313,8 +310,7 @@ export default function Dashboard({
               onTouchStart={dash.handleTouchStart}
               onTouchEnd={dash.handleTouchEnd}
               className={cn(
-                'relative rounded-theme-large border border-theme-border bg-theme-surface px-2 pt-4',
-                dash.viewMode === DASHBOARD_VIEWS.EXPENSES ? 'pb-0' : 'pb-4',
+                'relative rounded-theme-large border border-theme-border bg-theme-surface px-2 pt-4 pb-4',
               )}
             >
               {/* Count row */}
