@@ -25,8 +25,16 @@ interface GetExpenseColumnsParams {
   onToggleSplitParentSelect: (splitId: number) => void
   allSelected: boolean
   editing: CellEditingAPI
-  onEnterNavigation?: (expense: Expense, field: 'date' | 'payeeId' | 'categoryId' | 'notes' | 'tags' | 'amount', shiftKey: boolean) => void
-  onTabNavigation?: (expense: Expense, field: 'date' | 'payeeId' | 'categoryId' | 'notes' | 'tags' | 'amount', shiftKey: boolean) => void
+  onEnterNavigation?: (
+    expense: Expense,
+    field: 'date' | 'payeeId' | 'categoryId' | 'notes' | 'tags' | 'amount',
+    shiftKey: boolean,
+  ) => void
+  onTabNavigation?: (
+    expense: Expense,
+    field: 'date' | 'payeeId' | 'categoryId' | 'notes' | 'tags' | 'amount',
+    shiftKey: boolean,
+  ) => void
   formatDate: (iso: string) => string
   formatAmount: (n: number) => string
   catMap: Record<number, Category>
@@ -45,12 +53,10 @@ interface GetExpenseColumnsParams {
   onCommitSplitPayeeEdit: (splitId: number, payeeId: number | undefined) => void
   onCommitSplitNotesEdit: (splitId: number, value: string) => void
   onCancelSplitFieldEdit: () => void
-  editingSplitAmount:
-    | {
-        splitId: number
-        expenseId?: number
-      }
-    | null
+  editingSplitAmount: {
+    splitId: number
+    expenseId?: number
+  } | null
   onStartSplitContainerAmountEdit: (splitId: number) => void
   onStartSplitChildAmountEdit: (splitId: number, expenseId: number) => void
   onCommitSplitContainerAmountEdit: (splitId: number, amount: number) => void
@@ -195,10 +201,7 @@ function shouldActivateFromPointerEvent(e: React.PointerEvent): boolean {
   return true
 }
 
-function activateFromPointerEvent(
-  e: React.PointerEvent,
-  onActivate: () => void,
-): void {
+function activateFromPointerEvent(e: React.PointerEvent, onActivate: () => void): void {
   if (!shouldActivateFromPointerEvent(e)) return
   e.preventDefault()
   e.stopPropagation()
@@ -257,7 +260,7 @@ function renderSelectionCheckbox({
       />
       <div
         className={cn(
-          'expense-checkbox-box w-3.5 h-3.5 rounded-theme-small border transition-colors flex items-center justify-center',
+          'expense-checkbox-box w-3.5 h-3.5 rounded-[2px] border transition-colors flex items-center justify-center',
           boxClassName,
         )}
       >
@@ -303,7 +306,9 @@ function toOptionalNumber(id: number | string | null | undefined): number | unde
   return id != null ? Number(id) : undefined
 }
 
-function toEntityOptions(items: Array<{ id: number; name: string }>): Array<{ id: number; label: string }> {
+function toEntityOptions(
+  items: Array<{ id: number; name: string }>,
+): Array<{ id: number; label: string }> {
   return items.map((item) => ({
     id: item.id,
     label: item.name,
@@ -603,7 +608,7 @@ export function getExpenseColumns({
                 ? 'cell-editing'
                 : isReadOnlyActiveCell?.(rowData, 'date')
                   ? 'cell-editing'
-                : '',
+                  : '',
           ),
         width: '6rem',
       },
@@ -822,7 +827,9 @@ export function getExpenseColumns({
           {
             className: cn(
               'cursor-pointer',
-              activeCategory?.isArchived ? 'text-theme-muted italic' : 'text-theme-text font-medium',
+              activeCategory?.isArchived
+                ? 'text-theme-muted italic'
+                : 'text-theme-text font-medium',
             ),
             title: categoryLabel,
             isEditableCell: true,
@@ -1028,103 +1035,74 @@ export function getExpenseColumns({
   }
 
   columns.push({
-      id: 'amount',
-      header: 'Amount',
-      cell: ({ row }) => {
-        const rowData = row.original
-        if (rowData.rowType === 'splitContainer') {
-          const splitAmount = rowData.split?.amount ?? rowData.amountDisplay ?? 0
-          const splitNavigationExpense = getSplitNavigationExpense(rowData)
-          if (
-            editingSplitAmount?.splitId === rowData.splitId &&
-            typeof editingSplitAmount.expenseId !== 'number'
-          ) {
-            return (
-              <InlineMoneyEditCell
-                initialValue={splitAmount}
-                onCommit={(value) => onCommitSplitContainerAmountEdit(rowData.splitId, value)}
-                onCancel={onCancelSplitAmountEdit}
-                onEnter={(shiftKey) => {
-                  if (!splitNavigationExpense) {
-                    onCancelSplitAmountEdit()
-                    return
-                  }
-                  runEnterNavigation(splitNavigationExpense, 'amount', shiftKey)
-                }}
-                onTab={(shiftKey) => {
-                  if (!splitNavigationExpense) {
-                    onCancelSplitAmountEdit()
-                    return
-                  }
-                  runTabNavigation(splitNavigationExpense, 'amount', shiftKey)
-                }}
-              />
-            )
-          }
-          return renderEditableDisplayCell(
-            {
-              className: 'cursor-pointer text-theme-text',
-              splitAmountAnchor: `split-container-${rowData.splitId}`,
-              field: 'amount',
-              isSplitEditableDisplay: true,
-              content: formatAmount(splitAmount),
-            },
-            (e) => {
-              if (e.button !== 0) return
-              e.preventDefault()
-              e.stopPropagation()
-              onStartSplitContainerAmountEdit(rowData.splitId)
-            },
-          )
-        }
-        const exp = rowData.expense
-        if (rowData.rowType === 'splitChild') {
-          const splitChildAmount =
-            pendingSplitAmountEdit?.kind === 'splitChild' &&
-            pendingSplitAmountEdit.splitId === rowData.splitId &&
-            pendingSplitAmountEdit.editedExpenseId === (exp.id as number)
-              ? pendingSplitAmountEdit.draftAmount
-              : (exp.amount ?? 0)
-          if (
-            editingSplitAmount?.splitId === rowData.splitId &&
-            editingSplitAmount.expenseId === (exp.id as number)
-          ) {
-            return (
-              <InlineMoneyEditCell
-                initialValue={splitChildAmount}
-                onCommit={(value) =>
-                  onCommitSplitChildAmountEdit(rowData.splitId, exp.id as number, value)
-                }
-                onCancel={onCancelSplitAmountEdit}
-                onEnter={(shiftKey) => runEnterNavigation(exp, 'amount', shiftKey)}
-                onTab={(shiftKey) => runTabNavigation(exp, 'amount', shiftKey)}
-              />
-            )
-          }
-          return renderEditableDisplayCell(
-            {
-              className: 'cursor-pointer text-theme-text',
-              splitAmountAnchor: `split-child-${exp.id as number}`,
-              field: 'amount',
-              isSplitEditableDisplay: true,
-              content: formatAmount(splitChildAmount),
-            },
-            (e) => {
-              if (e.button !== 0) return
-              e.preventDefault()
-              e.stopPropagation()
-              onStartSplitChildAmountEdit(rowData.splitId, exp.id as number)
-            },
-          )
-        }
-        if (editing.isCellEditing(exp.id as number, 'amount')) {
+    id: 'amount',
+    header: 'Amount',
+    cell: ({ row }) => {
+      const rowData = row.original
+      if (rowData.rowType === 'splitContainer') {
+        const splitAmount = rowData.split?.amount ?? rowData.amountDisplay ?? 0
+        const splitNavigationExpense = getSplitNavigationExpense(rowData)
+        if (
+          editingSplitAmount?.splitId === rowData.splitId &&
+          typeof editingSplitAmount.expenseId !== 'number'
+        ) {
           return (
             <InlineMoneyEditCell
-              initialValue={exp.amount ?? 0}
-              onCommit={(value) => {
-                editing.createOnCommit(exp.id as number, 'amount')(value)
+              initialValue={splitAmount}
+              onCommit={(value) => onCommitSplitContainerAmountEdit(rowData.splitId, value)}
+              onCancel={onCancelSplitAmountEdit}
+              onEnter={(shiftKey) => {
+                if (!splitNavigationExpense) {
+                  onCancelSplitAmountEdit()
+                  return
+                }
+                runEnterNavigation(splitNavigationExpense, 'amount', shiftKey)
               }}
-              onCancel={editing.createOnCancel()}
+              onTab={(shiftKey) => {
+                if (!splitNavigationExpense) {
+                  onCancelSplitAmountEdit()
+                  return
+                }
+                runTabNavigation(splitNavigationExpense, 'amount', shiftKey)
+              }}
+            />
+          )
+        }
+        return renderEditableDisplayCell(
+          {
+            className: 'cursor-pointer text-theme-text',
+            splitAmountAnchor: `split-container-${rowData.splitId}`,
+            field: 'amount',
+            isSplitEditableDisplay: true,
+            content: formatAmount(splitAmount),
+          },
+          (e) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            e.stopPropagation()
+            onStartSplitContainerAmountEdit(rowData.splitId)
+          },
+        )
+      }
+      const exp = rowData.expense
+      if (rowData.rowType === 'splitChild') {
+        const splitChildAmount =
+          pendingSplitAmountEdit?.kind === 'splitChild' &&
+          pendingSplitAmountEdit.splitId === rowData.splitId &&
+          pendingSplitAmountEdit.editedExpenseId === (exp.id as number)
+            ? pendingSplitAmountEdit.draftAmount
+            : (exp.amount ?? 0)
+        if (
+          editingSplitAmount?.splitId === rowData.splitId &&
+          editingSplitAmount.expenseId === (exp.id as number)
+        ) {
+          return (
+            <InlineMoneyEditCell
+              initialValue={splitChildAmount}
+              onCommit={(value) =>
+                onCommitSplitChildAmountEdit(rowData.splitId, exp.id as number, value)
+              }
+              onCancel={onCancelSplitAmountEdit}
               onEnter={(shiftKey) => runEnterNavigation(exp, 'amount', shiftKey)}
               onTab={(shiftKey) => runTabNavigation(exp, 'amount', shiftKey)}
             />
@@ -1133,54 +1111,83 @@ export function getExpenseColumns({
         return renderEditableDisplayCell(
           {
             className: 'cursor-pointer text-theme-text',
-            isEditableCell: true,
-            expenseId: exp.id as number,
+            splitAmountAnchor: `split-child-${exp.id as number}`,
             field: 'amount',
-            content: formatAmount(exp.amount ?? 0),
+            isSplitEditableDisplay: true,
+            content: formatAmount(splitChildAmount),
           },
-          editableCellActivate(editing, exp, 'amount').onPointerDown,
+          (e) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            e.stopPropagation()
+            onStartSplitChildAmountEdit(rowData.splitId, exp.id as number)
+          },
         )
-      },
-      meta: {
-        className: 'text-right tabular-nums',
-        cellClassName: 'text-right tabular-nums font-semibold whitespace-nowrap',
-        onBodyCellPointerDown: (e, rowData) => {
-          if (rowData.rowType === 'splitContainer') {
-            activateFromPointerEvent(e, () => onStartSplitContainerAmountEdit(rowData.splitId))
-            return
-          }
-          if (rowData.rowType === 'splitChild') {
-            activateFromPointerEvent(e, () =>
-              onStartSplitChildAmountEdit(rowData.splitId, rowData.expense.id as number),
-            )
-            return
-          }
-          activateFromPointerEvent(e, () => editing.switchCellEdit(rowData.expense, 'amount'))
+      }
+      if (editing.isCellEditing(exp.id as number, 'amount')) {
+        return (
+          <InlineMoneyEditCell
+            initialValue={exp.amount ?? 0}
+            onCommit={(value) => {
+              editing.createOnCommit(exp.id as number, 'amount')(value)
+            }}
+            onCancel={editing.createOnCancel()}
+            onEnter={(shiftKey) => runEnterNavigation(exp, 'amount', shiftKey)}
+            onTab={(shiftKey) => runTabNavigation(exp, 'amount', shiftKey)}
+          />
+        )
+      }
+      return renderEditableDisplayCell(
+        {
+          className: 'cursor-pointer text-theme-text',
+          isEditableCell: true,
+          expenseId: exp.id as number,
+          field: 'amount',
+          content: formatAmount(exp.amount ?? 0),
         },
-        getCellClassName: (rowData: ExpenseDisplayRow) =>
-          cn(
-            getEditableCellCursorClass(rowData, {
-              allowExpense: true,
-              allowSplitContainer: true,
-              allowSplitChild: true,
-            }),
-            rowData.rowType === 'splitContainer'
+        editableCellActivate(editing, exp, 'amount').onPointerDown,
+      )
+    },
+    meta: {
+      className: 'text-right tabular-nums',
+      cellClassName: 'text-right tabular-nums font-semibold whitespace-nowrap',
+      onBodyCellPointerDown: (e, rowData) => {
+        if (rowData.rowType === 'splitContainer') {
+          activateFromPointerEvent(e, () => onStartSplitContainerAmountEdit(rowData.splitId))
+          return
+        }
+        if (rowData.rowType === 'splitChild') {
+          activateFromPointerEvent(e, () =>
+            onStartSplitChildAmountEdit(rowData.splitId, rowData.expense.id as number),
+          )
+          return
+        }
+        activateFromPointerEvent(e, () => editing.switchCellEdit(rowData.expense, 'amount'))
+      },
+      getCellClassName: (rowData: ExpenseDisplayRow) =>
+        cn(
+          getEditableCellCursorClass(rowData, {
+            allowExpense: true,
+            allowSplitContainer: true,
+            allowSplitChild: true,
+          }),
+          rowData.rowType === 'splitContainer'
+            ? editingSplitAmount?.splitId === rowData.splitId &&
+              typeof editingSplitAmount.expenseId !== 'number'
+              ? 'cell-editing'
+              : ''
+            : rowData.rowType === 'splitChild'
               ? editingSplitAmount?.splitId === rowData.splitId &&
-                typeof editingSplitAmount.expenseId !== 'number'
+                editingSplitAmount.expenseId === (rowData.expense.id as number)
                 ? 'cell-editing'
                 : ''
-              : rowData.rowType === 'splitChild'
-                ? editingSplitAmount?.splitId === rowData.splitId &&
-                  editingSplitAmount.expenseId === (rowData.expense.id as number)
-                  ? 'cell-editing'
-                  : ''
-                : editing.isCellEditing(rowData.expense.id as number, 'amount')
-                  ? 'cell-editing'
-                  : '',
-          ),
-        width: '14ch',
-      },
-    })
+              : editing.isCellEditing(rowData.expense.id as number, 'amount')
+                ? 'cell-editing'
+                : '',
+        ),
+      width: '14ch',
+    },
+  })
 
   return columns
 }
