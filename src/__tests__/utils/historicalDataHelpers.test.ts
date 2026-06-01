@@ -228,6 +228,30 @@ describe('monthMapToRanges', () => {
     expect(result[0].amount).toBe(5000)
   })
 
+  it('merges adjacent money values that are equivalent at cent precision', () => {
+    const result = monthMapToRanges({
+      1: 5221.3,
+      2: 5221.3,
+      3: 5221.3,
+      4: 5221.3,
+      5: 5221.3000000001,
+    })
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ startMonth: 1, endMonth: 5, amount: 5221.3 })
+  })
+
+  it('merges adjacent savings rates that are equivalent at input precision', () => {
+    const result = monthMapToRanges({
+      1: 18.2,
+      2: 18.2000000001,
+      3: 18.204,
+    })
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ startMonth: 1, endMonth: 3, amount: 18.2 })
+  })
+
   it('splits on gaps into multiple ranges', () => {
     const map: Record<number, number | null | undefined> = {
       1: 5000,

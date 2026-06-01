@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test'
-import { resetAppState } from './helpers'
+import { getMonthOffsetIsoDate, resetAppState } from './helpers'
 
 test.describe('Inline editing (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 15.5, notes: 'Lunch' },
-        { date: '2026-05-02', amount: 42.0, notes: 'Groceries' },
-        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
+        { date: getMonthOffsetIsoDate(1), amount: 15.5, notes: 'Lunch' },
+        { date: getMonthOffsetIsoDate(2), amount: 42.0, notes: 'Groceries' },
+        { date: getMonthOffsetIsoDate(3), amount: 5.0, notes: 'Snack' },
       ],
     })
 

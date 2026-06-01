@@ -13,11 +13,17 @@ interface UseStartupSnapshotsParams {
     tone: 'success' | 'warning' | 'danger' | 'default'
     durationMs?: number
   }) => string
+  preStartupPull?: () => Promise<void>
+  readyToStart?: boolean
 }
 
 const STARTUP_SNAPSHOT_TIMEOUT_MS = 10_000
 
-export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
+export function useStartupSnapshots({
+  showToast,
+  preStartupPull,
+  readyToStart = true,
+}: UseStartupSnapshotsParams): {
   snapshotsReady: boolean
   announceAppliedScheduleUpdates: (notices: ScheduleMaterializationNotice[]) => void
 } {
@@ -36,6 +42,8 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
   )
 
   useEffect(() => {
+    if (!readyToStart) return
+
     const init = async () => {
       console.debug('[startup-snapshots] begin')
       const hasVisited = localStorage.getItem('outflow:hasVisited') === 'true'
@@ -47,6 +55,20 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
       const startTime = Date.now()
       let appliedNotices: ScheduleMaterializationNotice[] = []
       let startupFailed = false
+      let materializationSucceeded = false
+
+      if (preStartupPull) {
+        try {
+          await withTimeout(
+            preStartupPull(),
+            STARTUP_SNAPSHOT_TIMEOUT_MS,
+            '[startup-snapshots] preStartupPull timed out',
+          )
+          console.debug('[startup-snapshots] pre-startup pull complete')
+        } catch (error) {
+          console.error('[startup-snapshots] pre-startup pull failed', error)
+        }
+      }
 
       try {
         appliedNotices = await withTimeout(
@@ -54,6 +76,7 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
           STARTUP_SNAPSHOT_TIMEOUT_MS,
           '[startup-snapshots] materializePendingSnapshots timed out',
         )
+        materializationSucceeded = true
         console.debug(
           '[startup-snapshots] materialize complete',
           Array.isArray(appliedNotices) ? appliedNotices.length : 0,
@@ -63,16 +86,20 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
         console.error('[startup-snapshots] materialize failed', error)
       }
 
-      try {
-        await withTimeout(
-          rolloverSnapshots(),
-          STARTUP_SNAPSHOT_TIMEOUT_MS,
-          '[startup-snapshots] rolloverSnapshots timed out',
-        )
-        console.debug('[startup-snapshots] rollover complete')
-      } catch (error) {
-        startupFailed = true
-        console.error('[startup-snapshots] rollover failed', error)
+      if (materializationSucceeded) {
+        try {
+          await withTimeout(
+            rolloverSnapshots(),
+            STARTUP_SNAPSHOT_TIMEOUT_MS,
+            '[startup-snapshots] rolloverSnapshots timed out',
+          )
+          console.debug('[startup-snapshots] rollover complete')
+        } catch (error) {
+          startupFailed = true
+          console.error('[startup-snapshots] rollover failed', error)
+        }
+      } else {
+        console.debug('[startup-snapshots] rollover skipped due to materialize failure')
       }
 
       try {
@@ -99,7 +126,7 @@ export function useStartupSnapshots({ showToast }: UseStartupSnapshotsParams): {
     }
 
     void init()
-  }, [announceAppliedScheduleUpdates, showToast])
+  }, [announceAppliedScheduleUpdates, preStartupPull, readyToStart, showToast])
 
   return {
     snapshotsReady,

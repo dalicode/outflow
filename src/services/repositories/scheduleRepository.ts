@@ -11,10 +11,15 @@ import type {
 import { buildScheduleMaterializationNotice } from '../../utils/scheduleNotificationUtils'
 import db from '../db/schema'
 import {
+  repairFixedSnapshotIdentitySplits,
+  resolveHistoricalFixedExpenseIdForSnapshot,
+} from './fixedSnapshotRepair'
+import {
   buildCreatedSyncRecord,
   compareScheduleDates,
   filterActiveRows,
   isBeforeOrEqualMonth,
+  markDeletedSyncRecord,
   markPendingActiveRecord,
   resolveScheduleValueForMonth,
 } from './common'
@@ -58,6 +63,181 @@ async function updateSchedulePending(
     ...changes,
     id: scheduleId,
   })
+}
+
+type SnapshotRow = {
+  id?: number
+  createdAt?: string
+  updatedAt?: string
+  deletedAt?: string | null
+  localId?: string
+  cloudId?: string | null
+}
+
+function getTimestampMs(value?: string): number {
+  if (typeof value !== 'string' || value.length === 0) return Number.NEGATIVE_INFINITY
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY
+}
+
+function compareSnapshotRows<T extends SnapshotRow>(a: T, b: T): number {
+  const aActive = a.deletedAt == null ? 1 : 0
+  const bActive = b.deletedAt == null ? 1 : 0
+  if (aActive !== bActive) return bActive - aActive
+
+  const aUpdatedAt = getTimestampMs(a.updatedAt)
+  const bUpdatedAt = getTimestampMs(b.updatedAt)
+  if (aUpdatedAt !== bUpdatedAt) return bUpdatedAt - aUpdatedAt
+
+  const aCreatedAt = getTimestampMs(a.createdAt)
+  const bCreatedAt = getTimestampMs(b.createdAt)
+  if (aCreatedAt !== bCreatedAt) return bCreatedAt - aCreatedAt
+
+  const aId = typeof a.id === 'number' ? a.id : Number.POSITIVE_INFINITY
+  const bId = typeof b.id === 'number' ? b.id : Number.POSITIVE_INFINITY
+  return aId - bId
+}
+
+function pickPreferredSnapshotRow<T extends SnapshotRow>(rows: T[]): T | undefined {
+  if (rows.length === 0) return undefined
+  return [...rows].sort(compareSnapshotRows)[0]
+}
+
+async function repairSnapshotRows<T extends SnapshotRow & Record<string, unknown>>(
+  rows: T[],
+  table: {
+    put: (row: T) => Promise<unknown>
+    add: (row: T) => Promise<unknown>
+  },
+  buildRow: (preferred: T | undefined) => T,
+  nowIso: string,
+): Promise<void> {
+  const preferred = pickPreferredSnapshotRow(rows)
+
+  if (!preferred) {
+    await table.add(buildRow(undefined))
+    return
+  }
+
+  const hasActivePreferred = preferred.deletedAt == null
+  if (!hasActivePreferred) {
+    await table.add(buildRow(undefined))
+  }
+
+  const duplicateRows = rows.filter((row) => row.id != null && row.id !== preferred.id)
+  for (const duplicate of duplicateRows) {
+    await table.put({
+      ...duplicate,
+      ...markDeletedSyncRecord(duplicate, nowIso),
+      id: duplicate.id,
+    })
+  }
+}
+
+async function upsertIncomeSnapshot(
+  year: number,
+  month: number,
+  amountSnapshot: number,
+  nowIso: string,
+): Promise<void> {
+  const rows = (await db.incomeSnapshots.where('[year+month]').equals([year, month]).toArray()) as
+    | Array<SnapshotRow & { year: number; month: number; amountSnapshot: number }>
+    | []
+
+  await repairSnapshotRows(
+    rows,
+    db.incomeSnapshots,
+    (preferred) =>
+      buildCreatedSyncRecord(
+        {
+          ...(preferred ?? {}),
+          year,
+          month,
+          amountSnapshot,
+          createdAt: preferred?.createdAt ?? nowIso,
+          updatedAt: nowIso,
+        },
+        nowIso,
+      ) as SnapshotRow & { year: number; month: number; amountSnapshot: number },
+    nowIso,
+  )
+}
+
+async function upsertSavingsSnapshot(
+  year: number,
+  month: number,
+  rateSnapshot: number,
+  nowIso: string,
+): Promise<void> {
+  const rows = (await db.savingsSnapshots.where('[year+month]').equals([year, month]).toArray()) as
+    | Array<SnapshotRow & { year: number; month: number; rateSnapshot: number }>
+    | []
+
+  await repairSnapshotRows(
+    rows,
+    db.savingsSnapshots,
+    (preferred) =>
+      buildCreatedSyncRecord(
+        {
+          ...(preferred ?? {}),
+          year,
+          month,
+          rateSnapshot,
+          createdAt: preferred?.createdAt ?? nowIso,
+          updatedAt: nowIso,
+        },
+        nowIso,
+      ) as SnapshotRow & { year: number; month: number; rateSnapshot: number },
+    nowIso,
+  )
+}
+
+async function upsertFixedExpenseSnapshot(
+  fixedExpenseId: number,
+  year: number,
+  month: number,
+  amountSnapshot: number,
+  nameSnapshot: string,
+  nowIso: string,
+): Promise<void> {
+  const rows = (await db.fixedExpenseSnapshots
+    .where('[fixedExpenseId+year+month]')
+    .equals([fixedExpenseId, year, month])
+    .toArray()) as Array<
+    SnapshotRow & {
+      fixedExpenseId: number
+      year: number
+      month: number
+      amountSnapshot: number
+      nameSnapshot: string
+    }
+  >
+
+  await repairSnapshotRows(
+    rows,
+    db.fixedExpenseSnapshots,
+    (preferred) =>
+      buildCreatedSyncRecord(
+        {
+          ...(preferred ?? {}),
+          fixedExpenseId,
+          year,
+          month,
+          amountSnapshot,
+          nameSnapshot,
+          createdAt: preferred?.createdAt ?? nowIso,
+          updatedAt: nowIso,
+        },
+        nowIso,
+      ) as SnapshotRow & {
+        fixedExpenseId: number
+        year: number
+        month: number
+        amountSnapshot: number
+        nameSnapshot: string
+      },
+    nowIso,
+  )
 }
 
 export async function getAllSchedules(): Promise<Schedule[]> {
@@ -164,123 +344,173 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
       compareScheduleDates(a.effectiveYear, a.effectiveMonth, b.effectiveYear, b.effectiveMonth),
     )
 
-  for (const schedule of dueSchedules) {
-    if (schedule.id == null) continue
+  await db.transaction(
+    'rw',
+    [db.schedules, db.settings, db.fixedExpenses, db.expenses],
+    async () => {
+      for (const schedule of dueSchedules) {
+        if (schedule.id == null) continue
 
-    if (schedule.type === 'income') {
-      const firstMaterialization = schedule.previousValue == null || schedule.materializedAt == null
-      if (firstMaterialization) {
-        await updateSchedulePending(
-          schedule.id,
-          { previousValue: liveIncome, materializedAt: currentKey },
-          nowIso,
-        )
-        newNotices.push(
-          buildScheduleMaterializationNotice(schedule, {
-            appliedAt: nowIso,
-            previousValue: liveIncome,
-          }),
-        )
-      }
-      liveIncome = schedule.newValue
-      await upsertSettingRow('monthlyIncome', liveIncome, nowIso)
-      await upsertSettingRow(
-        'monthlyIncomeUpdatedAt',
-        `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-        nowIso,
-      )
-    } else if (schedule.type === 'savingsRate') {
-      const firstMaterialization = schedule.previousValue == null || schedule.materializedAt == null
-      if (firstMaterialization) {
-        await updateSchedulePending(
-          schedule.id,
-          { previousValue: liveSavingsRate, materializedAt: currentKey },
-          nowIso,
-        )
-        newNotices.push(
-          buildScheduleMaterializationNotice(schedule, {
-            appliedAt: nowIso,
-            previousValue: liveSavingsRate,
-          }),
-        )
-      }
-      liveSavingsRate = schedule.newValue
-      await upsertSettingRow('savingsRate', liveSavingsRate, nowIso)
-      await upsertSettingRow(
-        'savingsRateUpdatedAt',
-        `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
-        nowIso,
-      )
-    } else if (schedule.type === 'fixedExpense' && schedule.targetId != null) {
-      const def = fixedDefMap.get(schedule.targetId)
-      const firstMaterialization = schedule.previousValue == null || schedule.materializedAt == null
-      if (firstMaterialization) {
-        await updateSchedulePending(
-          schedule.id,
-          { previousValue: def?.amount ?? 0, materializedAt: currentKey },
-          nowIso,
-        )
-        newNotices.push(
-          buildScheduleMaterializationNotice(schedule, {
-            appliedAt: nowIso,
-            previousValue: def?.amount ?? 0,
-            label: def?.name ?? 'Fixed expense',
-          }),
-        )
-      }
+        if (schedule.type === 'income') {
+          const hasPreviousValue = schedule.previousValue != null
+          const hasMaterializedAt =
+            typeof schedule.materializedAt === 'string' && schedule.materializedAt.length > 0
+          const firstMaterialization = !hasPreviousValue && !hasMaterializedAt
+          const scheduleChanges: Partial<Schedule> = {}
 
-      if (def && def.id != null) {
-        const nextDef: FixedExpense = {
-          ...def,
-          ...markPendingActiveRecord(def, nowIso),
-          id: def.id,
-          amount: schedule.newValue,
-          updatedAt: nowIso,
+          if (!hasPreviousValue) {
+            scheduleChanges.previousValue = liveIncome
+          }
+          if (!hasMaterializedAt) {
+            scheduleChanges.materializedAt = currentKey
+          }
+          if (Object.keys(scheduleChanges).length > 0) {
+            await updateSchedulePending(schedule.id, scheduleChanges, nowIso)
+          }
+
+          if (firstMaterialization) {
+            newNotices.push(
+              buildScheduleMaterializationNotice(schedule, {
+                appliedAt: nowIso,
+                previousValue: liveIncome,
+              }),
+            )
+          }
+
+          liveIncome = schedule.newValue
+          await upsertSettingRow('monthlyIncome', liveIncome, nowIso)
+          await upsertSettingRow(
+            'monthlyIncomeUpdatedAt',
+            `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
+            nowIso,
+          )
+        } else if (schedule.type === 'savingsRate') {
+          const hasPreviousValue = schedule.previousValue != null
+          const hasMaterializedAt =
+            typeof schedule.materializedAt === 'string' && schedule.materializedAt.length > 0
+          const firstMaterialization = !hasPreviousValue && !hasMaterializedAt
+          const scheduleChanges: Partial<Schedule> = {}
+
+          if (!hasPreviousValue) {
+            scheduleChanges.previousValue = liveSavingsRate
+          }
+          if (!hasMaterializedAt) {
+            scheduleChanges.materializedAt = currentKey
+          }
+          if (Object.keys(scheduleChanges).length > 0) {
+            await updateSchedulePending(schedule.id, scheduleChanges, nowIso)
+          }
+
+          if (firstMaterialization) {
+            newNotices.push(
+              buildScheduleMaterializationNotice(schedule, {
+                appliedAt: nowIso,
+                previousValue: liveSavingsRate,
+              }),
+            )
+          }
+
+          liveSavingsRate = schedule.newValue
+          await upsertSettingRow('savingsRate', liveSavingsRate, nowIso)
+          await upsertSettingRow(
+            'savingsRateUpdatedAt',
+            `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}`,
+            nowIso,
+          )
+        } else if (schedule.type === 'fixedExpense' && schedule.targetId != null) {
+          const def = fixedDefMap.get(schedule.targetId)
+          const hasPreviousValue = schedule.previousValue != null
+          const hasMaterializedAt =
+            typeof schedule.materializedAt === 'string' && schedule.materializedAt.length > 0
+          const firstMaterialization = !hasPreviousValue && !hasMaterializedAt
+          const scheduleChanges: Partial<Schedule> = {}
+          const previousValue = def?.amount ?? 0
+
+          if (!hasPreviousValue) {
+            scheduleChanges.previousValue = previousValue
+          }
+          if (!hasMaterializedAt) {
+            scheduleChanges.materializedAt = currentKey
+          }
+          if (Object.keys(scheduleChanges).length > 0) {
+            await updateSchedulePending(schedule.id, scheduleChanges, nowIso)
+          }
+
+          if (firstMaterialization) {
+            newNotices.push(
+              buildScheduleMaterializationNotice(schedule, {
+                appliedAt: nowIso,
+                previousValue,
+                label: def?.name ?? 'Fixed expense',
+              }),
+            )
+          }
+
+          if (def && def.id != null) {
+            const nextDef: FixedExpense = {
+              ...def,
+              ...markPendingActiveRecord(def, nowIso),
+              id: def.id,
+              amount: schedule.newValue,
+              updatedAt: nowIso,
+            }
+            await db.fixedExpenses.put(nextDef)
+            fixedDefMap.set(def.id, nextDef)
+          }
+        } else if (schedule.type === 'expense') {
+          const hasMaterializedAt =
+            typeof schedule.materializedAt === 'string' && schedule.materializedAt.length > 0
+
+          if (!hasMaterializedAt) {
+            const day = schedule.day ?? 1
+            const date = `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+            const categoryNameSnapshot =
+              typeof schedule.categoryId === 'number'
+                ? (activeCategoryNameById.get(schedule.categoryId) ?? null)
+                : null
+            const payeeNameSnapshot =
+              typeof schedule.payeeId === 'number'
+                ? (activePayeeNameById.get(schedule.payeeId) ?? null)
+                : null
+            await db.expenses.add(
+              buildCreatedSyncRecord(
+                {
+                  date,
+                  amount: schedule.newValue,
+                  categoryId: schedule.categoryId,
+                  payeeId: schedule.payeeId,
+                  categoryNameSnapshot,
+                  payeeNameSnapshot,
+                  notes: schedule.notes,
+                  createdAt: nowIso,
+                  updatedAt: nowIso,
+                },
+                nowIso,
+              ) as Expense,
+            )
+            newNotices.push(
+              buildScheduleMaterializationNotice(schedule, {
+                appliedAt: nowIso,
+                label: schedule.notes?.trim() || 'Planned expense',
+              }),
+            )
+            await updateSchedulePending(
+              schedule.id,
+              { materializedAt: currentKey, isActive: 0 },
+              nowIso,
+            )
+          } else {
+            await updateSchedulePending(schedule.id, { isActive: 0 }, nowIso)
+          }
         }
-        await db.fixedExpenses.put(nextDef)
-        fixedDefMap.set(def.id, nextDef)
       }
-    } else if (schedule.type === 'expense') {
-      const day = schedule.day ?? 1
-      const date = `${schedule.effectiveYear}-${String(schedule.effectiveMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-      const categoryNameSnapshot =
-        typeof schedule.categoryId === 'number'
-          ? (activeCategoryNameById.get(schedule.categoryId) ?? null)
-          : null
-      const payeeNameSnapshot =
-        typeof schedule.payeeId === 'number'
-          ? (activePayeeNameById.get(schedule.payeeId) ?? null)
-          : null
-      await db.expenses.add(
-        buildCreatedSyncRecord(
-          {
-            date,
-            amount: schedule.newValue,
-            categoryId: schedule.categoryId,
-            payeeId: schedule.payeeId,
-            categoryNameSnapshot,
-            payeeNameSnapshot,
-            notes: schedule.notes,
-            createdAt: nowIso,
-            updatedAt: nowIso,
-          },
-          nowIso,
-        ) as Expense,
-      )
-      newNotices.push(
-        buildScheduleMaterializationNotice(schedule, {
-          appliedAt: nowIso,
-          label: schedule.notes?.trim() || 'Planned expense',
-        }),
-      )
-      await updateSchedulePending(schedule.id, { isActive: 0 }, nowIso)
-    }
-  }
 
-  if (newNotices.length > 0) {
-    const mergedLog = [...newNotices, ...existingNoticeLog].slice(0, 20)
-    await upsertSettingRow('scheduleMaterializationLog', mergedLog, nowIso)
-  }
+      if (newNotices.length > 0) {
+        const mergedLog = [...newNotices, ...existingNoticeLog].slice(0, 20)
+        await upsertSettingRow('scheduleMaterializationLog', mergedLog, nowIso)
+      }
+    },
+  )
 
   return newNotices
 }
@@ -354,16 +584,12 @@ export async function rolloverSnapshots() {
   // Load data
   const [
     allFixedDefs,
-    allIncomeSnaps,
-    allSavingsSnaps,
     allFixedSnaps,
     globalIncomeRow,
     globalRateRow,
     activeSchedules,
   ] = await Promise.all([
     db.fixedExpenses.toArray(),
-    db.incomeSnapshots.toArray(),
-    db.savingsSnapshots.toArray(),
     db.fixedExpenseSnapshots.toArray(),
     db.settings.get('monthlyIncome'),
     db.settings.get('savingsRate'),
@@ -371,9 +597,11 @@ export async function rolloverSnapshots() {
   ])
 
   const activeFixed = filterActiveRows(allFixedDefs).filter((row) => row.isArchived !== true)
-  const incomeSnaps = filterActiveRows(allIncomeSnaps)
-  const savingsSnaps = filterActiveRows(allSavingsSnaps)
-  const fixedSnaps = filterActiveRows(allFixedSnaps)
+  const repairedFixedSnaps = await repairFixedSnapshotIdentitySplits(
+    allFixedSnaps,
+    db.fixedExpenseSnapshots,
+    nowIso,
+  )
   const globalIncome =
     globalIncomeRow?.deletedAt == null ? ((globalIncomeRow?.value as number) ?? 0) : 0
   const globalRate = globalRateRow?.deletedAt == null ? ((globalRateRow?.value as number) ?? 0) : 0
@@ -384,83 +612,76 @@ export async function rolloverSnapshots() {
   const scheduleUpdates: Schedule[] = []
 
   for (const { year, month } of gapMonths) {
-    const hasIncome = incomeSnaps.some(
-      (snapshot) => snapshot.year === year && snapshot.month === month,
-    )
-    if (!hasIncome) {
-      incomeToAdd.push(
-        buildCreatedSyncRecord(
-          {
+    incomeToAdd.push(
+      buildCreatedSyncRecord(
+        {
+          year,
+          month,
+          amountSnapshot: resolveScheduleValueForMonth(
+            activeSchedules,
             year,
             month,
-            amountSnapshot: resolveScheduleValueForMonth(
-              activeSchedules,
-              year,
-              month,
-              globalIncome,
-              'income',
-            ),
-            createdAt: nowIso,
-            updatedAt: nowIso,
-          },
-          nowIso,
-        ) as IncomeSnapshot,
-      )
-    }
+            globalIncome,
+            'income',
+          ),
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        nowIso,
+      ) as IncomeSnapshot,
+    )
 
-    const hasSavings = savingsSnaps.some(
-      (snapshot) => snapshot.year === year && snapshot.month === month,
-    )
-    if (!hasSavings) {
-      savingsToAdd.push(
-        buildCreatedSyncRecord(
-          {
+    savingsToAdd.push(
+      buildCreatedSyncRecord(
+        {
+          year,
+          month,
+          rateSnapshot: resolveScheduleValueForMonth(
+            activeSchedules,
             year,
             month,
-            rateSnapshot: resolveScheduleValueForMonth(
-              activeSchedules,
-              year,
-              month,
-              globalRate,
-              'savingsRate',
-            ),
-            createdAt: nowIso,
-            updatedAt: nowIso,
-          },
-          nowIso,
-        ) as SavingsSnapshot,
-      )
-    }
+            globalRate,
+            'savingsRate',
+          ),
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        nowIso,
+      ) as SavingsSnapshot,
+    )
 
     for (const def of activeFixed) {
       if (!def.id) continue
-      const hasFixed = fixedSnaps.some(
-        (snapshot) =>
-          snapshot.fixedExpenseId === def.id && snapshot.year === year && snapshot.month === month,
+      const amountSnapshot = resolveScheduleValueForMonth(
+        activeSchedules,
+        year,
+        month,
+        def.amount,
+        'fixedExpense',
+        def.id,
       )
-      if (!hasFixed) {
-        fixedToAdd.push(
-          buildCreatedSyncRecord(
-            {
-              fixedExpenseId: def.id,
-              nameSnapshot: def.name,
-              amountSnapshot: resolveScheduleValueForMonth(
-                activeSchedules,
-                year,
-                month,
-                def.amount,
-                'fixedExpense',
-                def.id,
-              ),
-              year,
-              month,
-              createdAt: nowIso,
-              updatedAt: nowIso,
-            },
-            nowIso,
-          ) as FixedExpenseSnapshot,
-        )
-      }
+      const fixedExpenseId = resolveHistoricalFixedExpenseIdForSnapshot(
+        [...repairedFixedSnaps, ...fixedToAdd],
+        year,
+        month,
+        def.name,
+        amountSnapshot,
+        def.id,
+      )
+      fixedToAdd.push(
+        buildCreatedSyncRecord(
+          {
+            fixedExpenseId,
+            nameSnapshot: def.name,
+            amountSnapshot,
+            year,
+            month,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          },
+          nowIso,
+        ) as FixedExpenseSnapshot,
+      )
     }
 
     for (const schedule of activeSchedules) {
@@ -478,9 +699,22 @@ export async function rolloverSnapshots() {
     'rw',
     [db.incomeSnapshots, db.savingsSnapshots, db.fixedExpenseSnapshots, db.schedules, db.settings],
     async () => {
-      if (incomeToAdd.length > 0) await db.incomeSnapshots.bulkAdd(incomeToAdd)
-      if (savingsToAdd.length > 0) await db.savingsSnapshots.bulkAdd(savingsToAdd)
-      if (fixedToAdd.length > 0) await db.fixedExpenseSnapshots.bulkAdd(fixedToAdd)
+      for (const snapshot of incomeToAdd) {
+        await upsertIncomeSnapshot(snapshot.year, snapshot.month, snapshot.amountSnapshot, nowIso)
+      }
+      for (const snapshot of savingsToAdd) {
+        await upsertSavingsSnapshot(snapshot.year, snapshot.month, snapshot.rateSnapshot, nowIso)
+      }
+      for (const snapshot of fixedToAdd) {
+        await upsertFixedExpenseSnapshot(
+          snapshot.fixedExpenseId,
+          snapshot.year,
+          snapshot.month,
+          snapshot.amountSnapshot,
+          snapshot.nameSnapshot,
+          nowIso,
+        )
+      }
 
       const uniqueScheduleIds = new Set(
         scheduleUpdates

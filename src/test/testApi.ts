@@ -2,6 +2,7 @@ import { StorageService } from '../services/storageService'
 import db from '../services/db/schema'
 import { fakeSupabase } from '../services/fakeSupabase'
 import { markRecordPending } from '../utils/syncMetadata'
+import { DEFAULT_CATEGORIES, DEFAULT_PAYEES } from '../services/defaults'
 import { supabase } from '../services/supabase'
 import { clearUserCloudData } from '../services/syncService'
 import type { Expense, ExpenseSplit, Schedule } from '../types'
@@ -88,6 +89,60 @@ export const testApi = {
     StorageService.setExpenseTags(expenseId, tagIds),
   getAllExpensesIncludingDeleted: () => StorageService.getAllExpenses(),
   getSyncMetadataCounts: () => StorageService.getSyncMetadataCounts(),
+  getSyncMetadataDiagnostics: () => StorageService.getSyncMetadataDiagnostics(),
+  markDefaultSeedRowsSyncedForSyncTest: async () => {
+    const now = new Date().toISOString()
+    const defaultCategoryNames = new Set(DEFAULT_CATEGORIES.map((category) => category.name))
+    const defaultPayeeNames = new Set(DEFAULT_PAYEES.map((payee) => payee.name))
+    const categories = await db.categories.toArray()
+    const payees = await db.payees.toArray()
+
+    await Promise.all([
+      ...categories
+        .filter(
+          (category) =>
+            typeof category.id === 'number' &&
+            category.syncStatus === 'pending' &&
+            defaultCategoryNames.has(category.name),
+        )
+        .map((category) =>
+          db.categories.update(category.id as number, {
+            syncStatus: 'synced',
+            lastSyncedAt: now,
+            syncError: null,
+          }),
+        ),
+      ...payees
+        .filter(
+          (payee) =>
+            typeof payee.id === 'number' &&
+            payee.syncStatus === 'pending' &&
+            defaultPayeeNames.has(payee.name),
+        )
+        .map((payee) =>
+          db.payees.update(payee.id as number, {
+            syncStatus: 'synced',
+            lastSyncedAt: now,
+            syncError: null,
+          }),
+        ),
+    ])
+  },
+  markSettingsRowsSyncedForSyncTest: async () => {
+    const now = new Date().toISOString()
+    const settings = await db.settings.toArray()
+    await Promise.all(
+      settings
+        .filter((setting) => setting.syncStatus === 'pending')
+        .map((setting) =>
+          db.settings.update(setting.key, {
+            syncStatus: 'synced',
+            lastSyncedAt: now,
+            syncError: null,
+          }),
+        ),
+    )
+  },
   getAllIncomeSnapshots: () => StorageService.getAllIncomeSnapshots(),
   getAllSavingsSnapshots: () => StorageService.getAllSavingsSnapshots(),
   getAllFixedExpenseSnapshots: () => StorageService.getAllFixedExpenseSnapshots(),

@@ -1,16 +1,16 @@
 import { test } from '@playwright/test'
-import { expect, resetAppState } from './helpers'
+import { expect, getMonthOffsetIsoDate, resetAppState } from './helpers'
 
 test.describe('Dashboard views and multi-month span (desktop)', () => {
   test.beforeEach(async ({ page }) => {
-    // Seed expenses in the current month (May 2026) so they appear in 1M mode
+    // Seed expenses in the actual current month so they appear in 1M mode.
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 100.0, description: 'May expense' },
-        { date: '2026-05-10', amount: 25.0, description: 'Another May' },
-        { date: '2026-05-15', amount: 50.0, description: 'Mid May' },
-        { date: '2026-05-20', amount: 30.0, description: 'Late May' },
-        { date: '2026-05-25', amount: 75.0, description: 'End May' },
+        { date: getMonthOffsetIsoDate(1), amount: 100.0, description: 'Current month expense 1' },
+        { date: getMonthOffsetIsoDate(10), amount: 25.0, description: 'Current month expense 2' },
+        { date: getMonthOffsetIsoDate(15), amount: 50.0, description: 'Current month expense 3' },
+        { date: getMonthOffsetIsoDate(20), amount: 30.0, description: 'Current month expense 4' },
+        { date: getMonthOffsetIsoDate(25), amount: 75.0, description: 'Current month expense 5' },
       ],
     })
   })

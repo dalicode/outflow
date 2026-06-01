@@ -1359,6 +1359,46 @@ describe('ExpenseTable', () => {
     expect(screen.queryByText('Apply Changes')).not.toBeInTheDocument()
   })
 
+  it('commits second-row amount on Shift+Enter before moving to the previous row amount editor', async () => {
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-11', amount: 12.34, categoryId: 1, notes: 'First row' },
+      { id: 2, date: '2026-05-10', amount: 24.75, categoryId: 1, notes: 'Second row' },
+    ]
+    const onUpdate = vi.fn<(id: number, changes: Partial<Expense>) => Promise<void>>()
+    const deferredCommit = createDeferredPromise()
+    onUpdate.mockImplementation(() => deferredCommit.promise)
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const firstRow = await screen.findByTestId('expense-row-1')
+    const secondRow = await screen.findByTestId('expense-row-2')
+
+    fireEvent.pointerDown(within(secondRow).getByTestId('editable-cell-display-amount'))
+    const secondAmountInput = await within(secondRow).findByLabelText('Amount')
+    fireEvent.change(secondAmountInput, { target: { value: '56.78' } })
+    fireEvent.keyDown(secondAmountInput, { key: 'Enter', shiftKey: true })
+
+    expect(onUpdate).toHaveBeenCalledWith(2, { amount: 56.78 })
+    expect(within(firstRow).queryByLabelText('Amount')).not.toBeInTheDocument()
+
+    deferredCommit.resolve()
+
+    await waitFor(() => {
+      expect(within(firstRow).getByLabelText('Amount')).toBeInTheDocument()
+    })
+  })
+
   it('edits split child amount inline on desktop and calls onUpdate', async () => {
     const expenses: Expense[] = [
       { id: 1, splitId: 10, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'A' },

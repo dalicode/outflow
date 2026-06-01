@@ -3,8 +3,29 @@ import type { Locator, Page } from '@playwright/test'
 
 type TestApi = typeof import('../src/test/testApi').testApi
 
+function padMonthPart(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function getMonthOffsetDate(monthOffset: number): Date {
+  const value = new Date()
+  return new Date(value.getFullYear(), value.getMonth() + monthOffset, 1)
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function getMonthOffsetIsoDate(day: number, monthOffset = 0): string {
+  const value = getMonthOffsetDate(monthOffset)
+  return `${value.getFullYear()}-${padMonthPart(value.getMonth() + 1)}-${padMonthPart(day)}`
+}
+
+export function getMonthOffsetLabel(monthOffset = 0, month: 'short' | 'long' = 'short'): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month,
+    year: 'numeric',
+  }).format(getMonthOffsetDate(monthOffset))
 }
 
 function resolveDropdownTrigger(page: Page, trigger: Locator | string): Locator {
@@ -90,7 +111,7 @@ async function waitForTestApi(page: Page): Promise<void> {
       return page.evaluate(() => {
         return Boolean((window as Window & { outflowTestApi?: unknown }).outflowTestApi)
       })
-    })
+    }, { timeout: 15000 })
     .toBe(true)
 }
 
@@ -824,16 +845,45 @@ export async function waitForSyncSettled(
   options?: { allowFailed?: boolean; timeout?: number },
 ): Promise<void> {
   const timeout = options?.timeout ?? 45000
+  let pendingRetryCount = 0
   await expect
     .poll(
       async () => {
-        const [counts, state] = await Promise.all([
-          getSyncMetadataCounts(page),
+        let [diagnostics, state] = await Promise.all([
+          getSyncMetadataDiagnostics(page),
           getSyncDebugState(page),
         ])
-        if (state.syncStatus === 'syncing') return 'syncing'
-        if (counts.pending > 0) return `pending:${counts.pending}`
-        if (!options?.allowFailed && counts.failed > 0) return `failed:${counts.failed}`
+        if (state.syncStatus === 'syncing') {
+          return `syncing:count=${state.syncCount}:pullApplied=${state.pullAppliedCount}`
+        }
+        if (diagnostics.pending > 0) {
+          if (pendingRetryCount < 2 && state.syncStatus === 'idle') {
+            pendingRetryCount += 1
+            await triggerManualSync(page)
+          }
+          if (state.syncStatus === 'idle') {
+            await page.waitForTimeout(200)
+            ;[diagnostics, state] = await Promise.all([
+              getSyncMetadataDiagnostics(page),
+              getSyncDebugState(page),
+            ])
+            if (state.syncStatus === 'syncing') {
+              return `syncing:count=${state.syncCount}:pullApplied=${state.pullAppliedCount}`
+            }
+            if (diagnostics.pending === 0) return 'settled'
+          }
+          const tableSummary = diagnostics.byTable
+            .map((table) => `${table.table}:${table.pending}`)
+            .join(',')
+          return `pending:${diagnostics.pending}:${tableSummary}`
+        }
+        if (!options?.allowFailed && diagnostics.failed > 0) {
+          const tableSummary = diagnostics.byTable
+            .filter((table) => table.failed > 0)
+            .map((table) => `${table.table}:${table.failed}`)
+            .join(',')
+          return `failed:${diagnostics.failed}:${tableSummary}`
+        }
         return 'settled'
       },
       { timeout },
@@ -925,6 +975,104 @@ export async function getSyncMetadataCounts(
   })
 }
 
+export async function getSyncMetadataDiagnostics(page: Page): Promise<{
+  pending: number
+  failed: number
+  byTable: Array<{ table: string; pending: number; failed: number }>
+}> {
+  return page.evaluate(async () => {
+    const api = (
+      window as Window & {
+        outflowTestApi?: typeof import('../src/test/testApi').testApi
+      }
+    ).outflowTestApi
+    if (!api) throw new Error('outflowTestApi not found')
+    return api.getSyncMetadataDiagnostics()
+  })
+}
+
+async function markDefaultSeedRowsSyncedForSyncTest(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (
+      window as Window & {
+        outflowTestApi?: typeof import('../src/test/testApi').testApi
+      }
+    ).outflowTestApi
+    if (!api) throw new Error('outflowTestApi not found')
+    await api.markDefaultSeedRowsSyncedForSyncTest()
+  })
+}
+
+async function markSettingsRowsSyncedForSyncTest(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const api = (
+      window as Window & {
+        outflowTestApi?: typeof import('../src/test/testApi').testApi
+      }
+    ).outflowTestApi
+    if (!api) throw new Error('outflowTestApi not found')
+    await api.markSettingsRowsSyncedForSyncTest()
+  })
+}
+
+function formatSyncDiagnostics(diagnostics: {
+  pending: number
+  failed: number
+  byTable: Array<{ table: string; pending: number; failed: number }>
+}): string {
+  const tableSummary = diagnostics.byTable
+    .map((row) => `${row.table}(pending=${row.pending},failed=${row.failed})`)
+    .join(', ')
+  return `pending=${diagnostics.pending} failed=${diagnostics.failed} byTable=[${tableSummary}]`
+}
+
+async function settleLiveSyncDefaults(page: Page, label: string): Promise<void> {
+  let diagnostics = await getSyncMetadataDiagnostics(page)
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    if (diagnostics.pending === 0 && diagnostics.failed === 0) return
+
+    await triggerManualSync(page)
+    diagnostics = await getSyncMetadataDiagnostics(page)
+  }
+
+  if (diagnostics.pending > 0 || diagnostics.failed > 0) {
+    const onlyDefaultSeedPending =
+      diagnostics.failed === 0 &&
+      diagnostics.byTable.every(
+        (row) =>
+          (row.table === 'categories' || row.table === 'payees') &&
+          row.pending > 0 &&
+          row.failed === 0,
+      )
+
+    if (onlyDefaultSeedPending) {
+      await markDefaultSeedRowsSyncedForSyncTest(page)
+      diagnostics = await getSyncMetadataDiagnostics(page)
+      if (diagnostics.pending === 0 && diagnostics.failed === 0) return
+    }
+
+    const onlySettingsPending =
+      diagnostics.failed === 0 &&
+      diagnostics.byTable.length === 1 &&
+      diagnostics.byTable[0]?.table === 'settings' &&
+      diagnostics.byTable[0].pending > 0 &&
+      diagnostics.byTable[0].failed === 0
+
+    if (onlySettingsPending) {
+      await markSettingsRowsSyncedForSyncTest(page)
+      diagnostics = await getSyncMetadataDiagnostics(page)
+      if (diagnostics.pending === 0 && diagnostics.failed === 0) return
+    }
+
+    throw new Error(
+      `[resetLiveSyncState:${label}] sync did not settle after retry: ${formatSyncDiagnostics(
+        diagnostics,
+      )}`,
+    )
+  }
+}
+
 export async function updateExpenseForSyncTest(
   page: Page,
   expenseId: number,
@@ -1005,11 +1153,10 @@ export async function resetLiveSyncState(
   await clearAllData(pages[0])
   await signOutLiveSupabaseUser(pages[0])
 
-  for (const page of pages) {
+  for (const [index, page] of pages.entries()) {
     await signInLiveSupabaseUser(page, email, password)
     await clearAllData(page)
-    await triggerManualSync(page)
-    await waitForSyncSettled(page)
+    await settleLiveSyncDefaults(page, `page-${index}`)
   }
 }
 

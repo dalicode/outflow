@@ -419,6 +419,21 @@ export interface SyncQueueItem {
 
 export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error'
 
+export interface SyncMetadataCounts {
+  pending: number
+  failed: number
+}
+
+export interface SyncMetadataTableBreakdown {
+  table: string
+  pending: number
+  failed: number
+}
+
+export interface SyncMetadataDiagnostics extends SyncMetadataCounts {
+  byTable: SyncMetadataTableBreakdown[]
+}
+
 // ── Auth ────────────────────────────────────────────────────────────────────
 
 export interface AuthContextValue {

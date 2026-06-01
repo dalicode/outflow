@@ -176,4 +176,55 @@ describe('saveHistoricalSnapshotConfigs', () => {
     expect(restored.amountSnapshot).toBe(6000)
     expect(restored.syncStatus).toBe('pending')
   })
+
+  it('repairs contiguous fixed snapshot identity splits before saving historical changes', async () => {
+    await fixedExpenseSnapshots.add({
+      fixedExpenseId: 100,
+      year: 2026,
+      month: 4,
+      amountSnapshot: 1200,
+      nameSnapshot: 'Mortgage',
+      localId: 'mortgage-apr',
+      syncStatus: 'synced',
+      deletedAt: null,
+    })
+    await fixedExpenseSnapshots.add({
+      fixedExpenseId: 11,
+      year: 2026,
+      month: 5,
+      amountSnapshot: 1200.0000000001,
+      nameSnapshot: 'Mortgage',
+      localId: 'mortgage-may',
+      syncStatus: 'synced',
+      deletedAt: null,
+    })
+
+    await saveHistoricalSnapshotConfigs({
+      dirtyYears: new Set([2026]),
+      yearConfigs: {
+        2026: {
+          incomeRanges: [],
+          savingsRanges: [],
+          fixedItems: [
+            {
+              id: 'mortgage',
+              name: 'Mortgage',
+              amount: '1200.00',
+              startMonth: 4,
+              endMonth: 5,
+              existingFixedExpenseId: 100,
+            },
+          ],
+        },
+      },
+    })
+
+    const activeMortgageRows = fixedExpenseSnapshots
+      .data()
+      .filter((row) => row.nameSnapshot === 'Mortgage' && row.deletedAt == null)
+
+    expect(activeMortgageRows).toHaveLength(2)
+    expect(activeMortgageRows.every((row) => row.fixedExpenseId === 100)).toBe(true)
+    expect(activeMortgageRows.find((row) => row.month === 5)?.syncStatus).toBe('pending')
+  })
 })

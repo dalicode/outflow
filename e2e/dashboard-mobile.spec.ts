@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { longPressElement, openMobileSecondaryNav, resetAppState } from './helpers'
+import {
+  getMonthOffsetIsoDate,
+  longPressElement,
+  openMobileSecondaryNav,
+  resetAppState,
+} from './helpers'
 
 test.describe('Dashboard — mobile', () => {
   test.beforeEach(async ({ page }) => {
@@ -37,9 +42,9 @@ test.describe('Dashboard — mobile', () => {
   test('expenses view shows seeded mobile rows', async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 10.0, notes: 'Coffee' },
-        { date: '2026-05-02', amount: 25.0, notes: 'Lunch' },
-        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
+        { date: getMonthOffsetIsoDate(1), amount: 10.0, notes: 'Coffee' },
+        { date: getMonthOffsetIsoDate(2), amount: 25.0, notes: 'Lunch' },
+        { date: getMonthOffsetIsoDate(3), amount: 5.0, notes: 'Snack' },
       ],
     })
 
@@ -51,9 +56,9 @@ test.describe('Dashboard — mobile', () => {
   test('bulk delete from the mobile selection banner can be undone', async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 10.0, notes: 'Coffee' },
-        { date: '2026-05-02', amount: 25.0, notes: 'Lunch' },
-        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
+        { date: getMonthOffsetIsoDate(1), amount: 10.0, notes: 'Coffee' },
+        { date: getMonthOffsetIsoDate(2), amount: 25.0, notes: 'Lunch' },
+        { date: getMonthOffsetIsoDate(3), amount: 5.0, notes: 'Snack' },
       ],
     })
 

@@ -1,13 +1,13 @@
 import { test } from '@playwright/test'
-import { addPayee, expect, resetAppState } from './helpers'
+import { addPayee, expect, getMonthOffsetIsoDate, resetAppState } from './helpers'
 
 test.describe('Keyboard navigation (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-03', amount: 12.5, notes: 'Coffee row' },
-        { date: '2026-05-02', amount: 24.75, notes: 'Lunch row' },
-        { date: '2026-05-01', amount: 8.25, notes: 'Snack row' },
+        { date: getMonthOffsetIsoDate(3), amount: 12.5, notes: 'Coffee row' },
+        { date: getMonthOffsetIsoDate(2), amount: 24.75, notes: 'Lunch row' },
+        { date: getMonthOffsetIsoDate(1), amount: 8.25, notes: 'Snack row' },
       ],
     })
 

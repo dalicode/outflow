@@ -1,27 +1,19 @@
 import { test, expect } from '@playwright/test'
+import { resetAppState, waitForAppReady } from './helpers'
 
 test.describe('Expense form — mobile', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/')
-    await page.getByTestId('dashboard').waitFor({ timeout: 15000 })
-
-    await page.evaluate(async () => {
-      const api = (
-        window as unknown as { outflowTestApi?: typeof import('../src/test/testApi').testApi }
-      ).outflowTestApi
-      if (!api) throw new Error('outflowTestApi not found')
-      await api.clearAllData()
-    })
-    await page.reload()
-    await page.getByTestId('dashboard').waitFor({ timeout: 15000 })
+    await resetAppState(page)
   })
 
   test('expense form fields render and close actions work', async ({ page }) => {
-    await page
+    await waitForAppReady(page)
+    const addExpenseButton = page
       .getByTestId('btn-add-expense')
       .filter({ has: page.locator(':visible') })
       .first()
-      .click()
+    await expect(addExpenseButton).toBeVisible()
+    await addExpenseButton.click()
     await expect(page.getByTestId('expense-form')).toBeVisible()
 
     const amountInput = page.locator('[aria-label="Amount"]')
@@ -56,11 +48,13 @@ test.describe('Expense form — mobile', () => {
   })
 
   test('cancel button closes form', async ({ page }) => {
-    await page
+    await waitForAppReady(page)
+    const addExpenseButton = page
       .getByTestId('btn-add-expense')
       .filter({ has: page.locator(':visible') })
       .first()
-      .click()
+    await expect(addExpenseButton).toBeVisible()
+    await addExpenseButton.click()
     await expect(page.getByTestId('expense-form')).toBeVisible()
 
     const cancelButton = page.getByRole('button', { name: 'Cancel' }).first()

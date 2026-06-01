@@ -1,5 +1,6 @@
 import type { FixedExpenseSnapshot } from '../../../types'
 import type { HistoricalFixedItem } from '../../../services/repositories/historicalSnapshotRepository'
+import { historicalValuesMatch } from '../../../utils/historicalDataHelpers'
 
 let idCounter = 0
 
@@ -28,7 +29,7 @@ export function fixedSnapshotsToItems(snapshots: FixedExpenseSnapshot[]): Histor
         current != null &&
         current.endMonth + 1 === row.month &&
         current.name === name &&
-        Number(current.amount) === amount
+        historicalValuesMatch(current.amount, amount)
 
       if (isContinuation && current) {
         current.endMonth = row.month

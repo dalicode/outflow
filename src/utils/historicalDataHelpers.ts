@@ -12,9 +12,22 @@ export interface RangeItem {
 
 let _idCounter = 0
 const nextId = () => `tmp-${++_idCounter}`
+const HISTORICAL_VALUE_DECIMALS = 2
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n))
+}
+
+export function normalizeHistoricalValue(value: string | number): number {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return Number.NaN
+  return Number(numeric.toFixed(HISTORICAL_VALUE_DECIMALS))
+}
+
+export function historicalValuesMatch(a: string | number, b: string | number): boolean {
+  const normalizedA = normalizeHistoricalValue(a)
+  const normalizedB = normalizeHistoricalValue(b)
+  return Number.isFinite(normalizedA) && Number.isFinite(normalizedB) && normalizedA === normalizedB
 }
 
 /**
@@ -27,7 +40,7 @@ export function monthMapToRanges(monthMap: Record<number, number | null | undefi
   for (let m = 1; m <= 12; m++) {
     const val = monthMap?.[m]
     if (val != null && val !== 0) {
-      if (current && current.amount === val) {
+      if (current && historicalValuesMatch(current.amount, val)) {
         current.endMonth = m
       } else {
         if (current) ranges.push(current)

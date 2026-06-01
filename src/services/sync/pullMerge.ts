@@ -1,14 +1,15 @@
 import db from '../db/schema'
+import { repairFixedSnapshotIdentitySplits } from '../repositories/fixedSnapshotRepair'
 import { supabase } from '../supabase'
 import { normalizeNameForSync } from '../../utils/syncMetadata'
-import { markRecordPending } from '../../utils/syncMetadata'
+import { markRecordDeleted, markRecordPending } from '../../utils/syncMetadata'
 import { debugLog } from '../../lib/debug'
 import { fromCloud, fromCloudLocalMap } from './conversion'
 import { SYNC_BATCH_SIZE } from './constants'
 import { verifySyncIntegrity } from './integrity'
 import { fetchAllRowsForUser, getIsoTimestampMs } from './supabaseUtils'
 import type { FromCloudMaps } from './types'
-import type { Expense, ExpenseSplit, SyncedSettingRow } from '../../types'
+import type { Expense, ExpenseSplit, RecordSyncStatus, SyncedSettingRow } from '../../types'
 
 type SyncRow = Record<string, unknown> & {
   id?: number
@@ -16,6 +17,9 @@ type SyncRow = Record<string, unknown> & {
   cloudId?: string | null
   updatedAt?: string
   deletedAt?: string | null
+  syncStatus?: RecordSyncStatus
+  lastSyncedAt?: string | null
+  syncError?: string | null
   normalizedName?: string
   name?: string
 }
@@ -49,6 +53,23 @@ function buildIdentityMetadataPatch(localRow: SyncRow, incomingRow: SyncRow): Pa
     incomingRow.localId.length > 0
   ) {
     patch.localId = incomingRow.localId
+  }
+
+  return patch
+}
+
+function buildSettledSyncMetadataPatch(localRow: SyncRow, incomingRow: SyncRow): Partial<SyncRow> {
+  if (localRow.syncStatus === 'synced') return {}
+  if (incomingRow.syncStatus !== 'synced') return {}
+  if (getRowUpdatedAtMs(incomingRow) < getRowUpdatedAtMs(localRow)) return {}
+
+  const patch: Partial<SyncRow> = {
+    syncStatus: 'synced',
+    syncError: null,
+  }
+
+  if (typeof incomingRow.lastSyncedAt === 'string' && incomingRow.lastSyncedAt.length > 0) {
+    patch.lastSyncedAt = incomingRow.lastSyncedAt
   }
 
   return patch
@@ -155,9 +176,12 @@ async function mergeRows(
           pendingUpdates.set(localMatch.id, { ...localMatch })
         }
       } else {
-        const identityPatch = buildIdentityMetadataPatch(localMatch, incoming)
-        if (Object.keys(identityPatch).length > 0) {
-          Object.assign(localMatch, identityPatch)
+        const metadataPatch = {
+          ...buildIdentityMetadataPatch(localMatch, incoming),
+          ...buildSettledSyncMetadataPatch(localMatch, incoming),
+        }
+        if (Object.keys(metadataPatch).length > 0) {
+          Object.assign(localMatch, metadataPatch)
           reindexRow(localMatch, byLocalId, byCloudId, byNormalizedName)
           if (typeof localMatch.id === 'number' && localMatch.id > 0) {
             pendingUpdates.set(localMatch.id, { ...localMatch })
@@ -171,6 +195,159 @@ async function mergeRows(
     tempId -= 1
     pendingInserts.push(pendingRow)
     reindexRow(pendingRow, byLocalId, byCloudId, byNormalizedName)
+  }
+
+  if (pendingUpdates.size > 0) {
+    for (const batch of chunkArray(Array.from(pendingUpdates.values()), SYNC_BATCH_SIZE)) {
+      await table.bulkPut(batch)
+    }
+  }
+
+  if (pendingInserts.length > 0) {
+    const rowsToInsert = pendingInserts.map(({ id: _id, ...row }) => row)
+    for (const batch of chunkArray(rowsToInsert, SYNC_BATCH_SIZE)) {
+      await table.bulkAdd(batch)
+    }
+  }
+}
+
+type SnapshotSyncRow = SyncRow & {
+  year?: number
+  month?: number
+  fixedExpenseId?: number
+  amountSnapshot?: number
+  rateSnapshot?: number
+  nameSnapshot?: string
+}
+
+function getSnapshotKey(tableName: string, row: SnapshotSyncRow): string | null {
+  if (tableName === 'fixedExpenseSnapshots') {
+    if (
+      typeof row.fixedExpenseId !== 'number' ||
+      typeof row.year !== 'number' ||
+      typeof row.month !== 'number'
+    ) {
+      return null
+    }
+    return `${row.fixedExpenseId}-${row.year}-${row.month}`
+  }
+
+  if (tableName === 'incomeSnapshots' || tableName === 'savingsSnapshots') {
+    if (typeof row.year !== 'number' || typeof row.month !== 'number') return null
+    return `${row.year}-${row.month}`
+  }
+
+  return null
+}
+
+function compareSnapshotRows(a: SyncRow, b: SyncRow): number {
+  const aActive = a.deletedAt == null ? 1 : 0
+  const bActive = b.deletedAt == null ? 1 : 0
+  if (aActive !== bActive) return bActive - aActive
+
+  const aUpdatedAt = getRowUpdatedAtMs(a)
+  const bUpdatedAt = getRowUpdatedAtMs(b)
+  if (aUpdatedAt !== bUpdatedAt) return bUpdatedAt - aUpdatedAt
+
+  const aCreatedAt = getIsoTimestampMs((a as SyncRow).createdAt)
+  const bCreatedAt = getIsoTimestampMs((b as SyncRow).createdAt)
+  if (aCreatedAt !== bCreatedAt) return bCreatedAt - aCreatedAt
+
+  const aId = typeof a.id === 'number' ? a.id : Number.POSITIVE_INFINITY
+  const bId = typeof b.id === 'number' ? b.id : Number.POSITIVE_INFINITY
+  return aId - bId
+}
+
+function pickPreferredSnapshotRow<T extends SyncRow>(rows: T[]): T | undefined {
+  if (rows.length === 0) return undefined
+  return [...rows].sort(compareSnapshotRows)[0]
+}
+
+function buildSnapshotIdentityPatch(localRow: SyncRow, incomingRow: SyncRow): Partial<SyncRow> {
+  const patch: Partial<SyncRow> = buildIdentityMetadataPatch(localRow, incomingRow)
+  return patch
+}
+
+async function mergeSnapshotRows(
+  tableName: 'fixedExpenseSnapshots' | 'incomeSnapshots' | 'savingsSnapshots',
+  cloudRows: Record<string, unknown>[],
+): Promise<void> {
+  if (cloudRows.length === 0) return
+
+  const table = db.table<unknown, number>(tableName)
+  const existing = (await table.toArray()) as SnapshotSyncRow[]
+  const existingByKey = new Map<string, SnapshotSyncRow[]>()
+  const incomingByKey = new Map<string, SnapshotSyncRow[]>()
+  const nowIso = new Date().toISOString()
+
+  for (const row of existing) {
+    const key = getSnapshotKey(tableName, row)
+    if (!key) continue
+    const group = existingByKey.get(key) ?? []
+    group.push(row)
+    existingByKey.set(key, group)
+  }
+
+  for (const row of cloudRows as SnapshotSyncRow[]) {
+    const key = getSnapshotKey(tableName, row)
+    if (!key) continue
+    const group = incomingByKey.get(key) ?? []
+    group.push(row)
+    incomingByKey.set(key, group)
+  }
+
+  const pendingUpdates = new Map<number, SnapshotSyncRow>()
+  const pendingInserts: SnapshotSyncRow[] = []
+  let tempId = -1
+
+  const keys = new Set([...existingByKey.keys(), ...incomingByKey.keys()])
+  for (const key of keys) {
+    const existingGroup = existingByKey.get(key) ?? []
+    const incomingGroup = incomingByKey.get(key) ?? []
+    const preferredLocal = pickPreferredSnapshotRow(existingGroup)
+    const preferredIncoming = pickPreferredSnapshotRow(incomingGroup)
+
+    if (!preferredLocal && !preferredIncoming) continue
+
+    if (!preferredLocal && preferredIncoming) {
+      pendingInserts.push({ ...preferredIncoming, id: tempId-- })
+      continue
+    }
+
+    if (!preferredLocal) continue
+
+    const shouldAdoptIncoming =
+      preferredIncoming != null && compareSnapshotRows(preferredIncoming, preferredLocal) < 0
+    const nextRow = shouldAdoptIncoming
+      ? ({
+          ...preferredLocal,
+          ...preferredIncoming,
+          id: preferredLocal.id,
+        } as SnapshotSyncRow)
+      : ({ ...preferredLocal } as SnapshotSyncRow)
+
+    let shouldUpdatePreferred = shouldAdoptIncoming
+
+    if (!shouldAdoptIncoming && preferredIncoming) {
+      const identityPatch = buildSnapshotIdentityPatch(nextRow, preferredIncoming)
+      if (Object.keys(identityPatch).length > 0) {
+        shouldUpdatePreferred = true
+        Object.assign(nextRow, identityPatch)
+      }
+    }
+
+    if (shouldUpdatePreferred && nextRow.id != null) {
+      pendingUpdates.set(nextRow.id, nextRow)
+    }
+
+    for (const duplicate of existingGroup) {
+      if (duplicate.id == null || duplicate.id === preferredLocal.id) continue
+      pendingUpdates.set(duplicate.id, {
+        ...duplicate,
+        ...markRecordDeleted(duplicate, nowIso),
+        id: duplicate.id,
+      } as SnapshotSyncRow)
+    }
   }
 
   if (pendingUpdates.size > 0) {
@@ -450,19 +627,24 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   )
 
   if (snapRows.length > 0) {
-    await mergeRows(
+    await mergeSnapshotRows(
       'fixedExpenseSnapshots',
       snapRows.map((row) => fromCloud('fixed_expense_snapshots', row, identityMaps)),
     )
+    await repairFixedSnapshotIdentitySplits(
+      await db.fixedExpenseSnapshots.toArray(),
+      db.fixedExpenseSnapshots,
+      new Date().toISOString(),
+    )
   }
   if (incomeSnapRows.length > 0) {
-    await mergeRows(
+    await mergeSnapshotRows(
       'incomeSnapshots',
       incomeSnapRows.map((row) => fromCloud('income_snapshots', row, identityMaps)),
     )
   }
   if (savingsSnapRows.length > 0) {
-    await mergeRows(
+    await mergeSnapshotRows(
       'savingsSnapshots',
       savingsSnapRows.map((row) => fromCloud('savings_snapshots', row, identityMaps)),
     )

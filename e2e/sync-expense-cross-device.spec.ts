@@ -8,6 +8,7 @@ import {
   resetFakeCloud,
   setFakeSignedInUser,
   triggerManualSync,
+  waitForSyncSettled,
 } from './helpers'
 
 test.describe('Cross-device expense sync repro', () => {
@@ -31,6 +32,14 @@ test.describe('Cross-device expense sync repro', () => {
       await resetFakeCloud(pageA)
 
       await setFakeSignedInUser(pageA, userId, email)
+      await waitForSyncSettled(pageA)
+      await setFakeSignedInUser(pageB, userId, email)
+      await waitForSyncSettled(pageB)
+
+      const baselineDeviceBExpenses = await getAllExpenses(pageB)
+      expect(
+        baselineDeviceBExpenses.some((row) => row.notes === 'Cross-device sync repro expense'),
+      ).toBe(false)
 
       await pageA.getByTestId('btn-add-expense').first().click()
       await expect(pageA.getByTestId('expense-form')).toBeVisible()
@@ -57,13 +66,13 @@ test.describe('Cross-device expense sync repro', () => {
         )
         .toBe(true)
 
-      await setFakeSignedInUser(pageB, userId, email)
       const preSyncDeviceBExpenses = await getAllExpenses(pageB)
       expect(
         preSyncDeviceBExpenses.some((row) => row.notes === 'Cross-device sync repro expense'),
       ).toBe(false)
 
       await triggerManualSync(pageB)
+      await waitForSyncSettled(pageB)
       await gotoAndWait(pageB, '/')
       await pageB.getByTestId('view-tab-expenses').first().click()
       await expect(pageB.getByTestId('expense-table')).toBeVisible({ timeout: 5000 })

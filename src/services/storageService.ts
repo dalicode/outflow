@@ -148,6 +148,7 @@ export const StorageService = {
   getSyncQueue: syncRepo.getSyncQueue,
   hasPendingSyncMetadata: syncRepo.hasPendingSyncMetadata,
   getSyncMetadataCounts: syncRepo.getSyncMetadataCounts,
+  getSyncMetadataDiagnostics: syncRepo.getSyncMetadataDiagnostics,
   removeSyncQueueItem: syncRepo.removeSyncQueueItem,
   clearSyncQueue: syncRepo.clearSyncQueue,
 

@@ -359,6 +359,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
         syncStatus: 'pending',
         date: '2026-05-20',
         amount: 44.5,
+        updatedAt: '2026-05-20T00:00:00.000Z',
       },
     ])
 
@@ -396,7 +397,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
     const expenseUpdate = tableUpdates.find((call) => call.table === 'expenses' && call.key === 100)
     expect(expenseUpdate?.changes.syncStatus).toBe('pending')
     expect(expenseUpdate?.changes.syncError).toBeNull()
-    expect(expenseUpdate?.changes.updatedAt).toBeDefined()
+    expect(expenseUpdate?.changes.updatedAt).toBeUndefined()
   })
 
   it('does not mark an older delete upload synced after a newer local restore', async () => {
@@ -445,6 +446,62 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
 
     const expenseUpdate = tableUpdates.find((call) => call.table === 'expenses' && call.key === 100)
     expect(expenseUpdate).toBeUndefined()
+  })
+
+  it('marks a row synced when the current local copy already matches the newer returned cloud version', async () => {
+    getAllTagsMock.mockResolvedValue([
+      {
+        id: 9,
+        localId: 'tag-9',
+        cloudId: 'cloud-tag-9',
+        name: 'Travel Updated',
+        normalizedName: 'travel updated',
+        syncStatus: 'pending',
+        updatedAt: '2026-05-20T12:00:00.000Z',
+        deletedAt: null,
+      },
+    ])
+    tableRows.set(
+      'tags',
+      new Map([
+        [
+          9,
+          {
+            id: 9,
+            localId: 'tag-9',
+            cloudId: 'cloud-tag-9',
+            name: 'Travel Updated',
+            normalizedName: 'travel updated',
+            syncStatus: 'pending',
+            updatedAt: '2026-05-20T12:00:01.000Z',
+            deletedAt: null,
+          },
+        ],
+      ]),
+    )
+
+    upsertRowsInBatchesMock.mockImplementation(async (table: string) => {
+      if (table === 'tags') {
+        return [
+          {
+            id: 'cloud-tag-9',
+            local_id: 'tag-9',
+            name: 'Travel Updated',
+            normalized_name: 'travel updated',
+            updated_at: '2026-05-20T12:00:01.000Z',
+            deleted_at: null,
+          },
+        ]
+      }
+      return []
+    })
+
+    await migrateLocalToSupabase('user-1')
+
+    const tagUpdate = tableUpdates.find((call) => call.table === 'tags' && call.key === 9)
+    expect(tagUpdate?.changes.syncStatus).toBe('synced')
+    expect(tagUpdate?.changes.updatedAt).toBe('2026-05-20T12:00:01.000Z')
+    expect(tagUpdate?.changes.deletedAt).toBeNull()
   })
 
   it('matches category upsert returns by normalized name when remote local_id differs', async () => {

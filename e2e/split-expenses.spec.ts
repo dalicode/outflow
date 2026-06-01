@@ -1,5 +1,12 @@
 import { test, type Page } from '@playwright/test'
-import { addCategory, addPayee, expect, resetAppState, seedExpenseSplit } from './helpers'
+import {
+  addCategory,
+  addPayee,
+  expect,
+  getMonthOffsetIsoDate,
+  resetAppState,
+  seedExpenseSplit,
+} from './helpers'
 
 async function openExpensesView(page: Page): Promise<void> {
   await page.getByTestId('view-tab-expenses').first().click()
@@ -198,7 +205,7 @@ test.describe('Split expenses (desktop)', () => {
 
     await seedExpenseSplit(page, {
       split: {
-        date: '2026-05-18',
+        date: getMonthOffsetIsoDate(18),
         amount: 120,
         payeeId: oldPayeeId,
         payeeNameSnapshot: 'Original Split Payee',
@@ -258,7 +265,7 @@ test.describe('Split expenses (desktop)', () => {
 
     await seedExpenseSplit(page, {
       split: {
-        date: '2026-05-21',
+        date: getMonthOffsetIsoDate(21),
         amount: 48,
         payeeId,
         payeeNameSnapshot: 'Split Unsplit Payee',

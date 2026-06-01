@@ -38,8 +38,12 @@ test.describe('Smoke tests', () => {
     await page.goto('/')
     await waitForAppReady(page)
 
-    // Use .first() because both desktop and mobile render the same data-testid
-    await page.getByTestId('btn-add-expense').first().click()
+    const addExpenseButton = page
+      .getByTestId('btn-add-expense')
+      .filter({ has: page.locator(':visible') })
+      .first()
+    await expect(addExpenseButton).toBeVisible()
+    await addExpenseButton.click()
     await expect(page.getByTestId('expense-form')).toBeVisible()
   })
 
@@ -47,11 +51,18 @@ test.describe('Smoke tests', () => {
     await page.goto('/')
     await waitForAppReady(page)
 
-    await page.getByTestId('btn-add-expense').first().click()
+    const addExpenseButton = page
+      .getByTestId('btn-add-expense')
+      .filter({ has: page.locator(':visible') })
+      .first()
+    await expect(addExpenseButton).toBeVisible()
+    await addExpenseButton.click()
     await expect(page.getByTestId('expense-form')).toBeVisible()
 
     const categoryDropdown = page.getByTestId('desktop-category-dropdown')
-    await categoryDropdown.getByRole('button').click()
+    const categoryTrigger = categoryDropdown.getByRole('button')
+    await expect(categoryTrigger).toBeVisible({ timeout: 15000 })
+    await categoryTrigger.click()
 
     await expect(page.getByPlaceholder('Search...')).toBeVisible()
     await expect(page.getByText('Groceries', { exact: true })).toBeVisible()

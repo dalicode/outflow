@@ -7,6 +7,7 @@ import {
   markDeletedSyncRecord,
   markPendingActiveRecord,
 } from './common'
+import { repairFixedSnapshotIdentitySplits } from './fixedSnapshotRepair'
 
 export interface HistoricalFixedItem {
   id: string
@@ -59,7 +60,12 @@ export function saveHistoricalSnapshotConfigs({
         ])
         const existingIncome = filterActiveRows(allIncome)
         const existingSavings = filterActiveRows(allSavings)
-        const existingFixed = filterActiveRows(allFixed)
+        const repairedFixed = await repairFixedSnapshotIdentitySplits(
+          allFixed,
+          db.fixedExpenseSnapshots,
+          now,
+        )
+        const existingFixed = filterActiveRows(repairedFixed)
 
         const desiredIncomeByKey = new Map<
           string,
@@ -213,7 +219,7 @@ export function saveHistoricalSnapshotConfigs({
         }
 
         const existingFixedByKey = new Map(
-          allFixed.map((row) => [buildFixedKey(row.fixedExpenseId, row.year, row.month), row]),
+          repairedFixed.map((row) => [buildFixedKey(row.fixedExpenseId, row.year, row.month), row]),
         )
         for (const [key, desired] of desiredFixedByKey.entries()) {
           const existing = existingFixedByKey.get(key)

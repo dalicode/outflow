@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { resetAppState } from './helpers'
+import { resetAppState, waitForAppReady } from './helpers'
 
 const visibleFiltersButton = (page: Page) =>
   page.getByTestId('btn-open-filters').filter({ visible: true }).first()
@@ -13,6 +13,8 @@ test.describe('Date picker dropdown (mobile)', () => {
   })
 
   test('bottom-sheet day clicks update the trigger value', async ({ page }) => {
+    await waitForAppReady(page)
+    await expect(visibleFiltersButton(page)).toBeVisible()
     await visibleFiltersButton(page).click()
     const dialog = page.getByRole('dialog', { name: 'Filter Transactions' })
     await expect(dialog).toBeVisible()

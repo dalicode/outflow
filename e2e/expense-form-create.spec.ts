@@ -1,5 +1,5 @@
 import { test } from '@playwright/test'
-import { expect, getAllExpenses, resetAppState } from './helpers'
+import { expect, getAllExpenses, getMonthOffsetIsoDate, resetAppState } from './helpers'
 
 test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
   test.beforeEach(async ({ page }) => {
@@ -39,7 +39,7 @@ test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
 
   test('right-click edit modifies expense and persists', async ({ page }) => {
     await resetAppState(page, {
-      expenses: [{ date: '2026-05-01', amount: 15.5, notes: 'Original lunch' }],
+      expenses: [{ date: getMonthOffsetIsoDate(1), amount: 15.5, notes: 'Original lunch' }],
     })
 
     // Switch to expenses view
@@ -74,7 +74,7 @@ test.describe('Expense form — full create/edit/delete flow (desktop)', () => {
 
   test('delete via context menu removes the expense permanently', async ({ page }) => {
     await resetAppState(page, {
-      expenses: [{ date: '2026-05-01', amount: 25.0, notes: 'To be deleted' }],
+      expenses: [{ date: getMonthOffsetIsoDate(1), amount: 25.0, notes: 'To be deleted' }],
     })
 
     await page.getByTestId('view-tab-expenses').first().click()

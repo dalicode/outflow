@@ -25,7 +25,9 @@ const MONTH_NAMES = [
 ]
 
 async function openHistoricalModal(page: Page): Promise<Locator> {
-  await page.getByTestId('btn-open-historical-data').click()
+  const trigger = page.getByTestId('btn-open-historical-data')
+  await expect(trigger).toBeVisible({ timeout: 15000 })
+  await trigger.click()
   const dialog = page.getByRole('dialog', { name: 'Edit Historical Data' })
   await expect(dialog).toBeVisible()
   return dialog

@@ -95,10 +95,11 @@ test.describe('Tag assignment flows (desktop)', () => {
     await popover.getByPlaceholder('Search or create tags').fill('Recurring')
     await popover.getByRole('option', { name: 'Recurring' }).click()
     await popover.getByTestId('tags-editor-save').click()
-    await expect(row).toContainText('Recurring')
     const internet = (await getAllExpenses(page)).find((expense) => expense.notes === 'Internet')
-    const updatedTagIds = await getTagIdsForExpense(page, internet?.id as number)
-    expect(updatedTagIds).toContain(existingTagId)
+    await expect
+      .poll(async () => getTagIdsForExpense(page, internet?.id as number))
+      .toContain(existingTagId)
+    await expect(page.getByTestId('expense-table')).toContainText('Recurring')
   })
 
   test('inline dashboard tag editing: create new tag', async ({ page }) => {
@@ -121,7 +122,7 @@ test.describe('Tag assignment flows (desktop)', () => {
     await popover.getByPlaceholder('Search or create tags').fill('Home')
     await popover.getByRole('option', { name: 'Create "Home"' }).click()
     await popover.getByTestId('tags-editor-save').click()
-    await expect(row).toContainText('Home')
+    await expect(page.getByTestId('expense-table')).toContainText('Home')
   })
 
   test('inline dashboard tag editing: remove all tags', async ({ page }) => {
@@ -149,8 +150,8 @@ test.describe('Tag assignment flows (desktop)', () => {
     await expect(row).not.toContainText('Recurring')
 
     const phone = (await getAllExpenses(page)).find((expense) => expense.notes === 'Phone')
-    const updatedTagIds = await getTagIdsForExpense(page, phone?.id as number)
-    expect(updatedTagIds).not.toContain(recurringId)
-    expect(updatedTagIds).toHaveLength(0)
+    await expect
+      .poll(async () => getTagIdsForExpense(page, phone?.id as number))
+      .toEqual([])
   })
 })

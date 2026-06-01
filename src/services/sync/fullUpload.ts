@@ -9,7 +9,7 @@ import type {
   SyncedSettingRow,
   Tag,
 } from '../../types'
-import { markRecordFailed, markRecordPending, markRecordSynced } from '../../utils/syncMetadata'
+import { markRecordFailed, markRecordSynced } from '../../utils/syncMetadata'
 import db from '../db/schema'
 import { StorageService } from '../storageService'
 import { supabase } from '../supabase'
@@ -76,6 +76,40 @@ function didLocalRowChangeDuringUpload(
   return (
     currentRow.updatedAt !== uploadedRow.updatedAt || currentRow.deletedAt !== uploadedRow.deletedAt
   )
+}
+
+function getReturnedRowUpdatedAt(
+  returnedRow: Record<string, unknown> | undefined,
+  uploadedRow: SyncableRow,
+): string | undefined {
+  const updatedAt = returnedRow?.updated_at
+  return typeof updatedAt === 'string' && updatedAt.length > 0 ? updatedAt : uploadedRow.updatedAt
+}
+
+function getReturnedRowDeletedAt(
+  returnedRow: Record<string, unknown> | undefined,
+  uploadedRow: SyncableRow,
+): string | null {
+  const deletedAt = returnedRow?.deleted_at
+  if (typeof deletedAt === 'string' && deletedAt.length > 0) return deletedAt
+  return uploadedRow.deletedAt ?? null
+}
+
+function shouldSkipSettledUpdate(
+  currentRow: SyncableRow | undefined,
+  returnedRow: Record<string, unknown> | undefined,
+  uploadedRow: SyncableRow,
+): boolean {
+  if (!currentRow) return false
+
+  const currentUpdatedAtMs = getIsoTimestampMs(currentRow.updatedAt)
+  const returnedUpdatedAt = getReturnedRowUpdatedAt(returnedRow, uploadedRow)
+  const returnedUpdatedAtMs = getIsoTimestampMs(returnedUpdatedAt)
+  if (currentUpdatedAtMs > returnedUpdatedAtMs) return true
+
+  const currentDeletedAt = currentRow.deletedAt ?? null
+  const returnedDeletedAt = getReturnedRowDeletedAt(returnedRow, uploadedRow)
+  return currentUpdatedAtMs === returnedUpdatedAtMs && currentDeletedAt !== returnedDeletedAt
 }
 
 function isPendingOrFailed(status: RecordSyncStatus | undefined): boolean {
@@ -245,7 +279,6 @@ async function markTableRowsFailed<T extends SyncableRow>(
   options?: SyncRunGuardOptions,
 ): Promise<void> {
   const table = db.table(config.localTableName)
-  const failedAt = new Date().toISOString()
   for (const entry of entries) {
     assertSyncRunActive(options?.shouldContinue)
     const key = config.getPrimaryKey(entry.row)
@@ -253,12 +286,10 @@ async function markTableRowsFailed<T extends SyncableRow>(
     const currentRow = (await table.get(key)) as T | undefined
     if (didLocalRowChangeDuringUpload(currentRow, entry.row)) continue
     if (keepPending) {
-      const pending = markRecordPending(entry.row, failedAt)
       await table.update(key, {
-        syncStatus: pending.syncStatus,
-        syncError: pending.syncError,
-        deviceId: pending.deviceId ?? null,
-        updatedAt: pending.updatedAt,
+        syncStatus: 'pending',
+        syncError: null,
+        deviceId: entry.row.deviceId ?? currentRow?.deviceId ?? null,
       } as Record<string, unknown>)
       continue
     }
@@ -289,7 +320,6 @@ async function markTableRowsSynced<T extends SyncableRow>(
     const key = config.getPrimaryKey(entry.row)
     if (key == null) continue
     const currentRow = (await table.get(key)) as T | undefined
-    if (didLocalRowChangeDuringUpload(currentRow, entry.row)) continue
 
     const localId = getLocalId(entry.row)
     const returned =
@@ -303,6 +333,7 @@ async function markTableRowsSynced<T extends SyncableRow>(
         ? byNormalizedName.get(normalizeRowName(entry.row as NameLikeRow) ?? '')
         : undefined
     const matchedReturned = returned ?? returnedByName
+    if (shouldSkipSettledUpdate(currentRow, matchedReturned, entry.row)) continue
 
     const cloudIdFromReturn = matchedReturned?.id
     const cloudId =
@@ -310,34 +341,35 @@ async function markTableRowsSynced<T extends SyncableRow>(
         ? cloudIdFromReturn
         : getCloudId(entry.row)
     const createdAtFromReturn = matchedReturned?.created_at
-    const updatedAtFromReturn = matchedReturned?.updated_at
+    const updatedAtFromReturn = getReturnedRowUpdatedAt(matchedReturned, entry.row)
+    const deletedAtFromReturn = getReturnedRowDeletedAt(matchedReturned, entry.row)
+    const rowToMark = currentRow ?? entry.row
     const synced = markRecordSynced(
-      entry.row,
+      rowToMark,
       {
         cloudId: cloudId ?? null,
         createdAt:
           typeof createdAtFromReturn === 'string' && createdAtFromReturn.length > 0
             ? createdAtFromReturn
-            : entry.row.createdAt,
-        updatedAt:
-          typeof updatedAtFromReturn === 'string' && updatedAtFromReturn.length > 0
-            ? updatedAtFromReturn
-            : entry.row.updatedAt,
+            : rowToMark.createdAt,
+        updatedAt: updatedAtFromReturn,
       },
       syncedAt,
     )
 
     await table.update(key, {
       cloudId: synced.cloudId ?? null,
-      createdAt: synced.createdAt ?? entry.row.createdAt ?? syncedAt,
-      updatedAt: synced.updatedAt ?? entry.row.updatedAt ?? syncedAt,
+      createdAt: synced.createdAt ?? rowToMark.createdAt ?? syncedAt,
+      deletedAt: deletedAtFromReturn,
+      updatedAt: synced.updatedAt ?? rowToMark.updatedAt ?? syncedAt,
       syncStatus: synced.syncStatus,
       lastSyncedAt: synced.lastSyncedAt,
       syncError: synced.syncError,
-      deviceId: synced.deviceId ?? entry.row.deviceId ?? null,
+      deviceId: synced.deviceId ?? rowToMark.deviceId ?? null,
     } as Record<string, unknown>)
     entry.row.cloudId = (synced.cloudId ?? null) as string | null
     entry.row.createdAt = synced.createdAt
+    entry.row.deletedAt = deletedAtFromReturn
     entry.row.updatedAt = synced.updatedAt
     entry.row.syncStatus = synced.syncStatus
     entry.row.lastSyncedAt = synced.lastSyncedAt

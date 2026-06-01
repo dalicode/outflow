@@ -33,7 +33,7 @@ export interface CellEditingAPI {
     expenseId: number,
     field: EditableField,
     options?: { stayInEdit?: boolean },
-  ) => (value: unknown) => void
+  ) => (value: unknown) => Promise<void>
   createOnCancel: () => () => void
   handleEnterNavigation: (expense: Expense, field: EditableField, shiftKey: boolean) => void
   handleTabNavigation: (expense: Expense, field: EditableField, shiftKey: boolean) => void
@@ -46,7 +46,7 @@ export interface CellEditingAPI {
 
 interface UseExpenseCellEditingParams {
   expenses: Expense[]
-  onUpdate: (id: number, changes: Partial<Expense>) => void
+  onUpdate: (id: number, changes: Partial<Expense>) => void | Promise<void>
   isMobile: boolean
   showNotesColumn?: boolean
   showTagsColumn?: boolean
@@ -263,12 +263,12 @@ export function useExpenseCellEditing({
 
   const createOnCommit = useCallback(
     (expenseId: number, field: EditableField, options?: { stayInEdit?: boolean }) => {
-      return (value: unknown) => {
+      return async (value: unknown) => {
         if (options?.stayInEdit) {
           setAutoOpenCell(null)
         }
 
-        onUpdate(expenseId, { [field]: value } as Partial<Expense>)
+        await onUpdate(expenseId, { [field]: value } as Partial<Expense>)
 
         if (options?.stayInEdit) return
 

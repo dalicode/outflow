@@ -679,6 +679,370 @@ describe('pullFromSupabase Phase 5 merge behavior', () => {
     expect(localState.expenses[0].syncStatus).toBe('pending')
     expect(localState.expenses[0].notes).toBe('Split child')
   })
+
+  it('marks equal-version pending local rows synced when the cloud row already exists', async () => {
+    localState.tags.push({
+      id: 1,
+      localId: 'tag-local-1',
+      cloudId: 'cloud-tag-1',
+      name: 'Travel',
+      normalizedName: 'travel',
+      updatedAt: '2026-05-12T00:00:00.000Z',
+      deletedAt: null,
+      syncStatus: 'pending',
+      lastSyncedAt: null,
+      syncError: null,
+    })
+    remoteState.tags.push({
+      id: 'cloud-tag-1',
+      local_id: 'tag-local-1',
+      name: 'Travel',
+      normalized_name: 'travel',
+      updated_at: '2026-05-12T00:00:00.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(localState.tags[0].syncStatus).toBe('synced')
+    expect(localState.tags[0].syncError).toBeNull()
+    expect(localState.tags[0].lastSyncedAt).toBe('2026-05-12T00:00:00.000Z')
+  })
+
+  it('marks pending local rows synced when the pulled cloud row has a newer timestamp', async () => {
+    localState.expenses.push({
+      id: 1,
+      localId: 'expense-local-1',
+      cloudId: 'cloud-expense-1',
+      date: '2026-05-12',
+      amount: 42,
+      categoryId: null,
+      payeeId: null,
+      notes: 'Pending locally',
+      updatedAt: '2026-05-12T00:00:00.000Z',
+      deletedAt: null,
+      syncStatus: 'pending',
+      lastSyncedAt: null,
+      syncError: null,
+    })
+    remoteState.expenses.push({
+      id: 'cloud-expense-1',
+      local_id: 'expense-local-1',
+      date: '2026-05-12',
+      amount: 42,
+      category_id: null,
+      payee_id: null,
+      notes: 'Pending locally',
+      updated_at: '2026-05-12T00:00:01.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(localState.expenses[0].syncStatus).toBe('synced')
+    expect(localState.expenses[0].syncError).toBeNull()
+    expect(localState.expenses[0].updatedAt).toBe('2026-05-12T00:00:01.000Z')
+    expect(localState.expenses[0].lastSyncedAt).toBe('2026-05-12T00:00:01.000Z')
+  })
+
+  it('keeps pending local rows pending when the pulled cloud row is older', async () => {
+    localState.expenseTags.push({
+      id: 1,
+      localId: 'expense-tag-local-1',
+      cloudId: 'cloud-expense-tag-1',
+      expenseId: 10,
+      tagId: 20,
+      updatedAt: '2026-05-12T00:00:02.000Z',
+      deletedAt: null,
+      syncStatus: 'pending',
+      lastSyncedAt: null,
+      syncError: null,
+    })
+    remoteState.expense_tags.push({
+      id: 'cloud-expense-tag-1',
+      local_id: 'expense-tag-local-1',
+      expense_id: 10,
+      tag_id: 20,
+      updated_at: '2026-05-12T00:00:01.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    expect(localState.expenseTags[0].syncStatus).toBe('pending')
+    expect(localState.expenseTags[0].lastSyncedAt).toBeNull()
+    expect(localState.expenseTags[0].updatedAt).toBe('2026-05-12T00:00:02.000Z')
+  })
+
+  it('collapses duplicate snapshot rows by natural month key even when local ids differ', async () => {
+    localState.fixedExpenses.push({
+      id: 11,
+      localId: 'fixed-local-11',
+      cloudId: 'cloud-fixed-11',
+      name: 'Rent',
+      amount: 1200,
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+    })
+    localState.incomeSnapshots.push(
+      {
+        id: 1,
+        localId: 'income-local-a',
+        year: 2026,
+        month: 4,
+        amountSnapshot: 4800,
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        deletedAt: null,
+      },
+      {
+        id: 2,
+        localId: 'income-local-b',
+        year: 2026,
+        month: 4,
+        amountSnapshot: 4900,
+        updatedAt: '2026-05-02T00:00:00.000Z',
+        deletedAt: null,
+      },
+    )
+    localState.savingsSnapshots.push(
+      {
+        id: 3,
+        localId: 'savings-local-a',
+        year: 2026,
+        month: 4,
+        rateSnapshot: 0.17,
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        deletedAt: null,
+      },
+      {
+        id: 4,
+        localId: 'savings-local-b',
+        year: 2026,
+        month: 4,
+        rateSnapshot: 0.18,
+        updatedAt: '2026-05-03T00:00:00.000Z',
+        deletedAt: null,
+      },
+    )
+    localState.fixedExpenseSnapshots.push(
+      {
+        id: 5,
+        localId: 'fixed-snapshot-a',
+        fixedExpenseId: 11,
+        year: 2026,
+        month: 4,
+        nameSnapshot: 'Rent',
+        amountSnapshot: 1150,
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        deletedAt: null,
+      },
+      {
+        id: 6,
+        localId: 'fixed-snapshot-b',
+        fixedExpenseId: 11,
+        year: 2026,
+        month: 4,
+        nameSnapshot: 'Rent',
+        amountSnapshot: 1180,
+        updatedAt: '2026-05-03T00:00:00.000Z',
+        deletedAt: null,
+      },
+    )
+
+    remoteState.fixed_expenses.push({
+      id: 'cloud-fixed-11',
+      local_id: 'remote-fixed-11',
+      name: 'Rent',
+      amount: 1200,
+      updated_at: '2026-05-10T00:00:00.000Z',
+    })
+    remoteState.income_snapshots.push(
+      {
+        id: 'cloud-income-1',
+        local_id: 'remote-income-1',
+        year: 2026,
+        month: 4,
+        amount_snapshot: 5000,
+        updated_at: '2026-05-10T00:00:00.000Z',
+        deleted_at: null,
+      },
+      {
+        id: 'cloud-income-2',
+        local_id: 'remote-income-2',
+        year: 2026,
+        month: 4,
+        amount_snapshot: 5100,
+        updated_at: '2026-05-12T00:00:00.000Z',
+        deleted_at: null,
+      },
+    )
+    remoteState.savings_snapshots.push(
+      {
+        id: 'cloud-savings-1',
+        local_id: 'remote-savings-1',
+        year: 2026,
+        month: 4,
+        rate_snapshot: 0.2,
+        updated_at: '2026-05-10T00:00:00.000Z',
+        deleted_at: null,
+      },
+      {
+        id: 'cloud-savings-2',
+        local_id: 'remote-savings-2',
+        year: 2026,
+        month: 4,
+        rate_snapshot: 0.21,
+        updated_at: '2026-05-12T00:00:00.000Z',
+        deleted_at: null,
+      },
+    )
+    remoteState.fixed_expense_snapshots.push(
+      {
+        id: 'cloud-fixed-snapshot-1',
+        local_id: 'remote-fixed-snapshot-1',
+        fixed_expense_id: 'cloud-fixed-11',
+        year: 2026,
+        month: 4,
+        name_snapshot: 'Rent',
+        amount_snapshot: 1200,
+        updated_at: '2026-05-10T00:00:00.000Z',
+        deleted_at: null,
+      },
+      {
+        id: 'cloud-fixed-snapshot-2',
+        local_id: 'remote-fixed-snapshot-2',
+        fixed_expense_id: 'cloud-fixed-11',
+        year: 2026,
+        month: 4,
+        name_snapshot: 'Rent',
+        amount_snapshot: 1300,
+        updated_at: '2026-05-12T00:00:00.000Z',
+        deleted_at: null,
+      },
+    )
+
+    await pullFromSupabase('user-1')
+
+    const activeIncomeSnapshots = localState.incomeSnapshots.filter((row) => row.deletedAt == null)
+    const activeSavingsSnapshots = localState.savingsSnapshots.filter((row) => row.deletedAt == null)
+    const activeFixedSnapshots = localState.fixedExpenseSnapshots.filter(
+      (row) => row.deletedAt == null,
+    )
+
+    expect(activeIncomeSnapshots).toHaveLength(1)
+    expect(activeIncomeSnapshots[0].amountSnapshot).toBe(5100)
+    expect(localState.incomeSnapshots.filter((row) => row.year === 2026 && row.month === 4)).toHaveLength(2)
+
+    expect(activeSavingsSnapshots).toHaveLength(1)
+    expect(activeSavingsSnapshots[0].rateSnapshot).toBe(0.21)
+    expect(localState.savingsSnapshots.filter((row) => row.year === 2026 && row.month === 4)).toHaveLength(2)
+
+    expect(activeFixedSnapshots).toHaveLength(1)
+    expect(activeFixedSnapshots[0].amountSnapshot).toBe(1300)
+    expect(
+      localState.fixedExpenseSnapshots.filter(
+        (row) => row.fixedExpenseId === 11 && row.year === 2026 && row.month === 4,
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('does not rewrite preferred snapshot rows when incoming data is unchanged', async () => {
+    localState.fixedExpenses.push({
+      id: 11,
+      localId: 'fixed-local-11',
+      cloudId: 'cloud-fixed-11',
+      name: 'Rent',
+      amount: 1200,
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+    })
+    localState.fixedExpenseSnapshots.push({
+      id: 5,
+      localId: 'fixed-snapshot-5',
+      cloudId: 'cloud-fixed-snapshot-5',
+      fixedExpenseId: 11,
+      year: 2026,
+      month: 4,
+      nameSnapshot: 'Rent',
+      amountSnapshot: 1200,
+      createdAt: '2026-05-12T00:00:00.000Z',
+      updatedAt: '2026-05-12T00:00:00.000Z',
+      deletedAt: null,
+    })
+
+    remoteState.fixed_expenses.push({
+      id: 'cloud-fixed-11',
+      local_id: 'fixed-local-11',
+      name: 'Rent',
+      amount: 1200,
+      updated_at: '2026-05-01T00:00:00.000Z',
+      deleted_at: null,
+    })
+    remoteState.fixed_expense_snapshots.push({
+      id: 'cloud-fixed-snapshot-5',
+      local_id: 'fixed-snapshot-5',
+      fixed_expense_id: 'cloud-fixed-11',
+      year: 2026,
+      month: 4,
+      name_snapshot: 'Rent',
+      amount_snapshot: 1200,
+      created_at: '2026-05-12T00:00:00.000Z',
+      updated_at: '2026-05-12T00:00:00.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    const fixedSnapshotPutCalls = bulkWriteCalls.bulkPut.filter(
+      (call) => call.table === 'fixedExpenseSnapshots',
+    )
+    expect(fixedSnapshotPutCalls).toHaveLength(0)
+  })
+
+  it('repairs fixed snapshot identity splits introduced by another device during pull', async () => {
+    localState.fixedExpenses.push({
+      id: 11,
+      localId: 'fixed-local-11',
+      cloudId: 'cloud-fixed-11',
+      name: 'Mortgage',
+      amount: 1200,
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+    })
+    localState.fixedExpenseSnapshots.push({
+      id: 1,
+      localId: 'mortgage-apr',
+      fixedExpenseId: 100,
+      year: 2026,
+      month: 4,
+      nameSnapshot: 'Mortgage',
+      amountSnapshot: 1200,
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+    })
+
+    remoteState.fixed_expense_snapshots.push({
+      id: 'cloud-fixed-snapshot-may',
+      local_id: 'remote-mortgage-may',
+      fixed_expense_id: 'cloud-fixed-11',
+      year: 2026,
+      month: 5,
+      name_snapshot: 'Mortgage',
+      amount_snapshot: 1200.0000000001,
+      updated_at: '2026-05-12T00:00:00.000Z',
+      deleted_at: null,
+    })
+
+    await pullFromSupabase('user-1')
+
+    const activeMortgageRows = localState.fixedExpenseSnapshots.filter(
+      (row) => row.nameSnapshot === 'Mortgage' && row.deletedAt == null,
+    )
+
+    expect(activeMortgageRows).toHaveLength(2)
+    expect(activeMortgageRows.every((row) => row.fixedExpenseId === 100)).toBe(true)
+    expect(activeMortgageRows.find((row) => row.month === 5)?.syncStatus).toBe('pending')
+  })
 })
 
 describe('verifySyncIntegrity', () => {

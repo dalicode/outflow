@@ -27,6 +27,7 @@ import { useCategories, useExpenses, usePayees, useTags } from '../hooks/useLoca
 import { useOptimisticExpenseDelete } from '../hooks/useOptimisticExpenseDelete'
 import { useStartupSnapshots } from '../hooks/useStartupSnapshots'
 import { StorageService } from '../services/storageService'
+import { pullFromSupabase } from '../services/syncService'
 import { supabase } from '../services/supabase'
 import type { Expense } from '../types'
 import { cn } from '../lib/cn'
@@ -114,7 +115,17 @@ function AppShell() {
   } = useScrollDirection()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false)
-  const { snapshotsReady, announceAppliedScheduleUpdates } = useStartupSnapshots({ showToast })
+  const preStartupPull = useCallback(async () => {
+    if (!supabase || !user?.id) return
+    if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) return
+    await pullFromSupabase(user.id)
+    forceFinanceDataRefresh()
+  }, [forceFinanceDataRefresh, user?.id])
+  const { snapshotsReady, announceAppliedScheduleUpdates } = useStartupSnapshots({
+    showToast,
+    preStartupPull,
+    readyToStart: !loading,
+  })
   const isReady = !loading && settingsLoaded && snapshotsReady
 
   // Ref that Dashboard registers its cycleView fn into, so Navbar can call it

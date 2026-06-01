@@ -1,5 +1,12 @@
 import { test, type Page } from '@playwright/test'
-import { addCategory, addPayee, expect, resetAppState, seedExpenseSplit } from './helpers'
+import {
+  addCategory,
+  addPayee,
+  expect,
+  getMonthOffsetIsoDate,
+  resetAppState,
+  seedExpenseSplit,
+} from './helpers'
 
 test.describe('Split expenses (mobile)', () => {
   test.beforeEach(async ({ page }) => {
@@ -13,7 +20,7 @@ test.describe('Split expenses (mobile)', () => {
 
     await seedExpenseSplit(page, {
       split: {
-        date: '2026-05-22',
+        date: getMonthOffsetIsoDate(22),
         amount: 64,
         payeeId,
         payeeNameSnapshot: 'Mobile Split Payee',

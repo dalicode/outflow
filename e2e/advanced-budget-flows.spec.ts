@@ -2,6 +2,7 @@ import { test } from '@playwright/test'
 import {
   addPayee,
   expect,
+  getMonthOffsetIsoDate,
   getAllExpenses,
   getPayees,
   resetAppState,
@@ -13,9 +14,9 @@ test.describe('Advanced budget flows', () => {
   test('bulk edit applies notes updates to selected expenses', async ({ page }) => {
     await resetAppState(page, {
       expenses: [
-        { date: '2026-05-01', amount: 15.5, notes: 'Lunch' },
-        { date: '2026-05-02', amount: 42.0, notes: 'Groceries' },
-        { date: '2026-05-03', amount: 5.0, notes: 'Snack' },
+        { date: getMonthOffsetIsoDate(1), amount: 15.5, notes: 'Lunch' },
+        { date: getMonthOffsetIsoDate(2), amount: 42.0, notes: 'Groceries' },
+        { date: getMonthOffsetIsoDate(3), amount: 5.0, notes: 'Snack' },
       ],
     })
 
@@ -47,13 +48,13 @@ test.describe('Advanced budget flows', () => {
 
     await seedExpenses(page, [
       {
-        date: '2026-05-04',
+        date: getMonthOffsetIsoDate(4),
         amount: 24.75,
         notes: 'Alpha lunch',
         payeeId: alphaId,
       },
       {
-        date: '2026-05-05',
+        date: getMonthOffsetIsoDate(5),
         amount: 18.2,
         notes: 'Alpha coffee',
         payeeId: alphaId,

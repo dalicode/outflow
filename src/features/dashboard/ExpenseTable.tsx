@@ -98,7 +98,7 @@ const TAGS_POPOVER_GAP = 6
 
 interface ExpenseTableProps {
   expenses: Expense[]
-  onUpdate: (id: number, changes: Partial<Expense>) => void
+  onUpdate: (id: number, changes: Partial<Expense>) => void | Promise<void>
   onDelete: (id: number) => void
   onBulkDelete?: (ids: number[]) => void
   categories?: Category[]
