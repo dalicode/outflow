@@ -6,6 +6,7 @@ import type { Category, Expense, Payee, Tag } from '../../types'
 import { cn } from '../../lib/cn'
 import InlineEditCell from './InlineEditCell'
 import InlineMoneyEditCell from './InlineMoneyEditCell'
+import type { ExpenseTableSort, SortableExpenseColumnId } from './expenseTableSorting'
 import type { ExpenseDisplayRow } from './splitDisplayRows'
 import {
   getStableTagIdentity,
@@ -44,6 +45,8 @@ interface GetExpenseColumnsParams {
   expenseTagsMap: Record<number, Tag[]>
   showNotesColumn: boolean
   showTagsColumn: boolean
+  sort: ExpenseTableSort | null
+  onToggleSort: (columnId: SortableExpenseColumnId) => void
   onToggleSplitExpanded: (splitId: number) => void
   isSplitExpanded: (splitId: number) => boolean
   isSplitParentSelected: (splitId: number) => boolean
@@ -206,6 +209,45 @@ function activateFromPointerEvent(e: React.PointerEvent, onActivate: () => void)
   e.preventDefault()
   e.stopPropagation()
   onActivate()
+}
+
+function getColumnAriaSort(
+  sort: ExpenseTableSort | null,
+  columnId: SortableExpenseColumnId,
+): React.AriaAttributes['aria-sort'] {
+  if (sort?.columnId !== columnId) return 'none'
+  return sort.direction === 'asc' ? 'ascending' : 'descending'
+}
+
+function renderSortableHeader(params: {
+  label: string
+  columnId: SortableExpenseColumnId
+  sort: ExpenseTableSort | null
+  onToggleSort: (columnId: SortableExpenseColumnId) => void
+  align?: 'left' | 'right'
+}): React.ReactNode {
+  const { label, columnId, sort, onToggleSort, align = 'left' } = params
+  const isActive = sort?.columnId === columnId
+  const indicator = isActive ? (sort.direction === 'asc' ? '↑' : '↓') : null
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'inline-flex w-full items-center gap-1 text-left transition-colors hover:text-theme-text',
+        align === 'right' ? 'justify-end text-right' : 'justify-start',
+        isActive ? 'text-theme-text' : 'text-theme-muted',
+      )}
+      onClick={() => onToggleSort(columnId)}
+    >
+      <span>{label}</span>
+      {indicator ? (
+        <span aria-hidden="true" className="text-xs leading-none">
+          {indicator}
+        </span>
+      ) : null}
+    </button>
+  )
 }
 
 export function editableCellActivate(
@@ -397,6 +439,8 @@ export function getExpenseColumns({
   expenseTagsMap,
   showNotesColumn,
   showTagsColumn,
+  sort,
+  onToggleSort,
   onToggleSplitExpanded,
   isSplitExpanded,
   isSplitParentSelected,
@@ -515,7 +559,13 @@ export function getExpenseColumns({
     },
     {
       id: 'date',
-      header: 'Date',
+      header: () =>
+        renderSortableHeader({
+          label: 'Date',
+          columnId: 'date',
+          sort,
+          onToggleSort,
+        }),
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitChild') {
@@ -584,6 +634,7 @@ export function getExpenseColumns({
       },
       meta: {
         className: 'text-left',
+        ariaSort: getColumnAriaSort(sort, 'date'),
         cellClassName: 'text-theme-text whitespace-nowrap overflow-hidden',
         onBodyCellPointerDown: (e, rowData) => {
           if (rowData.rowType === 'splitChild') return
@@ -615,7 +666,13 @@ export function getExpenseColumns({
     },
     {
       id: 'payee',
-      header: 'Payee',
+      header: () =>
+        renderSortableHeader({
+          label: 'Payee',
+          columnId: 'payee',
+          sort,
+          onToggleSort,
+        }),
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
@@ -734,6 +791,7 @@ export function getExpenseColumns({
       },
       meta: {
         className: 'text-left hidden sm:table-cell',
+        ariaSort: getColumnAriaSort(sort, 'payee'),
         cellClassName: 'whitespace-nowrap overflow-hidden max-w-[12rem]',
         onBodyCellPointerDown: (e, rowData) => {
           if (rowData.rowType === 'splitChild') return
@@ -766,7 +824,13 @@ export function getExpenseColumns({
     },
     {
       id: 'category',
-      header: 'Category',
+      header: () =>
+        renderSortableHeader({
+          label: 'Category',
+          columnId: 'category',
+          sort,
+          onToggleSort,
+        }),
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
@@ -842,6 +906,7 @@ export function getExpenseColumns({
       },
       meta: {
         className: 'text-left',
+        ariaSort: getColumnAriaSort(sort, 'category'),
         cellClassName: 'whitespace-nowrap overflow-hidden',
         onBodyCellPointerDown: (e, rowData) => {
           if (rowData.rowType === 'splitContainer') return
@@ -869,7 +934,13 @@ export function getExpenseColumns({
   if (showNotesColumn) {
     columns.push({
       id: 'notes',
-      header: 'Notes',
+      header: () =>
+        renderSortableHeader({
+          label: 'Notes',
+          columnId: 'notes',
+          sort,
+          onToggleSort,
+        }),
       cell: ({ row }) => {
         const rowData = row.original
         if (rowData.rowType === 'splitContainer') {
@@ -936,6 +1007,7 @@ export function getExpenseColumns({
       },
       meta: {
         className: 'text-left',
+        ariaSort: getColumnAriaSort(sort, 'notes'),
         cellClassName: 'text-theme-text overflow-hidden max-w-[14rem]',
         onBodyCellPointerDown: (e, rowData) => {
           if (rowData.rowType === 'splitContainer') {
@@ -968,7 +1040,13 @@ export function getExpenseColumns({
   if (showTagsColumn) {
     columns.push({
       id: 'tags',
-      header: 'Tags',
+      header: () =>
+        renderSortableHeader({
+          label: 'Tags',
+          columnId: 'tags',
+          sort,
+          onToggleSort,
+        }),
       cell: ({ row }) => {
         const rowData = row.original
 
@@ -1010,6 +1088,7 @@ export function getExpenseColumns({
       },
       meta: {
         className: 'text-left',
+        ariaSort: getColumnAriaSort(sort, 'tags'),
         cellClassName: 'whitespace-nowrap overflow-hidden max-w-[10rem]',
         onBodyCellPointerDown: (e, rowData) => {
           if (rowData.rowType === 'splitContainer') return
@@ -1036,7 +1115,14 @@ export function getExpenseColumns({
 
   columns.push({
     id: 'amount',
-    header: 'Amount',
+    header: () =>
+      renderSortableHeader({
+        label: 'Amount',
+        columnId: 'amount',
+        sort,
+        onToggleSort,
+        align: 'right',
+      }),
     cell: ({ row }) => {
       const rowData = row.original
       if (rowData.rowType === 'splitContainer') {
@@ -1150,6 +1236,7 @@ export function getExpenseColumns({
     },
     meta: {
       className: 'text-right tabular-nums',
+      ariaSort: getColumnAriaSort(sort, 'amount'),
       cellClassName: 'text-right tabular-nums font-semibold whitespace-nowrap',
       onBodyCellPointerDown: (e, rowData) => {
         if (rowData.rowType === 'splitContainer') {

@@ -26,6 +26,7 @@ import { copyExpensesToClipboard } from '../../utils/copyExpenses'
 import { getDropdownFloatingPosition, type FloatingPosition } from '../../utils/floatingPosition'
 import ExpenseTableMobile from './ExpenseTableMobile'
 import { getExpenseColumns } from './expenseColumns'
+import { sortExpenseDisplayRows, type ExpenseTableSort } from './expenseTableSorting'
 import {
   buildExpenseDisplayRows,
   getEffectiveSplitParentExpanded,
@@ -188,6 +189,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     null,
   )
   const [activeReadOnlyCell, setActiveReadOnlyCell] = useState<ReadOnlyNavigationCell | null>(null)
+  const [sort, setSort] = useState<ExpenseTableSort | null>(null)
   const editingSplitFieldRef = useRef<EditingSplitField | null>(null)
   const pendingSplitFieldSwitchRef = useRef<EditingSplitField | null>(null)
   const pendingSplitFieldTimeoutRef = useRef<number | null>(null)
@@ -366,6 +368,18 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       }),
     [expenses, splits, payeeMap, resolvedIsSplitParentExpanded],
   )
+  const sortedDisplayRows = useMemo(
+    () =>
+      sortExpenseDisplayRows({
+        rows: displayRows,
+        sort,
+        formatDate,
+        catMap,
+        payeeMap,
+        expenseTagsMap,
+      }),
+    [displayRows, sort, formatDate, catMap, payeeMap, expenseTagsMap],
+  )
   const splitChildIdsBySplitId = useMemo(() => {
     const map = new Map<number, number[]>()
     expenses.forEach((expense) => {
@@ -459,6 +473,16 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
     order.push('amount')
     return order
   }, [showNotesColumn, showTagsColumn])
+
+  useEffect(() => {
+    if (sort?.columnId === 'notes' && !showNotesColumn) {
+      setSort(null)
+      return
+    }
+    if (sort?.columnId === 'tags' && !showTagsColumn) {
+      setSort(null)
+    }
+  }, [showNotesColumn, showTagsColumn, sort])
 
   const findRowByExpenseId = useCallback(
     (expenseId: number): ExpenseDisplayRow | null =>
@@ -1701,6 +1725,22 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         expenseTagsMap,
         showNotesColumn,
         showTagsColumn,
+        sort,
+        onToggleSort: (columnId) => {
+          setSort((current) => {
+            if (current?.columnId === columnId) {
+              return {
+                columnId,
+                direction: current.direction === 'asc' ? 'desc' : 'asc',
+              }
+            }
+
+            return {
+              columnId,
+              direction: 'asc',
+            }
+          })
+        },
         onToggleSplitExpanded: resolvedOnToggleSplitParentExpanded,
         isSplitExpanded: resolvedIsSplitParentExpanded,
         isSplitParentSelected: (splitId) => {
@@ -1744,6 +1784,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
       expenseTagsMap,
       showNotesColumn,
       showTagsColumn,
+      sort,
       resolvedOnToggleSplitParentExpanded,
       resolvedIsSplitParentExpanded,
       splitChildIdsBySplitId,
@@ -1894,7 +1935,7 @@ const ExpenseTable = forwardRef<ExpenseTableHandle, ExpenseTableProps>(function 
         />
       ) : (
         <DashboardDataTable
-          data={displayRows}
+          data={sortedDisplayRows}
           columns={columns}
           fixedLayout
           headerCellClassName="px-2"

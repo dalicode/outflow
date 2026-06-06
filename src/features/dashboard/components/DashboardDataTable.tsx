@@ -9,6 +9,7 @@ declare module '@tanstack/react-table' {
     getCellClassName?: (row: TData) => string
     onBodyCellPointerDown?: (e: React.PointerEvent<HTMLTableCellElement>, row: TData) => void
     width?: string
+    ariaSort?: React.AriaAttributes['aria-sort']
   }
 }
 
@@ -81,6 +82,7 @@ export default function DashboardDataTable<T>({
             {headerGroup.headers.map((header) => (
               <th
                 key={header.id}
+                aria-sort={header.column.columnDef.meta?.ariaSort}
                 className={cn(
                   'table-header-cell',
                   headerCellClassName,

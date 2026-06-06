@@ -72,6 +72,12 @@ function pointerDownCell(cell: HTMLElement): void {
   fireEvent.pointerDown(cell, { button: 0, target: cell })
 }
 
+function getVisibleTableRowIds(): string[] {
+  return screen
+    .getAllByTestId(/^(expense-row|split-container|split-child)-/)
+    .map((row) => row.getAttribute('data-testid') ?? '')
+}
+
 describe('ExpenseTable', () => {
   beforeEach(() => {
     storageMocks.getExpenseSplits.mockReset()
@@ -476,6 +482,121 @@ describe('ExpenseTable', () => {
     expect(screen.getByRole('columnheader', { name: 'Tags' })).toBeInTheDocument()
   })
 
+  it('toggles desktop date sorting and updates aria-sort', async () => {
+    const user = userEvent.setup()
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-12', amount: 20, categoryId: 1, notes: 'Later' },
+      { id: 2, date: '2026-05-10', amount: 15, categoryId: 1, notes: 'Earlier' },
+      { id: 3, date: '2026-05-11', amount: 18, categoryId: 1, notes: 'Middle' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await screen.findByTestId('expense-row-1')
+
+    const dateHeader = screen.getByRole('columnheader', { name: 'Date' })
+    const payeeHeader = screen.getByRole('columnheader', { name: 'Payee' })
+
+    expect(dateHeader).toHaveAttribute('aria-sort', 'none')
+    expect(payeeHeader).toHaveAttribute('aria-sort', 'none')
+    expect(getVisibleTableRowIds()).toEqual(['expense-row-1', 'expense-row-2', 'expense-row-3'])
+
+    await user.click(screen.getByRole('button', { name: 'Date' }))
+    await waitFor(() => {
+      expect(dateHeader).toHaveAttribute('aria-sort', 'ascending')
+      expect(getVisibleTableRowIds()).toEqual(['expense-row-2', 'expense-row-3', 'expense-row-1'])
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Date' }))
+    await waitFor(() => {
+      expect(dateHeader).toHaveAttribute('aria-sort', 'descending')
+      expect(getVisibleTableRowIds()).toEqual(['expense-row-1', 'expense-row-3', 'expense-row-2'])
+    })
+    expect(payeeHeader).toHaveAttribute('aria-sort', 'none')
+  })
+
+  it('toggles desktop amount sorting', async () => {
+    const user = userEvent.setup()
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, notes: 'Twenty' },
+      { id: 2, date: '2026-05-10', amount: 5, categoryId: 1, notes: 'Five' },
+      { id: 3, date: '2026-05-10', amount: 12, categoryId: 1, notes: 'Twelve' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await screen.findByTestId('expense-row-1')
+
+    await user.click(screen.getByRole('button', { name: 'Amount' }))
+    await waitFor(() => {
+      expect(getVisibleTableRowIds()).toEqual(['expense-row-2', 'expense-row-3', 'expense-row-1'])
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Amount' }))
+    await waitFor(() => {
+      expect(getVisibleTableRowIds()).toEqual(['expense-row-1', 'expense-row-3', 'expense-row-2'])
+    })
+  })
+
+  it('toggles desktop payee sorting by displayed names', async () => {
+    const user = userEvent.setup()
+    const expenses: Expense[] = [
+      { id: 1, date: '2026-05-10', amount: 20, categoryId: 1, payeeId: 2, notes: 'B' },
+      { id: 2, date: '2026-05-10', amount: 15, categoryId: 1, notes: 'None' },
+      { id: 3, date: '2026-05-10', amount: 18, categoryId: 1, payeeId: 1, notes: 'A' },
+    ]
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[
+          { id: 1, name: 'Alpha' },
+          { id: 2, name: 'Bravo' },
+        ]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await screen.findByTestId('expense-row-1')
+
+    await user.click(screen.getByRole('button', { name: 'Payee' }))
+    await waitFor(() => {
+      expect(getVisibleTableRowIds()).toEqual(['expense-row-3', 'expense-row-1', 'expense-row-2'])
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Payee' }))
+    await waitFor(() => {
+      expect(getVisibleTableRowIds()).toEqual(['expense-row-2', 'expense-row-1', 'expense-row-3'])
+    })
+  })
+
   it('hides Tags column when showTagsColumn is false', async () => {
     const expenses: Expense[] = [{ id: 1, date: '2026-05-10', amount: 20, categoryId: 1, notes: 'N' }]
 
@@ -495,6 +616,7 @@ describe('ExpenseTable', () => {
 
     await screen.findByTestId('expense-row-1')
     expect(screen.queryByRole('columnheader', { name: 'Tags' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tags' })).not.toBeInTheDocument()
   })
 
   it('hides Notes column when showNotesColumn is false', async () => {
@@ -516,6 +638,52 @@ describe('ExpenseTable', () => {
 
     await screen.findByTestId('expense-row-1')
     expect(screen.queryByRole('columnheader', { name: 'Notes' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Notes' })).not.toBeInTheDocument()
+  })
+
+  it('keeps split children attached to their parent while sorting', async () => {
+    const user = userEvent.setup()
+    const expenses: Expense[] = [
+      { id: 1, splitId: 10, date: '2026-05-11', amount: 12, categoryId: 1, payeeId: 2, notes: 'One' },
+      { id: 3, splitId: 10, date: '2026-05-11', amount: 8, categoryId: 1, payeeId: 2, notes: 'Two' },
+      { id: 2, date: '2026-05-10', amount: 5, categoryId: 1, payeeId: 1, notes: 'Solo small' },
+      { id: 4, date: '2026-05-12', amount: 30, categoryId: 1, payeeId: 3, notes: 'Solo large' },
+    ]
+    const splits: ExpenseSplit[] = [
+      { id: 10, date: '2026-05-11', amount: 20, payeeId: 2, notes: 'Grouped split' },
+    ]
+
+    storageMocks.getExpenseSplits.mockResolvedValue(splits)
+
+    render(
+      <ExpenseTable
+        expenses={expenses}
+        categories={[{ id: 1, name: 'Food' }]}
+        payees={[
+          { id: 1, name: 'Alpha' },
+          { id: 2, name: 'Bravo' },
+          { id: 3, name: 'Charlie' },
+        ]}
+        selectedIds={new Set<number>()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await screen.findByTestId('split-container-10')
+
+    await user.click(screen.getByRole('button', { name: 'Amount' }))
+    await waitFor(() => {
+      expect(getVisibleTableRowIds()).toEqual([
+        'expense-row-2',
+        'split-container-10',
+        'split-child-1',
+        'split-child-3',
+        'expense-row-4',
+      ])
+    })
   })
 
   it('keeps mobile rows unchanged when notes/tags desktop columns are hidden', async () => {

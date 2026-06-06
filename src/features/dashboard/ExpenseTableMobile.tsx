@@ -196,7 +196,7 @@ export default function ExpenseTableMobile({
                 className={cn(
                   'expense-row-mobile px-2.5 py-2',
                   !isLastVisibleItem && 'border-b border-theme-muted-subtle',
-                  'grid grid-cols-[minmax(0,1fr)_6.5rem] grid-rows-[auto_auto] gap-x-3 gap-y-0.5',
+                  'grid grid-cols-[minmax(0,1fr)_auto_6.5rem] grid-rows-[auto_auto] gap-x-3 gap-y-0.5',
                   isSelected &&
                     'selected-row bg-theme-primary-subtle shadow-[inset_4px_0_0_var(--theme-primary)]',
                   'row-hover',
@@ -221,30 +221,28 @@ export default function ExpenseTableMobile({
                 >
                   {payeeLabel}
                 </span>
-                <span className="col-start-2 row-span-2 row-start-1 self-center text-right text-sm font-semibold tabular-nums text-theme-text">
+                {primaryTag ? (
+                  <span
+                    className={cn(
+                      'col-start-2 row-span-2 row-start-1 inline-flex min-w-0 max-w-full self-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-tight',
+                      primaryTag.isArchived && 'italic',
+                    )}
+                    style={getTagSummaryChipStyle(primaryTag)}
+                    title={summary}
+                  >
+                    <span className="truncate">{summary}</span>
+                  </span>
+                ) : null}
+                <span className="col-start-3 row-span-2 row-start-1 self-center text-right text-sm font-semibold tabular-nums text-theme-text">
                   {formatAmount(exp.amount)}
                 </span>
                 <div
                   className={cn(
-                    'col-start-1 row-start-2 min-w-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 text-xs text-theme-muted',
+                    'col-start-1 row-start-2 min-w-0 text-xs text-theme-muted',
                     isSplitChildRow && 'pl-5',
                   )}
                 >
                   <span className="min-w-0 truncate">{detailLabel || '—'}</span>
-                  {primaryTag ? (
-                    <span
-                      className={cn(
-                        'inline-flex min-w-0 max-w-full items-center rounded-theme-small border px-1.5 py-0.5 text-[11px] leading-tight',
-                        primaryTag.isArchived && 'italic',
-                      )}
-                      style={getTagSummaryChipStyle(primaryTag)}
-                      title={summary}
-                    >
-                      <span className="truncate">{summary}</span>
-                    </span>
-                  ) : isSplitChildRow ? (
-                    <span />
-                  ) : null}
                 </div>
               </div>
             )
