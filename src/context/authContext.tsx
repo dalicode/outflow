@@ -16,10 +16,15 @@ import {
   type RecoveryReport,
   type RecoveryStatus,
 } from '../services/recoveryService'
+import { clearLocalDataForCloudRestore } from '../services/repositories/backupRepository'
 import { supabase } from '../services/supabase'
 import * as syncRuntime from '../services/syncRuntime'
 import { STALE_SYNC_RUN_MESSAGE } from '../services/sync/constants'
-import { clearUserCloudData, migrateLocalToSupabase } from '../services/syncService'
+import {
+  clearUserCloudData,
+  migrateLocalToSupabase,
+  pullFromSupabase,
+} from '../services/syncService'
 import type { SyncStatus } from '../types'
 import { debugLog } from '../lib/debug'
 import { withTimeout } from '../lib/withTimeout'
@@ -38,6 +43,7 @@ interface AuthContextValue {
   recoveryReport: RecoveryReport | null
   runRecoveryCheck: () => Promise<void>
   rebuildCloudFromLocal: () => Promise<void>
+  restoreLocalFromCloud: () => Promise<void>
   syncNow: () => Promise<void>
   syncLocalThenPull: () => Promise<void>
   syncLocalChanges: () => Promise<void>
@@ -136,6 +142,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [runRecoveryCheck, setExternalSyncStatus, user?.id])
 
+  const restoreLocalFromCloud = useCallback(async () => {
+    if (!user?.id) return
+    setRecoveryStatus('recovering')
+    syncRuntime.pauseSync('recovery')
+    setExternalSyncStatus('syncing')
+    try {
+      await clearLocalDataForCloudRestore()
+      await withTimeout(pullFromSupabase(user.id), 45000)
+      await runRecoveryCheck()
+      setExternalSyncStatus('idle')
+    } catch (error) {
+      setExternalSyncStatus('error')
+      setRecoveryStatus('local_repair_required')
+      throw error
+    }
+  }, [runRecoveryCheck, setExternalSyncStatus, user?.id])
+
   useAuthSessionLifecycle({
     currentUserRef,
     lastStartupSyncUserRef,
@@ -227,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         recoveryReport,
         runRecoveryCheck,
         rebuildCloudFromLocal,
+        restoreLocalFromCloud,
         syncNow,
         syncLocalThenPull,
         syncLocalChanges,

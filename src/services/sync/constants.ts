@@ -19,7 +19,10 @@ export const TABLE_MAP: Record<string, string> = {
 export const SYNC_BATCH_SIZE = 500
 export const CLOUD_FETCH_PAGE_SIZE = 500
 export const STALE_SYNC_RUN_MESSAGE = 'Sync run superseded'
-export const LOCAL_ONLY_SETTING_KEYS = new Set(['localPrivacyModeEnabled'])
+export const LOCAL_ONLY_SETTING_KEYS = new Set([
+  'localPrivacyModeEnabled',
+  'dashboardExpenseTableDisplay',
+])
 
 export const FULL_SYNC_ORDER = [
   'categories',

@@ -268,6 +268,12 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
         localId: 'set-local',
         syncStatus: 'pending',
       },
+      {
+        key: 'dashboardExpenseTableDisplay',
+        value: { monthSpan: 3, showTotal: true },
+        localId: 'set-dashboard-display',
+        syncStatus: 'pending',
+      },
     ])
 
     await migrateLocalToSupabase('user-1')
@@ -285,6 +291,12 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
         created_at: '2026-05-23T10:00:00.000Z',
         updated_at: '2026-05-23T10:00:00.000Z',
       }),
+    )
+    expect(settingsUpserts[0][1]).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'localPrivacyModeEnabled' }),
+        expect.objectContaining({ key: 'dashboardExpenseTableDisplay' }),
+      ]),
     )
   })
 

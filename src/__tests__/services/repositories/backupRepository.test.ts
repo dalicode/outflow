@@ -165,6 +165,7 @@ vi.mock('@/services/syncRuntime', () => ({
 }))
 
 import {
+  clearLocalDataForCloudRestore,
   exportAllData,
   importAllData,
   importBackup,
@@ -451,6 +452,42 @@ describe('backupRepository', () => {
         syncStatus: 'failed',
         syncError: 'Network timeout',
         lastSyncedAt: '2026-05-07T00:00:00.000Z',
+      }),
+    ])
+  })
+
+  it('clears synced local data for cloud restore without reseeding defaults', async () => {
+    tables.categories.seed([
+      { id: 1, name: 'Dining', normalizedName: 'dining' },
+      { id: 2, name: 'Travel', normalizedName: 'travel' },
+    ])
+    tables.payees.seed([{ id: 1, name: 'Cafe', normalizedName: 'cafe' }])
+    tables.expenses.seed([{ id: 1, date: '2026-05-01', amount: 25 }])
+    tables.settings.seed([
+      { key: 'localPrivacyModeEnabled', value: true, syncStatus: 'synced' },
+      {
+        key: 'dashboardExpenseTableDisplay',
+        value: { monthSpan: 6, showTotal: false },
+        syncStatus: 'synced',
+      },
+      { key: 'monthlyIncome', value: 5000, syncStatus: 'pending' },
+    ])
+    tables.syncQueue.seed([{ id: 1, table: 'expenses', timestamp: 123 }])
+
+    await clearLocalDataForCloudRestore()
+
+    expect(tables.categories.rows()).toEqual([])
+    expect(tables.payees.rows()).toEqual([])
+    expect(tables.expenses.rows()).toEqual([])
+    expect(tables.syncQueue.rows()).toEqual([])
+    expect(tables.settings.rows()).toEqual([
+      expect.objectContaining({
+        key: 'localPrivacyModeEnabled',
+        value: true,
+      }),
+      expect.objectContaining({
+        key: 'dashboardExpenseTableDisplay',
+        value: { monthSpan: 6, showTotal: false },
       }),
     ])
   })

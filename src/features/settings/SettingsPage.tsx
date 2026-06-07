@@ -51,6 +51,17 @@ interface SettingsPageProps {
   onSignIn?: () => void
 }
 
+const RECOVERY_WARNING_CONFIG = {
+  local_repair_required: {
+    storageKey: 'outflow-local-repair-warning-acknowledged',
+    message: 'Local data needs repair before sync can continue.',
+  },
+  rebuild_cloud_required: {
+    storageKey: 'outflow-rebuild-cloud-warning-acknowledged',
+    message: 'Cloud data needs to be rebuilt from this device before sync can continue.',
+  },
+} as const
+
 export default function SettingsPage({
   expenses,
   onRefreshAll,
@@ -62,8 +73,15 @@ export default function SettingsPage({
   onSignIn,
 }: SettingsPageProps) {
   const { settings, save, formatDate, formatAmount, currentTheme } = useSettings()
-  const { user, signOut, recoveryStatus, recoveryReport, runRecoveryCheck, rebuildCloudFromLocal } =
-    useAuth()
+  const {
+    user,
+    signOut,
+    recoveryStatus,
+    recoveryReport,
+    runRecoveryCheck,
+    rebuildCloudFromLocal,
+    restoreLocalFromCloud,
+  } = useAuth()
   const { showToast } = useToasts()
   const { payees } = usePayees()
 
@@ -88,9 +106,14 @@ export default function SettingsPage({
   const [isClearReloading, setIsClearReloading] = useState(false)
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
   const [isRebuildCloudModalOpen, setIsRebuildCloudModalOpen] = useState(false)
+  const [isRestoreLocalModalOpen, setIsRestoreLocalModalOpen] = useState(false)
   const [isRebuildingCloud, setIsRebuildingCloud] = useState(false)
+  const [isRestoringLocal, setIsRestoringLocal] = useState(false)
   const [isRunningRecoveryCheck, setIsRunningRecoveryCheck] = useState(false)
   const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = useState(false)
+  const [shownRecoveryWarnings, setShownRecoveryWarnings] = useState<
+    Partial<Record<keyof typeof RECOVERY_WARNING_CONFIG, boolean>>
+  >({})
 
   const activeSyncPauseReasons = useMemo(() => {
     return getSyncPauseReasons().sort((left, right) => {
@@ -100,6 +123,19 @@ export default function SettingsPage({
     })
   }, [recoveryReport, recoveryStatus])
   const isSyncPaused = activeSyncPauseReasons.length > 0
+
+  const acknowledgeRecoveryWarning = useCallback((storageKey: string) => {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(storageKey, '1')
+  }, [])
+
+  const openRecoveryModal = useCallback(
+    (warningStorageKey?: string) => {
+      if (warningStorageKey) acknowledgeRecoveryWarning(warningStorageKey)
+      setIsRecoveryModalOpen(true)
+    },
+    [acknowledgeRecoveryWarning],
+  )
 
   const queueLocalSync = useCallback(() => {
     if (syncLocalChanges) {
@@ -153,6 +189,31 @@ export default function SettingsPage({
   useEffect(() => {
     getCategories().then(setCsvCategories)
   }, [])
+  useEffect(() => {
+    if (
+      recoveryStatus !== 'local_repair_required' &&
+      recoveryStatus !== 'rebuild_cloud_required'
+    ) {
+      return
+    }
+
+    const warning = RECOVERY_WARNING_CONFIG[recoveryStatus]
+    if (shownRecoveryWarnings[recoveryStatus]) return
+
+    const hasAcknowledged =
+      typeof window !== 'undefined' &&
+      window.sessionStorage.getItem(warning.storageKey) === '1'
+    if (hasAcknowledged) return
+
+    setShownRecoveryWarnings((current) => ({ ...current, [recoveryStatus]: true }))
+    showToast({
+      message: warning.message,
+      tone: 'warning',
+      actionLabel: 'Open recovery',
+      durationMs: 12000,
+      onAction: () => openRecoveryModal(warning.storageKey),
+    })
+  }, [openRecoveryModal, recoveryStatus, showToast, shownRecoveryWarnings])
 
   const dismissHistoricalCompletionPrompt = () => {
     setShowHistoricalCompletionPrompt(false)
@@ -486,7 +547,7 @@ export default function SettingsPage({
               ) : null}
             </div>
             <button
-              onClick={() => setIsRecoveryModalOpen(true)}
+              onClick={() => openRecoveryModal()}
               className="settings-action-btn shrink-0"
               data-testid="btn-open-recovery-modal"
             >
@@ -806,22 +867,31 @@ export default function SettingsPage({
               >
                 <span>Run diagnostics</span>
               </button>
-              <button
-                onClick={() => {
-                  setIsRecoveryModalOpen(false)
-                  setIsRebuildCloudModalOpen(true)
-                }}
-                className="btn-modal-destructive flex-1"
-                disabled={
-                  !user?.id ||
-                  recoveryStatus === 'local_repair_required' ||
-                  recoveryStatus === 'recovering' ||
-                  isRebuildingCloud
-                }
-                data-testid="btn-rebuild-cloud-local"
-              >
-                Rebuild cloud
-              </button>
+              {recoveryStatus === 'local_repair_required' ? (
+                <button
+                  onClick={() => {
+                    setIsRecoveryModalOpen(false)
+                    setIsRestoreLocalModalOpen(true)
+                  }}
+                  className="btn-modal-destructive flex-1"
+                  disabled={!user?.id || isRestoringLocal}
+                  data-testid="btn-restore-local-cloud"
+                >
+                  Restore local from cloud
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsRecoveryModalOpen(false)
+                    setIsRebuildCloudModalOpen(true)
+                  }}
+                  className="btn-modal-destructive flex-1"
+                  disabled={!user?.id || recoveryStatus === 'recovering' || isRebuildingCloud}
+                  data-testid="btn-rebuild-cloud-local"
+                >
+                  Rebuild cloud
+                </button>
+              )}
             </ModalFooter>
           }
         >
@@ -890,8 +960,8 @@ export default function SettingsPage({
             ) : null}
             {recoveryStatus === 'local_repair_required' && (
               <p className="text-xs text-theme-danger">
-                Local data needs repair first. Restore a local backup, then rebuild cloud from
-                local.
+                Local data needs repair first. Restore this browser from cloud to replace local data
+                while keeping cloud data unchanged.
               </p>
             )}
           </div>
@@ -937,6 +1007,53 @@ export default function SettingsPage({
             This will replace your cloud data with the current local data. Local data will not be
             deleted.
           </p>
+        </Modal>
+
+        <Modal
+          isOpen={isRestoreLocalModalOpen}
+          onClose={() => setIsRestoreLocalModalOpen(false)}
+          title="Restore Local From Cloud"
+          size="sm"
+          footer={
+            <ModalFooter>
+              <button
+                onClick={() => setIsRestoreLocalModalOpen(false)}
+                className="btn-cancel-sm flex-1"
+                disabled={isRestoringLocal}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsRestoringLocal(true)
+                  try {
+                    await restoreLocalFromCloud()
+                    await onRefreshAll?.()
+                    setIsRestoreLocalModalOpen(false)
+                    setIsRecoveryModalOpen(false)
+                    showToast({ message: 'Local data restored from cloud.', tone: 'success' })
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Unknown error'
+                    showToast({ message: `Restore failed: ${message}`, tone: 'danger' })
+                  } finally {
+                    setIsRestoringLocal(false)
+                  }
+                }}
+                className="btn-modal-destructive flex-1"
+                disabled={isRestoringLocal || !user?.id}
+              >
+                Restore Local
+              </button>
+            </ModalFooter>
+          }
+        >
+          <div className="space-y-2 text-xs text-theme-muted">
+            <p>
+              This replaces only this browser&apos;s local data with the current cloud data. Cloud
+              data and other devices are not changed.
+            </p>
+            <p>Any local-only changes in this browser that have not reached cloud will be lost.</p>
+          </div>
         </Modal>
 
         <Modal

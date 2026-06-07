@@ -22,6 +22,7 @@ import { buildDefaultCategories, buildDefaultPayees } from '../defaults'
 import db from '../db/schema'
 import { queueImportSyncMarker } from '../importService'
 import { FULL_SYNC_QUEUE_REASON } from '../syncRuntime'
+import { LOCAL_ONLY_SETTING_KEYS } from '../sync/constants'
 
 type BackupRow = Record<string, unknown>
 
@@ -242,6 +243,22 @@ export async function clearAllData(): Promise<void> {
     const now = new Date().toISOString()
     await db.table('categories').bulkAdd(buildDefaultCategories(now))
     await db.table('payees').bulkAdd(buildDefaultPayees(now))
+  })
+}
+
+export async function clearLocalDataForCloudRestore(): Promise<void> {
+  await db.transaction('rw', db.tables, async () => {
+    const preservedLocalSettings = (await db.settings.toArray()).filter((row) =>
+      LOCAL_ONLY_SETTING_KEYS.has(String(row.key)),
+    )
+
+    for (const table of db.tables) {
+      await table.clear()
+    }
+
+    if (preservedLocalSettings.length > 0) {
+      await db.settings.bulkPut(preservedLocalSettings)
+    }
   })
 }
 

@@ -174,6 +174,7 @@ function makeAuthValue(
     recoveryReport: null,
     runRecoveryCheck: vi.fn(),
     rebuildCloudFromLocal: vi.fn(),
+    restoreLocalFromCloud: vi.fn(),
     syncNow: vi.fn(),
     syncLocalThenPull: vi.fn(),
     syncLocalChanges: vi.fn(),
@@ -189,6 +190,7 @@ describe('SettingsPage', () => {
     deleteSchedule.mockResolvedValue(undefined)
     loadSchedules.mockResolvedValue(undefined)
     showToast.mockReset()
+    window.sessionStorage.clear()
     getSyncPauseReasons.mockReturnValue([])
     vi.mocked(getCategories).mockResolvedValue([])
     vi.mocked(getSetting).mockImplementation(async (_key: string, fallback?: unknown) => fallback)
@@ -365,5 +367,148 @@ describe('SettingsPage', () => {
     expect(
       screen.getByText('Recovery status is what pauses sync here, not Firefox support.'),
     ).toBeInTheDocument()
+  })
+
+  it('shows a session warning for local repair and opens Data Recovery from the action', async () => {
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        recoveryStatus: 'local_repair_required',
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} />)
+
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Local data needs repair before sync can continue.',
+          tone: 'warning',
+          actionLabel: 'Open recovery',
+        }),
+      )
+    })
+
+    const warningToast = showToast.mock.calls.find(
+      ([toast]) => toast.message === 'Local data needs repair before sync can continue.',
+    )?.[0]
+
+    await act(async () => {
+      await warningToast?.onAction?.()
+    })
+
+    expect(await screen.findByText('Data Recovery')).toBeInTheDocument()
+    expect(window.sessionStorage.getItem('outflow-local-repair-warning-acknowledged')).toBe('1')
+  })
+
+  it('shows Restore local from cloud for local repair status', async () => {
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        recoveryStatus: 'local_repair_required',
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} />)
+
+    fireEvent.click(screen.getByTestId('btn-open-recovery-modal'))
+
+    expect(
+      await screen.findByRole('button', { name: 'Restore local from cloud' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Rebuild cloud' })).not.toBeInTheDocument()
+  })
+
+  it('shows Rebuild cloud for rebuild cloud required status', async () => {
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        recoveryStatus: 'rebuild_cloud_required',
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} />)
+
+    fireEvent.click(screen.getByTestId('btn-open-recovery-modal'))
+
+    expect(await screen.findByRole('button', { name: 'Rebuild cloud' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Restore local from cloud' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows a session warning for rebuild cloud and opens Data Recovery from the action', async () => {
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        recoveryStatus: 'rebuild_cloud_required',
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} />)
+
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Cloud data needs to be rebuilt from this device before sync can continue.',
+          tone: 'warning',
+          actionLabel: 'Open recovery',
+        }),
+      )
+    })
+
+    const warningToast = showToast.mock.calls.find(
+      ([toast]) =>
+        toast.message === 'Cloud data needs to be rebuilt from this device before sync can continue.',
+    )?.[0]
+
+    await act(async () => {
+      await warningToast?.onAction?.()
+    })
+
+    expect(await screen.findByText('Data Recovery')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Rebuild cloud' })).toBeInTheDocument()
+    expect(window.sessionStorage.getItem('outflow-rebuild-cloud-warning-acknowledged')).toBe('1')
+  })
+
+  it('confirms restore from cloud and refreshes app data on success', async () => {
+    const restoreLocalFromCloud = vi.fn().mockResolvedValue(undefined)
+    const onRefreshAll = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        recoveryStatus: 'local_repair_required',
+        restoreLocalFromCloud,
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} onRefreshAll={onRefreshAll} />)
+
+    fireEvent.click(screen.getByTestId('btn-open-recovery-modal'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore local from cloud' }))
+    expect(await screen.findByText('Restore Local From Cloud')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Local' }))
+
+    await waitFor(() => {
+      expect(restoreLocalFromCloud).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(onRefreshAll).toHaveBeenCalledTimes(1)
+    })
+    expect(showToast).toHaveBeenCalledWith({
+      message: 'Local data restored from cloud.',
+      tone: 'success',
+    })
+  })
+
+  it('does not allow signed-out users to restore local data from cloud', async () => {
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        user: null,
+        recoveryStatus: 'local_repair_required',
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} />)
+
+    fireEvent.click(screen.getByTestId('btn-open-recovery-modal'))
+
+    expect(await screen.findByRole('button', { name: 'Restore local from cloud' })).toBeDisabled()
   })
 })

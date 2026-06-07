@@ -156,6 +156,7 @@ describe('runRecoveryDiagnostics', () => {
     mockDb.settings.toArray.mockResolvedValue([
       { key: 'monthlyIncome', value: 5000 },
       { key: 'localPrivacyModeEnabled', value: true },
+      { key: 'dashboardExpenseTableDisplay', value: { mode: '2M', columns: 'detailed' } },
     ])
 
     supabaseFrom.mockImplementation((table: string) => ({
@@ -163,7 +164,11 @@ describe('runRecoveryDiagnostics', () => {
         eq: () =>
           table === 'settings'
             ? Promise.resolve({
-                data: [{ key: 'monthlyIncome' }, { key: 'localPrivacyModeEnabled' }],
+                data: [
+                  { key: 'monthlyIncome' },
+                  { key: 'localPrivacyModeEnabled' },
+                  { key: 'dashboardExpenseTableDisplay' },
+                ],
                 error: null,
               })
             : Promise.resolve({
@@ -188,5 +193,6 @@ describe('runRecoveryDiagnostics', () => {
     expect(report.localCounts.settings).toBe(1)
     expect(report.cloudCounts?.settings).toBe(1)
     expect(report.issues).not.toContain('Settings count mismatch: local 2, cloud 1')
+    expect(report.issues).not.toContain('Settings count mismatch: local 3, cloud 1')
   })
 })
