@@ -367,11 +367,33 @@ export function useSyncController({
 
   const queueSync = useCallback(
     async (options: QueueSyncOptions): Promise<void> => {
-      if (!userId || isSyncPaused()) return
+      if (!userId) {
+        debugLog('[sync] skipped queueSync: no userId', {
+          reason: options.reason,
+          force: options.force ?? false,
+          bypassFreshnessGate: options.bypassFreshnessGate ?? false,
+        })
+        return
+      }
+      if (isSyncPaused()) {
+        debugLog('[sync] skipped queueSync: sync paused', {
+          reason: options.reason,
+          force: options.force ?? false,
+          bypassFreshnessGate: options.bypassFreshnessGate ?? false,
+        })
+        return
+      }
       const resolvedMode = await resolveSyncMode(options)
       const shouldPull = modeIncludesPull(resolvedMode)
 
       if (shouldPull && !shouldRunRecentPullSync(options.force, options.reason)) {
+        debugLog('[sync] skipped queueSync: recent-pull cooldown', {
+          reason: options.reason,
+          force: options.force ?? false,
+          bypassFreshnessGate: options.bypassFreshnessGate ?? false,
+          elapsedMs:
+            Date.now() - Math.max(lastSuccessfulSyncAtRef.current, lastPullQueuedAtRef.current),
+        })
         return
       }
       if (
@@ -381,6 +403,12 @@ export function useSyncController({
         shouldApplyFreshnessGate(options.reason) &&
         !shouldRunFreshnessSync()
       ) {
+        debugLog('[sync] skipped queueSync: freshness gate', {
+          reason: options.reason,
+          force: options.force ?? false,
+          bypassFreshnessGate: options.bypassFreshnessGate ?? false,
+          elapsedMs: Date.now() - lastSuccessfulSyncAtRef.current,
+        })
         return
       }
 
@@ -480,9 +508,32 @@ export function useSyncController({
       reason: Extract<SyncReason, 'focus' | 'online' | 'periodic' | 'visible'>,
       options: { bypassFreshnessGate?: boolean } = {},
     ) => {
-      if (document.visibilityState !== 'visible') return
-      if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) return
-      if (reason !== 'online' && !options.bypassFreshnessGate && !shouldRunFreshnessSync()) return
+      if (document.visibilityState !== 'visible') {
+        debugLog('[sync] skipped maybePull: document not visible', {
+          reason,
+          bypassFreshnessGate: options.bypassFreshnessGate ?? false,
+          visibilityState: document.visibilityState,
+        })
+        return
+      }
+      if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+        debugLog('[sync] skipped maybePull: offline', {
+          reason,
+          bypassFreshnessGate: options.bypassFreshnessGate ?? false,
+          visibilityState: document.visibilityState,
+          online: navigator.onLine,
+        })
+        return
+      }
+      if (reason !== 'online' && !options.bypassFreshnessGate && !shouldRunFreshnessSync()) {
+        debugLog('[sync] skipped maybePull: freshness gate', {
+          reason,
+          bypassFreshnessGate: false,
+          elapsedMs: Date.now() - lastSuccessfulSyncAtRef.current,
+          visibilityState: document.visibilityState,
+        })
+        return
+      }
       void queueSync({ reason, bypassFreshnessGate: options.bypassFreshnessGate })
     }
 
@@ -497,22 +548,45 @@ export function useSyncController({
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         hiddenAtRef.current = Date.now()
+        debugLog('[sync] visibility hidden', {
+          hiddenAt: hiddenAtRef.current,
+          visibilityState: document.visibilityState,
+        })
         return
       }
 
       if (document.visibilityState !== 'visible') return
 
       const hiddenAt = hiddenAtRef.current
+      const hiddenDurationMs = hiddenAt === null ? undefined : Date.now() - hiddenAt
       hiddenAtRef.current = null
+      debugLog('[sync] visibility visible', {
+        hiddenDurationMs,
+        visibilityState: document.visibilityState,
+      })
 
       if (hiddenAt === null) {
+        debugLog('[sync] visibility resume: queue visible sync', {
+          bypassFreshnessGate: false,
+          hiddenDurationMs,
+        })
         void maybePull('visible')
         return
       }
 
-      if (Date.now() - hiddenAt >= FRESHNESS_SYNC_THRESHOLD_MS) {
+      if (hiddenDurationMs !== undefined && hiddenDurationMs >= FRESHNESS_SYNC_THRESHOLD_MS) {
+        debugLog('[sync] visibility resume: bypass freshness after long hidden', {
+          bypassFreshnessGate: true,
+          hiddenDurationMs,
+        })
         void maybePull('visible', { bypassFreshnessGate: true })
+        return
       }
+
+      debugLog('[sync] visibility resume: no sync, hidden duration too short', {
+        bypassFreshnessGate: false,
+        hiddenDurationMs,
+      })
     }
     const intervalId = window.setInterval(() => maybePull('periodic'), PERIODIC_PULL_INTERVAL_MS)
 

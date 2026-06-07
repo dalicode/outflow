@@ -185,6 +185,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authEvent !== 'TOKEN_REFRESHED') return
+    debugLog('[auth] TOKEN_REFRESHED observed', {
+      visibilityState:
+        typeof document !== 'undefined' && 'visibilityState' in document
+          ? document.visibilityState
+          : undefined,
+      online:
+        typeof navigator !== 'undefined' && 'onLine' in navigator ? navigator.onLine : undefined,
+    })
     void queueSync({ reason: 'token-refresh' })
   }, [authEvent, queueSync])
 
