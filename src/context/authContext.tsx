@@ -17,7 +17,7 @@ import {
   type RecoveryStatus,
 } from '../services/recoveryService'
 import { supabase } from '../services/supabase'
-import { isSyncPaused, pauseSync, resumeSync } from '../services/syncRuntime'
+import * as syncRuntime from '../services/syncRuntime'
 import { STALE_SYNC_RUN_MESSAGE } from '../services/sync/constants'
 import { clearUserCloudData, migrateLocalToSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
@@ -75,14 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRecoveryReport(report)
     setRecoveryStatus(report.status)
     if (shouldBypassRecoveryPause) {
-      resumeSync('recovery')
+      syncRuntime.resumeSync('recovery')
+      debugLog('[auth] recovery resumed sync (bypass)', {
+        recoveryStatus: report.status,
+        pauseReasons: syncRuntime.getSyncPauseReasons?.() ?? [],
+      })
     } else if (
       report.status === 'rebuild_cloud_required' ||
       report.status === 'local_repair_required'
     ) {
-      pauseSync('recovery')
+      syncRuntime.pauseSync('recovery')
+      debugLog('[auth] recovery paused sync', {
+        recoveryStatus: report.status,
+        pauseReasons: syncRuntime.getSyncPauseReasons?.() ?? [],
+      })
     } else {
-      resumeSync('recovery')
+      syncRuntime.resumeSync('recovery')
+      debugLog('[auth] recovery resumed sync', {
+        recoveryStatus: report.status,
+        pauseReasons: syncRuntime.getSyncPauseReasons?.() ?? [],
+      })
     }
   }, [user?.id])
 
@@ -107,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const rebuildCloudFromLocal = useCallback(async () => {
     if (!user?.id) return
     setRecoveryStatus('recovering')
-    pauseSync('recovery')
+    syncRuntime.pauseSync('recovery')
     setExternalSyncStatus('syncing')
     try {
       await withTimeout(clearUserCloudData(user.id), 30000)
@@ -137,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Signed-in startup trigger (outside onAuthStateChange) ───────────
   useEffect(() => {
     if (!user?.id) return
-    if (isSyncPaused()) return
+    if (syncRuntime.isSyncPaused()) return
     if (lastStartupSyncUserRef.current === user.id) return
     lastStartupSyncUserRef.current = user.id
 

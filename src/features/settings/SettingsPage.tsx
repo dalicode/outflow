@@ -16,6 +16,7 @@ import { clearAllData, dbVersion } from '../../services/repositories/backupRepos
 import { getCategories } from '../../services/repositories/categoryRepository'
 import { getSetting, setSetting } from '../../services/repositories/settingsRepository'
 import { clearUserCloudData } from '../../services/syncService'
+import { getSyncPauseReasons } from '../../services/syncRuntime'
 import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
 import { useBackup } from '../importExport/hooks/useBackup'
@@ -90,6 +91,15 @@ export default function SettingsPage({
   const [isRebuildingCloud, setIsRebuildingCloud] = useState(false)
   const [isRunningRecoveryCheck, setIsRunningRecoveryCheck] = useState(false)
   const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = useState(false)
+
+  const activeSyncPauseReasons = useMemo(() => {
+    return getSyncPauseReasons().sort((left, right) => {
+      if (left === 'recovery' && right !== 'recovery') return -1
+      if (left !== 'recovery' && right === 'recovery') return 1
+      return left.localeCompare(right)
+    })
+  }, [recoveryReport, recoveryStatus])
+  const isSyncPaused = activeSyncPauseReasons.length > 0
 
   const queueLocalSync = useCallback(() => {
     if (syncLocalChanges) {
@@ -456,6 +466,24 @@ export default function SettingsPage({
                   ? ` · ${recoveryReport.issues.length} issue${recoveryReport.issues.length === 1 ? '' : 's'}`
                   : ''}
               </p>
+              <p className="mt-1 text-xs font-medium text-theme-text">
+                Sync: {isSyncPaused ? 'paused' : 'active'}
+              </p>
+              {isSyncPaused ? (
+                <>
+                  <p className="mt-1 text-xs text-theme-muted">
+                    Active pause reasons:{' '}
+                    {activeSyncPauseReasons.map((reason) =>
+                      reason === 'recovery' ? `recovery (${recoveryStatus})` : reason,
+                    ).join(', ')}
+                  </p>
+                  {activeSyncPauseReasons.includes('recovery') ? (
+                    <p className="mt-1 text-xs text-theme-muted">
+                      Sync is paused by recovery status here, not by Firefox support.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
             </div>
             <button
               onClick={() => setIsRecoveryModalOpen(true)}
@@ -807,6 +835,12 @@ export default function SettingsPage({
                 <p className="mt-1 font-semibold text-theme-text">{recoveryStatus}</p>
               </div>
               <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
+                <p className="text-theme-muted">Sync</p>
+                <p className="mt-1 font-semibold text-theme-text">
+                  {isSyncPaused ? 'paused' : 'active'}
+                </p>
+              </div>
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
                 <p className="text-theme-muted">Issues</p>
                 <p className="mt-1 font-semibold text-theme-text">
                   {recoveryReport?.issues.length ?? 0}
@@ -825,6 +859,23 @@ export default function SettingsPage({
                 </p>
               </div>
             </div>
+            {isSyncPaused ? (
+              <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
+                <p className="text-xs font-semibold text-theme-text">Active sync pause reasons</p>
+                <div className="mt-2 space-y-1">
+                  {activeSyncPauseReasons.map((reason) => (
+                    <p key={reason} className="text-xs text-theme-muted">
+                      {reason === 'recovery' ? `recovery (${recoveryStatus})` : reason}
+                    </p>
+                  ))}
+                </div>
+                {activeSyncPauseReasons.includes('recovery') ? (
+                  <p className="mt-2 text-xs text-theme-muted">
+                    Recovery status is what pauses sync here, not Firefox support.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {recoveryReport?.issues.length ? (
               <div className="rounded-theme-medium border border-theme-border bg-theme-background px-3 py-2">
                 <p className="text-xs font-semibold text-theme-text">Issues</p>

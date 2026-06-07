@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { StorageService } from '../services/storageService'
-import { isSyncPaused } from '../services/syncRuntime'
+import * as syncRuntime from '../services/syncRuntime'
 import { flushSyncQueue, pullFromSupabase } from '../services/syncService'
 import type { SyncStatus } from '../types'
 import { debugLog, debugWarn } from '../lib/debug'
@@ -210,7 +210,7 @@ export function useSyncController({
     pending: number
     failed: number
   }> => {
-    if (!userId || isSyncPaused()) {
+    if (!userId || syncRuntime.isSyncPaused()) {
       const emptyCounts = { pending: 0, failed: 0 }
       setPendingSyncCount(0)
       setFailedSyncCount(0)
@@ -236,7 +236,7 @@ export function useSyncController({
   }, [clearSyncTimers, refreshAggregateSyncState])
 
   const getHasPendingLocalChanges = useCallback(async (): Promise<boolean> => {
-    if (isSyncPaused()) return false
+    if (syncRuntime.isSyncPaused()) return false
     return StorageService.hasPendingSyncMetadata()
   }, [])
 
@@ -279,7 +279,7 @@ export function useSyncController({
 
   const flushQueuedChanges = useCallback(
     async (id: string, generation: number): Promise<boolean> => {
-      if (isSyncPaused()) return false
+      if (syncRuntime.isSyncPaused()) return false
       const hadPendingChanges = await getHasPendingLocalChanges()
 
       await withTimeout(
@@ -295,7 +295,7 @@ export function useSyncController({
 
   const runSyncNow = useCallback(
     async (id: string, options: QueueSyncOptions, generation: number) => {
-      if (isSyncPaused()) return
+      if (syncRuntime.isSyncPaused()) return
       if (syncingRef.current) return
       if (!isCurrentSyncRun(generation)) return
       syncingRef.current = true
@@ -375,11 +375,12 @@ export function useSyncController({
         })
         return
       }
-      if (isSyncPaused()) {
+      if (syncRuntime.isSyncPaused()) {
         debugLog('[sync] skipped queueSync: sync paused', {
           reason: options.reason,
           force: options.force ?? false,
           bypassFreshnessGate: options.bypassFreshnessGate ?? false,
+          pauseReasons: syncRuntime.getSyncPauseReasons?.() ?? [],
         })
         return
       }
@@ -444,7 +445,11 @@ export function useSyncController({
                 force: true,
               })
             : null
-        } while (nextOptions && !isSyncPaused() && isCurrentSyncRun(generation))
+        } while (
+          nextOptions &&
+          !syncRuntime.isSyncPaused() &&
+          isCurrentSyncRun(generation)
+        )
       })()
       const trackedPromise = syncPromise.finally(() => {
         if (activeSyncPromiseRef.current === trackedPromise) {
@@ -489,7 +494,7 @@ export function useSyncController({
   )
 
   const triggerSync = useCallback(() => {
-    if (!userId || isSyncPaused()) return
+    if (!userId || syncRuntime.isSyncPaused()) return
     void refreshAggregateSyncState()
     if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
     if (retryTimerRef.current) {

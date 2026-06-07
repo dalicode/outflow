@@ -15,6 +15,10 @@ const { showToast } = vi.hoisted(() => ({
   showToast: vi.fn(),
 }))
 
+const { getSyncPauseReasons } = vi.hoisted(() => ({
+  getSyncPauseReasons: vi.fn(),
+}))
+
 vi.mock('@/context/authContext', () => ({
   useAuth: vi.fn(),
 }))
@@ -92,6 +96,10 @@ vi.mock('@/features/importExport/hooks/useBackup', () => ({
 
 vi.mock('@/features/importExport/hooks/useCsvImport', () => ({
   useCsvImport: () => ({}),
+}))
+
+vi.mock('@/services/syncRuntime', () => ({
+  getSyncPauseReasons,
 }))
 
 vi.mock('@/components/inputs/DatePicker', () => ({
@@ -181,6 +189,7 @@ describe('SettingsPage', () => {
     deleteSchedule.mockResolvedValue(undefined)
     loadSchedules.mockResolvedValue(undefined)
     showToast.mockReset()
+    getSyncPauseReasons.mockReturnValue([])
     vi.mocked(getCategories).mockResolvedValue([])
     vi.mocked(getSetting).mockImplementation(async (_key: string, fallback?: unknown) => fallback)
     vi.mocked(useAuth).mockReturnValue(makeAuthValue())
@@ -292,5 +301,69 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Run diagnostics' })).toBeEnabled()
     })
+  })
+
+  it('renders active sync pause reasons in the recovery area and modal', async () => {
+    getSyncPauseReasons.mockReturnValue(['another-pause', 'recovery'])
+    vi.mocked(useAuth).mockReturnValue(
+      makeAuthValue({
+        recoveryStatus: 'local_repair_required',
+        recoveryReport: {
+          status: 'local_repair_required',
+          issues: ['Local expense data is inconsistent'],
+          localCounts: {
+            expenses: 12,
+            expenseSplits: 0,
+            categories: 3,
+            payees: 2,
+            fixedExpenses: 1,
+            fixedExpenseSnapshots: 0,
+            incomeSnapshots: 0,
+            savingsSnapshots: 0,
+            schedules: 0,
+            settings: 4,
+          },
+          cloudCounts: {
+            expenses: 10,
+            expenseSplits: 0,
+            categories: 3,
+            payees: 2,
+            fixedExpenses: 1,
+            fixedExpenseSnapshots: 0,
+            incomeSnapshots: 0,
+            savingsSnapshots: 0,
+            schedules: 0,
+            settings: 4,
+          },
+          brokenExpenseCategoryRefs: 0,
+          brokenExpensePayeeRefs: 0,
+          brokenExpenseSplitRefs: 0,
+          duplicateIncomeSnapshots: 0,
+          duplicateSavingsSnapshots: 0,
+          duplicateFixedExpenseSnapshots: 0,
+          duplicateCategoryNames: 0,
+          duplicatePayeeNames: 0,
+        },
+      }),
+    )
+
+    render(<SettingsPage expenses={[]} />)
+
+    expect(screen.getAllByText('Sync: paused').length).toBeGreaterThan(0)
+    expect(
+      screen.getByText('Active pause reasons: recovery (local_repair_required), another-pause'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Sync is paused by recovery status here, not by Firefox support.'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('btn-open-recovery-modal'))
+
+    expect(screen.getByText('Active sync pause reasons')).toBeInTheDocument()
+    expect(screen.getByText('recovery (local_repair_required)')).toBeInTheDocument()
+    expect(screen.getByText('another-pause')).toBeInTheDocument()
+    expect(
+      screen.getByText('Recovery status is what pauses sync here, not Firefox support.'),
+    ).toBeInTheDocument()
   })
 })
