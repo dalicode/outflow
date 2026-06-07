@@ -36,6 +36,7 @@ interface QueueSyncOptions {
   reason: SyncReason
   mode?: SyncMode
   force?: boolean
+  bypassFreshnessGate?: boolean
 }
 
 interface UseSyncControllerParams {
@@ -110,6 +111,7 @@ function mergeQueuedOptions(
     reason: incoming.reason,
     mode: mergedMode,
     force: Boolean(existing.force || incoming.force),
+    bypassFreshnessGate: Boolean(existing.bypassFreshnessGate || incoming.bypassFreshnessGate),
   }
 }
 
@@ -133,6 +135,10 @@ export function useSyncController({
   const followUpSyncRequestedRef = useRef(false)
   const pendingFollowUpOptionsRef = useRef<QueueSyncOptions | null>(null)
   const lastSuccessfulSyncAtRef = useRef<number>(0)
+  const lastPullQueuedAtRef = useRef<number>(0)
+  const hiddenAtRef = useRef<number | null>(
+    typeof document !== 'undefined' && document.visibilityState === 'hidden' ? Date.now() : null,
+  )
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const syncRunGenerationRef = useRef(0)
@@ -168,7 +174,10 @@ export function useSyncController({
   const shouldRunRecentPullSync = useCallback((force = false, reason?: SyncReason) => {
     if (force) return true
     if (!reason || !shouldApplyRecentPullCooldown(reason)) return true
-    return Date.now() - lastSuccessfulSyncAtRef.current >= RECENT_PULL_COOLDOWN_MS
+    return (
+      Date.now() - Math.max(lastSuccessfulSyncAtRef.current, lastPullQueuedAtRef.current) >=
+      RECENT_PULL_COOLDOWN_MS
+    )
   }, [])
 
   const setExternalSyncStatus = useCallback((status: SyncStatus) => {
@@ -368,6 +377,7 @@ export function useSyncController({
       if (
         shouldPull &&
         !options.force &&
+        !options.bypassFreshnessGate &&
         shouldApplyFreshnessGate(options.reason) &&
         !shouldRunFreshnessSync()
       ) {
@@ -375,6 +385,9 @@ export function useSyncController({
       }
 
       const guardedOptions = { ...options, mode: resolvedMode }
+      if (shouldPull) {
+        lastPullQueuedAtRef.current = Date.now()
+      }
       debugLog('[sync] queued', guardedOptions.reason, guardedOptions.mode)
 
       if (activeSyncPromiseRef.current) {
@@ -465,11 +478,12 @@ export function useSyncController({
 
     const maybePull = async (
       reason: Extract<SyncReason, 'focus' | 'online' | 'periodic' | 'visible'>,
+      options: { bypassFreshnessGate?: boolean } = {},
     ) => {
       if (document.visibilityState !== 'visible') return
       if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) return
-      if (reason !== 'online' && !shouldRunFreshnessSync()) return
-      void queueSync({ reason })
+      if (reason !== 'online' && !options.bypassFreshnessGate && !shouldRunFreshnessSync()) return
+      void queueSync({ reason, bypassFreshnessGate: options.bypassFreshnessGate })
     }
 
     const handleFocus = () => maybePull('focus')
@@ -480,7 +494,26 @@ export function useSyncController({
     const handleOffline = () => {
       setIsBrowserOnline(false)
     }
-    const handleVisibilityChange = () => maybePull('visible')
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now()
+        return
+      }
+
+      if (document.visibilityState !== 'visible') return
+
+      const hiddenAt = hiddenAtRef.current
+      hiddenAtRef.current = null
+
+      if (hiddenAt === null) {
+        void maybePull('visible')
+        return
+      }
+
+      if (Date.now() - hiddenAt >= FRESHNESS_SYNC_THRESHOLD_MS) {
+        void maybePull('visible', { bypassFreshnessGate: true })
+      }
+    }
     const intervalId = window.setInterval(() => maybePull('periodic'), PERIODIC_PULL_INTERVAL_MS)
 
     window.addEventListener('focus', handleFocus)

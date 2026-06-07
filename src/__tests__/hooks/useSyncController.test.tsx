@@ -37,6 +37,13 @@ vi.mock('@/lib/debug', () => ({
   debugWarn: vi.fn(),
 }))
 
+function setDocumentVisibility(visibilityState: DocumentVisibilityState): void {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    value: visibilityState,
+  })
+}
+
 describe('useSyncController', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -46,10 +53,7 @@ describe('useSyncController', () => {
     flushSyncQueue.mockResolvedValue(undefined)
     pullFromSupabase.mockResolvedValue(undefined)
     isSyncPaused.mockReturnValue(false)
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      value: 'visible',
-    })
+    setDocumentVisibility('visible')
     Object.defineProperty(window.navigator, 'onLine', {
       configurable: true,
       value: true,
@@ -362,6 +366,119 @@ describe('useSyncController', () => {
     expect(pullFromSupabase).toHaveBeenCalledTimes(2)
     expect(flushSyncQueue).not.toHaveBeenCalled()
     expect(callOrder).toEqual(['pull', 'pull'])
+  })
+
+  it('pulls after a long hidden resume even when the normal freshness gate would suppress it', async () => {
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.syncNow()
+    })
+
+    await act(async () => {
+      setDocumentVisibility('hidden')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await vi.advanceTimersByTimeAsync(15_000)
+      await result.current.syncNow()
+      await vi.advanceTimersByTimeAsync(15_000)
+      setDocumentVisibility('visible')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(3)
+    expect(flushSyncQueue).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not pull when the tab resumes before the hidden threshold', async () => {
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.syncNow()
+    })
+
+    await act(async () => {
+      setDocumentVisibility('hidden')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await vi.advanceTimersByTimeAsync(29_999)
+      setDocumentVisibility('visible')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not double-pull when focus fires right after a long hidden resume', async () => {
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.syncNow()
+    })
+
+    await act(async () => {
+      setDocumentVisibility('hidden')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await vi.advanceTimersByTimeAsync(30_000)
+      setDocumentVisibility('visible')
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(pullFromSupabase).toHaveBeenCalledTimes(2)
+  })
+
+  it('uploads pending local changes before pulling after a long hidden resume', async () => {
+    hasPendingSyncMetadata.mockResolvedValue(true)
+    const callOrder: string[] = []
+    flushSyncQueue.mockImplementation(async () => {
+      callOrder.push('upload')
+    })
+    pullFromSupabase.mockImplementation(async () => {
+      callOrder.push('pull')
+    })
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      setDocumentVisibility('hidden')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await vi.advanceTimersByTimeAsync(30_000)
+      setDocumentVisibility('visible')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(callOrder).toEqual(['upload', 'pull'])
   })
 
   it('background freshness uploads before pulling when local changes are pending', async () => {
