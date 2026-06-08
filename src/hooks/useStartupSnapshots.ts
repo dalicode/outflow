@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import {
   materializePendingSnapshots,
   rolloverSnapshots,
@@ -13,21 +13,90 @@ interface UseStartupSnapshotsParams {
     tone: 'success' | 'warning' | 'danger' | 'default'
     durationMs?: number
   }) => string
-  preStartupPull?: () => Promise<void>
   readyToStart?: boolean
+  onSnapshotsUpdated?: () => void
 }
 
 const STARTUP_SNAPSHOT_TIMEOUT_MS = 10_000
+const STARTUP_SNAPSHOT_WARNING =
+  'Startup snapshot sync was incomplete. Your data is still available, and you can continue using the app.'
+
+interface RunSnapshotMaintenanceParams {
+  showToast: UseStartupSnapshotsParams['showToast']
+  debugLabel?: string
+  warningMessage?: string
+}
+
+interface SnapshotMaintenanceResult {
+  appliedNotices: ScheduleMaterializationNotice[]
+  succeeded: boolean
+}
+
+export async function runSnapshotMaintenance({
+  showToast,
+  debugLabel = 'startup-snapshots',
+  warningMessage = STARTUP_SNAPSHOT_WARNING,
+}: RunSnapshotMaintenanceParams): Promise<SnapshotMaintenanceResult> {
+  console.debug(`[${debugLabel}] begin`)
+  let appliedNotices: ScheduleMaterializationNotice[] = []
+  let startupFailed = false
+  let materializationSucceeded = false
+
+  try {
+    appliedNotices = await withTimeout(
+      materializePendingSnapshots(),
+      STARTUP_SNAPSHOT_TIMEOUT_MS,
+      `[${debugLabel}] materializePendingSnapshots timed out`,
+    )
+    materializationSucceeded = true
+    console.debug(
+      `[${debugLabel}] materialize complete`,
+      Array.isArray(appliedNotices) ? appliedNotices.length : 0,
+    )
+  } catch (error) {
+    startupFailed = true
+    console.error(`[${debugLabel}] materialize failed`, error)
+  }
+
+  if (materializationSucceeded) {
+    try {
+      await withTimeout(
+        rolloverSnapshots(),
+        STARTUP_SNAPSHOT_TIMEOUT_MS,
+        `[${debugLabel}] rolloverSnapshots timed out`,
+      )
+      console.debug(`[${debugLabel}] rollover complete`)
+    } catch (error) {
+      startupFailed = true
+      console.error(`[${debugLabel}] rollover failed`, error)
+    }
+  } else {
+    console.debug(`[${debugLabel}] rollover skipped due to materialize failure`)
+  }
+
+  if (startupFailed) {
+    showToast({
+      message: warningMessage,
+      tone: 'warning',
+      durationMs: 7000,
+    })
+  }
+
+  console.debug(`[${debugLabel}] end`, startupFailed ? 'with-fallback' : 'success')
+  return {
+    appliedNotices,
+    succeeded: !startupFailed,
+  }
+}
 
 export function useStartupSnapshots({
   showToast,
-  preStartupPull,
   readyToStart = true,
+  onSnapshotsUpdated,
 }: UseStartupSnapshotsParams): {
-  snapshotsReady: boolean
   announceAppliedScheduleUpdates: (notices: ScheduleMaterializationNotice[]) => void
 } {
-  const [snapshotsReady, setSnapshotsReady] = useState(false)
+  const hasStartedRef = useRef(false)
 
   const announceAppliedScheduleUpdates = useCallback(
     (notices: ScheduleMaterializationNotice[]) => {
@@ -43,93 +112,21 @@ export function useStartupSnapshots({
 
   useEffect(() => {
     if (!readyToStart) return
+    if (hasStartedRef.current) return
+    hasStartedRef.current = true
 
     const init = async () => {
-      console.debug('[startup-snapshots] begin')
-      const hasVisited = localStorage.getItem('outflow:hasVisited') === 'true'
-      const fakeDelay = (window as unknown as { outflowTestApi?: unknown }).outflowTestApi
-        ? 0
-        : hasVisited
-          ? 0
-          : 800
-      const startTime = Date.now()
-      let appliedNotices: ScheduleMaterializationNotice[] = []
-      let startupFailed = false
-      let materializationSucceeded = false
-
-      if (preStartupPull) {
-        try {
-          await withTimeout(
-            preStartupPull(),
-            STARTUP_SNAPSHOT_TIMEOUT_MS,
-            '[startup-snapshots] preStartupPull timed out',
-          )
-          console.debug('[startup-snapshots] pre-startup pull complete')
-        } catch (error) {
-          console.error('[startup-snapshots] pre-startup pull failed', error)
-        }
+      const { appliedNotices, succeeded } = await runSnapshotMaintenance({ showToast })
+      if (succeeded) {
+        onSnapshotsUpdated?.()
       }
-
-      try {
-        appliedNotices = await withTimeout(
-          materializePendingSnapshots(),
-          STARTUP_SNAPSHOT_TIMEOUT_MS,
-          '[startup-snapshots] materializePendingSnapshots timed out',
-        )
-        materializationSucceeded = true
-        console.debug(
-          '[startup-snapshots] materialize complete',
-          Array.isArray(appliedNotices) ? appliedNotices.length : 0,
-        )
-      } catch (error) {
-        startupFailed = true
-        console.error('[startup-snapshots] materialize failed', error)
-      }
-
-      if (materializationSucceeded) {
-        try {
-          await withTimeout(
-            rolloverSnapshots(),
-            STARTUP_SNAPSHOT_TIMEOUT_MS,
-            '[startup-snapshots] rolloverSnapshots timed out',
-          )
-          console.debug('[startup-snapshots] rollover complete')
-        } catch (error) {
-          startupFailed = true
-          console.error('[startup-snapshots] rollover failed', error)
-        }
-      } else {
-        console.debug('[startup-snapshots] rollover skipped due to materialize failure')
-      }
-
-      try {
-        const remaining = Math.max(0, fakeDelay - (Date.now() - startTime))
-        if (remaining > 0) {
-          await new Promise((resolve) => setTimeout(resolve, remaining))
-        }
-      } finally {
-        if (startupFailed) {
-          showToast({
-            message:
-              'Startup snapshot sync was incomplete. Your data is still available, and you can continue using the app.',
-            tone: 'warning',
-            durationMs: 7000,
-          })
-        }
-        setSnapshotsReady(true)
-        announceAppliedScheduleUpdates(appliedNotices ?? [])
-        if (!hasVisited) {
-          localStorage.setItem('outflow:hasVisited', 'true')
-        }
-        console.debug('[startup-snapshots] end', startupFailed ? 'with-fallback' : 'success')
-      }
+      announceAppliedScheduleUpdates(appliedNotices ?? [])
     }
 
     void init()
-  }, [announceAppliedScheduleUpdates, preStartupPull, readyToStart, showToast])
+  }, [announceAppliedScheduleUpdates, onSnapshotsUpdated, readyToStart, showToast])
 
   return {
-    snapshotsReady,
     announceAppliedScheduleUpdates,
   }
 }

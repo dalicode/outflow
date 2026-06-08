@@ -1,10 +1,7 @@
-import { useCallback, useEffect } from 'react'
-import {
-  materializePendingSnapshots,
-  rolloverSnapshots,
-} from '../services/repositories/scheduleRepository'
+import { useCallback, useEffect, useRef } from 'react'
 import { supabase } from '../services/supabase'
 import { checkForServiceWorkerUpdate } from '../utils/serviceWorkerUpdates'
+import { runSnapshotMaintenance } from './useStartupSnapshots'
 import type { ScheduleMaterializationNotice } from '../types'
 
 interface UseAppRefreshParams {
@@ -40,38 +37,81 @@ export function useAppRefresh({
 }: UseAppRefreshParams): {
   handlePullRefresh: () => Promise<void>
 } {
-  useEffect(() => {
-    if (pullAppliedCount === 0) return
-    void Promise.all([
+  const suppressManualPullAppliedCountRef = useRef<number | null>(null)
+
+  const refreshLocalDataAndSettings = useCallback(async () => {
+    await Promise.all([
       refreshExpenses(),
       refreshCategories(),
       refreshPayees(),
       refreshTags(),
       loadSettings(),
-    ]).then(() => forceFinanceDataRefresh?.())
+    ])
+  }, [loadSettings, refreshCategories, refreshExpenses, refreshPayees, refreshTags])
+
+  useEffect(() => {
+    if (pullAppliedCount === 0) return
+    if (
+      suppressManualPullAppliedCountRef.current !== null &&
+      pullAppliedCount > suppressManualPullAppliedCountRef.current
+    ) {
+      suppressManualPullAppliedCountRef.current = null
+      return
+    }
+
+    const applyPulledData = async () => {
+      try {
+        await refreshLocalDataAndSettings()
+        const { appliedNotices, succeeded } = await runSnapshotMaintenance({
+          showToast,
+          debugLabel: 'pull-applied-maintenance',
+          warningMessage:
+            'Background snapshot sync was incomplete. Your data is still available, and you can continue using the app.',
+        })
+        if (succeeded) {
+          forceFinanceDataRefresh?.()
+        }
+        announceAppliedScheduleUpdates(appliedNotices ?? [])
+      } catch (error) {
+        console.error('Pull-applied refresh failed:', error)
+        showToast({
+          message: "Refresh didn't finish. Try again in a moment.",
+          tone: 'warning',
+          durationMs: 4000,
+        })
+      }
+    }
+
+    void applyPulledData()
   }, [
     pullAppliedCount,
-    refreshPayees,
-    refreshTags,
-    refreshExpenses,
-    refreshCategories,
-    loadSettings,
+    refreshLocalDataAndSettings,
     forceFinanceDataRefresh,
+    announceAppliedScheduleUpdates,
+    showToast,
   ])
 
   const handlePullRefresh = useCallback(async () => {
     try {
       const serviceWorkerUpdateCheck = checkForServiceWorkerUpdate().catch(() => undefined)
-      const appliedNotices = await materializePendingSnapshots().catch(console.error)
-      await rolloverSnapshots().catch(console.error)
-      await Promise.all([refreshExpenses(), refreshCategories(), refreshPayees(), refreshTags()])
-      forceFinanceDataRefresh?.()
 
-      announceAppliedScheduleUpdates(appliedNotices ?? [])
-
-      if (navigator.onLine && supabase && user) {
+      const isOnline =
+        typeof navigator === 'undefined' || !('onLine' in navigator) || navigator.onLine
+      if (isOnline && supabase && user) {
+        suppressManualPullAppliedCountRef.current = pullAppliedCount
         await syncNow()
       }
+
+      await refreshLocalDataAndSettings()
+      const { appliedNotices, succeeded } = await runSnapshotMaintenance({
+        showToast,
+        debugLabel: 'pull-refresh-maintenance',
+        warningMessage: "Refresh didn't finish. Try again in a moment.",
+      })
+      if (succeeded) {
+        forceFinanceDataRefresh?.()
+      }
+      announceAppliedScheduleUpdates(appliedNotices ?? [])
 
       await serviceWorkerUpdateCheck
 
@@ -81,6 +121,7 @@ export function useAppRefresh({
         durationMs: 2500,
       })
     } catch (error) {
+      suppressManualPullAppliedCountRef.current = null
       console.error('Pull refresh failed:', error)
       showToast({
         message: "Refresh didn't finish. Try again in a moment.",
@@ -89,11 +130,9 @@ export function useAppRefresh({
       })
     }
   }, [
-    refreshExpenses,
-    refreshCategories,
-    refreshPayees,
-    refreshTags,
+    refreshLocalDataAndSettings,
     announceAppliedScheduleUpdates,
+    pullAppliedCount,
     syncNow,
     showToast,
     user,

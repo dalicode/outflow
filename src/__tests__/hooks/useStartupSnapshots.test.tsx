@@ -25,8 +25,6 @@ describe('useStartupSnapshots', () => {
     vi.clearAllMocks()
     consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    localStorage.setItem('outflow:hasVisited', 'true')
-    ;(window as unknown as { outflowTestApi?: unknown }).outflowTestApi = {}
     materializePendingSnapshots.mockResolvedValue([])
     rolloverSnapshots.mockResolvedValue(undefined)
     withTimeout.mockImplementation((promise: Promise<unknown>) => promise)
@@ -37,15 +35,25 @@ describe('useStartupSnapshots', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  it('sets snapshotsReady on startup success', async () => {
+  it('runs startup snapshot maintenance in the background on success', async () => {
     const showToast = vi.fn()
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
+    const onSnapshotsUpdated = vi.fn()
+
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
 
     await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
     })
 
     expect(showToast).not.toHaveBeenCalled()
+    expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
+    expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
+    expect(rolloverSnapshots.mock.invocationCallOrder[0]).toBeGreaterThan(
+      materializePendingSnapshots.mock.invocationCallOrder[0],
+    )
+    expect(onSnapshotsUpdated.mock.invocationCallOrder[0]).toBeGreaterThan(
+      rolloverSnapshots.mock.invocationCallOrder[0],
+    )
     expect(withTimeout).toHaveBeenCalledTimes(2)
     expect(withTimeout).toHaveBeenNthCalledWith(
       1,
@@ -61,155 +69,108 @@ describe('useStartupSnapshots', () => {
     )
   })
 
-  it('runs the optional startup pull before materialization and rollover', async () => {
+  it('waits for readyToStart before running background maintenance', async () => {
     const showToast = vi.fn()
-    const order: string[] = []
-    const preStartupPull = vi.fn(async () => {
-      order.push('pull')
-    })
-    materializePendingSnapshots.mockImplementation(async () => {
-      order.push('materialize')
-      return []
-    })
-    rolloverSnapshots.mockImplementation(async () => {
-      order.push('rollover')
-    })
-
-    const { result } = renderHook(() => useStartupSnapshots({ showToast, preStartupPull }))
-
-    await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
-    })
-
-    expect(preStartupPull).toHaveBeenCalledTimes(1)
-    expect(order).toEqual(['pull', 'materialize', 'rollover'])
-    expect(withTimeout).toHaveBeenNthCalledWith(
-      1,
-      expect.any(Promise),
-      10_000,
-      '[startup-snapshots] preStartupPull timed out',
+    const onSnapshotsUpdated = vi.fn()
+    const { rerender } = renderHook(
+      ({ readyToStart }) => useStartupSnapshots({ showToast, readyToStart, onSnapshotsUpdated }),
+      { initialProps: { readyToStart: false } },
     )
-  })
 
-  it('still unlocks startup when materializePendingSnapshots fails', async () => {
-    const showToast = vi.fn()
-    materializePendingSnapshots.mockRejectedValue(new Error('materialize failed'))
+    expect(materializePendingSnapshots).not.toHaveBeenCalled()
+    expect(onSnapshotsUpdated).not.toHaveBeenCalled()
 
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
+    rerender({ readyToStart: true })
 
     await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
-    })
-
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tone: 'warning',
-      }),
-    )
-    expect(rolloverSnapshots).not.toHaveBeenCalled()
-  })
-
-  it('still unlocks startup when rolloverSnapshots fails', async () => {
-    const showToast = vi.fn()
-    rolloverSnapshots.mockRejectedValue(new Error('rollover failed'))
-
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
-
-    await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
-    })
-
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tone: 'warning',
-      }),
-    )
-  })
-
-  it('still unlocks startup when materializePendingSnapshots times out', async () => {
-    const showToast = vi.fn()
-    withTimeout.mockRejectedValueOnce(new Error('timeout'))
-
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
-
-    await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
-    })
-
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tone: 'warning',
-      }),
-    )
-    expect(rolloverSnapshots).not.toHaveBeenCalled()
-  })
-
-  it('skips rollover when materializePendingSnapshots rejects and still unlocks app', async () => {
-    const showToast = vi.fn()
-    materializePendingSnapshots.mockRejectedValueOnce(new Error('materialize failure'))
-
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
-
-    await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
-    })
-
-    expect(rolloverSnapshots).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tone: 'warning',
-      }),
-    )
-  })
-
-  it('skips rollover when materializePendingSnapshots times out and still unlocks app', async () => {
-    const showToast = vi.fn()
-    withTimeout.mockRejectedValueOnce(new Error('materialize timeout'))
-
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
-
-    await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
-    })
-
-    expect(rolloverSnapshots).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tone: 'warning',
-      }),
-    )
-  })
-
-  it('runs rollover when materialization succeeds', async () => {
-    const showToast = vi.fn()
-    materializePendingSnapshots.mockResolvedValueOnce([])
-    rolloverSnapshots.mockResolvedValueOnce(undefined)
-
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
-
-    await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
     })
 
     expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
     expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
   })
 
-  it('does not remain blocked when both startup snapshot steps fail', async () => {
+  it('does not rerun maintenance after the startup pass has begun', async () => {
     const showToast = vi.fn()
-    withTimeout.mockRejectedValue(new Error('startup stalled'))
-
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
+    const onSnapshotsUpdated = vi.fn()
+    const { rerender } = renderHook(
+      ({ readyToStart }) => useStartupSnapshots({ showToast, readyToStart, onSnapshotsUpdated }),
+      { initialProps: { readyToStart: true } },
+    )
 
     await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
     })
 
-    expect(showToast).toHaveBeenCalledTimes(1)
+    rerender({ readyToStart: false })
+    rerender({ readyToStart: true })
+
+    expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
+    expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
+    expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
+  })
+
+  it('warns when materializePendingSnapshots fails and does not run rollover or refresh', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+    materializePendingSnapshots.mockRejectedValue(new Error('materialize failed'))
+
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
+
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: 'warning',
+        }),
+      )
+    })
+
+    expect(rolloverSnapshots).not.toHaveBeenCalled()
+    expect(onSnapshotsUpdated).not.toHaveBeenCalled()
+  })
+
+  it('warns when rolloverSnapshots fails and does not refresh', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+    rolloverSnapshots.mockRejectedValue(new Error('rollover failed'))
+
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
+
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: 'warning',
+        }),
+      )
+    })
+
+    expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
+    expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
+    expect(onSnapshotsUpdated).not.toHaveBeenCalled()
+  })
+
+  it('skips rollover when materializePendingSnapshots times out and warns', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+    withTimeout.mockRejectedValueOnce(new Error('materialize timeout'))
+
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
+
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: 'warning',
+        }),
+      )
+    })
+
+    expect(rolloverSnapshots).not.toHaveBeenCalled()
+    expect(onSnapshotsUpdated).not.toHaveBeenCalled()
   })
 
   it('preserves schedule-applied success toast while also warning on startup failure', async () => {
     const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
     materializePendingSnapshots.mockResolvedValue([
       {
         id: 'notice-1',
@@ -227,13 +188,12 @@ describe('useStartupSnapshots', () => {
     withTimeout.mockImplementationOnce((promise: Promise<unknown>) => promise)
     withTimeout.mockRejectedValueOnce(new Error('rollover failed'))
 
-    const { result } = renderHook(() => useStartupSnapshots({ showToast }))
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
 
     await waitFor(() => {
-      expect(result.current.snapshotsReady).toBe(true)
+      expect(showToast).toHaveBeenCalledTimes(2)
     })
 
-    expect(showToast).toHaveBeenCalledTimes(2)
     expect(showToast).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -242,6 +202,39 @@ describe('useStartupSnapshots', () => {
     )
     expect(showToast).toHaveBeenNthCalledWith(
       2,
+      expect.objectContaining({
+        tone: 'success',
+      }),
+    )
+    expect(onSnapshotsUpdated).not.toHaveBeenCalled()
+  })
+
+  it('preserves schedule-applied success toast after successful maintenance', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+    materializePendingSnapshots.mockResolvedValue([
+      {
+        id: 'notice-1',
+        type: 'income',
+        title: 'Income updated',
+        summary: 'Income changed',
+        effectiveYear: 2026,
+        effectiveMonth: 5,
+        effectiveLabel: 'May 2026',
+        previousValue: 6000,
+        appliedAt: '2026-05-10T00:00:00.000Z',
+        newValue: 6400,
+      },
+    ])
+
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
+
+    await waitFor(() => {
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
+    })
+
+    expect(showToast).toHaveBeenCalledTimes(1)
+    expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
         tone: 'success',
       }),
