@@ -114,15 +114,18 @@ function AppShell() {
   } = useScrollDirection()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [mobileSelectionActive, setMobileSelectionActive] = useState(false)
+  const isOnline =
+    typeof navigator === 'undefined' || !('onLine' in navigator) || navigator.onLine
   const canRunCloudStartupPull = Boolean(
-    supabase &&
-      user &&
-      (typeof navigator === 'undefined' || !('onLine' in navigator) || navigator.onLine),
+    supabase && user && isOnline,
   )
   const { announceAppliedScheduleUpdates } = useStartupSnapshots({
     showToast,
     readyToStart: !loading && !canRunCloudStartupPull,
     onSnapshotsUpdated: forceFinanceDataRefresh,
+    supabaseConfigured: Boolean(supabase),
+    isSignedIn: Boolean(user),
+    isOnline,
   })
   const isReady = !loading && settingsLoaded
 

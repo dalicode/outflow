@@ -274,6 +274,12 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
         localId: 'set-dashboard-display',
         syncStatus: 'pending',
       },
+      {
+        key: 'localOnlyMaintenancePendingReconcile',
+        value: true,
+        localId: 'set-local-reconcile',
+        syncStatus: 'pending',
+      },
     ])
 
     await migrateLocalToSupabase('user-1')
@@ -296,6 +302,7 @@ describe('migrateLocalToSupabase phase 4 upload', () => {
       expect.arrayContaining([
         expect.objectContaining({ key: 'localPrivacyModeEnabled' }),
         expect.objectContaining({ key: 'dashboardExpenseTableDisplay' }),
+        expect.objectContaining({ key: 'localOnlyMaintenancePendingReconcile' }),
       ]),
     )
   })

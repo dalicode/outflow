@@ -22,6 +22,7 @@ export const STALE_SYNC_RUN_MESSAGE = 'Sync run superseded'
 export const LOCAL_ONLY_SETTING_KEYS = new Set([
   'localPrivacyModeEnabled',
   'dashboardExpenseTableDisplay',
+  'localOnlyMaintenancePendingReconcile',
 ])
 
 export const FULL_SYNC_ORDER = [

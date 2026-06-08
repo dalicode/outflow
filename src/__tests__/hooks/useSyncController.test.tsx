@@ -5,12 +5,14 @@ import { useSyncController } from '@/hooks/useSyncController'
 const {
   hasPendingSyncMetadata,
   getSyncMetadataCounts,
+  getSetting,
   flushSyncQueue,
   pullFromSupabase,
   isSyncPaused,
 } = vi.hoisted(() => ({
   hasPendingSyncMetadata: vi.fn(),
   getSyncMetadataCounts: vi.fn(),
+  getSetting: vi.fn(),
   flushSyncQueue: vi.fn(),
   pullFromSupabase: vi.fn(),
   isSyncPaused: vi.fn(),
@@ -20,6 +22,7 @@ vi.mock('@/services/storageService', () => ({
   StorageService: {
     hasPendingSyncMetadata,
     getSyncMetadataCounts,
+    getSetting,
   },
 }))
 
@@ -50,6 +53,7 @@ describe('useSyncController', () => {
     vi.clearAllMocks()
     hasPendingSyncMetadata.mockResolvedValue(false)
     getSyncMetadataCounts.mockResolvedValue({ pending: 0, failed: 0 })
+    getSetting.mockResolvedValue(false)
     flushSyncQueue.mockResolvedValue(undefined)
     pullFromSupabase.mockResolvedValue(undefined)
     isSyncPaused.mockReturnValue(false)
@@ -505,6 +509,58 @@ describe('useSyncController', () => {
     })
 
     expect(callOrder).toEqual(['upload', 'pull'])
+  })
+
+  it('pulls before uploading on implicit online sync when maintenance reconcile is pending', async () => {
+    getSetting.mockResolvedValue(true)
+    hasPendingSyncMetadata.mockResolvedValue(true)
+    const callOrder: string[] = []
+    flushSyncQueue.mockImplementation(async () => {
+      callOrder.push('upload')
+    })
+    pullFromSupabase.mockImplementation(async () => {
+      callOrder.push('pull')
+    })
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+      await Promise.resolve()
+    })
+
+    expect(callOrder).toEqual(['pull', 'upload'])
+  })
+
+  it('pulls before uploading local changes when maintenance reconcile is pending', async () => {
+    getSetting.mockResolvedValue(true)
+    const callOrder: string[] = []
+    flushSyncQueue.mockImplementation(async () => {
+      callOrder.push('upload')
+    })
+    pullFromSupabase.mockImplementation(async () => {
+      callOrder.push('pull')
+    })
+
+    const runRecoveryCheck = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() =>
+      useSyncController({
+        userId: 'user-1',
+        runRecoveryCheck,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.syncLocalChanges()
+    })
+
+    expect(callOrder).toEqual(['pull', 'upload'])
   })
 
   it('treats pending metadata rows as local changes even when queue is empty', async () => {

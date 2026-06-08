@@ -8,9 +8,19 @@ const { materializePendingSnapshots, rolloverSnapshots, withTimeout } = vi.hoist
   withTimeout: vi.fn(),
 }))
 
+const { setLocalSetting } = vi.hoisted(() => ({
+  setLocalSetting: vi.fn(),
+}))
+
 vi.mock('@/services/repositories/scheduleRepository', () => ({
   materializePendingSnapshots,
   rolloverSnapshots,
+}))
+
+vi.mock('@/services/storageService', () => ({
+  StorageService: {
+    setLocalSetting,
+  },
 }))
 
 vi.mock('@/lib/withTimeout', () => ({
@@ -27,6 +37,7 @@ describe('useStartupSnapshots', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     materializePendingSnapshots.mockResolvedValue([])
     rolloverSnapshots.mockResolvedValue(undefined)
+    setLocalSetting.mockResolvedValue(undefined)
     withTimeout.mockImplementation((promise: Promise<unknown>) => promise)
   })
 
@@ -67,6 +78,77 @@ describe('useStartupSnapshots', () => {
       10_000,
       '[startup-snapshots] rolloverSnapshots timed out',
     )
+    expect(setLocalSetting).not.toHaveBeenCalled()
+  })
+
+  it('runs logged-out Supabase startup maintenance and marks reconcile pending', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+
+    renderHook(() =>
+      useStartupSnapshots({
+        showToast,
+        onSnapshotsUpdated,
+        supabaseConfigured: true,
+        isSignedIn: false,
+        isOnline: true,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
+    })
+
+    expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
+    expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
+    expect(setLocalSetting).toHaveBeenCalledWith('localOnlyMaintenancePendingReconcile', true)
+    expect(setLocalSetting.mock.invocationCallOrder[0]).toBeGreaterThan(
+      rolloverSnapshots.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('runs no-Supabase startup maintenance without marking reconcile pending', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+
+    renderHook(() =>
+      useStartupSnapshots({
+        showToast,
+        onSnapshotsUpdated,
+        supabaseConfigured: false,
+        isSignedIn: false,
+        isOnline: true,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
+    })
+
+    expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
+    expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
+    expect(setLocalSetting).not.toHaveBeenCalled()
+  })
+
+  it('marks reconcile pending for signed-in offline startup maintenance', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+
+    renderHook(() =>
+      useStartupSnapshots({
+        showToast,
+        onSnapshotsUpdated,
+        supabaseConfigured: true,
+        isSignedIn: true,
+        isOnline: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
+    })
+
+    expect(setLocalSetting).toHaveBeenCalledWith('localOnlyMaintenancePendingReconcile', true)
   })
 
   it('waits for readyToStart before running background maintenance', async () => {

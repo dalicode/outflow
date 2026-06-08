@@ -3,6 +3,7 @@ import {
   materializePendingSnapshots,
   rolloverSnapshots,
 } from '../services/repositories/scheduleRepository'
+import { StorageService } from '../services/storageService'
 import { summarizeScheduleMaterializationNotices } from '../utils/scheduleNotificationUtils'
 import { withTimeout } from '../lib/withTimeout'
 import type { ScheduleMaterializationNotice } from '../types'
@@ -15,11 +16,16 @@ interface UseStartupSnapshotsParams {
   }) => string
   readyToStart?: boolean
   onSnapshotsUpdated?: () => void
+  supabaseConfigured?: boolean
+  isSignedIn?: boolean
+  isOnline?: boolean
 }
 
 const STARTUP_SNAPSHOT_TIMEOUT_MS = 10_000
 const STARTUP_SNAPSHOT_WARNING =
   'Startup snapshot sync was incomplete. Your data is still available, and you can continue using the app.'
+export const LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY =
+  'localOnlyMaintenancePendingReconcile'
 
 interface RunSnapshotMaintenanceParams {
   showToast: UseStartupSnapshotsParams['showToast']
@@ -30,6 +36,24 @@ interface RunSnapshotMaintenanceParams {
 interface SnapshotMaintenanceResult {
   appliedNotices: ScheduleMaterializationNotice[]
   succeeded: boolean
+}
+
+export function shouldMarkLocalOnlyMaintenancePendingReconcile({
+  supabaseConfigured,
+  isSignedIn,
+  isOnline,
+}: {
+  supabaseConfigured?: boolean
+  isSignedIn?: boolean
+  isOnline?: boolean
+}): boolean {
+  if (!supabaseConfigured) return false
+  if (!isSignedIn) return true
+  return !isOnline
+}
+
+export async function markLocalOnlyMaintenancePendingReconcile(): Promise<void> {
+  await StorageService.setLocalSetting(LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY, true)
 }
 
 export async function runSnapshotMaintenance({
@@ -93,6 +117,9 @@ export function useStartupSnapshots({
   showToast,
   readyToStart = true,
   onSnapshotsUpdated,
+  supabaseConfigured = false,
+  isSignedIn = false,
+  isOnline = true,
 }: UseStartupSnapshotsParams): {
   announceAppliedScheduleUpdates: (notices: ScheduleMaterializationNotice[]) => void
 } {
@@ -118,13 +145,30 @@ export function useStartupSnapshots({
     const init = async () => {
       const { appliedNotices, succeeded } = await runSnapshotMaintenance({ showToast })
       if (succeeded) {
+        if (
+          shouldMarkLocalOnlyMaintenancePendingReconcile({
+            supabaseConfigured,
+            isSignedIn,
+            isOnline,
+          })
+        ) {
+          await markLocalOnlyMaintenancePendingReconcile()
+        }
         onSnapshotsUpdated?.()
       }
       announceAppliedScheduleUpdates(appliedNotices ?? [])
     }
 
     void init()
-  }, [announceAppliedScheduleUpdates, onSnapshotsUpdated, readyToStart, showToast])
+  }, [
+    announceAppliedScheduleUpdates,
+    isOnline,
+    isSignedIn,
+    onSnapshotsUpdated,
+    readyToStart,
+    showToast,
+    supabaseConfigured,
+  ])
 
   return {
     announceAppliedScheduleUpdates,

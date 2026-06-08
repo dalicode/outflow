@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { StorageService } from '../services/storageService'
 import * as syncRuntime from '../services/syncRuntime'
 import { flushSyncQueue, pullFromSupabase } from '../services/syncService'
+import { LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY } from './useStartupSnapshots'
 import type { SyncStatus } from '../types'
 import { debugLog, debugWarn } from '../lib/debug'
 import { withTimeout } from '../lib/withTimeout'
@@ -243,6 +244,26 @@ export function useSyncController({
   const resolveSyncMode = useCallback(
     async (options: QueueSyncOptions): Promise<SyncMode> => {
       if (options.mode) return options.mode
+
+      const hasPendingMaintenanceReconcile = await StorageService.getSetting(
+        LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY,
+        false,
+      )
+      if (
+        hasPendingMaintenanceReconcile &&
+        (options.reason === 'startup' ||
+          options.reason === 'sign-in' ||
+          options.reason === 'local-change' ||
+          options.reason === 'online' ||
+          options.reason === 'focus' ||
+          options.reason === 'visible' ||
+          options.reason === 'periodic' ||
+          options.reason === 'token-refresh' ||
+          options.reason === 'retry' ||
+          options.reason === 'queued-follow-up')
+      ) {
+        return 'pull-then-upload'
+      }
 
       const needsPendingCheck =
         options.reason === 'focus' ||
@@ -489,7 +510,7 @@ export function useSyncController({
   )
 
   const syncLocalChanges = useCallback(
-    () => queueSync({ reason: 'local-change', mode: 'upload-only', force: true }),
+    () => queueSync({ reason: 'local-change', force: true }),
     [queueSync],
   )
 

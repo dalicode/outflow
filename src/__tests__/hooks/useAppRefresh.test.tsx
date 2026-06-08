@@ -11,6 +11,11 @@ const { materializePendingSnapshotsMock, rolloverSnapshotsMock } = vi.hoisted(()
   rolloverSnapshotsMock: vi.fn(),
 }))
 
+const { getSettingMock, setLocalSettingMock } = vi.hoisted(() => ({
+  getSettingMock: vi.fn(),
+  setLocalSettingMock: vi.fn(),
+}))
+
 vi.mock('@/utils/serviceWorkerUpdates', () => ({
   checkForServiceWorkerUpdate: checkForServiceWorkerUpdateMock,
 }))
@@ -18,6 +23,13 @@ vi.mock('@/utils/serviceWorkerUpdates', () => ({
 vi.mock('@/services/repositories/scheduleRepository', () => ({
   materializePendingSnapshots: materializePendingSnapshotsMock,
   rolloverSnapshots: rolloverSnapshotsMock,
+}))
+
+vi.mock('@/services/storageService', () => ({
+  StorageService: {
+    getSetting: getSettingMock,
+    setLocalSetting: setLocalSettingMock,
+  },
 }))
 
 vi.mock('@/services/supabase', () => ({
@@ -42,6 +54,8 @@ describe('useAppRefresh', () => {
     })
     materializePendingSnapshotsMock.mockResolvedValue([])
     rolloverSnapshotsMock.mockResolvedValue(undefined)
+    getSettingMock.mockResolvedValue(false)
+    setLocalSettingMock.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -203,6 +217,107 @@ describe('useAppRefresh', () => {
     expect(financeOrder).toBeGreaterThan(rolloverOrder)
     expect(announceAppliedScheduleUpdates).toHaveBeenCalledWith([])
     expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it('clears reconcile flag after pull-applied local refresh and successful maintenance', async () => {
+    getSettingMock.mockResolvedValue(true)
+    const refreshExpenses = vi.fn().mockResolvedValue(undefined)
+    const refreshCategories = vi.fn().mockResolvedValue(undefined)
+    const refreshPayees = vi.fn().mockResolvedValue(undefined)
+    const refreshTags = vi.fn().mockResolvedValue(undefined)
+    const loadSettings = vi.fn().mockResolvedValue(undefined)
+    const announceAppliedScheduleUpdates = vi.fn()
+    const showToast = vi.fn()
+    const forceFinanceDataRefresh = vi.fn()
+
+    const { rerender } = renderHook(
+      ({ pullAppliedCount }: { pullAppliedCount: number }) =>
+        useAppRefresh({
+          pullAppliedCount,
+          refreshExpenses,
+          refreshCategories,
+          refreshPayees,
+          refreshTags,
+          loadSettings,
+          announceAppliedScheduleUpdates,
+          showToast,
+          syncNow: vi.fn(),
+          user: { id: 'user-1' },
+          forceFinanceDataRefresh,
+        }),
+      { initialProps: { pullAppliedCount: 0 } },
+    )
+
+    rerender({ pullAppliedCount: 1 })
+
+    await waitFor(() => {
+      expect(setLocalSettingMock).toHaveBeenCalledWith(
+        'localOnlyMaintenancePendingReconcile',
+        false,
+      )
+      expect(forceFinanceDataRefresh).toHaveBeenCalledTimes(1)
+    })
+
+    const localRefreshOrders = [
+      refreshExpenses.mock.invocationCallOrder[0],
+      refreshCategories.mock.invocationCallOrder[0],
+      refreshPayees.mock.invocationCallOrder[0],
+      refreshTags.mock.invocationCallOrder[0],
+      loadSettings.mock.invocationCallOrder[0],
+    ]
+    const materializeOrder = materializePendingSnapshotsMock.mock.invocationCallOrder[0]
+    const rolloverOrder = rolloverSnapshotsMock.mock.invocationCallOrder[0]
+    const clearOrder = setLocalSettingMock.mock.invocationCallOrder[0]
+    const financeOrder = forceFinanceDataRefresh.mock.invocationCallOrder[0]
+
+    expect(materializeOrder).toBeGreaterThan(Math.max(...localRefreshOrders))
+    expect(rolloverOrder).toBeGreaterThan(materializeOrder)
+    expect(clearOrder).toBeGreaterThan(rolloverOrder)
+    expect(financeOrder).toBeGreaterThan(clearOrder)
+  })
+
+  it('does not clear reconcile flag when pull-applied maintenance fails', async () => {
+    getSettingMock.mockResolvedValue(true)
+    materializePendingSnapshotsMock.mockRejectedValue(new Error('materialize failed'))
+    const refreshExpenses = vi.fn().mockResolvedValue(undefined)
+    const refreshCategories = vi.fn().mockResolvedValue(undefined)
+    const refreshPayees = vi.fn().mockResolvedValue(undefined)
+    const refreshTags = vi.fn().mockResolvedValue(undefined)
+    const loadSettings = vi.fn().mockResolvedValue(undefined)
+    const announceAppliedScheduleUpdates = vi.fn()
+    const showToast = vi.fn()
+    const forceFinanceDataRefresh = vi.fn()
+
+    const { rerender } = renderHook(
+      ({ pullAppliedCount }: { pullAppliedCount: number }) =>
+        useAppRefresh({
+          pullAppliedCount,
+          refreshExpenses,
+          refreshCategories,
+          refreshPayees,
+          refreshTags,
+          loadSettings,
+          announceAppliedScheduleUpdates,
+          showToast,
+          syncNow: vi.fn(),
+          user: { id: 'user-1' },
+          forceFinanceDataRefresh,
+        }),
+      { initialProps: { pullAppliedCount: 0 } },
+    )
+
+    rerender({ pullAppliedCount: 1 })
+
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: 'warning',
+        }),
+      )
+    })
+
+    expect(setLocalSettingMock).not.toHaveBeenCalled()
+    expect(forceFinanceDataRefresh).not.toHaveBeenCalled()
   })
 
   it('preserves schedule-applied notices after pull-applied maintenance without a generic success toast', async () => {

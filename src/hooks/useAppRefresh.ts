@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { supabase } from '../services/supabase'
+import { StorageService } from '../services/storageService'
 import { checkForServiceWorkerUpdate } from '../utils/serviceWorkerUpdates'
-import { runSnapshotMaintenance } from './useStartupSnapshots'
+import {
+  LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY,
+  runSnapshotMaintenance,
+} from './useStartupSnapshots'
 import type { ScheduleMaterializationNotice } from '../types'
 
 interface UseAppRefreshParams {
@@ -69,6 +73,16 @@ export function useAppRefresh({
             'Background snapshot sync was incomplete. Your data is still available, and you can continue using the app.',
         })
         if (succeeded) {
+          const shouldClearReconcileFlag = await StorageService.getSetting(
+            LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY,
+            false,
+          )
+          if (shouldClearReconcileFlag) {
+            await StorageService.setLocalSetting(
+              LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY,
+              false,
+            )
+          }
           forceFinanceDataRefresh?.()
         }
         announceAppliedScheduleUpdates(appliedNotices ?? [])
