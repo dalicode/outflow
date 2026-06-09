@@ -42,6 +42,27 @@ function compareScheduleDates(aYear: number, aMonth: number, bYear: number, bMon
   return aMonth - bMonth
 }
 
+function getLocalDayKey(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`
+}
+
+function isScheduleDueOnDate(schedule: Schedule, date: Date = new Date()): boolean {
+  const currentYear = date.getFullYear()
+  const currentMonth = date.getMonth() + 1
+
+  if (schedule.effectiveYear < currentYear) return true
+  if (schedule.effectiveYear > currentYear) return false
+  if (schedule.effectiveMonth < currentMonth) return true
+  if (schedule.effectiveMonth > currentMonth) return false
+
+  if (schedule.type !== 'expense') return true
+
+  const effectiveDay = schedule.day ?? 1
+  return effectiveDay <= date.getDate()
+}
+
 function isBeforeMonth(year: number, month: number, refYear: number, refMonth: number) {
   return year < refYear || (year === refYear && month < refMonth)
 }
@@ -137,6 +158,8 @@ export {
   compareScheduleDates,
   buildCreatedSyncRecord,
   filterActiveRows,
+  getLocalDayKey,
+  isScheduleDueOnDate,
   isBeforeMonth,
   isBeforeOrEqualMonth,
   markDeletedSyncRecord,

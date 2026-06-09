@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react'
 import {
+  hasActiveUnmaterializedDueSchedule,
   materializePendingSnapshots,
   rolloverSnapshots,
 } from '../services/repositories/scheduleRepository'
 import { StorageService } from '../services/storageService'
+import { getLocalDayKey } from '../services/repositories/common'
 import { summarizeScheduleMaterializationNotices } from '../utils/scheduleNotificationUtils'
 import { withTimeout } from '../lib/withTimeout'
 import type { ScheduleMaterializationNotice } from '../types'
@@ -26,6 +28,7 @@ const STARTUP_SNAPSHOT_WARNING =
   'Startup snapshot sync was incomplete. Your data is still available, and you can continue using the app.'
 export const LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY =
   'localOnlyMaintenancePendingReconcile'
+export const LAST_SNAPSHOT_MAINTENANCE_DAY_KEY = 'lastSnapshotMaintenanceDayKey'
 
 interface RunSnapshotMaintenanceParams {
   showToast: UseStartupSnapshotsParams['showToast']
@@ -35,6 +38,7 @@ interface RunSnapshotMaintenanceParams {
 
 interface SnapshotMaintenanceResult {
   appliedNotices: ScheduleMaterializationNotice[]
+  ran: boolean
   succeeded: boolean
 }
 
@@ -62,6 +66,35 @@ export async function runSnapshotMaintenance({
   warningMessage = STARTUP_SNAPSHOT_WARNING,
 }: RunSnapshotMaintenanceParams): Promise<SnapshotMaintenanceResult> {
   console.debug(`[${debugLabel}] begin`)
+  const todayKey = getLocalDayKey()
+  let shouldRunMaintenance = true
+
+  try {
+    const [lastMaintenanceDayKey, hasDueSchedule] = await Promise.all([
+      StorageService.getSetting<string | null>(LAST_SNAPSHOT_MAINTENANCE_DAY_KEY, null),
+      hasActiveUnmaterializedDueSchedule(),
+    ])
+    shouldRunMaintenance =
+      !lastMaintenanceDayKey || lastMaintenanceDayKey !== todayKey || hasDueSchedule
+    console.debug(`[${debugLabel}] gate`, {
+      lastMaintenanceDayKey,
+      todayKey,
+      hasDueSchedule,
+      shouldRunMaintenance,
+    })
+  } catch (error) {
+    console.error(`[${debugLabel}] gate check failed; running maintenance`, error)
+  }
+
+  if (!shouldRunMaintenance) {
+    console.debug(`[${debugLabel}] end`, 'skipped')
+    return {
+      appliedNotices: [],
+      ran: false,
+      succeeded: true,
+    }
+  }
+
   let appliedNotices: ScheduleMaterializationNotice[] = []
   let startupFailed = false
   let materializationSucceeded = false
@@ -89,6 +122,11 @@ export async function runSnapshotMaintenance({
         STARTUP_SNAPSHOT_TIMEOUT_MS,
         `[${debugLabel}] rolloverSnapshots timed out`,
       )
+      await withTimeout(
+        StorageService.setLocalSetting(LAST_SNAPSHOT_MAINTENANCE_DAY_KEY, todayKey),
+        STARTUP_SNAPSHOT_TIMEOUT_MS,
+        `[${debugLabel}] lastSnapshotMaintenanceDayKey update timed out`,
+      )
       console.debug(`[${debugLabel}] rollover complete`)
     } catch (error) {
       startupFailed = true
@@ -109,6 +147,7 @@ export async function runSnapshotMaintenance({
   console.debug(`[${debugLabel}] end`, startupFailed ? 'with-fallback' : 'success')
   return {
     appliedNotices,
+    ran: true,
     succeeded: !startupFailed,
   }
 }
@@ -143,8 +182,8 @@ export function useStartupSnapshots({
     hasStartedRef.current = true
 
     const init = async () => {
-      const { appliedNotices, succeeded } = await runSnapshotMaintenance({ showToast })
-      if (succeeded) {
+      const { appliedNotices, ran, succeeded } = await runSnapshotMaintenance({ showToast })
+      if (ran && succeeded) {
         if (
           shouldMarkLocalOnlyMaintenancePendingReconcile({
             supabaseConfigured,

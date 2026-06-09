@@ -6,7 +6,12 @@ const { checkForServiceWorkerUpdateMock } = vi.hoisted(() => ({
   checkForServiceWorkerUpdateMock: vi.fn(),
 }))
 
-const { materializePendingSnapshotsMock, rolloverSnapshotsMock } = vi.hoisted(() => ({
+const {
+  hasActiveUnmaterializedDueScheduleMock,
+  materializePendingSnapshotsMock,
+  rolloverSnapshotsMock,
+} = vi.hoisted(() => ({
+  hasActiveUnmaterializedDueScheduleMock: vi.fn(),
   materializePendingSnapshotsMock: vi.fn(),
   rolloverSnapshotsMock: vi.fn(),
 }))
@@ -21,6 +26,7 @@ vi.mock('@/utils/serviceWorkerUpdates', () => ({
 }))
 
 vi.mock('@/services/repositories/scheduleRepository', () => ({
+  hasActiveUnmaterializedDueSchedule: hasActiveUnmaterializedDueScheduleMock,
   materializePendingSnapshots: materializePendingSnapshotsMock,
   rolloverSnapshots: rolloverSnapshotsMock,
 }))
@@ -52,6 +58,7 @@ describe('useAppRefresh', () => {
       registration: null,
       updateFound: false,
     })
+    hasActiveUnmaterializedDueScheduleMock.mockResolvedValue(false)
     materializePendingSnapshotsMock.mockResolvedValue([])
     rolloverSnapshotsMock.mockResolvedValue(undefined)
     getSettingMock.mockResolvedValue(false)
@@ -267,7 +274,10 @@ describe('useAppRefresh', () => {
     ]
     const materializeOrder = materializePendingSnapshotsMock.mock.invocationCallOrder[0]
     const rolloverOrder = rolloverSnapshotsMock.mock.invocationCallOrder[0]
-    const clearOrder = setLocalSettingMock.mock.invocationCallOrder[0]
+    const clearCallIndex = setLocalSettingMock.mock.calls.findIndex(
+      ([key, value]) => key === 'localOnlyMaintenancePendingReconcile' && value === false,
+    )
+    const clearOrder = setLocalSettingMock.mock.invocationCallOrder[clearCallIndex]
     const financeOrder = forceFinanceDataRefresh.mock.invocationCallOrder[0]
 
     expect(materializeOrder).toBeGreaterThan(Math.max(...localRefreshOrders))
@@ -371,5 +381,56 @@ describe('useAppRefresh', () => {
         tone: 'success',
       }),
     )
+  })
+
+  it('skips local refresh work on same-day focus when no due schedule exists', async () => {
+    const today = new Date()
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+      2,
+      '0',
+    )}-${String(today.getDate()).padStart(2, '0')}`
+    getSettingMock.mockImplementation(async (key: string, fallback: unknown) => {
+      if (key === 'lastSnapshotMaintenanceDayKey') return todayKey
+      return fallback
+    })
+    const refreshExpenses = vi.fn().mockResolvedValue(undefined)
+    const refreshCategories = vi.fn().mockResolvedValue(undefined)
+    const refreshPayees = vi.fn().mockResolvedValue(undefined)
+    const refreshTags = vi.fn().mockResolvedValue(undefined)
+    const loadSettings = vi.fn().mockResolvedValue(undefined)
+    const announceAppliedScheduleUpdates = vi.fn()
+    const showToast = vi.fn()
+    const forceFinanceDataRefresh = vi.fn()
+
+    renderHook(() =>
+      useAppRefresh({
+        pullAppliedCount: 0,
+        refreshExpenses,
+        refreshCategories,
+        refreshPayees,
+        refreshTags,
+        loadSettings,
+        announceAppliedScheduleUpdates,
+        showToast,
+        syncNow: vi.fn(),
+        user: null,
+        forceFinanceDataRefresh,
+      }),
+    )
+
+    window.dispatchEvent(new Event('focus'))
+
+    await waitFor(() => {
+      expect(hasActiveUnmaterializedDueScheduleMock).toHaveBeenCalledTimes(1)
+    })
+
+    expect(materializePendingSnapshotsMock).not.toHaveBeenCalled()
+    expect(rolloverSnapshotsMock).not.toHaveBeenCalled()
+    expect(refreshExpenses).not.toHaveBeenCalled()
+    expect(refreshCategories).not.toHaveBeenCalled()
+    expect(refreshPayees).not.toHaveBeenCalled()
+    expect(refreshTags).not.toHaveBeenCalled()
+    expect(loadSettings).not.toHaveBeenCalled()
+    expect(forceFinanceDataRefresh).not.toHaveBeenCalled()
   })
 })

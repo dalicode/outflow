@@ -135,7 +135,10 @@ vi.mock('@/services/db/schema', () => ({
   },
 }))
 
-import { materializePendingSnapshots } from '@/services/repositories/scheduleRepository'
+import {
+  hasActiveUnmaterializedDueSchedule,
+  materializePendingSnapshots,
+} from '@/services/repositories/scheduleRepository'
 
 describe('materializePendingSnapshots', () => {
   beforeEach(() => {
@@ -188,6 +191,99 @@ describe('materializePendingSnapshots', () => {
     )
     expect(state.schedules[0].isActive).toBe(0)
     expect(state.schedules[0].materializedAt).toBe('2026-05')
+  })
+
+  it('does not materialize future-day expense schedules in the current month', async () => {
+    state.schedules.push({
+      id: 2,
+      type: 'expense',
+      targetId: null,
+      effectiveYear: 2026,
+      effectiveMonth: 5,
+      newValue: 75,
+      isActive: 1,
+      day: 20,
+      categoryId: 7,
+      notes: 'Future planned expense',
+      localId: 'sched-2',
+      createdAt: '2026-05-01T00:00:00.000Z',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+      syncStatus: 'synced',
+      lastSyncedAt: '2026-05-01T00:00:00.000Z',
+      syncError: null,
+      deviceId: 'device-1',
+    })
+
+    const notices = await materializePendingSnapshots()
+
+    expect(notices).toEqual([])
+    expect(state.expenses).toHaveLength(0)
+    expect(state.schedules[0].isActive).toBe(1)
+    expect(state.schedules[0].materializedAt).toBeUndefined()
+  })
+
+  it('detects only active unmaterialized schedules due on the current day', async () => {
+    state.schedules.push(
+      {
+        id: 3,
+        type: 'expense',
+        targetId: null,
+        effectiveYear: 2026,
+        effectiveMonth: 5,
+        newValue: 75,
+        isActive: 1,
+        day: 20,
+        localId: 'future-expense',
+        createdAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        deletedAt: null,
+        syncStatus: 'synced',
+        lastSyncedAt: '2026-05-01T00:00:00.000Z',
+        syncError: null,
+        deviceId: 'device-1',
+      },
+      {
+        id: 4,
+        type: 'income',
+        targetId: null,
+        effectiveYear: 2026,
+        effectiveMonth: 5,
+        newValue: 6500,
+        materializedAt: '2026-05',
+        isActive: 1,
+        localId: 'materialized-income',
+        createdAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        deletedAt: null,
+        syncStatus: 'synced',
+        lastSyncedAt: '2026-05-01T00:00:00.000Z',
+        syncError: null,
+        deviceId: 'device-1',
+      },
+    )
+
+    expect(await hasActiveUnmaterializedDueSchedule()).toBe(false)
+
+    state.schedules.push({
+      id: 5,
+      type: 'income',
+      targetId: null,
+      effectiveYear: 2026,
+      effectiveMonth: 5,
+      newValue: 7000,
+      isActive: 1,
+      localId: 'due-income',
+      createdAt: '2026-05-01T00:00:00.000Z',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      deletedAt: null,
+      syncStatus: 'synced',
+      lastSyncedAt: '2026-05-01T00:00:00.000Z',
+      syncError: null,
+      deviceId: 'device-1',
+    })
+
+    expect(await hasActiveUnmaterializedDueSchedule()).toBe(true)
   })
 
   it('rolls back partial schedule/settings/fixed updates when the transaction fails', async () => {

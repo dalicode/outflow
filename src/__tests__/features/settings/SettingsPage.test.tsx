@@ -11,6 +11,10 @@ const { settingsSave, loadSchedules, deleteSchedule } = vi.hoisted(() => ({
   deleteSchedule: vi.fn(),
 }))
 
+const { runSnapshotMaintenance } = vi.hoisted(() => ({
+  runSnapshotMaintenance: vi.fn(),
+}))
+
 const { showToast } = vi.hoisted(() => ({
   showToast: vi.fn(),
 }))
@@ -50,6 +54,10 @@ vi.mock('@/context/toastContext', () => ({
 
 vi.mock('@/hooks/useLocalData', () => ({
   usePayees: () => ({ payees: [] }),
+}))
+
+vi.mock('@/hooks/useStartupSnapshots', () => ({
+  runSnapshotMaintenance,
 }))
 
 vi.mock('@/features/settings/hooks/useScheduleList', () => ({
@@ -189,6 +197,7 @@ describe('SettingsPage', () => {
     settingsSave.mockResolvedValue(undefined)
     deleteSchedule.mockResolvedValue(undefined)
     loadSchedules.mockResolvedValue(undefined)
+    runSnapshotMaintenance.mockResolvedValue({ appliedNotices: [], ran: false, succeeded: true })
     showToast.mockReset()
     window.sessionStorage.clear()
     getSyncPauseReasons.mockReturnValue([])
@@ -238,6 +247,11 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(loadSchedules).toHaveBeenCalled()
     })
+    expect(runSnapshotMaintenance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        debugLabel: 'schedule-save-maintenance',
+      }),
+    )
     await waitFor(() => {
       expect(syncLocalChanges).toHaveBeenCalledTimes(1)
     })

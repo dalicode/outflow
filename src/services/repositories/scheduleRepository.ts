@@ -18,7 +18,9 @@ import {
   buildCreatedSyncRecord,
   compareScheduleDates,
   filterActiveRows,
+  getLocalDayKey,
   isBeforeOrEqualMonth,
+  isScheduleDueOnDate,
   markDeletedSyncRecord,
   markPendingActiveRecord,
   resolveScheduleValueForMonth,
@@ -278,6 +280,17 @@ export async function deleteSchedule(id: number): Promise<void> {
   await updateSchedulePending(id, { isActive: 0, deletedAt: now }, now)
 }
 
+export async function hasActiveUnmaterializedDueSchedule(
+  date: Date = new Date(),
+): Promise<boolean> {
+  const schedules = await getActiveSchedules()
+  return schedules.some((schedule) => {
+    const hasMaterializedAt =
+      typeof schedule.materializedAt === 'string' && schedule.materializedAt.length > 0
+    return !hasMaterializedAt && isScheduleDueOnDate(schedule, date)
+  })
+}
+
 // ── Schedule Materialization ──────────────────────────────
 // When a schedule's effective date arrives, execute it by updating the live
 // values only. Historical snapshots are written on rollover, so the schedule
@@ -286,9 +299,7 @@ export async function deleteSchedule(id: number): Promise<void> {
 export async function materializePendingSnapshots(): Promise<ScheduleMaterializationNotice[]> {
   const now = new Date()
   const nowIso = now.toISOString()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() + 1
-  const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+  const currentKey = getLocalDayKey(now).slice(0, 7)
 
   const [schedules, categories, payees, fixedDefs, monthlyIncomeRow, savingsRateRow, noticeRow] =
     await Promise.all([
@@ -335,11 +346,7 @@ export async function materializePendingSnapshots(): Promise<ScheduleMaterializa
   const newNotices: ScheduleMaterializationNotice[] = []
 
   const dueSchedules = [...schedules]
-    .filter(
-      (schedule) =>
-        schedule.effectiveYear < currentYear ||
-        (schedule.effectiveYear === currentYear && schedule.effectiveMonth <= currentMonth),
-    )
+    .filter((schedule) => isScheduleDueOnDate(schedule, now))
     .sort((a, b) =>
       compareScheduleDates(a.effectiveYear, a.effectiveMonth, b.effectiveYear, b.effectiveMonth),
     )

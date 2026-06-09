@@ -42,6 +42,7 @@ export function useAppRefresh({
   handlePullRefresh: () => Promise<void>
 } {
   const suppressManualPullAppliedCountRef = useRef<number | null>(null)
+  const lastResumeMaintenanceAtRef = useRef(0)
 
   const refreshLocalDataAndSettings = useCallback(async () => {
     await Promise.all([
@@ -52,6 +53,39 @@ export function useAppRefresh({
       loadSettings(),
     ])
   }, [loadSettings, refreshCategories, refreshExpenses, refreshPayees, refreshTags])
+
+  const runMaintenanceAfterLocalRefresh = useCallback(
+    async ({
+      debugLabel,
+      warningMessage,
+      clearReconcileFlag = false,
+    }: {
+      debugLabel: string
+      warningMessage: string
+      clearReconcileFlag?: boolean
+    }) => {
+      const { appliedNotices, ran, succeeded } = await runSnapshotMaintenance({
+        showToast,
+        debugLabel,
+        warningMessage,
+      })
+      if (succeeded && clearReconcileFlag) {
+        const shouldClearReconcileFlag = await StorageService.getSetting(
+          LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY,
+          false,
+        )
+        if (shouldClearReconcileFlag) {
+          await StorageService.setLocalSetting(LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY, false)
+        }
+      }
+      if (ran && succeeded) {
+        forceFinanceDataRefresh?.()
+      }
+      announceAppliedScheduleUpdates(appliedNotices ?? [])
+      return { ran, succeeded }
+    },
+    [announceAppliedScheduleUpdates, forceFinanceDataRefresh, showToast],
+  )
 
   useEffect(() => {
     if (pullAppliedCount === 0) return
@@ -66,26 +100,12 @@ export function useAppRefresh({
     const applyPulledData = async () => {
       try {
         await refreshLocalDataAndSettings()
-        const { appliedNotices, succeeded } = await runSnapshotMaintenance({
-          showToast,
+        await runMaintenanceAfterLocalRefresh({
           debugLabel: 'pull-applied-maintenance',
           warningMessage:
             'Background snapshot sync was incomplete. Your data is still available, and you can continue using the app.',
+          clearReconcileFlag: true,
         })
-        if (succeeded) {
-          const shouldClearReconcileFlag = await StorageService.getSetting(
-            LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY,
-            false,
-          )
-          if (shouldClearReconcileFlag) {
-            await StorageService.setLocalSetting(
-              LOCAL_ONLY_MAINTENANCE_PENDING_RECONCILE_KEY,
-              false,
-            )
-          }
-          forceFinanceDataRefresh?.()
-        }
-        announceAppliedScheduleUpdates(appliedNotices ?? [])
       } catch (error) {
         console.error('Pull-applied refresh failed:', error)
         showToast({
@@ -102,6 +122,56 @@ export function useAppRefresh({
     refreshLocalDataAndSettings,
     forceFinanceDataRefresh,
     announceAppliedScheduleUpdates,
+    runMaintenanceAfterLocalRefresh,
+    showToast,
+  ])
+
+  useEffect(() => {
+    const runResumeMaintenance = async (debugLabel: string) => {
+      const now = Date.now()
+      if (now - lastResumeMaintenanceAtRef.current < 1000) return
+      lastResumeMaintenanceAtRef.current = now
+
+      try {
+        const { appliedNotices, ran, succeeded } = await runSnapshotMaintenance({
+          showToast,
+          debugLabel,
+          warningMessage:
+            'Background snapshot sync was incomplete. Your data is still available, and you can continue using the app.',
+        })
+        if (ran && succeeded) {
+          await refreshLocalDataAndSettings()
+          forceFinanceDataRefresh?.()
+        }
+        announceAppliedScheduleUpdates(appliedNotices ?? [])
+      } catch (error) {
+        console.error('Resume snapshot maintenance failed:', error)
+        showToast({
+          message: "Refresh didn't finish. Try again in a moment.",
+          tone: 'warning',
+          durationMs: 4000,
+        })
+      }
+    }
+
+    const handleFocus = () => {
+      void runResumeMaintenance('focus-maintenance')
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      void runResumeMaintenance('visibility-maintenance')
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [
+    announceAppliedScheduleUpdates,
+    forceFinanceDataRefresh,
+    refreshLocalDataAndSettings,
     showToast,
   ])
 
@@ -117,15 +187,10 @@ export function useAppRefresh({
       }
 
       await refreshLocalDataAndSettings()
-      const { appliedNotices, succeeded } = await runSnapshotMaintenance({
-        showToast,
+      await runMaintenanceAfterLocalRefresh({
         debugLabel: 'pull-refresh-maintenance',
         warningMessage: "Refresh didn't finish. Try again in a moment.",
       })
-      if (succeeded) {
-        forceFinanceDataRefresh?.()
-      }
-      announceAppliedScheduleUpdates(appliedNotices ?? [])
 
       await serviceWorkerUpdateCheck
 
@@ -146,6 +211,7 @@ export function useAppRefresh({
   }, [
     refreshLocalDataAndSettings,
     announceAppliedScheduleUpdates,
+    runMaintenanceAfterLocalRefresh,
     pullAppliedCount,
     syncNow,
     showToast,

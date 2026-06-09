@@ -2,23 +2,32 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStartupSnapshots } from '@/hooks/useStartupSnapshots'
 
-const { materializePendingSnapshots, rolloverSnapshots, withTimeout } = vi.hoisted(() => ({
+const {
+  hasActiveUnmaterializedDueSchedule,
+  materializePendingSnapshots,
+  rolloverSnapshots,
+  withTimeout,
+} = vi.hoisted(() => ({
+  hasActiveUnmaterializedDueSchedule: vi.fn(),
   materializePendingSnapshots: vi.fn(),
   rolloverSnapshots: vi.fn(),
   withTimeout: vi.fn(),
 }))
 
-const { setLocalSetting } = vi.hoisted(() => ({
+const { getSetting, setLocalSetting } = vi.hoisted(() => ({
+  getSetting: vi.fn(),
   setLocalSetting: vi.fn(),
 }))
 
 vi.mock('@/services/repositories/scheduleRepository', () => ({
+  hasActiveUnmaterializedDueSchedule,
   materializePendingSnapshots,
   rolloverSnapshots,
 }))
 
 vi.mock('@/services/storageService', () => ({
   StorageService: {
+    getSetting,
     setLocalSetting,
   },
 }))
@@ -37,6 +46,8 @@ describe('useStartupSnapshots', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     materializePendingSnapshots.mockResolvedValue([])
     rolloverSnapshots.mockResolvedValue(undefined)
+    hasActiveUnmaterializedDueSchedule.mockResolvedValue(false)
+    getSetting.mockResolvedValue(null)
     setLocalSetting.mockResolvedValue(undefined)
     withTimeout.mockImplementation((promise: Promise<unknown>) => promise)
   })
@@ -65,7 +76,7 @@ describe('useStartupSnapshots', () => {
     expect(onSnapshotsUpdated.mock.invocationCallOrder[0]).toBeGreaterThan(
       rolloverSnapshots.mock.invocationCallOrder[0],
     )
-    expect(withTimeout).toHaveBeenCalledTimes(2)
+    expect(withTimeout).toHaveBeenCalledTimes(3)
     expect(withTimeout).toHaveBeenNthCalledWith(
       1,
       expect.any(Promise),
@@ -78,7 +89,60 @@ describe('useStartupSnapshots', () => {
       10_000,
       '[startup-snapshots] rolloverSnapshots timed out',
     )
-    expect(setLocalSetting).not.toHaveBeenCalled()
+    expect(withTimeout).toHaveBeenNthCalledWith(
+      3,
+      expect.any(Promise),
+      10_000,
+      '[startup-snapshots] lastSnapshotMaintenanceDayKey update timed out',
+    )
+    expect(setLocalSetting).toHaveBeenCalledWith(
+      'lastSnapshotMaintenanceDayKey',
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    )
+  })
+
+  it('skips same-day maintenance when there is no newly due schedule', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+    const now = new Date()
+    const localTodayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      '0',
+    )}-${String(now.getDate()).padStart(2, '0')}`
+    getSetting.mockImplementation(async (key: string, fallback: unknown) => {
+      if (key === 'lastSnapshotMaintenanceDayKey') return localTodayKey
+      return fallback
+    })
+
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
+
+    await waitFor(() => {
+      expect(hasActiveUnmaterializedDueSchedule).toHaveBeenCalledTimes(1)
+    })
+
+    expect(materializePendingSnapshots).not.toHaveBeenCalled()
+    expect(rolloverSnapshots).not.toHaveBeenCalled()
+    expect(onSnapshotsUpdated).not.toHaveBeenCalled()
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it('runs same-day maintenance when an unmaterialized due schedule exists', async () => {
+    const showToast = vi.fn()
+    const onSnapshotsUpdated = vi.fn()
+    getSetting.mockImplementation(async (key: string, fallback: unknown) => {
+      if (key === 'lastSnapshotMaintenanceDayKey') return new Date().toISOString().slice(0, 10)
+      return fallback
+    })
+    hasActiveUnmaterializedDueSchedule.mockResolvedValue(true)
+
+    renderHook(() => useStartupSnapshots({ showToast, onSnapshotsUpdated }))
+
+    await waitFor(() => {
+      expect(onSnapshotsUpdated).toHaveBeenCalledTimes(1)
+    })
+
+    expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
+    expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
   })
 
   it('runs logged-out Supabase startup maintenance and marks reconcile pending', async () => {
@@ -127,7 +191,10 @@ describe('useStartupSnapshots', () => {
 
     expect(materializePendingSnapshots).toHaveBeenCalledTimes(1)
     expect(rolloverSnapshots).toHaveBeenCalledTimes(1)
-    expect(setLocalSetting).not.toHaveBeenCalled()
+    expect(setLocalSetting).not.toHaveBeenCalledWith(
+      'localOnlyMaintenancePendingReconcile',
+      true,
+    )
   })
 
   it('marks reconcile pending for signed-in offline startup maintenance', async () => {

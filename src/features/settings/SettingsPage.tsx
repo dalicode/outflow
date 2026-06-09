@@ -11,6 +11,7 @@ import { useAuth } from '../../context/authContext'
 import { useSettings } from '../../context/settingsContext'
 import { useToasts } from '../../context/toastContext'
 import { usePayees } from '../../hooks/useLocalData'
+import { runSnapshotMaintenance } from '../../hooks/useStartupSnapshots'
 import { useScheduleList } from './hooks/useScheduleList'
 import { clearAllData, dbVersion } from '../../services/repositories/backupRepository'
 import { getCategories } from '../../services/repositories/categoryRepository'
@@ -19,6 +20,7 @@ import { clearUserCloudData } from '../../services/syncService'
 import { getSyncPauseReasons } from '../../services/syncRuntime'
 import type { Category, Expense, Schedule, ScheduleMaterializationNotice } from '../../types'
 import { getLocalToday } from '../../utils/historicalDataHelpers'
+import { summarizeScheduleMaterializationNotices } from '../../utils/scheduleNotificationUtils'
 import { useBackup } from '../importExport/hooks/useBackup'
 import { useCsvImport } from '../importExport/hooks/useCsvImport'
 import ImportLogPanel from '../importExport/ImportLogPanel'
@@ -240,6 +242,29 @@ export default function SettingsPage({
   const handleScheduleModalClose = () => {
     setIsScheduleModalOpen(false)
     setScheduleToEdit(null)
+  }
+
+  const handleScheduleModalComplete = async () => {
+    await loadSchedules()
+    await onRefreshAll?.()
+    const { appliedNotices, ran, succeeded } = await runSnapshotMaintenance({
+      showToast,
+      debugLabel: 'schedule-save-maintenance',
+      warningMessage:
+        'Schedule maintenance was incomplete. Your schedule was saved, and you can continue using the app.',
+    })
+    if (appliedNotices.length > 0) {
+      setAppliedScheduleNotices((current) => [...appliedNotices, ...current].slice(0, 20))
+      showToast({
+        message: summarizeScheduleMaterializationNotices(appliedNotices),
+        tone: 'success',
+        durationMs: 6500,
+      })
+    }
+    if (ran && succeeded) {
+      await onRefreshAll?.()
+    }
+    queueLocalSync()
   }
 
   const handleDismissAppliedScheduleNotices = async () => {
@@ -1232,9 +1257,7 @@ export default function SettingsPage({
               onClose={handleScheduleModalClose}
               editSchedule={scheduleToEdit}
               onComplete={() => {
-                loadSchedules()
-                onRefreshAll?.()
-                queueLocalSync()
+                void handleScheduleModalComplete()
               }}
             />
           </Suspense>
