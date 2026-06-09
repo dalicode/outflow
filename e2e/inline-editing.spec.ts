@@ -42,20 +42,21 @@ test.describe('Inline editing (desktop)', () => {
   })
 
   test('checkbox selection and context menu interactions', async ({ page }) => {
+    const expenseTable = page.getByTestId('expense-table')
     const rows = page.locator("[data-testid^='expense-row-']")
     const firstRow = rows.first()
 
     // Row checkbox toggles selection
-    await firstRow.locator('.expense-checkbox-wrapper').first().click({ force: true })
+    await expenseTable.getByRole('checkbox', { name: 'Select Snack' }).click({ force: true })
     await expect(firstRow).toHaveClass(/selected-row/)
 
     // Select all / deselect all
-    const selectAllLabel = page.locator('th .expense-checkbox-wrapper').first()
-    await selectAllLabel.click({ force: true })
+    const selectAllCheckbox = expenseTable.getByRole('checkbox', { name: 'Select all' })
+    await selectAllCheckbox.click({ force: true })
     for (let i = 0; i < (await rows.count()); i++) {
       await expect(rows.nth(i)).toHaveClass(/selected-row/)
     }
-    await selectAllLabel.click({ force: true })
+    await selectAllCheckbox.click({ force: true })
     for (let i = 0; i < (await rows.count()); i++) {
       await expect(rows.nth(i)).not.toHaveClass(/selected-row/)
     }
@@ -71,8 +72,8 @@ test.describe('Inline editing (desktop)', () => {
     await page.waitForTimeout(200)
 
     // Multiple selection shows bulk context menu
-    await rows.nth(0).locator('.expense-checkbox-wrapper').first().click({ force: true })
-    await rows.nth(1).locator('.expense-checkbox-wrapper').first().click({ force: true })
+    await expenseTable.getByRole('checkbox', { name: 'Select Snack' }).click({ force: true })
+    await expenseTable.getByRole('checkbox', { name: 'Select Groceries' }).click({ force: true })
     await rows.nth(0).click({ button: 'right' })
     await expect(page.getByText(/Edit \d rows/)).toBeVisible({ timeout: 3000 })
     await expect(page.getByText(/Copy \d rows/)).toBeVisible()

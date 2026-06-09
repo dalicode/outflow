@@ -35,6 +35,10 @@ async function openScheduleModal(page: Page) {
   return dialog
 }
 
+async function setScheduleDateInput(dialog: ReturnType<Page['getByRole']>, value: string) {
+  await dialog.locator('input[type="text"]').first().fill(value)
+}
+
 test.describe('Schedules — desktop', () => {
   test.beforeEach(async ({ page }) => {
     await resetAppState(page, {
@@ -49,6 +53,10 @@ test.describe('Schedules — desktop', () => {
   test('creates schedules through the modal for every schedule type', async ({ page }) => {
     const fixedExpenseName = 'Rent'
     const expenseDate = new Date()
+    expenseDate.setMonth(expenseDate.getMonth() + 1)
+    const futureMonthInput = formatDateForInput(
+      new Date(expenseDate.getFullYear(), expenseDate.getMonth(), 1),
+    )
     const expenseDateInput = formatDateForInput(expenseDate)
 
     await addFixedExpense(page, { name: fixedExpenseName, amount: 1200 })
@@ -58,6 +66,7 @@ test.describe('Schedules — desktop', () => {
     expect(groceriesCategory?.id).toBeTruthy()
 
     let dialog = await openScheduleModal(page)
+    await setScheduleDateInput(dialog, futureMonthInput)
     await dialog.getByTestId('schedule-value-input').fill('6000')
     await dialog.getByTestId('schedule-notes-input').fill('Salary increase')
     await dialog.getByTestId('btn-save-schedule').click()
@@ -65,6 +74,7 @@ test.describe('Schedules — desktop', () => {
 
     dialog = await openScheduleModal(page)
     await selectDesktopDropdownOption(page, 'Schedule type', 'Auto Savings %')
+    await setScheduleDateInput(dialog, futureMonthInput)
     await dialog.getByTestId('schedule-value-input').fill('20')
     await dialog.getByTestId('schedule-notes-input').fill('Boost savings')
     await dialog.getByTestId('btn-save-schedule').click()
@@ -72,6 +82,7 @@ test.describe('Schedules — desktop', () => {
 
     dialog = await openScheduleModal(page)
     await selectDesktopDropdownOption(page, 'Schedule type', 'Fixed Expense')
+    await setScheduleDateInput(dialog, futureMonthInput)
     await selectDesktopDropdownOption(page, 'Fixed expense', fixedExpenseName)
     await dialog.getByTestId('schedule-value-input').fill('1350')
     await dialog.getByTestId('schedule-notes-input').fill('Lease renewal')
