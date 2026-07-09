@@ -182,6 +182,20 @@ describe('ExpenseForm', () => {
   beforeEach(() => {
     mockPayees = []
     vi.clearAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('defaults the add form date to the current local day', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-08T12:00:00-04:00'))
+
+    render(
+      <ToastProvider>
+        <ExpenseForm onClose={vi.fn()} categories={categories} />
+      </ToastProvider>,
+    )
+
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-07-08')
   })
 
   it('shows category validation as a warning toast without inline error text', async () => {

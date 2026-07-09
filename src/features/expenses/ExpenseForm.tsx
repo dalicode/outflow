@@ -26,12 +26,14 @@ import TagMultiSelect from '../../components/inputs/TagMultiSelect'
 const CategoryModal = lazy(() => import('../categories/CategoryModal'))
 const PayeeModal = lazy(() => import('../payees/PayeeModal'))
 
-const EMPTY_FORM = {
-  date: getLocalToday(),
-  categoryId: '',
-  payeeId: '',
-  notes: '',
-  amount: '',
+function getEmptyForm() {
+  return {
+    date: getLocalToday(),
+    categoryId: '',
+    payeeId: '',
+    notes: '',
+    amount: '',
+  }
 }
 
 function getFormFromExpense(expense: Expense) {
@@ -87,7 +89,7 @@ export default function ExpenseForm({
   const moneyConfig = resolveMoneyLocaleConfig(settings.currencySymbol)
 
   const [form, setForm] = useState(() => {
-    if (!isEdit || !initialExpense) return EMPTY_FORM
+    if (!isEdit || !initialExpense) return getEmptyForm()
     const base = getFormFromExpense(initialExpense)
     return {
       ...base,
@@ -479,7 +481,7 @@ export default function ExpenseForm({
       triggerSync?.()
     }
     haptics.success()
-    setForm(EMPTY_FORM)
+    setForm(getEmptyForm())
     setSelectedTagIds([])
   }
 
