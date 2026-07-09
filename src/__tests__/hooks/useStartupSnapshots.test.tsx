@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useStartupSnapshots } from '@/hooks/useStartupSnapshots'
+import { runSnapshotMaintenance, useStartupSnapshots } from '@/hooks/useStartupSnapshots'
 
 const {
   hasActiveUnmaterializedDueSchedule,
@@ -42,6 +42,7 @@ describe('useStartupSnapshots', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     materializePendingSnapshots.mockResolvedValue([])
@@ -99,6 +100,22 @@ describe('useStartupSnapshots', () => {
       'lastSnapshotMaintenanceDayKey',
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     )
+  })
+
+  it('stores the actual current maintenance day when startup crosses midnight', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-08T23:59:59'))
+
+    const showToast = vi.fn()
+
+    materializePendingSnapshots.mockImplementation(async () => {
+      vi.setSystemTime(new Date('2026-07-09T00:00:01'))
+      return []
+    })
+
+    await runSnapshotMaintenance({ showToast })
+
+    expect(setLocalSetting).toHaveBeenCalledWith('lastSnapshotMaintenanceDayKey', '2026-07-09')
   })
 
   it('skips same-day maintenance when there is no newly due schedule', async () => {

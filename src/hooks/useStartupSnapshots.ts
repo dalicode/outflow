@@ -66,7 +66,7 @@ export async function runSnapshotMaintenance({
   warningMessage = STARTUP_SNAPSHOT_WARNING,
 }: RunSnapshotMaintenanceParams): Promise<SnapshotMaintenanceResult> {
   console.debug(`[${debugLabel}] begin`)
-  const todayKey = getLocalDayKey()
+  const startedDayKey = getLocalDayKey()
   let shouldRunMaintenance = true
 
   try {
@@ -75,10 +75,10 @@ export async function runSnapshotMaintenance({
       hasActiveUnmaterializedDueSchedule(),
     ])
     shouldRunMaintenance =
-      !lastMaintenanceDayKey || lastMaintenanceDayKey !== todayKey || hasDueSchedule
+      !lastMaintenanceDayKey || lastMaintenanceDayKey !== startedDayKey || hasDueSchedule
     console.debug(`[${debugLabel}] gate`, {
       lastMaintenanceDayKey,
-      todayKey,
+      todayKey: startedDayKey,
       hasDueSchedule,
       shouldRunMaintenance,
     })
@@ -123,7 +123,7 @@ export async function runSnapshotMaintenance({
         `[${debugLabel}] rolloverSnapshots timed out`,
       )
       await withTimeout(
-        StorageService.setLocalSetting(LAST_SNAPSHOT_MAINTENANCE_DAY_KEY, todayKey),
+        StorageService.setLocalSetting(LAST_SNAPSHOT_MAINTENANCE_DAY_KEY, getLocalDayKey()),
         STARTUP_SNAPSHOT_TIMEOUT_MS,
         `[${debugLabel}] lastSnapshotMaintenanceDayKey update timed out`,
       )
